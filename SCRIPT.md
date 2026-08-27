@@ -147,6 +147,28 @@ that talks more._
 _Never say "that's okay". It is not the mentor's to forgive and the phrase makes it a
 transgression. Move to §4 without a transition sentence._
 
+### When it is the third week running
+
+_Fires when the commitment has come back undone several weeks consecutively. The mentor
+asks. It does not conclude, and it does not change how it speaks to the person on its
+own — see the precedent in DECISIONS.md._
+
+`nothing.pattern`
+> "Third week running — is the goal wrong, or is something else going on?"
+
+_Both halves are offered flatly, as equals. The system cannot tell over-promising apart
+from a hard few months — illness, work, something at home — and they need opposite
+responses, so the only honest move is to ask the person. Then wait, properly. This is a
+question that earns a long pause._
+
+_If the answer is that the goal is wrong: renegotiate it in §6, smaller._
+
+_If the answer is that something else is going on: drop the accountability frame for the
+rest of the call. Do not return to the commitment. If it reaches distress → §10._
+
+_The same detection raises a flag for human review. That is a separate path and the user
+never hears it._
+
 ---
 
 ## 4. What got in the way
@@ -231,27 +253,35 @@ priorities, which is real work and worth doing. Its weakness is exactly the risk
 "would make the week count" invites a grand answer, so it is the variant most likely to
 get a performed commitment from someone having a good week._
 
-### Variant B — remove the audience
+_**C is the default.** A and B are alternates._
+
+### Variant B — no reward for the impressive answer (alternate)
 
 `next.ask.b`
-> "One thing for next week. The boring true one rather than the impressive one — there's
-> nobody here to be impressive for."
+> "One thing for next week — the boring true one rather than the impressive one. Nothing
+> happens if it's small. If it isn't true, we just do this again next week."
 
-_Names the failure mode out loud and takes the audience away, because performance needs
-one. The most direct fix for the honesty problem and the one to reach for by default.
-Its cost: an honest person can hear it as an accusation the first time, so it wants a
-light delivery — dry, not pointed._
+_Names the failure mode and removes the payoff for inflating: there is no penalty for a
+small commitment, and the cost of an untrue one is having this same conversation again._
 
-### Variant C — a prediction, not a promise
+_**Do not reintroduce the earlier phrasing of this line.** It said there was nobody here
+to be impressive for. That is false — the call is transcribed, summarised, emailed back
+and tracked across weeks, and flagged calls are read by a person. Any rewrite of this
+line must stay true against PRIVACY.md. A line the privacy policy contradicts is worse
+than a line that doesn't land._
+
+_Cost: an honest person can hear it as an accusation the first time, so it wants a dry
+delivery rather than a pointed one._
+
+### Variant C — a prediction, not a promise (**default**)
 
 `next.ask.c`
 > "Not what you should do next week. What's one thing you'd bet on yourself actually
 > doing?"
 
-_Changes what is being asked for. An intention can be inflated at no cost; a prediction
-can be wrong, and people are far better calibrated when they think they are forecasting
-rather than promising. The sharpest of the three and the right one for a user whose
-commitments keep coming back undone._
+_Changes what is being asked for, and this is the strongest idea in the section. An
+intention can be inflated at no cost; a prediction can be wrong, and people are markedly
+better calibrated when they believe they are forecasting rather than promising._
 
 _Optional probe, only if the answer arrives too fast or too big:_
 

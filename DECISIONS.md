@@ -124,10 +124,46 @@ differently — A forces a choice, B removes the audience, C asks for a predicti
 than a promise. Recorded because the variants are not stylistic; each is a different
 hypothesis about why people perform, and the point is to learn which is true.
 
-**B is the default; C is the adaptive target.** A user whose commitments repeatedly come
-back undone is over-promising, and switching them to the prediction framing is a
-per-user adaptation the learning loop can make from data we already collect. First
-concrete instance of the profile changing the script rather than only the endpointing.
+**C is the default** — the prediction framing. An intention inflates at no cost; a
+prediction can be wrong, and people are markedly better calibrated forecasting than
+promising. A and B are alternates.
+
+**Variant B was rewritten because it was untrue.** It said "there's nobody here to be
+impressive for". There is: the call is transcribed, summarised, emailed back, tracked
+across weeks, and flagged calls are read by a person. The replacement removes the payoff
+for inflating rather than making a claim about who is listening. Any future rewrite of
+this line must stay true against PRIVACY.md.
+
+**The automatic B-to-C switch on repeated undone commitments is dropped.** Repeated
+misses could mean over-promising, or could mean someone is having a hard few months —
+illness, work, something at home. The data cannot tell those apart, and they need
+opposite responses. Automatically moving a struggling person to a more sceptical framing
+at their lowest point, with nobody noticing, is the wrong call.
+
+Detection stays. The automation goes. Instead the mentor asks — `nothing.pattern`,
+"Third week running — is the goal wrong, or is something else going on?" — and the same
+detection raises a flag for human review.
+
+---
+
+## Precedent — what the profile may change without asking
+
+**The profile may change HOW the mentor listens without asking. Changing WHAT IT SAYS
+ABOUT THE USER needs a human in the loop.**
+
+| Allowed automatically | Needs a human, or needs asking the user |
+|---|---|
+| Endpointing threshold from measured pause distribution | Switching to a more sceptical or more challenging framing |
+| Patience on a known long-pauser | Any line premised on a conclusion about their character or motives |
+| Formality and time formats from locale | Any change that treats a pattern as evidence of a failing |
+| Which topics to handle with care | Anything the user would experience as being judged |
+
+The test: if the adaptation changes how well we hear someone, it can happen on its own.
+If it changes what we are implying about them, it cannot — a person reviews it, or the
+mentor asks the person directly and takes their answer at face value.
+
+This holds for the fleet layer too. Aggregate learning may move defaults for listening;
+it may never move what the mentor asserts about an individual.
 
 **`nothing.c` — the bare "Mm." — is the stress-test default.** It is the variant that
 fails hardest when endpointing is wrong, which is precisely why it runs during the test.
