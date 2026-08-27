@@ -1,0 +1,22 @@
+{
+  "name": "@8and80/voice",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test test/*.test.ts",
+    "serve": "tsx src/server.ts",
+    "stress": "tsx src/stress.ts"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "telnyx": "^7.17.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.0",
+    "@types/ws": "^8.5.12",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}

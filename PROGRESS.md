@@ -1,62 +1,96 @@
 # PROGRESS
 
-**Milestone 0a — done, plus your corrections. Stopped. Not starting 0b.**
+**Milestone 0b — built and tested. It has not rung your phone yet, and I could not make
+it do so from here. Three things needed, below.**
 
-## Read this before you push your rewrite
+## What you need to do to hear it
 
-**SCRIPT.md changed after your last message — pull before you push.** I added the three
-commitment-ask variants and marked `nothing.c` as the stress-test default, both in §3 and
-§6. If you rewrote from the earlier version, `git pull --rebase` and reconcile §6; nothing
-else in the file moved.
+I can't place the call from this environment. Nothing is wrong with the code — the
+environment is the wrong shape for it:
 
-## Your .env question — confirmed
+1. **No `.env` here.** The container clones the repo fresh and `.env` is gitignored, so
+   your keys never arrived. Expected, just worth saying plainly.
+2. **Nothing can reach this container inbound.** Telnyx has to open a websocket *to* the
+   voice service. A cloud container behind no public hostname cannot receive that, with
+   or without keys.
+3. **Vendor docs were blocked.** `docs.x.ai`, `docs.telnyx.com` and
+   `platform.openai.com` are all refused by this environment's egress policy.
 
-- `.env` is gitignored (`.gitignore:2`), along with every `.env.*`.
-- `.env.example` is explicitly un-ignored and is committed. Verified with
-  `git check-ignore` and `git add --dry-run`, not by eye.
-- Every key documented, **no values** — checked mechanically, every line after `=` is
-  empty. Defaults are described in comments rather than set.
-- Keys are grouped by the milestone that first needs them. Everything past 0b is
-  documented ahead of use so the shape is visible; nothing reads it yet.
-- One thing worth seeing: the encryption master key is deliberately **not** an env var.
-  Only `ENCRYPTION_MASTER_KEY_REF` — a pointer into the secret manager — appears.
+So, on your machine:
 
-## Done this session
+```bash
+git pull && npm install
+cp .env.example .env      # fill in the six keys the README lists
+npm run stress            # prints the 8 turns, places the call, then asks for scores
+```
 
-- **Three variants of the commitment ask** (SCRIPT.md §6). A forces a choice, B removes
-  the audience — *"there's nobody here to be impressive for"* — C asks for a prediction
-  rather than a promise, plus an optional calibration probe. B is my default; C is the
-  one to switch a chronic over-promiser to.
-- **Closing-question variants kept.** Both sets now live side by side.
-- **`nothing.c` marked stress-test default**, with your reasoning written into the file
-  so it doesn't get "improved" later.
-- **ARCHITECTURE.md written**, including caller identity as you corrected it.
-- **DECISIONS.md updated** — the caller-identity row rewritten, plus a full section on
-  the resolution and the number-provisioning constraints.
-- **.env.example committed.**
+`VOICE_WS_PUBLIC_URL` needs to be publicly reachable — a tunnel is fine for this.
+
+**Before that call: skim [docs/VERIFY.md](docs/VERIFY.md).** It is a short checklist of
+exactly which wire details I could not confirm against real documentation, and the one
+that matters most is flagged.
+
+## The finding that changed the design
+
+**Grok's turn detection is silence timing only** — `server_vad` with a
+`silence_duration_ms`, and nothing else. No semantic or context-aware mode exists. The
+LiveKit plugin's default is 200ms, which would cut off a thinking pause before it began.
+
+Your hardest requirement says context-aware turn detection, never silence timing alone.
+The chosen stack cannot do it. So the provider's VAD is switched off and we decide turns
+ourselves, using the partial transcript, whether the question was a hard one, and the
+user's own measured pauses. Every rule only ever adds patience; none subtracts it.
+
+This is more work than delegating it, and it is better: the logic is provider-neutral, so
+the part of the system that most differentiates the product no longer lives inside a
+vendor. It survives a stack swap intact.
+
+Not a decision I need from you — but if you disagree, this is the moment.
+
+## Done
+
+- **Voice service** — long-running Node, one websocket per call, PCMU end to end with no
+  transcoding in either direction.
+- **Both adapters from the first commit.** Nothing above the boundary knows which vendor
+  is beneath it. Grok's post-cancel quirk (it leaves a response in flight after an
+  interrupt) is quarantined inside `grok.ts`.
+- **Context-aware endpointer.** `ENDPOINTING_SENSITIVITY`, 0..1, default 0.25 — the
+  single documented knob, with every derived threshold logged at call start.
+- **In-call learning loop.** Correction phrases, barge-in, and the agent cutting someone
+  off all append a note to a live buffer folded into every later turn of that call. One
+  note per kind — no apology pile-up.
+- **Backchannels are not interruptions.** "mhm", "yeah", "uh huh" are recognised and
+  ignored. Stress-test item 4 has a test of its own.
+- **Time courtesy with suppression.** Each line once, never mid-turn, never within two
+  minutes of anything difficult, and if no natural break comes it is never said at all.
+- **SCRIPT.md is parsed at runtime** — 40 keyed lines. Rewrite a line and the next call
+  changes. No code touches English.
+- **`npm run stress`** — repeatable, prints the 8 turns with 1, 2 and 7 starred, places
+  the call, collects the five scores, writes them with the objective metrics to `runs/`.
+- **32 tests, all passing.** Including the full call loop driven on a fake clock against
+  a mock provider: a 5-second pause is held, the turn then completes, audio reaches the
+  caller, and metrics are recorded. Plus a scrubbing test proving no phone number, email
+  or transcript can reach a log.
+- `npm run check` — typecheck, lint, tests — green.
+
+One real bug the tests caught: "uh huh" was not in the backchannel set, so it would have
+been counted as an interruption. That is stress-test item 4 failing, found before you
+ever heard it.
 
 ## Waiting on you
 
-1. **Your SCRIPT.md rewrite.** Nothing starts until it lands.
-2. Nothing else is blocked.
-
-## Next — Milestone 0b, on your signal
-
-Thinnest thing that rings your phone and holds a conversation from SCRIPT.md. Voice
-adapter and telephony adapter from the first commit. Then the 8-turn stress test as a
-repeatable command, the scoring prompt, and per-call metrics.
-
-Noted: temporary non-Norwegian test number is fine, dev keys, call to yourself. Number
-provisioning constraints are recorded for when we buy the real one.
-
-What I'll need in `.env` when you say go: `XAI_API_KEY`, `TELNYX_API_KEY`,
-`TELNYX_CONNECTION_ID`, `TELNYX_PUBLIC_KEY`, `OUTBOUND_CALLER_NUMBER` (the temporary
-one), `STRESS_TEST_TARGET_NUMBER` (your mobile).
+1. Run it and hear it. That is the whole of 0b.
+2. Then your SCRIPT.md rewrite, with the call in your ear rather than on the page.
 
 ## Notes
 
-- §10 of the script — serious disclosure — is still behaviour-only. Wording at
-  Milestone 5, for your review before it can reach anyone.
-- Norwegian +47 termination rates, Telnyx vs Twilio: still open. Pulled when the
-  telephony adapter is real.
-- No vendor docs fetched yet. That happens when integration code does, not from memory.
+- Cost is reported as `null`, not estimated. No current Norwegian termination rate, no
+  confirmed voice-model price, and an invented number in a cost model is worse than an
+  empty field. Set `TELEPHONY_RATE_PER_MIN` and `VOICE_MODEL_RATE_PER_MIN` when you have
+  them and it fills in.
+- `TURN_TAKING=provider` exists as a debug fallback. Not for real users, and the stress
+  test prints which mode ran so a score can never be attributed to the wrong one.
+- Script §10, serious disclosure, is still behaviour-only. Wording at Milestone 5, for
+  your review before it can reach anyone.
+- The MCP server "Trale" needs authorising before this session can use it — via your
+  claude.ai connector settings. It played no part in any of the above.

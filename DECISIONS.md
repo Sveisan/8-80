@@ -174,6 +174,64 @@ disclosure. Confirmed.
 
 ---
 
+## Milestone 0b — the finding that changed the design
+
+**Grok's turn detection is silence timing only, and the brief forbids exactly that.**
+
+The voice provider offers one turn-detection mode: `server_vad`, configured with
+`threshold`, `silence_duration_ms` and `prefix_padding_ms`. There is no semantic or
+context-aware mode. (Confirmed from the `XAITurnDetection` type in
+`@mastra/voice-xai-realtime` 0.2.7 and the defaults in `@livekit/agents-plugin-xai`
+1.7.1, whose default is `silence_duration_ms: 200`. Two hundred milliseconds would cut
+off a thinking pause before it had started.)
+
+The brief's hardest requirement is "context-aware turn detection, never silence timing
+alone". The chosen stack cannot provide it. That is not a reason to change stacks — it is
+a reason to own the behaviour ourselves, which is where it belonged anyway.
+
+**Decision: we disable the provider's VAD (`turn_detection: null`) and decide turns in
+our own service.** `TURN_TAKING=local` is the default. The endpointer measures inbound
+audio energy and applies context:
+
+| Context | Effect on patience |
+|---|---|
+| Sentence trailed off mid-clause ("...because") | Extended to the trailing-clause budget |
+| One- or two-word answer | Extended — the placeholder usually precedes the real answer |
+| Nothing said yet in response to a question | Whole line held open |
+| The question was a hard one (`nothing.*`, `read.neither`, `next.ask.*`) | × 1.6 |
+| The user's own measured pause distribution | Per-user offset |
+
+Every rule only ever ADDS patience. There is no rule that shortens a wait.
+
+Two consequences worth recording:
+
+1. **This logic is provider-neutral**, so it survives a stack swap intact. Having to
+   build it turns out to strengthen the insurance rather than weaken it — the thing that
+   most differentiates the product no longer lives inside a vendor.
+2. `TURN_TAKING=provider` exists as a debug fallback only. It is not a supported mode for
+   real users, and the stress test prints which mode it ran in so a score can never be
+   attributed to the wrong one.
+
+**`ENDPOINTING_SENSITIVITY` (0..1, default 0.25) is the single documented knob**, as the
+brief requires. Every threshold above is derived from it, and the derived values are
+logged at call start so any run is reproducible.
+
+**PCMU end to end, no transcoding.** PCMU 8 kHz is the Telnyx default and is also an
+accepted provider format, so call audio passes through untouched in both directions.
+µ-law is decoded only to measure energy for turn detection, never in the audio path.
+
+**Cost is reported as null, not estimated.** We have no current Norwegian termination
+rate and no confirmed voice-model price. A made-up number in a cost model is worse than
+an empty field, so `cost` stays null until `TELEPHONY_RATE_PER_MIN` and
+`VOICE_MODEL_RATE_PER_MIN` are set.
+
+**Vendor docs were unreachable from the build environment.** Wire details came from two
+shipping client libraries and the official Telnyx SDK types instead. Everything
+unverified is confined to two adapter files and listed in docs/VERIFY.md, to be checked
+against real documentation before the first call to anyone.
+
+---
+
 ## Open — needs a decision or a number
 
 - **Norwegian (+47) mobile termination rates, Telnyx vs Twilio.** The one input in the

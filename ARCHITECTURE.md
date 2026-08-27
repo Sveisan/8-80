@@ -52,15 +52,40 @@ interface may know which vendor is beneath it.
 The voice adapter matters most. Grok was chosen without a bake-off against the model that
 leads on conversational dynamics, so the ability to switch is the insurance that makes
 that choice reversible. Everything Grok-shaped — event names, audio framing, session
-config — stops at the adapter boundary.
+config, and the post-cancel quirk where it leaves a response in flight — stops at the
+adapter boundary.
+
+## Turn-taking lives here, not at the provider
+
+The provider offers silence timing only (`server_vad`: threshold plus
+`silence_duration_ms`). Silence timing alone cuts off the pause this product exists to
+hold, and it does it most often to the person having the hardest week. So the provider's
+VAD is switched off and the `voice` service decides turns itself, using context:
+
+```
+inbound PCMU ──▶ energy ──▶ endpointer ──▶ silence budget ──▶ respond()
+                              ▲
+                    partial transcript (trailed off mid-clause? one word?)
+                    last agent turn    (was it a hard question?)
+                    user profile       (their measured pause distribution)
+```
+
+Every rule adds patience; none subtracts it. `ENDPOINTING_SENSITIVITY` (0..1, default
+0.25) is the single knob, and the derived thresholds are logged at call start.
+
+The consequence worth noticing: this logic is provider-neutral, so the part of the system
+that most differentiates the product does not live inside a vendor and survives a stack
+swap intact.
 
 ## The call, end to end
 
 1. Scheduler fires at the user's slot. Never outside their chosen window.
 2. Telephony adapter places the call from the fixed +47 number. Rings ~25 seconds.
 3. No answer → hang up, **never** voicemail, one warm SMS, missed-call flow.
-4. Answer → voice service opens the model session with a cached system prompt built from
-   the user's profile, last week's commitment, and their communication preferences.
+4. Answer → voice service opens the model session with a system prompt built at call
+   time from SCRIPT.md plus the user's profile, last week's commitment in their own
+   words, and their communication preferences. SCRIPT.md is parsed at runtime, so
+   rewriting a line changes the next call with no code change.
 5. Turn loop. Audio is bridged in memory. Context-aware turn detection, never silence
    timing alone. Every turn logs endpoint latency and any barge-in.
 6. In-call learning: a detected failure appends a correction note to a live buffer that
