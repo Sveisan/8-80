@@ -21,7 +21,7 @@ Newest at the bottom of each section.
 | No raw audio stored by default | Transcript is enough for the product. Audio is the highest-risk data we could hold and we'd hold it for nothing |
 | Application-layer encryption for transcripts and summaries | Disk encryption does not protect against a compromised app or an over-broad query. Per-user data key wrapped by a master key held outside the database |
 | No card in signup; phone verification is the gate; capacity-capped free tier | A card gate costs more signups than it saves in abuse. Verified phone is both the trust gate and the abuse gate |
-| One fixed +47 number, never rotated | Norway has no CNAM equivalent, so recipients see a number rather than a name. The number itself is the only trust signal we get, and it only works if it never changes |
+| One fixed +47 mobile number for voice and SMS, never rotated | See **Caller identity — resolved** below. Corrected after the brief: the constraint is harder than "no CNAM" |
 | Never leave a voicemail | An AI voice on voicemail is uncanny and burns synthesis for nothing |
 | Billing decision made in advance, never mid-call | Someone thirty minutes into a hard conversation cannot evaluate a price, and a verbal "your hour is up" is not consent to be charged |
 | Culture asked, never inferred. Locale sets starting defaults only | Inferring origin, ethnicity or religion from a voice is Article 9 special-category data, legally exposed, and exactly the quiet stereotyping that would make the product worse |
@@ -73,6 +73,68 @@ can reopen a hard call at the exact moment the user was ready to be finished.
 
 **§10 wording is deliberately absent.** Behaviour is specified so the script is complete;
 the words are drafted at Milestone 5 and reviewed before they can reach a user.
+
+---
+
+## Caller identity — resolved
+
+**Correction to the brief.** The original framing left open whether calls could show a
+name. They cannot, and the constraint is harder than "Norway has no CNAM".
+
+- **Voice caller ID cannot be alphanumeric.** PSTN caller ID carries a number, full stop.
+  There is no branded caller ID to buy, from any provider, at any price.
+- **Norway has no CNAM-style name lookup**, so no carrier resolves our number into a name
+  on the recipient's screen either.
+- Together: the product name can never appear on a Norwegian handset from the carrier
+  side. This is not a thing to revisit when we have more budget.
+- **Alphanumeric SMS sender IDs do exist in Norway** — eleven characters,
+  pre-registration required — and are **rejected**. They are one-way. A user cannot reply
+  to an alphanumeric sender, and the missed-call SMS depends entirely on being replied to.
+  Trading the reply path for a name on an SMS would break the most important recovery
+  moment in the product to win a cosmetic one.
+
+**Decision: one fixed +47 mobile number, every call and every SMS, never rotated.**
+
+**Decision: the onboarding vCard is a primary feature, not a convenience.** Since the
+carrier will never show the name, the user's own address book is the only channel through
+which it ever reaches the screen. Full spec in ARCHITECTURE.md. The detail that decides
+whether it works at all: the `TEL` value must match the caller ID we present, exactly, in
+E.164 — handset contact matching is a string match, and a format mismatch fails silently
+with no error anywhere in our system.
+
+### Provisioning constraints, recorded before we buy
+
+Norwegian mobile numbers are eight digits and mobile ranges start with 4 or 9. Search
+Telnyx `+47` inventory for numbers containing **0880** or **8080**. Wanted shapes:
+`900 08 800` (`+4790008800`) and `400 08 800` (`+4740008800`).
+
+**Avoid 800, 815 and 820 prefixes entirely.** They are service-number ranges and read as
+telemarketing to a Norwegian recipient — exactly the association an unknown incoming
+number cannot afford here. Recorded because a memorable pattern will eventually turn up
+in one of them and look tempting.
+
+---
+
+## Milestone 0a — follow-ups
+
+**Three variants of the commitment ask**, not just the closing question. This line runs
+every call, and the failure mode is not vagueness but impressiveness: people name the
+commitment that sounds like the person they'd like to be. Each variant disarms that
+differently — A forces a choice, B removes the audience, C asks for a prediction rather
+than a promise. Recorded because the variants are not stylistic; each is a different
+hypothesis about why people perform, and the point is to learn which is true.
+
+**B is the default; C is the adaptive target.** A user whose commitments repeatedly come
+back undone is over-promising, and switching them to the prediction framing is a
+per-user adaptation the learning loop can make from data we already collect. First
+concrete instance of the profile changing the script rather than only the endpointing.
+
+**`nothing.c` — the bare "Mm." — is the stress-test default.** It is the variant that
+fails hardest when endpointing is wrong, which is precisely why it runs during the test.
+A chattier variant would paper over a turn-detection problem and we would ship it.
+
+**`close.q.b` stays, with auto-suppression** on any call that touched a serious
+disclosure. Confirmed.
 
 ---
 

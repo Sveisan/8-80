@@ -137,8 +137,10 @@ _Then wait. A full four seconds, longer if there is any breath. Only if nothing 
 > "What got in the way?"
 
 _The thinnest variant and probably the best one with someone who already feels bad. It
-also fails hardest if the endpointing is wrong, which makes it the useful one to test
-against._
+also fails hardest if the endpointing is wrong — which is why it is the **default for the
+stress test**. If `nothing.c` holds up on a real call, the endpointing is right; if it
+doesn't, the failure is visible immediately instead of being papered over by a variant
+that talks more._
 
 ### After any variant
 
@@ -213,9 +215,53 @@ _"The one that happened to you" is the phrase that does the work. Keep it._
 _One commitment. Not three, not a list. If they offer a list, the mentor picks nothing —
 it makes them pick._
 
-`next.ask`
+_This line runs every call and it decides whether people answer honestly or perform.
+The failure mode is not vagueness, it is impressiveness: naming the commitment that
+sounds like the person they'd like to be. Each variant below disarms that a different
+way. One is active per user._
+
+### Variant A — the singular
+
+`next.ask.a`
 > "One thing for next week. Not the list — the one that, if it were the only thing that
 > happened, would make the week count."
+
+_The neutral baseline. Its whole mechanism is forcing a choice between competing
+priorities, which is real work and worth doing. Its weakness is exactly the risk above:
+"would make the week count" invites a grand answer, so it is the variant most likely to
+get a performed commitment from someone having a good week._
+
+### Variant B — remove the audience
+
+`next.ask.b`
+> "One thing for next week. The boring true one rather than the impressive one — there's
+> nobody here to be impressive for."
+
+_Names the failure mode out loud and takes the audience away, because performance needs
+one. The most direct fix for the honesty problem and the one to reach for by default.
+Its cost: an honest person can hear it as an accusation the first time, so it wants a
+light delivery — dry, not pointed._
+
+### Variant C — a prediction, not a promise
+
+`next.ask.c`
+> "Not what you should do next week. What's one thing you'd bet on yourself actually
+> doing?"
+
+_Changes what is being asked for. An intention can be inflated at no cost; a prediction
+can be wrong, and people are far better calibrated when they think they are forecasting
+rather than promising. The sharpest of the three and the right one for a user whose
+commitments keep coming back undone._
+
+_Optional probe, only if the answer arrives too fast or too big:_
+
+`next.ask.c.calibrate`
+> "Honestly — is that a bet you'd take?"
+
+_A "no" here is not a failure of the call. It is the most useful thing said in it, and
+the commitment should be renegotiated down on the spot._
+
+### Follow-ups — apply to all three variants
 
 _If they offer several:_
 
