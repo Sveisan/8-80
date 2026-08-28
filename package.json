@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "test": "npm run -ws --if-present test",
     "stress": "npm run -w @8and80/voice stress",
-    "check": "npm run typecheck && npm run lint && npm run test"
+    "check": "npm run typecheck && npm run lint && npm run test",
+    "replay": "npm run -w @8and80/voice replay"
   },
   "devDependencies": {
     "@eslint/js": "^9.13.0",

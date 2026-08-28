@@ -32,6 +32,16 @@ export function endpointing(sensitivity = num('ENDPOINTING_SENSITIVITY', 0.25)) 
     shortAnswerMs: scale(3800, 1100),
     /** Multiplier after a question the script marks as hard. */
     hardQuestionFactor: 1.6,
+    /**
+     * Within-turn pause memory. If someone has already paused and resumed once
+     * in this turn, they are speaking in fragments right now, and the next
+     * pause gets at least this multiple of the longest one we have seen.
+     * No lexical rule catches "I've been finding it hard" — a complete clause
+     * in the middle of a disclosure — but this does.
+     */
+    withinTurnPauseFactor: +(2.2 + (1.2 - 2.2) * s).toFixed(2),
+    /** Ceiling on that boost, so one long pause cannot make the rest glacial. */
+    withinTurnMaxMs: scale(6000, 2000),
     /** Absolute ceiling, so a dead line cannot hang the call forever. */
     maxWaitMs: num('ENDPOINTING_MAX_WAIT_MS', 9000),
     /** Below this, inbound speech is treated as backchannel, not a turn. */

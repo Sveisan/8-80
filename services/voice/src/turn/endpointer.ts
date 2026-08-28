@@ -12,11 +12,28 @@ import type { Endpointing } from '../config.ts';
  * Default on a pause is always to WAIT. The rules below only ever ADD patience.
  */
 
+/**
+ * Words that almost never end a finished thought. "it", "its" and "that" are
+ * deliberately absent: as a final word they usually complete an object
+ * ("I was avoiding it") rather than trail off, and treating them as trailing
+ * made the agent wait absurdly long at the end of ordinary sentences.
+ */
 const TRAILING = new Set([
-  'and','but','so','because','cause','that','the','a','to','i','it','its',
-  'like','just','um','uh','erm','well','maybe','if','or','then','my','was',
-  'were','is','im','ive','id','we','they','he','she','you','of','for','with',
-  'honestly','actually','kind','sort',
+  // conjunctions and subordinators
+  'and','but','so','because','cause','or','if','then','than','when','while',
+  'after','before','since','as','though','although','unless','whether',
+  // prepositions — the commonest real-world giveaway of an unfinished clause
+  'on','in','at','to','from','about','into','over','under','up','out','off',
+  'with','of','for','by','through','around','between','without','towards',
+  // articles and determiners
+  'the','a','an','my','your','our','their','this','these','those','some','any',
+  // pronouns and auxiliaries left hanging
+  'i','im','ive','id','we','they','he','she','you','was','were','is','are','am',
+  'been','being','have','has','had','will','would','could','should','might',
+  'must','do','does','did','get','got','going','gonna',
+  // hedges and fillers
+  'like','just','um','uh','erm','well','maybe','honestly','actually','kind',
+  'sort','really','very','quite','still','always','never','also','too',
 ]);
 
 /** Short acknowledgements while the agent speaks. Never a turn, never an interruption. */
@@ -34,6 +51,8 @@ export interface TurnContext {
   lastTurnWasHard: boolean;
   /** Per-user learned offset in ms, from their measured pause distribution. */
   userPatienceOffsetMs?: number;
+  /** Longest pause they have already paused-and-resumed through in THIS turn. */
+  longestPauseInTurnMs?: number;
 }
 
 export function normalise(text: string): string {
@@ -69,6 +88,14 @@ export function silenceBudgetMs(ctx: TurnContext, cfg: Endpointing): number {
   if (words.length === 0) budget = Math.max(budget, cfg.trailingClauseMs);
 
   if (ctx.lastTurnWasHard) budget *= cfg.hardQuestionFactor;
+
+  // They have already stopped and started again in this turn. Whatever the
+  // words say, they are thinking in fragments, and the next gap deserves at
+  // least as much room as the last one they came back from.
+  const seen = ctx.longestPauseInTurnMs ?? 0;
+  if (seen > 0) {
+    budget = Math.max(budget, Math.min(seen * cfg.withinTurnPauseFactor, cfg.withinTurnMaxMs));
+  }
 
   budget += ctx.userPatienceOffsetMs ?? 0;
 

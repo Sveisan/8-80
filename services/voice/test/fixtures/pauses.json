@@ -1,0 +1,93 @@
+[
+  {
+    "id": "pause-3s-midsentence",
+    "description": "Stress turn 1. Three-second pause in the middle of a sentence.",
+    "trueEndMs": 6000,
+    "durationMs": 12000,
+    "segments": [
+      { "startMs": 0, "endMs": 1500, "text": "I did the run on" },
+      { "startMs": 4500, "endMs": 6000, "text": "Tuesday morning" }
+    ]
+  },
+  {
+    "id": "pause-5s-midsentence",
+    "description": "Stress turn 2. Five-second pause before the real answer arrives.",
+    "lastTurnWasHard": true,
+    "trueEndMs": 9000,
+    "durationMs": 16000,
+    "segments": [
+      { "startMs": 0, "endMs": 2000, "text": "I didn't do the run because" },
+      { "startMs": 7000, "endMs": 9000, "text": "honestly I think I was avoiding it" }
+    ]
+  },
+  {
+    "id": "one-word-then-the-real-answer",
+    "description": "Stress turn 7. One word, a long silence, then what they actually meant.",
+    "lastTurnWasHard": true,
+    "trueEndMs": 5800,
+    "durationMs": 12000,
+    "segments": [
+      { "startMs": 0, "endMs": 600, "text": "Nothing" },
+      { "startMs": 4200, "endMs": 5800, "text": "well I started once and stopped" }
+    ]
+  },
+  {
+    "id": "self-correction",
+    "description": "Stress turn 3. Short gap while they correct themselves.",
+    "trueEndMs": 3000,
+    "durationMs": 9000,
+    "segments": [
+      { "startMs": 0, "endMs": 1200, "text": "I did it Tuesday" },
+      { "startMs": 1800, "endMs": 3000, "text": "no wait it was Wednesday" }
+    ]
+  },
+  {
+    "id": "quiet-disclosure-fragmented",
+    "description": "The one that matters most. Someone having a hard week, three pauses, none of which may be cut. This is the person a naive VAD fails first.",
+    "lastTurnWasHard": true,
+    "trueEndMs": 8600,
+    "durationMs": 16000,
+    "segments": [
+      { "startMs": 0, "endMs": 800, "text": "I've been" },
+      { "startMs": 3300, "endMs": 4300, "text": "finding it hard" },
+      { "startMs": 7300, "endMs": 8600, "text": "to get out of bed honestly" }
+    ]
+  },
+  {
+    "id": "backchannel-only",
+    "description": "Stress turn 4. An acknowledgement, not a turn. Must never produce one.",
+    "trueEndMs": 300,
+    "expectNoTurn": true,
+    "durationMs": 8000,
+    "segments": [{ "startMs": 0, "endMs": 300, "text": "mhm" }]
+  },
+  {
+    "id": "ordinary-finished-sentence",
+    "description": "A complete, unhesitant answer. Checks the cost of patience on the common case.",
+    "trueEndMs": 2600,
+    "durationMs": 10000,
+    "segments": [{ "startMs": 0, "endMs": 2600, "text": "Yes I went three times and it was fine" }]
+  },
+  {
+    "id": "tangent-then-stop",
+    "description": "Stress turn 8. A long tangent that ends cleanly.",
+    "trueEndMs": 7000,
+    "durationMs": 14000,
+    "segments": [
+      { "startMs": 0, "endMs": 3000, "text": "which reminds me of the thing with the car last year" },
+      { "startMs": 3400, "endMs": 7000, "text": "anyway it was a whole saga and nothing came of it" }
+    ]
+  },
+  {
+    "id": "long-pauser-with-profile",
+    "description": "A habitual four-second pauser whose profile has been learned over prior calls.",
+    "lastTurnWasHard": false,
+    "patienceOffsetMs": 1500,
+    "trueEndMs": 6200,
+    "durationMs": 14000,
+    "segments": [
+      { "startMs": 0, "endMs": 1400, "text": "I suppose the honest answer is" },
+      { "startMs": 5000, "endMs": 6200, "text": "I didn't try" }
+    ]
+  }
+]

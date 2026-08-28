@@ -4,16 +4,15 @@ import { HARD_TURNS, type ScriptLines } from '../script.ts';
 import { buildInstructions, type CallerProfile } from '../prompt.ts';
 import { CallMetrics } from '../metrics.ts';
 import { rms } from '../audio/mulaw.ts';
-import { silenceBudgetMs, isBackchannel } from '../turn/endpointer.ts';
+import { isBackchannel } from '../turn/endpointer.ts';
+import { TurnDetector } from '../turn/detector.ts';
+import { FalseCutEstimator } from './falsecut.ts';
 import { CorrectionBuffer, agentCutUserOff, classifyOverlap, detectCorrectionPhrase } from './corrections.ts';
 import { Timekeeper } from './timekeeper.ts';
 import type { MediaBridge } from '../adapters/telephony/types.ts';
 import type { VoiceProvider, VoiceSession } from '../adapters/voice/types.ts';
 
 const SPEECH_RMS = Number(process.env.VAD_RMS_THRESHOLD ?? 0.035);
-/** Telnyx sends 20ms PCMU frames. */
-const FRAME_MS = 20;
-
 export interface CallOptions {
   script: ScriptLines;
   profile: CallerProfile;
@@ -39,14 +38,14 @@ export async function runCall(opts: CallOptions): Promise<CallMetrics> {
 
   const baseInstructions = buildInstructions(opts.script, opts.profile);
 
+  const detector = new TurnDetector(ep);
+  const falseCut = new FalseCutEstimator();
+
   let agentSpeaking = false;
-  let userSpeaking = false;
-  let speechStartedAt = 0;
-  let lastVoiceAt = 0;
   let partial = '';
   let lastAgentTurnId: string | undefined;
   let turnIndex = 0;
-  let pendingTurn = false;
+  let overlapHandled = false;
   let closed = false;
 
   log('call.start', {
@@ -75,13 +74,14 @@ export async function runCall(opts: CallOptions): Promise<CallMetrics> {
       onAgentSpeechStarted: () => {
         agentSpeaking = true;
         // If we started while they were still going, that is our failure.
-        if (userSpeaking && partial.trim()) {
+        if (detector.isSpeaking && partial.trim()) {
           corrections.add(agentCutUserOff());
           applyCorrections();
         }
       },
       onAgentSpeechDone: () => {
         agentSpeaking = false;
+        overlapHandled = false;
       },
       onAgentTranscript: (text, final) => {
         if (!final) return;
@@ -98,6 +98,8 @@ export async function runCall(opts: CallOptions): Promise<CallMetrics> {
         if (c) {
           corrections.add(c);
           metrics.corrections.push(c.kind);
+          falseCut.noteCorrectionPhrase();
+          metrics.falseInterruptions = falseCut.count;
           applyCorrections();
         }
       },
@@ -120,21 +122,30 @@ export async function runCall(opts: CallOptions): Promise<CallMetrics> {
 
     const t = now();
     const loud = rms(chunk) >= SPEECH_RMS;
+    const hard = !!lastAgentTurnId && HARD_TURNS.has(lastAgentTurnId);
 
-    if (loud) {
-      lastVoiceAt = t;
-      if (!userSpeaking) {
-        userSpeaking = true;
-        speechStartedAt = t;
-        pendingTurn = true;
+    detector.setContext({ lastTurnWasHard: hard, patienceOffsetMs: opts.profile.patienceOffsetMs });
+    const ev = detector.frame(loud, partial, t);
+
+    if (ev?.kind === 'speech_start') {
+      overlapHandled = false;
+      // They started again right after we handed the turn over. We were early.
+      if (falseCut.noteUserSpeech(t, partial)) {
+        metrics.falseInterruptions++;
+        corrections.add(agentCutUserOff());
+        applyCorrections();
+        log('turn.false_cut_suspected', { waited: metrics.turns.at(-1)?.endpointLatencyMs ?? null });
       }
-      // Speaking while the agent speaks: backchannel or a real barge-in?
-      if (agentSpeaking) {
-        const overlapMs = t - speechStartedAt;
+    }
+
+    // Speaking over the agent: a backchannel is not an interruption, and this is
+    // judged once per utterance rather than once per 20ms frame.
+    if (loud && agentSpeaking && !overlapHandled) {
+      const overlapMs = detector.speakingForMs(t);
+      if (overlapMs > ep.backchannelMaxMs && !isBackchannel(partial)) {
+        overlapHandled = true;
         const verdict = classifyOverlap(partial, overlapMs, ep.backchannelMaxMs);
-        if (verdict.type === 'backchannel') {
-          metrics.backchannelsIgnored++;
-        } else {
+        if (verdict.type === 'interruption') {
           metrics.bargeIns++;
           corrections.add(verdict.correction);
           metrics.corrections.push(verdict.correction.kind);
@@ -142,47 +153,31 @@ export async function runCall(opts: CallOptions): Promise<CallMetrics> {
           applyCorrections();
         }
       }
-      return;
     }
 
-    if (!userSpeaking || !pendingTurn) return;
-
-    const silenceMs = t - lastVoiceAt;
-    if (silenceMs < FRAME_MS) return;
-
-    const hard = !!lastAgentTurnId && HARD_TURNS.has(lastAgentTurnId);
-    const budget = silenceBudgetMs(
-      { partial, lastAgentTurnId, lastTurnWasHard: hard, userPatienceOffsetMs: opts.profile.patienceOffsetMs },
-      ep,
-    );
-
-    if (silenceMs < budget) return;
-
-    // Backchannel-only "turn" is not a turn.
-    if (isBackchannel(partial)) {
+    if (ev?.kind === 'backchannel_end') {
       metrics.backchannelsIgnored++;
-      userSpeaking = false;
-      pendingTurn = false;
       return;
     }
 
-    userSpeaking = false;
-    pendingTurn = false;
-    metrics.turns.push({
-      index: turnIndex++,
-      endpointLatencyMs: silenceMs,
-      budgetMs: budget,
-      reason: hard ? 'hard-turn' : partial.trim().split(/\s+/).length <= 2 ? 'short-answer' : 'base',
-      hardTurn: hard,
-    });
-    log('turn.end', { index: turnIndex - 1, waitedMs: silenceMs, budgetMs: budget, hard });
-    session.respond();
+    if (ev?.kind === 'turn_end') {
+      metrics.turns.push({
+        index: turnIndex++,
+        endpointLatencyMs: ev.waitedMs,
+        budgetMs: ev.budgetMs,
+        reason: ev.reason,
+        hardTurn: hard,
+      });
+      falseCut.noteTurnEnd(t);
+      log('turn.end', { index: turnIndex - 1, waitedMs: ev.waitedMs, budgetMs: ev.budgetMs, reason: ev.reason, hard });
+      session.respond();
+    }
   });
 
   // ---- time courtesy -------------------------------------------------------
   const timer = setInterval(() => {
     if (closed || timekeeper.finished) return;
-    const atBreak = !agentSpeaking && !userSpeaking;
+    const atBreak = !agentSpeaking && !detector.isSpeaking;
     const due = timekeeper.due(metrics.durationMs, atBreak);
     if (due && due.text) {
       log('call.time_mention', { mention: due.mention });

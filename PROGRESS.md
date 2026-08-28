@@ -77,6 +77,29 @@ One real bug the tests caught: "uh huh" was not in the backchannel set, so it wo
 been counted as an interruption. That is stress-test item 4 failing, found before you
 ever heard it.
 
+## Testing the silence problem
+
+Added since: an offline replay harness. Fixtures are timing traces — when speech started
+and stopped — not audio, so the corpus can live in the repo and grow with no privacy
+cost. Each declares when the person actually finished; ending the turn before that is a
+false cut, which is the failure that matters. The live loop and the replay run the same
+detector.
+
+    npm run replay        # what each sensitivity does to the corpus
+
+It found two real bugs on its first run: "I did the run on" scored as a finished sentence
+(no prepositions in the trailing-word set), and the fragmented disclosure was cut at 6.9s
+because "I've been finding it hard" is a grammatically complete clause. Both fixed — the
+second with within-turn pause memory.
+
+Also added: a false-cut estimator that runs on every real call, so we measure this
+continuously rather than only when you sit down to score a run.
+
+**What the numbers say, honestly.** Zero cuts at the shipping default, but the safe band
+is narrow (0.5 already cuts two of eight) and the price is several seconds of dead air on
+fragmented turns. Too blunt to be final. And the fixtures are written by me, not
+measured — a real regression gate, not evidence about human timing.
+
 ## Waiting on you
 
 1. Run it and hear it. That is the whole of 0b.

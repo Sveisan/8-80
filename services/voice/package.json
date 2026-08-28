@@ -6,7 +6,8 @@
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test test/*.test.ts",
     "serve": "tsx src/server.ts",
-    "stress": "tsx src/stress.ts"
+    "stress": "tsx src/stress.ts",
+    "replay": "tsx src/replay-cli.ts"
   },
   "dependencies": {
     "dotenv": "^16.4.5",

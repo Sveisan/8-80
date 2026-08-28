@@ -232,6 +232,73 @@ against real documentation before the first call to anyone.
 
 ---
 
+## How silence gets tested
+
+The stress test alone cannot settle this. It is n=1, and you know what is coming, so you
+will pause "correctly" without meaning to. Three layers instead, cheapest first.
+
+**1. Replay against timing traces.** A fixture is when speech started and stopped, plus
+the words so far — no audio. Timings carry no voice and nothing that identifies anyone,
+so a corpus can live in the repository and grow forever without becoming a privacy
+liability or something the retention job has to reach.
+
+Each fixture declares `trueEndMs`, the moment the person actually finished. Endpointing
+before it is a **false cut**. The live loop and the replay run the same `TurnDetector` —
+a corpus that tested a copy of the logic would be worse than none.
+
+**The two error types are not symmetric**, and the metric follows that:
+
+- A false cut talks over someone mid-thought. Silent, and worst for the person having the
+  hardest week — exactly who we cannot afford to fail.
+- Lateness is dead air. Cheap, and reads as thoughtful.
+
+So the gate is **zero false cuts first, and only then trade lateness down**. Not accuracy,
+which would average the two and hide the one that matters.
+
+**2. The false-cut estimator, on every real call.** We cannot know someone had more to
+say, but we can see its shape: we ended their turn, the agent began, and they carried
+straight on. Resumption within 1.5s of an endpoint, excluding backchannels, plus any
+correction phrase. Conservative by design — a missed cut is better than a phantom, since
+a phantom pushes us to wait longer for nothing. This is what makes every call a test
+rather than every test a call.
+
+**3. Real calls with people who do not know the script.** Five or six is enough to find
+what n=1 cannot. Nothing before this produces evidence about human timing.
+
+### What the harness found immediately
+
+Two real bugs on its first run, both in the cases that matter most:
+
+- `"I did the run on"` scored as a finished sentence — the trailing-word set had
+  conjunctions but no prepositions. Now it has both.
+- The fragmented disclosure was cut at 6.9s. `"I've been finding it hard"` is a complete
+  clause; no lexical rule can tell it is the middle of a disclosure. Fixed with
+  **within-turn pause memory**: someone who has already paused and resumed once in this
+  turn is speaking in fragments, and the next gap gets at least a multiple of the longest
+  one already seen, capped so a single long pause cannot make the rest glacial.
+
+### The honest state of it
+
+| Sensitivity | False cuts | Median lateness |
+|---|---|---|
+| 0 | 0 / 8 | 5980 ms |
+| **0.25 (shipping)** | **0 / 8** | **4980 ms** |
+| 0.5 | 2 / 8 | 3980 ms |
+| 1.0 | 6 / 8 | 500 ms |
+
+Two things to take from it. The safe band is narrow — safety runs out between 0.25 and
+0.5 — and the price of safety is high: several seconds of dead air on fragmented turns.
+That is too blunt to be the final model, and it says the next improvement is a better
+signal rather than a different threshold.
+
+And a caveat that matters: **these fixtures are written, not measured.** They encode
+assumptions about how people pause. They are a real regression gate against cutting
+people off; they are not evidence about human timing. The corpus only becomes evidence
+when traces from real calls replace the invented ones — which is why the stress test
+saves its timing trace.
+
+---
+
 ## Open — needs a decision or a number
 
 - **Norwegian (+47) mobile termination rates, Telnyx vs Twilio.** The one input in the
