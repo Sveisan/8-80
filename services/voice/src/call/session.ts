@@ -6,6 +6,7 @@ import { CallMetrics } from '../metrics.ts';
 import { rms } from '../audio/mulaw.ts';
 import { isBackchannel } from '../turn/endpointer.ts';
 import { TurnDetector } from '../turn/detector.ts';
+import { TraceRecorder } from '../turn/trace.ts';
 import { FalseCutEstimator } from './falsecut.ts';
 import { CorrectionBuffer, agentCutUserOff, classifyOverlap, detectCorrectionPhrase } from './corrections.ts';
 import { Timekeeper } from './timekeeper.ts';
@@ -40,6 +41,7 @@ export async function runCall(opts: CallOptions): Promise<CallMetrics> {
 
   const detector = new TurnDetector(ep);
   const falseCut = new FalseCutEstimator();
+  const trace = new TraceRecorder();
 
   let agentSpeaking = false;
   let partial = '';
@@ -129,9 +131,11 @@ export async function runCall(opts: CallOptions): Promise<CallMetrics> {
 
     if (ev?.kind === 'speech_start') {
       overlapHandled = false;
+      trace.speechStart(t - metrics.startedAt);
       // They started again right after we handed the turn over. We were early.
       if (falseCut.noteUserSpeech(t, partial)) {
         metrics.falseInterruptions++;
+        trace.suspectedCut(t - metrics.startedAt);
         corrections.add(agentCutUserOff());
         applyCorrections();
         log('turn.false_cut_suspected', { waited: metrics.turns.at(-1)?.endpointLatencyMs ?? null });
@@ -156,11 +160,14 @@ export async function runCall(opts: CallOptions): Promise<CallMetrics> {
     }
 
     if (ev?.kind === 'backchannel_end') {
+      trace.speechEnd(ev.at - metrics.startedAt, partial);
       metrics.backchannelsIgnored++;
       return;
     }
 
     if (ev?.kind === 'turn_end') {
+      // The turn ended `waitedMs` ago — that is when they actually stopped.
+      trace.speechEnd(ev.at - ev.waitedMs - metrics.startedAt, partial);
       metrics.turns.push({
         index: turnIndex++,
         endpointLatencyMs: ev.waitedMs,
@@ -194,6 +201,7 @@ export async function runCall(opts: CallOptions): Promise<CallMetrics> {
 
   clearInterval(timer);
   metrics.endedAt = Date.now();
+  metrics.trace = trace.build(ep.sensitivity, metrics.durationMs);
   session.close();
   log('call.end', metrics.summary());
   return metrics;

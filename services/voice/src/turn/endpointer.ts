@@ -56,7 +56,21 @@ export interface TurnContext {
 }
 
 export function normalise(text: string): string {
-  return text.toLowerCase().replace(/[^a-z\s]/g, ' ').replace(/\s+/g, ' ').trim();
+  // Apostrophes are dropped, not spaced: "didn't" is one word, not two, and
+  // "I've" must reduce to `ive` so the trailing set can match it.
+  return text
+    .toLowerCase()
+    .replace(/['\u2019]/g, '')
+    .replace(/[^a-z\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** Whether the final word of an utterance leaves the clause hanging. */
+export function endsWithTrailingWord(text: string): boolean {
+  const words = normalise(text).split(' ').filter(Boolean);
+  const last = words[words.length - 1];
+  return last !== undefined && TRAILING.has(last);
 }
 
 export function isBackchannel(text: string): boolean {
@@ -71,12 +85,11 @@ export function isBackchannel(text: string): boolean {
 export function silenceBudgetMs(ctx: TurnContext, cfg: Endpointing): number {
   const n = normalise(ctx.partial);
   const words = n ? n.split(' ') : [];
-  const last = words[words.length - 1];
 
   let budget = cfg.baseSilenceMs;
 
   // Trailed off mid-clause. They have not finished the sentence, let alone the thought.
-  if (last && TRAILING.has(last)) budget = Math.max(budget, cfg.trailingClauseMs);
+  if (endsWithTrailingWord(ctx.partial)) budget = Math.max(budget, cfg.trailingClauseMs);
 
   // A one-word answer is usually the placeholder before the real answer.
   // Do not fill it, do not restate the question. Wait.

@@ -1,5 +1,6 @@
 import type { Endpointing } from '../config.ts';
 import { TurnDetector } from './detector.ts';
+import { syntheticPartial } from './trace.ts';
 
 /**
  * Offline replay of a conversation's TIMING against the real turn detector.
@@ -16,7 +17,21 @@ import { TurnDetector } from './detector.ts';
 export interface Segment {
   startMs: number;
   endMs: number;
-  text: string;
+  /** Written fixtures carry words. Recorded ones carry only the flags. */
+  text?: string;
+  words?: number;
+  endsTrailing?: boolean;
+  backchannel?: boolean;
+}
+
+/** Recorded segments have no words, so rebuild one that behaves identically. */
+function utterance(s: Segment): string {
+  if (s.text !== undefined) return s.text;
+  return syntheticPartial({
+    words: s.words ?? 0,
+    endsTrailing: s.endsTrailing ?? false,
+    backchannel: s.backchannel ?? false,
+  });
 }
 
 export interface Fixture {
@@ -61,7 +76,7 @@ export function replay(f: Fixture, cfg: Endpointing): ReplayResult {
     const seg = f.segments.find((s) => t >= s.startMs && t < s.endMs);
     const partial = f.segments
       .filter((s) => s.startMs <= t)
-      .map((s) => s.text)
+      .map(utterance)
       .join(' ')
       .trim();
 

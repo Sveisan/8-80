@@ -95,6 +95,15 @@ second with within-turn pause memory.
 Also added: a false-cut estimator that runs on every real call, so we measure this
 continuously rather than only when you sit down to score a run.
 
+**Your first real call now seeds the corpus.** The stress test records a timing trace and
+writes it to `runs/trace-*.json`. It holds no words and no audio — only when speech
+started and stopped, how many words, whether the last one trailed off, and whether it was
+a backchannel. That is everything the endpointer actually uses, so replay reconstructs
+identical behaviour from it, and nothing in the file needs encrypting, expiring or
+deleting. Set `trueEndMs` to when you actually stopped speaking, move it into
+`test/fixtures/`, and it becomes a permanent regression test built from a real person
+rather than my guesses.
+
 **What the numbers say, honestly.** Zero cuts at the shipping default, but the safe band
 is narrow (0.5 already cuts two of eight) and the price is several seconds of dead air on
 fragmented turns. Too blunt to be final. And the fixtures are written by me, not

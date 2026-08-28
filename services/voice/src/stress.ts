@@ -108,6 +108,29 @@ async function main(): Promise<void> {
     ),
   );
 
+  if (metrics?.trace) {
+    const tracePath = resolve(dir, `trace-${runId}.json`);
+    writeFileSync(
+      tracePath,
+      JSON.stringify(
+        {
+          id: `real-${runId}`,
+          description: 'Recorded from a real call. Timing only — no words, no audio.',
+          durationMs: metrics.trace.durationMs,
+          sensitivity: metrics.trace.sensitivity,
+          suspectedCutsAtMs: metrics.trace.suspectedCutsAtMs,
+          segments: metrics.trace.segments,
+          trueEndMs: null,
+          labelled: false,
+          note: 'Set trueEndMs to when you actually finished speaking, then move this into test/fixtures/ to make it a regression test.',
+        },
+        null,
+        2,
+      ),
+    );
+    console.log(`Saved ${tracePath}  (${metrics.trace.segments.length} segments, ${metrics.trace.suspectedCutsAtMs.length} suspected cuts)`);
+  }
+
   console.log(`\nSaved ${path}`);
   if (metrics) {
     const s = metrics.summary();

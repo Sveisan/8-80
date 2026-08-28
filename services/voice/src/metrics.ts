@@ -1,4 +1,5 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
+import type { CallTrace } from './turn/trace.ts';
 import { resolve } from 'node:path';
 
 /** Objective per-call metrics. Never contains transcript content. */
@@ -21,6 +22,8 @@ export class CallMetrics {
   corrections: string[] = [];
   turns: TurnMetric[] = [];
   endedAt: number | null = null;
+  /** Timing only — no words, no audio. Seeds the replay corpus. */
+  trace: CallTrace | null = null;
 
   firstAudio(at = Date.now()): void {
     if (this.timeToFirstAudioMs === null) this.timeToFirstAudioMs = at - this.startedAt;

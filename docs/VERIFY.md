@@ -36,6 +36,18 @@ to a real person.** Everything here is confined to two files —
 - [ ] Media frame shape on our socket: `{ event: 'media', media: { payload: <base64> } }`, with `connected` / `start` / `stop` / `error` / `mark` / `dtmf` as the other events, and the outbound frame needs `stream_id`.
 - [ ] Current **Norwegian (+47) mobile termination rate**, and the Twilio equivalent. Still the last input in the cost model running on US reference prices.
 
+## What would unblock verification from the build environment
+
+The egress policy blocks `api.x.ai`, `api.telnyx.com` and every tunnel service, so no
+API key placed here can be used — the container cannot reach either vendor. Do not put
+credentials in an environment that cannot spend them.
+
+Allowing `api.x.ai`, `docs.x.ai`, `api.telnyx.com` and `developers.telnyx.com` outbound
+would let a session open a real Grok realtime connection and confirm the session config
+and the `turn_detection: null` behaviour — most of the voice adapter — without a phone
+existing. Inbound is still impossible, so the call itself always has to run from a
+machine Telnyx can reach.
+
 ## Before any call to anyone who is not Eirik
 
 - [ ] The media websocket subdomain is DNS-only in Cloudflare, not proxied.
