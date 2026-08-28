@@ -92,5 +92,3 @@ ever heard it.
   test prints which mode ran so a score can never be attributed to the wrong one.
 - Script §10, serious disclosure, is still behaviour-only. Wording at Milestone 5, for
   your review before it can reach anyone.
-- The MCP server "Trale" needs authorising before this session can use it — via your
-  claude.ai connector settings. It played no part in any of the above.
