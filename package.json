@@ -12,7 +12,8 @@
     "stress": "npm run -w @8and80/voice stress",
     "check": "npm run typecheck && npm run lint && npm run test",
     "replay": "npm run -w @8and80/voice replay",
-    "preflight": "npm run -w @8and80/voice preflight"
+    "preflight": "npm run -w @8and80/voice preflight",
+    "runs": "npm run -w @8and80/voice runs"
   },
   "devDependencies": {
     "@eslint/js": "^9.13.0",

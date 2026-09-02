@@ -86,6 +86,16 @@ websocket must **not** pass through Cloudflare's proxy.
 the five 1–5 scores and writes them with the objective metrics to `runs/`. Run it again
 after every endpointing change — that is what it is for.
 
+### Comparing runs
+
+```bash
+npm run runs
+```
+
+Every stress run side by side, sorted by sensitivity, with the false-cut count next to
+the subjective scores and your own notes. Tuning endpointing off a single call is how you
+end up chasing one bad evening.
+
 ### The one knob
 
 `ENDPOINTING_SENSITIVITY`, 0..1, default 0.25. Lower is more patient. Every other

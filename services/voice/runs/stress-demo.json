@@ -1,0 +1,4 @@
+{"runId":"2026-09-02T18-00-00","endpointing":{"sensitivity":0.25},"turnTaking":"local",
+ "scores":{"naturalness":4,"latencyFeel":3,"didItInterrupt":5,"handledPauses":5,"wouldWantWeekly":4},
+ "notes":"waited a beat too long after short answers",
+ "objective":{"timeToFirstAudioMs":810,"medianEndpointLatencyMs":2600,"falseInterruptions":0,"backchannelsIgnored":2,"bargeIns":1,"turns":9}}

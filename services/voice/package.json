@@ -8,7 +8,8 @@
     "serve": "tsx src/server.ts",
     "stress": "tsx src/stress.ts",
     "replay": "tsx src/replay-cli.ts",
-    "preflight": "tsx src/preflight.ts"
+    "preflight": "tsx src/preflight.ts",
+    "runs": "tsx src/runs-cli.ts"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
