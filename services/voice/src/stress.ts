@@ -5,7 +5,7 @@ import { resolve } from 'node:path';
 import { config, endpointing } from './config.ts';
 import { loadScript } from './script.ts';
 import { completed, expectCall, start } from './server.ts';
-import { TelnyxProvider } from './adapters/telephony/telnyx.ts';
+import { telephonyProvider } from './adapters/telephony/index.ts';
 
 /**
  * The 8-turn stress test, as a repeatable command rather than a one-off script.
@@ -66,7 +66,7 @@ async function main(): Promise<void> {
   console.log(`\nCalling ${maskTail(to)} from ${maskTail(from)}`);
   console.log(`Media stream → ${streamUrl.replace(key, '…')}\n`);
 
-  const telephony = new TelnyxProvider();
+  const telephony = telephonyProvider();
   const call = await telephony.placeCall({
     to,
     from,

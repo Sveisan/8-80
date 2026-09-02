@@ -49,11 +49,21 @@ Needs three things this repository cannot provide: credentials, and a host Telny
 open a websocket to.
 
 ```bash
-cp .env.example .env    # fill in XAI_API_KEY, TELNYX_API_KEY, TELNYX_CONNECTION_ID,
-                        # TELNYX_PUBLIC_KEY, OUTBOUND_CALLER_NUMBER,
-                        # STRESS_TEST_TARGET_NUMBER, VOICE_WS_PUBLIC_URL
+cp .env.example .env
 npm run stress
 ```
+
+Either telephony provider works — `TELEPHONY_PROVIDER=telnyx` (production) or
+`TELEPHONY_PROVIDER=twilio` (fallback, and the quickest first call, since its TwiML goes
+inline and Twilio never has to fetch anything from us).
+
+| Provider | Keys needed |
+|---|---|
+| Telnyx | `TELNYX_API_KEY`, `TELNYX_CONNECTION_ID`, `TELNYX_PUBLIC_KEY` |
+| Twilio | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` |
+
+Both also need `XAI_API_KEY`, `OUTBOUND_CALLER_NUMBER`, `STRESS_TEST_TARGET_NUMBER` and
+`VOICE_WS_PUBLIC_URL`.
 
 `VOICE_WS_PUBLIC_URL` must be reachable from the public internet — a tunnel while
 developing locally, or the VPS. In production this is a DNS-only subdomain: the media

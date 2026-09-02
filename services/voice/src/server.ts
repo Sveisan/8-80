@@ -4,7 +4,7 @@ import { config } from './config.ts';
 import { log } from './log.ts';
 import { loadScript } from './script.ts';
 import { runCall } from './call/session.ts';
-import { telnyxMediaBridge } from './adapters/telephony/telnyx.ts';
+import { mediaBridge } from './adapters/telephony/index.ts';
 import { GrokVoiceProvider } from './adapters/voice/grok.ts';
 import type { CallerProfile } from './prompt.ts';
 import type { CallMetrics } from './metrics.ts';
@@ -40,7 +40,7 @@ export function start(): { close: () => void; port: number } {
     void runCall({
       script: loadScript(),
       profile,
-      media: telnyxMediaBridge(ws),
+      media: mediaBridge(ws),
       voice: new GrokVoiceProvider(),
     })
       .then((m) => {

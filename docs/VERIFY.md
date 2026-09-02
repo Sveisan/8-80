@@ -48,6 +48,23 @@ and the `turn_detection: null` behaviour — most of the voice adapter — witho
 existing. Inbound is still impossible, so the call itself always has to run from a
 machine Telnyx can reach.
 
+## Twilio (fallback, and the fastest route to a first call)
+
+Params from the official `twilio` npm SDK types (v6.1.0). The media frame shape is not
+from documentation.
+
+- [ ] `<Connect><Stream url="wss://…"/></Connect>` passed as inline `twiml` on
+      `calls.create` gives two-way audio. Inline TwiML means Twilio never fetches
+      anything from us — only the media socket needs to be reachable.
+- [ ] Media frames: `connected` / `start` / `media` / `stop` / `mark`, with base64 mu-law
+      8 kHz in `media.payload`, and outbound frames needing `streamSid` from `start`.
+- [ ] `machineDetection: 'Enable'` fires early enough to hang up. **Never leave a
+      voicemail.**
+- [ ] `timeout` is the ring duration in seconds.
+- [ ] **Trial accounts**: outbound calls only reach verified numbers, and a trial notice
+      plays before the call connects. Verify the destination mobile in the console first,
+      and expect the preamble — it is not our audio path misbehaving.
+
 ## Before any call to anyone who is not Eirik
 
 - [ ] The media websocket subdomain is DNS-only in Cloudflare, not proxied.
