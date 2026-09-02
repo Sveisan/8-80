@@ -336,6 +336,32 @@ nothing to 8&80 and should not hold up the first call.
 
 ---
 
+## Sizing — the server was never the constraint
+
+Measured, not estimated: one **call-hour** of audio through the full loop — mu-law
+decode, energy detection, turn detection, base64 both directions — costs **487 ms of
+CPU**, or 135 microseconds per call-second. One vCPU could carry thousands of concurrent
+calls of that work. Real ceilings arrive first from TLS, socket syscalls and per-frame
+JSON parsing, which that measurement excludes, but they are an order of magnitude away.
+
+This is a consequence of the PCMU passthrough decision: no transcoding, and no inference
+on our box. Had we chosen a stack that needed either, sizing would look completely
+different.
+
+**So VPS tier is chosen for what shares the box — Postgres, the web app, the voice
+service — not for call volume.** 4 GB rather than 1 GB is about the database, not the
+calls. A larger tier buys nothing at v0 scale.
+
+**What actually meters call hours is per-minute vendor spend**: telephony to a Norwegian
+mobile, plus the voice model. One user on a weekly 15-minute call is about one call-hour
+a month, so a hundred free users is roughly a hundred call-hours a month.
+
+`FREE_CAPACITY_LIMIT` therefore derives from those two rates and an appetite for
+spending, never from server capacity. The cap exists because minutes cost money. Both
+rates are still open, and no number should be guessed for either.
+
+---
+
 ## Open — needs a decision or a number
 
 - **Norwegian (+47) mobile termination rates, Telnyx vs Twilio.** The one input in the
