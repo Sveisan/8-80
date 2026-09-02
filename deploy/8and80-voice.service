@@ -1,0 +1,36 @@
+# The persistent voice service.
+#
+# Not needed for the first stress test — that command starts its own server and
+# runs in the foreground so you can score the call. This unit is for when the
+# scheduler starts placing calls on its own (Milestone 3).
+#
+#   sudo cp deploy/8and80-voice.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now 8and80-voice
+
+[Unit]
+Description=8&80 voice service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=eightandeighty
+WorkingDirectory=/opt/8-80
+EnvironmentFile=/opt/8-80/.env
+ExecStart=/usr/bin/npm run serve
+Restart=always
+RestartSec=5
+
+# The process holds live call audio in memory and must never write it out.
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+NoNewPrivileges=true
+ReadWritePaths=/opt/8-80/runs
+
+# Journald keeps our logs; they are already scrubbed of numbers and transcripts.
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

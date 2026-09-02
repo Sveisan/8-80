@@ -1,0 +1,26 @@
+# TLS for the voice websocket.
+#
+# Caddy runs on the same host as the voice service, so terminating TLS here
+# costs nothing measurable. What must NOT sit in front of this is Cloudflare's
+# proxy — see DEPLOY.md. The DNS record for this name stays grey-cloud.
+#
+# Caddy obtains and renews the certificate automatically. Ports 80 and 443 must
+# be open for that to work.
+
+voice.example.com {
+	# Websockets are proxied natively — no special config needed.
+	reverse_proxy 127.0.0.1:8080
+
+	# The media stream is long-lived: a 15 minute call is one connection.
+	# Do not let an idle timeout close it during a silence.
+	timeouts {
+		read_body   10s
+		idle        30m
+	}
+
+	log {
+		# Never log request bodies. Call audio and transcripts must not reach disk.
+		output file /var/log/caddy/voice.log
+		format json
+	}
+}

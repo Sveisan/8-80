@@ -80,6 +80,8 @@ Both also need `XAI_API_KEY`, `OUTBOUND_CALLER_NUMBER`, `STRESS_TEST_TARGET_NUMB
 developing locally, or the VPS. In production this is a DNS-only subdomain: the media
 websocket must **not** pass through Cloudflare's proxy.
 
+**Running it on the VPS: see [DEPLOY.md](DEPLOY.md).** No tunnel needed there.
+
 `npm run stress` prints the 8 turns to perform, places the call, and on hangup asks for
 the five 1–5 scores and writes them with the objective metrics to `runs/`. Run it again
 after every endpointing change — that is what it is for.
