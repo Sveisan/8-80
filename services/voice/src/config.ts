@@ -1,4 +1,18 @@
-import 'dotenv/config';
+import { config as loadEnv } from 'dotenv';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+/**
+ * The repository root — the directory holding SCRIPT.md, .env.example and .env.
+ *
+ * Resolved from this module's own location rather than from process.cwd(),
+ * because npm workspace scripts run with the working directory set to
+ * services/, so a root .env would otherwise be invisible and the failure would
+ * read as a missing key rather than a missing lookup.
+ */
+export const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
+
+loadEnv({ path: resolve(repoRoot, '.env') });
 
 function req(key: string): string {
   const v = process.env[key];

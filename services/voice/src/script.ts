@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import { dirname, resolve } from 'node:path';
+import { resolve } from 'node:path';
+import { repoRoot } from './config.ts';
 
 /**
  * SCRIPT.md is the source of truth for every word the mentor says.
@@ -45,8 +45,7 @@ export function parseScript(markdown: string): ScriptLines {
 }
 
 export function loadScript(path?: string): ScriptLines {
-  const here = dirname(fileURLToPath(import.meta.url));
-  const p = path ?? process.env.SCRIPT_PATH ?? resolve(here, '../../../SCRIPT.md');
+  const p = path ?? process.env['SCRIPT_PATH'] ?? resolve(repoRoot, 'SCRIPT.md');
   return parseScript(readFileSync(p, 'utf8'));
 }
 

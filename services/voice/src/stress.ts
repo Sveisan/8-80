@@ -2,7 +2,7 @@ import { createInterface } from 'node:readline/promises';
 import { randomUUID } from 'node:crypto';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { config, endpointing } from './config.ts';
+import { config, endpointing, repoRoot } from './config.ts';
 import { loadScript } from './script.ts';
 import { preflight, report } from './preflight.ts';
 import { completed, expectCall, start } from './server.ts';
@@ -38,7 +38,8 @@ async function main(): Promise<void> {
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   const ep = endpointing();
   const runId = new Date().toISOString().replace(/[:.]/g, '-');
-  const dir = resolve(process.cwd(), 'runs');
+  // Always the repo root, so runs collect in one place however it was invoked.
+  const dir = resolve(repoRoot, 'runs');
 
   console.log('\n8&80 stress test');
   console.log('─'.repeat(64));
