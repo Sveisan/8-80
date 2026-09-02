@@ -299,6 +299,43 @@ saves its timing trace.
 
 ---
 
+## Open risk — the +47 number may not be buyable as specified
+
+Number search on Twilio returned nothing for Norway or Portugal. The immediate cause is
+almost certainly eligibility rather than stock: both countries require an approved
+regulatory bundle (local address and identity documents) before their numbers appear at
+all, and an unapproved account sees an empty list rather than a locked one.
+
+That is a delay, not a problem. **This is the problem:** the caller-identity decision
+rests on one fixed +47 **mobile** number — eight digits starting 4 or 9 — carrying both
+voice and SMS. Norwegian mobile ranges are generally not sold self-service by carriers'
+API providers; what tends to be purchasable is a geographic (landline) +47, and Norwegian
+landline numbers typically cannot send SMS.
+
+If that holds, two locked decisions break together:
+
+- "One fixed +47 number for every call and every SMS, never rotated."
+- The missed-call flow, which depends entirely on the user being able to reply by text —
+  the reason alphanumeric sender IDs were rejected in the first place.
+
+The fallback shapes, none of them free:
+
+| Option | Cost |
+|---|---|
+| Two numbers — a +47 for voice, a separate SMS-capable one | Breaks the single-trust-signal argument that made the vCard work |
+| A Norwegian mobile via a reseller or an operator agreement rather than self-service | Slower, contractual, probably requires a Norwegian entity |
+| Voice on +47, missed-call follow-up by email instead of SMS | Much weaker recovery: email is not read in the fifteen minutes that matter |
+
+**To settle it:** search Norway with SMS and Voice both selected, across every number
+type, once the regulatory bundle is approved. Cheap to check, expensive to discover at
+Milestone 4. Nothing else should be built on the one-number assumption until it is
+confirmed.
+
+**Unrelated to the product:** Portugal is not a market here. A Portuguese number is worth
+nothing to 8&80 and should not hold up the first call.
+
+---
+
 ## Open — needs a decision or a number
 
 - **Norwegian (+47) mobile termination rates, Telnyx vs Twilio.** The one input in the

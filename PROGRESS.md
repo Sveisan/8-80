@@ -111,7 +111,19 @@ measured — a real regression gate, not evidence about human timing.
 
 ## Waiting on you
 
-1. Run it and hear it. That is the whole of 0b.
+1. **Hear it. Use a US Twilio number, not a Norwegian one.** Number search returns
+   nothing for Norway or Portugal because those need an approved regulatory bundle
+   before numbers appear at all — that is the compliance wizard, and it is not needed
+   for a call to yourself. A US local number is instant and dials Norway fine.
+   - Enable **Norway** in Console → Voice → Geo Permissions, or the call fails opaquely.
+   - Trial calls only reach verified numbers and play a preamble. Upgrading removes both.
+   - Then `TELEPHONY_PROVIDER=twilio`, US number as `OUTBOUND_CALLER_NUMBER`, and
+     `npm run stress`.
+
+2. **Two minutes that could save Milestone 4:** search Norway with SMS *and* Voice ticked,
+   across every number type. Our plan assumes one +47 mobile doing both. If only landline
+   +47 is available it cannot send SMS, and the missed-call reply flow breaks. See the
+   open risk in DECISIONS.md — do not build on the one-number assumption until confirmed.
 2. Then your SCRIPT.md rewrite, with the call in your ear rather than on the page.
 
 ## Notes
