@@ -50,8 +50,19 @@ open a websocket to.
 
 ```bash
 cp .env.example .env
+npm run preflight     # checks everything locally, dials nobody
 npm run stress
 ```
+
+`preflight` runs automatically before the stress test too. It catches the failures that
+otherwise produce an unhelpful dial error: a number that is not E.164, a `localhost`
+websocket URL the carrier cannot reach, a phone-number SID pasted where the account SID
+belongs, and it reminds you to enable the destination country under **Voice** geo
+permissions — which is a different setting from Messaging geo permissions.
+
+Outbound calls carry their TwiML inline, so **nothing on the number's own configuration
+page needs setting**. Those Voice and Messaging webhook fields are for inbound, which we
+do not use yet.
 
 Either telephony provider works — `TELEPHONY_PROVIDER=telnyx` (production) or
 `TELEPHONY_PROVIDER=twilio` (fallback, and the quickest first call, since its TwiML goes

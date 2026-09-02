@@ -4,6 +4,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { config, endpointing } from './config.ts';
 import { loadScript } from './script.ts';
+import { preflight, report } from './preflight.ts';
 import { completed, expectCall, start } from './server.ts';
 import { telephonyProvider } from './adapters/telephony/index.ts';
 
@@ -48,6 +49,12 @@ async function main(): Promise<void> {
   console.log('\nThe 8 turns to perform. 1, 2 and 7 are the ones that decide this:\n');
   for (const t of TURNS) {
     console.log(`  ${t.n}. ${t.weight === 'decides it' ? '★' : ' '} ${t.do}`);
+  }
+
+  console.log('\nPreflight\n');
+  if (!report(preflight())) {
+    rl.close();
+    process.exit(1);
   }
 
   const script = loadScript();
