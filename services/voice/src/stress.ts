@@ -5,6 +5,7 @@ import { resolve } from 'node:path';
 import { config, endpointing, repoRoot } from './config.ts';
 import { loadScript } from './script.ts';
 import { preflight, report } from './preflight.ts';
+import { checkReachable } from './reachability.ts';
 import { completed, expectCall, start } from './server.ts';
 import { telephonyProvider } from './adapters/telephony/index.ts';
 
@@ -73,6 +74,21 @@ async function main(): Promise<void> {
   const streamUrl = `${publicUrl}/media?key=${key}`;
   console.log(`\nCalling ${maskTail(to)} from ${maskTail(from)}`);
   console.log(`Media stream → ${streamUrl.replace(key, '…')}\n`);
+
+  // Prove the carrier can reach us BEFORE spending a call. A stale tunnel
+  // hostname produces a connected call that sits in silence, and from the
+  // phone that is indistinguishable from a broken voice session.
+  process.stdout.write('Checking the carrier can reach this service… ');
+  const reach = await checkReachable();
+  if (!reach.ok) {
+    console.log('no.\n');
+    console.log(`  ✕ ${reach.detail}\n`);
+    console.log('  Nothing was dialled. Fix that and run again.\n');
+    rl.close();
+    server.close();
+    process.exit(1);
+  }
+  console.log('yes.\n');
 
   const telephony = telephonyProvider();
   const call = await telephony.placeCall({

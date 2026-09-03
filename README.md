@@ -54,6 +54,12 @@ npm run preflight           # checks everything locally, dials nobody
 npm run stress
 ```
 
+`npm run checkurl` proves the carrier can actually reach the service — HTTP, then the
+websocket upgrade — in a few seconds and without dialling anyone. The stress test runs
+the same check before it dials, so a stale tunnel hostname costs a second rather than a
+phone call. Tunnel hostnames change on every restart, and the dead one left in `.env`
+produces a call that connects and then sits in silence.
+
 `preflight` runs automatically before the stress test too. It catches the failures that
 otherwise produce an unhelpful dial error: a number that is not E.164, a `localhost`
 websocket URL the carrier cannot reach, a phone-number SID pasted where the account SID
