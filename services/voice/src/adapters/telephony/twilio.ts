@@ -14,15 +14,27 @@ import type { CallHandle, MediaBridge, PlaceCallOptions, TelephonyProvider } fro
  * Params taken from the official twilio npm SDK types (v6.1.0). The media frame
  * shape is listed in docs/VERIFY.md — confirm before a call to anyone else.
  */
+/** Minimal shape we use, so the dial parameters can be tested without a network. */
+export interface TwilioLike {
+  calls: {
+    create(params: Record<string, unknown>): Promise<{ sid: string }>;
+    (sid: string): { update(params: Record<string, unknown>): Promise<unknown> };
+  };
+}
+
 export class TwilioProvider implements TelephonyProvider {
   readonly name = 'twilio';
-  private client: ReturnType<typeof twilio>;
+  private client: TwilioLike;
 
-  constructor() {
+  constructor(client?: TwilioLike) {
+    if (client) {
+      this.client = client;
+      return;
+    }
     const sid = process.env['TWILIO_ACCOUNT_SID'];
     const token = process.env['TWILIO_AUTH_TOKEN'];
     if (!sid || !token) throw new Error('Missing TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN. See .env.example.');
-    this.client = twilio(sid, token);
+    this.client = twilio(sid, token) as unknown as TwilioLike;
   }
 
   async placeCall(opts: PlaceCallOptions): Promise<CallHandle> {
@@ -34,9 +46,19 @@ export class TwilioProvider implements TelephonyProvider {
       to: opts.to,
       from: opts.from,
       timeout: opts.ringSeconds,
-      // Never leave a voicemail. Detection lets the loop hang up instead.
-      machineDetection: 'Enable',
       twiml: vr.toString(),
+
+      // Answering machine detection, for the rule that we never leave a
+      // voicemail.
+      //
+      // asyncAmd MUST be 'true'. Without it Twilio blocks execution of the
+      // TwiML until detection completes — the stream never starts, the caller
+      // answers to silence, and nothing reaches our media socket. It looks
+      // exactly like a broken tunnel, which is how it cost an evening.
+      machineDetection: 'Enable',
+      asyncAmd: 'true',
+      // Acting on the result needs asyncAmdStatusCallback, which needs a
+      // public HTTP endpoint. Wired at Milestone 3, with the hang-up.
     });
 
     log('call.dialled', { provider: 'twilio', sid: call.sid ? 'set' : 'missing' });

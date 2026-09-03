@@ -58,8 +58,11 @@ from documentation.
       anything from us — only the media socket needs to be reachable.
 - [ ] Media frames: `connected` / `start` / `media` / `stop` / `mark`, with base64 mu-law
       8 kHz in `media.payload`, and outbound frames needing `streamSid` from `start`.
-- [ ] `machineDetection: 'Enable'` fires early enough to hang up. **Never leave a
-      voicemail.**
+- [x] `machineDetection: 'Enable'` **must** be paired with `asyncAmd: 'true'`. Without
+      it Twilio blocks TwiML execution until detection completes: the stream never
+      starts and the caller answers to silence. Confirmed the hard way on the first
+      real call. Acting on the detection result still needs `asyncAmdStatusCallback`
+      and a public HTTP endpoint — Milestone 3, with the hang-up.
 - [ ] `timeout` is the ring duration in seconds.
 - [ ] **Trial accounts**: outbound calls only reach verified numbers, and a trial notice
       plays before the call connects. Verify the destination mobile in the console first,
