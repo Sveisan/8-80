@@ -331,6 +331,21 @@ type, once the regulatory bundle is approved. Cheap to check, expensive to disco
 Milestone 4. Nothing else should be built on the one-number assumption until it is
 confirmed.
 
+### Evidence, 2026-09-03 — no longer just a suspicion
+
+A Swedish mobile number bought on Twilio reports **"Voice: capability not supported"**.
+It sends SMS and cannot place a call at all.
+
+That is the same shape as the risk above, observed rather than predicted: on this
+platform a Nordic *mobile* number is an SMS product, and voice lives on geographic or
+toll-free numbers instead. If Norway behaves like Sweden, the plan of one +47 mobile
+carrying both voice and SMS does not exist to be bought.
+
+It also means capabilities must be checked per number before purchase, and that a number
+appearing in search says nothing about what it can do. The eventual production number has
+to be verified for **voice and SMS together** before it is committed to — the vCard, the
+verification SMS and the missed-call flow all assume one number does both.
+
 **Unrelated to the product:** Portugal is not a market here. A Portuguese number is worth
 nothing to 8&80 and should not hold up the first call.
 
