@@ -28,3 +28,8 @@ recordings/
 .DS_Store
 coverage/
 .turbo/
+
+# local tooling downloaded into the repo dir
+cloudflared
+cloudflared.tgz
+ngrok
