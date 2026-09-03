@@ -18,7 +18,8 @@ mock provider. It has not yet placed a real call — see *Placing the first call
 - [SCRIPT.md](SCRIPT.md) — the mentor side of the call. Parsed at runtime; rewriting a
   line changes the next call with no code change.
 - [ARCHITECTURE.md](ARCHITECTURE.md) · [DECISIONS.md](DECISIONS.md) ·
-  [PROGRESS.md](PROGRESS.md) · [docs/VERIFY.md](docs/VERIFY.md)
+  [PROGRESS.md](PROGRESS.md) · [docs/VERIFY.md](docs/VERIFY.md) ·
+  [docs/PRIOR-ART.md](docs/PRIOR-ART.md)
 
 ## Layout
 
