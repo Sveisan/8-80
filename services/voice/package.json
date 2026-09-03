@@ -9,7 +9,8 @@
     "stress": "tsx src/stress.ts",
     "replay": "tsx src/replay-cli.ts",
     "preflight": "tsx src/preflight.ts",
-    "runs": "tsx src/runs-cli.ts"
+    "runs": "tsx src/runs-cli.ts",
+    "checkurl": "tsx src/checkurl.ts"
   },
   "dependencies": {
     "dotenv": "^16.4.5",

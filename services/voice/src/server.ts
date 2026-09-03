@@ -33,6 +33,17 @@ export function start(): { close: () => void; port: number } {
 
   wss.on('connection', (ws, req) => {
     const key = new URL(req.url ?? '/', 'http://x').searchParams.get('key') ?? '';
+
+    // Connectivity self-test: prove the websocket upgrade survives the whole
+    // path from the public internet to here, without dialling anyone or
+    // opening a session with the voice provider.
+    if (key === 'selftest') {
+      log('media.selftest', { ok: true });
+      ws.send(JSON.stringify({ event: 'selftest', ok: true }));
+      ws.close(1000);
+      return;
+    }
+
     const profile = pending.get(key) ?? { callNumber: 1 };
     pending.delete(key);
     log('media.connection', { known: pending.has(key) });
