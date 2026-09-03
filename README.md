@@ -49,8 +49,8 @@ Needs three things this repository cannot provide: credentials, and a host Telny
 open a websocket to.
 
 ```bash
-cp .env.example .env  # in the repo root, next to package.json
-npm run preflight     # checks everything locally, dials nobody
+bash scripts/setup-env.sh   # prompts for each value, hides secrets
+npm run preflight           # checks everything locally, dials nobody
 npm run stress
 ```
 
