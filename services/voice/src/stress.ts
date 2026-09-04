@@ -5,7 +5,7 @@ import { resolve } from 'node:path';
 import { config, endpointing, repoRoot } from './config.ts';
 import { loadScript } from './script.ts';
 import { preflight, report } from './preflight.ts';
-import { checkReachable } from './reachability.ts';
+import { checkReachable, waitReachable } from './reachability.ts';
 import { startTunnel, type Tunnel } from './tunnel.ts';
 import { completed, expectCall, lastCall, start } from './server.ts';
 import { telephonyProvider } from './adapters/telephony/index.ts';
@@ -88,8 +88,11 @@ async function main(): Promise<void> {
       tunnel = await startTunnel(config.port);
       process.env['VOICE_WS_PUBLIC_URL'] = tunnel.url.replace(/^https:/, 'wss:');
       console.log(`  Tunnel up: ${tunnel.url}`);
-      process.stdout.write('  Re-checking… ');
-      reach = await checkReachable();
+      // The URL is printed before the edge routes to it. Wait for it.
+      process.stdout.write('  Waiting for it to become reachable');
+      reach = await waitReachable({ onAttempt: () => process.stdout.write('.') });
+      console.log('');
+      process.stdout.write('  ');
     } catch (e) {
       console.log(`  Could not start one: ${e instanceof Error ? e.message : String(e)}`);
       console.log('  Install it with `brew install cloudflared`, or set a reachable');

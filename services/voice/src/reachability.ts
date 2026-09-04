@@ -57,3 +57,27 @@ export async function checkReachable(timeoutMs = 10_000): Promise<Reachability> 
     });
   });
 }
+
+/**
+ * Poll until reachable, or give up.
+ *
+ * A freshly created quick tunnel prints its URL before the edge routes to it —
+ * cloudflared's own banner says "it may take some time to be reachable". A
+ * single immediate check therefore always fails, which is worse than no check
+ * at all because it blames the hostname.
+ */
+export async function waitReachable(
+  opts: { attempts?: number; delayMs?: number; onAttempt?: (n: number, total: number) => void } = {},
+): Promise<Reachability> {
+  const attempts = opts.attempts ?? 12;
+  const delayMs = opts.delayMs ?? 3000;
+  let last: Reachability = { ok: false, step: 'http', detail: 'not checked' };
+
+  for (let i = 1; i <= attempts; i++) {
+    opts.onAttempt?.(i, attempts);
+    last = await checkReachable(5000);
+    if (last.ok) return last;
+    if (i < attempts) await new Promise((r) => setTimeout(r, delayMs));
+  }
+  return last;
+}

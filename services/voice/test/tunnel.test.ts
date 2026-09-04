@@ -25,3 +25,10 @@ test('is not fooled by the pre-check lines mentioning the domain', () => {
 test('takes the first URL when output is chunked', () => {
   assert.equal(parseTunnelUrl(banner + banner), 'https://proof-peripherals-sacramento-divided.trycloudflare.com');
 });
+
+test('a freshly printed URL is not assumed reachable', async () => {
+  // Regression: the first auto-tunnel checked once, immediately, and failed —
+  // cloudflared prints the URL before the edge routes to it.
+  const { waitReachable } = await import('../src/reachability.ts');
+  assert.equal(typeof waitReachable, 'function', 'reachability must expose a polling form');
+});

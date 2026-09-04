@@ -1,5 +1,5 @@
 import { config } from './config.ts';
-import { checkReachable } from './reachability.ts';
+import { waitReachable } from './reachability.ts';
 import { start } from './server.ts';
 
 /**
@@ -11,7 +11,9 @@ console.log(`\nChecking ${config.wsPublicUrl()}\n`);
 const server = start();
 await new Promise((r) => setTimeout(r, 300));
 
-const r = await checkReachable();
+process.stdout.write('  Probing');
+const r = await waitReachable({ attempts: 8, onAttempt: () => process.stdout.write('.') });
+console.log('');
 if (r.ok) {
   console.log('  · HTTP reaches the service');
   console.log('  · WebSocket upgrade succeeds');
