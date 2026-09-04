@@ -92,6 +92,20 @@ websocket must **not** pass through Cloudflare's proxy.
 the five 1–5 scores and writes them with the objective metrics to `runs/`. Run it again
 after every endpointing change — that is what it is for.
 
+### Changing what the mentor says
+
+Edit [SCRIPT.md](SCRIPT.md). It is parsed at runtime, so the next call uses your words
+with no code change. To see exactly what the model will be told:
+
+```bash
+npm run prompt            # a returning call
+npm run prompt -- first   # the first call a user ever gets
+npm run prompt -- third   # the third-week-running case
+```
+
+No keys, no network, no call. It also checks the voice rules still hold — no exclamation
+marks, nothing congratulatory.
+
 ### Comparing runs
 
 ```bash

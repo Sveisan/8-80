@@ -10,7 +10,8 @@
     "replay": "tsx src/replay-cli.ts",
     "preflight": "tsx src/preflight.ts",
     "runs": "tsx src/runs-cli.ts",
-    "checkurl": "tsx src/checkurl.ts"
+    "checkurl": "tsx src/checkurl.ts",
+    "prompt": "tsx src/prompt-cli.ts"
   },
   "dependencies": {
     "dotenv": "^16.4.5",

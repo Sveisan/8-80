@@ -14,7 +14,8 @@
     "replay": "npm run -w @8and80/voice replay",
     "preflight": "npm run -w @8and80/voice preflight",
     "runs": "npm run -w @8and80/voice runs",
-    "checkurl": "npm run -w @8and80/voice checkurl"
+    "checkurl": "npm run -w @8and80/voice checkurl",
+    "prompt": "npm run -w @8and80/voice prompt"
   },
   "devDependencies": {
     "@eslint/js": "^9.13.0",
