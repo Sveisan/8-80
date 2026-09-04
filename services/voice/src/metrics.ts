@@ -24,6 +24,10 @@ export class CallMetrics {
   endedAt: number | null = null;
   /** Timing only — no words, no audio. Seeds the replay corpus. */
   trace: CallTrace | null = null;
+  /** The voice provider's session opened. */
+  voiceReady = false;
+  /** The last error the voice provider reported, if any. */
+  voiceError: string | null = null;
 
   firstAudio(at = Date.now()): void {
     if (this.timeToFirstAudioMs === null) this.timeToFirstAudioMs = at - this.startedAt;

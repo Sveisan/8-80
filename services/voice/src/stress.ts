@@ -6,7 +6,7 @@ import { config, endpointing, repoRoot } from './config.ts';
 import { loadScript } from './script.ts';
 import { preflight, report } from './preflight.ts';
 import { checkReachable } from './reachability.ts';
-import { completed, expectCall, start } from './server.ts';
+import { completed, expectCall, lastCall, start } from './server.ts';
 import { telephonyProvider } from './adapters/telephony/index.ts';
 
 /**
@@ -90,6 +90,7 @@ async function main(): Promise<void> {
   }
   console.log('yes.\n');
 
+  lastCall.reset();
   const telephony = telephonyProvider();
   const call = await telephony.placeCall({
     to,
@@ -164,12 +165,58 @@ async function main(): Promise<void> {
     console.log(`  backchannels ignored  ${s['backchannelsIgnored']}  (turn 4 should raise this, not bargeIns)`);
     console.log(`  cost                  ${JSON.stringify(s['cost'])}`);
   } else {
-    console.log('  No objective metrics captured — the call did not reach the media socket.');
+    console.log(diagnose());
   }
 
   rl.close();
   server.close();
   process.exit(0);
+}
+
+/**
+ * A silent call has several causes and they feel identical on the phone. Say
+ * which one it was, in words, rather than leaving it in a JSON log nobody reads.
+ */
+function diagnose(): string {
+  const m = completed.last;
+
+  if (!lastCall.mediaConnected) {
+    return [
+      '',
+      '  Diagnosis: the carrier never opened the media stream.',
+      '',
+      '  Reachability passed before dialling, so the tunnel was alive then.',
+      '  Most likely: you answered before the stream started, the tunnel died',
+      '  mid-call, or Twilio rejected the stream. Twilio console →',
+      '  Monitor → Logs → Calls → this call shows its own error.',
+      lastCall.error ? `\n  The service also reported: ${lastCall.error}` : '',
+    ].join('\n');
+  }
+
+  if (m?.voiceError) {
+    return [
+      '',
+      '  Diagnosis: audio reached us, but the voice provider rejected the session.',
+      `\n  It said: ${m.voiceError}`,
+      '',
+      '  Usually the model id or the voice name. Try XAI_VOICE_MODEL and',
+      '  XAI_VOICE_NAME against what the xAI console actually lists —',
+      '  both are config, no code change. See docs/VERIFY.md.',
+    ].join('\n');
+  }
+
+  if (m && !m.voiceReady) {
+    return [
+      '',
+      '  Diagnosis: audio reached us and the provider raised no error, but it',
+      '  never produced any speech.',
+      '',
+      '  Suspect the model id first — an unknown model can open a socket and',
+      '  then simply never answer. XAI_VOICE_MODEL is config, not code.',
+    ].join('\n');
+  }
+
+  return '  No objective metrics captured.';
 }
 
 function maskTail(n: string): string {

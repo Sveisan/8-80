@@ -20,6 +20,20 @@ const pending = new Map<string, CallerProfile>();
 /** Metrics from the most recently completed call, for the stress-test report. */
 export const completed: { last: CallMetrics | null } = { last: null };
 
+/**
+ * What reached us during the last call. A silent call has several possible
+ * causes and they are indistinguishable from the phone; these flags tell them
+ * apart without anyone reading a log.
+ */
+export const lastCall = {
+  mediaConnected: false,
+  error: null as string | null,
+  reset() {
+    this.mediaConnected = false;
+    this.error = null;
+  },
+};
+
 export function expectCall(key: string, profile: CallerProfile): void {
   pending.set(key, profile);
 }
@@ -46,6 +60,7 @@ export function start(): { close: () => void; port: number } {
 
     const profile = pending.get(key) ?? { callNumber: 1 };
     pending.delete(key);
+    lastCall.mediaConnected = true;
     log('media.connection', { known: pending.has(key) });
 
     void runCall({
@@ -57,7 +72,11 @@ export function start(): { close: () => void; port: number } {
       .then((m) => {
         completed.last = m;
       })
-      .catch((e: unknown) => log('call.failed', { message: e instanceof Error ? e.message : String(e) }));
+      .catch((e: unknown) => {
+        const message = e instanceof Error ? e.message : String(e);
+        lastCall.error = message;
+        log('call.failed', { message });
+      });
   });
 
   http.listen(config.port, () => log('voice.listening', { port: config.port }));

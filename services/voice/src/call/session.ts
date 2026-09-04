@@ -70,6 +70,7 @@ export async function runCall(opts: CallOptions): Promise<CallMetrics> {
     },
     {
       onAudio: (chunk) => {
+        metrics.voiceReady = true;
         metrics.firstAudio();
         opts.media.send(chunk);
       },
@@ -105,7 +106,10 @@ export async function runCall(opts: CallOptions): Promise<CallMetrics> {
           applyCorrections();
         }
       },
-      onError: (e) => log('voice.error', { message: e.message }),
+      onError: (e) => {
+        metrics.voiceError = e.message;
+        log('voice.error', { message: e.message });
+      },
       onClosed: () => {
         closed = true;
       },
