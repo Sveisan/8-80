@@ -54,6 +54,13 @@ npm run preflight           # checks everything locally, dials nobody
 npm run stress
 ```
 
+If the public hostname is dead, the stress test **starts a fresh Cloudflare tunnel
+itself** and uses it. Quick tunnels get a new hostname on every restart and die with
+their window, so a stale one in `.env` is the normal state of affairs rather than a
+mistake — and a stale one produces a call that connects and then sits in silence, which
+is indistinguishable from a broken voice model. Requires `cloudflared` on PATH
+(`brew install cloudflared`).
+
 `npm run checkurl` proves the carrier can actually reach the service — HTTP, then the
 websocket upgrade — in a few seconds and without dialling anyone. The stress test runs
 the same check before it dials, so a stale tunnel hostname costs a second rather than a

@@ -6,6 +6,7 @@ import { config, endpointing, repoRoot } from './config.ts';
 import { loadScript } from './script.ts';
 import { preflight, report } from './preflight.ts';
 import { checkReachable } from './reachability.ts';
+import { startTunnel, type Tunnel } from './tunnel.ts';
 import { completed, expectCall, lastCall, start } from './server.ts';
 import { telephonyProvider } from './adapters/telephony/index.ts';
 
@@ -37,6 +38,7 @@ const SCORES = [
 
 async function main(): Promise<void> {
   const rl = createInterface({ input: process.stdin, output: process.stdout });
+  let tunnel: Tunnel | undefined;
   const ep = endpointing();
   const runId = new Date().toISOString().replace(/[:.]/g, '-');
   // Always the repo root, so runs collect in one place however it was invoked.
@@ -63,32 +65,54 @@ async function main(): Promise<void> {
   console.log(`\nSCRIPT.md: ${script.size} keyed lines loaded.`);
 
   // Resolve every required setting before opening a socket or dialling anyone.
-  const publicUrl = config.wsPublicUrl();
+  // VOICE_WS_PUBLIC_URL is read again after the reachability step, since a
+  // freshly started tunnel replaces it.
   const to = config.numbers.stressTarget();
   const from = config.numbers.from();
 
   const server = start();
-  const key = randomUUID();
-  expectCall(key, { callNumber: 2, lastCommitment: 'run three times', language: config.language });
-
-  const streamUrl = `${publicUrl}/media?key=${key}`;
-  console.log(`\nCalling ${maskTail(to)} from ${maskTail(from)}`);
-  console.log(`Media stream → ${streamUrl.replace(key, '…')}\n`);
 
   // Prove the carrier can reach us BEFORE spending a call. A stale tunnel
   // hostname produces a connected call that sits in silence, and from the
   // phone that is indistinguishable from a broken voice session.
   process.stdout.write('Checking the carrier can reach this service… ');
-  const reach = await checkReachable();
+  let reach = await checkReachable();
+
+  // Quick tunnels change hostname on every restart and die when the window
+  // closes, so a stale one in .env is the normal state of affairs rather than
+  // a mistake. Start a fresh one and carry on.
+  if (!reach.ok && reach.step === 'http') {
+    console.log('no.');
+    console.log('  The public hostname is not answering. Starting a fresh tunnel…');
+    try {
+      tunnel = await startTunnel(config.port);
+      process.env['VOICE_WS_PUBLIC_URL'] = tunnel.url.replace(/^https:/, 'wss:');
+      console.log(`  Tunnel up: ${tunnel.url}`);
+      process.stdout.write('  Re-checking… ');
+      reach = await checkReachable();
+    } catch (e) {
+      console.log(`  Could not start one: ${e instanceof Error ? e.message : String(e)}`);
+      console.log('  Install it with `brew install cloudflared`, or set a reachable');
+      console.log('  VOICE_WS_PUBLIC_URL yourself.\n');
+    }
+  }
+
   if (!reach.ok) {
     console.log('no.\n');
     console.log(`  ✕ ${reach.detail}\n`);
-    console.log('  Nothing was dialled. Fix that and run again.\n');
+    console.log('  Nothing was dialled.\n');
+    tunnel?.stop();
     rl.close();
     server.close();
     process.exit(1);
   }
   console.log('yes.\n');
+
+  const key = randomUUID();
+  expectCall(key, { callNumber: 2, lastCommitment: 'run three times', language: config.language });
+  const streamUrl = `${config.wsPublicUrl().replace(/\/+$/, '')}/media?key=${key}`;
+  console.log(`Calling ${maskTail(to)} from ${maskTail(from)}`);
+  console.log(`Media stream → ${streamUrl.replace(key, '…')}\n`);
 
   lastCall.reset();
   const telephony = telephonyProvider();
@@ -169,6 +193,7 @@ async function main(): Promise<void> {
   }
 
   rl.close();
+  tunnel?.stop();
   server.close();
   process.exit(0);
 }
