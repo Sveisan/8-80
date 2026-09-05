@@ -18,7 +18,8 @@
     "prompt": "npm run -w @8and80/voice prompt",
     "serve": "npm run -w @8and80/voice serve",
     "models": "npm run -w @8and80/voice models",
-    "voices": "npm run -w @8and80/voice voices --"
+    "voices": "npm run -w @8and80/voice voices --",
+    "audition": "npm run -w @8and80/voice audition --"
   },
   "devDependencies": {
     "@eslint/js": "^9.13.0",

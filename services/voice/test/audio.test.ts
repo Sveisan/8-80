@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { bytesToPcm16, mulawToPcm16, pcm16ToMulaw, resample, rms } from '../src/audio/mulaw.ts';
 import { toneFrames } from '../src/audio/tone.ts';
+import { mulawToWav } from '../src/audio/wav.ts';
 
 test('mu-law survives a round trip within its own quantisation', () => {
   const pcm = Int16Array.from([0, 100, -100, 5000, -5000, 20000, -20000, 32000]);
@@ -35,4 +36,16 @@ test('the test tone is exactly as long as asked, in carrier-sized frames', () =>
   assert.equal(frames.reduce((n, f) => n + f.length, 0), 4800, '600ms at 8kHz is 4800 bytes');
   assert.ok(frames.every((f) => f.length <= 160));
   assert.ok(rms(frames[10] as Buffer) > 0.05, 'the tone must be audible, not silence');
+});
+
+test('the wav header describes exactly the audio that follows', () => {
+  const mulaw = toneFrames(100).reduce((a, b) => Buffer.concat([a, b]));
+  const wav = mulawToWav(mulaw);
+  assert.equal(wav.subarray(0, 4).toString(), 'RIFF');
+  assert.equal(wav.subarray(8, 12).toString(), 'WAVE');
+  assert.equal(wav.readUInt16LE(22), 1, 'mono');
+  assert.equal(wav.readUInt32LE(24), 8000, 'telephone bandwidth, like the call');
+  assert.equal(wav.readUInt16LE(34), 16);
+  assert.equal(wav.readUInt32LE(40), mulaw.length * 2, 'data size must match the samples');
+  assert.equal(wav.length, 44 + mulaw.length * 2);
 });
