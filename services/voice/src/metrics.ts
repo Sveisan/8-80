@@ -28,6 +28,12 @@ export class CallMetrics {
   voiceReady = false;
   /** The last error the voice provider reported, if any. */
   voiceError: string | null = null;
+  /**
+   * Whether any transcript of the caller arrived. False means the endpointer
+   * ran on energy alone, and the turn-taking scores from that call describe a
+   * different system than the one we designed.
+   */
+  sawTranscripts = false;
 
   firstAudio(at = Date.now()): void {
     if (this.timeToFirstAudioMs === null) this.timeToFirstAudioMs = at - this.startedAt;
@@ -64,6 +70,13 @@ export class CallMetrics {
       timeToFirstAudioMs: this.timeToFirstAudioMs,
       turns: this.turns.length,
       medianEndpointLatencyMs: median,
+      // How the waits were decided. All one reason means the endpointer had
+      // only one thing to say, which is a finding, not a distribution.
+      turnReasons: this.turns.reduce<Record<string, number>>((acc, t) => {
+        acc[t.reason] = (acc[t.reason] ?? 0) + 1;
+        return acc;
+      }, {}),
+      sawTranscripts: this.sawTranscripts,
       falseInterruptions: this.falseInterruptions,
       backchannelsIgnored: this.backchannelsIgnored,
       bargeIns: this.bargeIns,

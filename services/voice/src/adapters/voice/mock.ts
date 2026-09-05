@@ -15,8 +15,12 @@ export class MockVoiceProvider implements VoiceProvider {
   responses = 0;
   greetings = 0;
 
+  /** Emit a caller transcript, the way a real provider does mid-utterance. */
+  userSaid: (text: string, final?: boolean) => void = () => {};
+
   async connect(cfg: VoiceSessionConfig, events: VoiceEvents): Promise<VoiceSession> {
     this.instructions = cfg.instructions;
+    this.userSaid = (text, final = false) => events.onUserTranscript?.(text, final);
     queueMicrotask(() => events.onReady?.());
     return {
       sendAudio: () => {},

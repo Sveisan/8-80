@@ -40,7 +40,7 @@ function fakeMedia() {
 }
 
 /** Drives the loop on a fake clock: 20ms per frame, no real waiting. */
-async function drive(frames: { buf: Buffer; count: number }[], hard: boolean) {
+async function drive(frames: { buf: Buffer; count: number }[], hard: boolean, saying?: string) {
   const media = fakeMedia();
   const voice = new MockVoiceProvider();
   let clock = 1_000_000;
@@ -53,6 +53,9 @@ async function drive(frames: { buf: Buffer; count: number }[], hard: boolean) {
     now: () => clock,
   });
   await new Promise((r) => setImmediate(r));
+  // A real provider transcribes as they speak, and every lexical rule in the
+  // endpointer reads that transcript. Without it the loop is deliberately blind.
+  if (saying !== undefined) voice.userSaid(saying);
   for (const f of frames) {
     for (let i = 0; i < f.count; i++) {
       clock += 20;
@@ -83,6 +86,8 @@ test('a five-second thinking pause is held, then the turn completes', async () =
       { buf: QUIET, count: 300 }, // 6s
     ],
     false,
+    // Trails off mid-clause: the sentence is not finished and neither is the thought.
+    "I think the reason I didn't go is",
   );
   assert.equal(voice.responses, 1, 'the agent should take exactly one turn');
   const turn = metrics.turns[0];
@@ -153,4 +158,38 @@ test('the mentor voice follows the caller, not the build', () => {
   assert.equal(resolveVoice({ voice: 'ara' }), 'ara', 'a provider voice name passes straight through');
   assert.equal(resolveVoice({}), 'eve', 'no preference falls back');
   assert.equal(resolveVoice({ voice: '  ' }), 'eve', 'and so does an empty one');
+});
+
+test('a finished sentence is answered promptly, not held like a hesitation', async () => {
+  // The first live caller's complaint, as a test: the wait after a complete
+  // answer felt like a machine thinking, not a person listening.
+  const { metrics } = await drive(
+    [
+      { buf: LOUD, count: 60 },
+      { buf: QUIET, count: 200 },
+    ],
+    false,
+    'Yes I went three times and it was fine',
+  );
+  const turn = metrics.turns[0];
+  assert.ok(turn, 'the turn should have completed');
+  assert.equal(turn.reason, 'finished-clause');
+  assert.ok(turn.endpointLatencyMs <= 1500, `waited ${turn.endpointLatencyMs}ms after a finished sentence`);
+});
+
+test('with no transcript the endpointer says so, instead of guessing patiently', async () => {
+  // A provider that sends no transcript makes every lexical rule blind. The
+  // failure mode is silent: the most patient branch becomes the default for
+  // every turn, and the whole call feels slow for a reason nobody can see.
+  const { metrics } = await drive(
+    [
+      { buf: LOUD, count: 60 },
+      { buf: QUIET, count: 200 },
+    ],
+    false,
+  );
+  const turn = metrics.turns[0];
+  assert.ok(turn);
+  assert.equal(turn.reason, 'blind-no-transcript');
+  assert.equal(metrics.sawTranscripts, false);
 });

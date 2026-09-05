@@ -9,7 +9,12 @@ import type { Endpointing } from '../config.ts';
  * hardest week. So we run turn-taking here, where we can use context, and the
  * logic is provider-neutral — it works identically behind a different stack.
  *
- * Default on a pause is always to WAIT. The rules below only ever ADD patience.
+ * Patience is not uniform, and that is the whole design. A finished sentence
+ * gets answered promptly; a sentence that trails off, a one-word placeholder,
+ * or a question that has been met with nothing at all gets held open for
+ * several seconds. Waiting the same length after every utterance is what makes
+ * an agent feel slow AND makes it cut people off — one number cannot be right
+ * for both, and the first live caller heard both faults in a single call.
  */
 
 /**
@@ -53,6 +58,12 @@ export interface TurnContext {
   userPatienceOffsetMs?: number;
   /** Longest pause they have already paused-and-resumed through in THIS turn. */
   longestPauseInTurnMs?: number;
+  /**
+   * Whether we are receiving a transcript of the caller at all. False means
+   * every lexical rule here is blind, and pretending otherwise turns the most
+   * patient branch into the default for every turn in the call.
+   */
+  transcriptsAvailable?: boolean;
 }
 
 export function normalise(text: string): string {
@@ -86,19 +97,30 @@ export function silenceBudgetMs(ctx: TurnContext, cfg: Endpointing): number {
   const n = normalise(ctx.partial);
   const words = n ? n.split(' ') : [];
 
-  let budget = cfg.baseSilenceMs;
+  let budget: number;
+  let looksFinished = false;
 
-  // Trailed off mid-clause. They have not finished the sentence, let alone the thought.
-  if (endsWithTrailingWord(ctx.partial)) budget = Math.max(budget, cfg.trailingClauseMs);
-
-  // A one-word answer is usually the placeholder before the real answer.
-  // Do not fill it, do not restate the question. Wait.
-  if (words.length > 0 && words.length <= 2 && !isBackchannel(n)) {
-    budget = Math.max(budget, cfg.shortAnswerMs);
+  if (ctx.transcriptsAvailable === false) {
+    // No words to read. Every branch below would be a guess dressed as a rule,
+    // and the most patient guess applied to every turn is how a call becomes
+    // uniformly slow. One middling number, and say so in the log.
+    budget = cfg.baseSilenceMs;
+  } else if (words.length === 0) {
+    // Asked, and nothing said yet. Hold the whole line open.
+    budget = cfg.openingSilenceMs;
+  } else if (endsWithTrailingWord(ctx.partial)) {
+    // Trailed off mid-clause. They have not finished the sentence, let alone
+    // the thought.
+    budget = cfg.trailingClauseMs;
+  } else if (words.length <= 2 && !isBackchannel(n)) {
+    // A one-word answer is usually the placeholder before the real answer.
+    // Do not fill it, do not restate the question. Wait.
+    budget = cfg.shortAnswerMs;
+  } else {
+    // A finished sentence. Answer it like someone who was listening.
+    budget = cfg.finishedClauseMs;
+    looksFinished = true;
   }
-
-  // Nothing said at all yet in response to a question: hold the whole line open.
-  if (words.length === 0) budget = Math.max(budget, cfg.trailingClauseMs);
 
   if (ctx.lastTurnWasHard) budget *= cfg.hardQuestionFactor;
 
@@ -107,7 +129,12 @@ export function silenceBudgetMs(ctx: TurnContext, cfg: Endpointing): number {
   // least as much room as the last one they came back from.
   const seen = ctx.longestPauseInTurnMs ?? 0;
   if (seen > 0) {
-    budget = Math.max(budget, Math.min(seen * cfg.withinTurnPauseFactor, cfg.withinTurnMaxMs));
+    // Never on a hard turn. "I've been finding it hard" is a complete clause
+    // and reads as finished, and it is the middle of a disclosure, not the end
+    // of one — trimming the memory there cuts off the person this whole design
+    // exists for. The corpus catches it within seconds of trying.
+    const weight = looksFinished && !ctx.lastTurnWasHard ? cfg.withinTurnFinishedWeight : 1;
+    budget = Math.max(budget, Math.min(seen * cfg.withinTurnPauseFactor * weight, cfg.withinTurnMaxMs));
   }
 
   budget += ctx.userPatienceOffsetMs ?? 0;

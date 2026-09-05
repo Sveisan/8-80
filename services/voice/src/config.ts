@@ -38,12 +38,29 @@ export function endpointing(sensitivity = num('ENDPOINTING_SENSITIVITY', 0.25)) 
   const scale = (patient: number, eager: number) => Math.round(patient + (eager - patient) * s);
   return {
     sensitivity: s,
-    /** Silence after ordinary speech before we consider the turn over. */
+    /**
+     * Silence after speech we cannot read. Used only when no transcript of the
+     * caller is available, where every rule below is blind and one middling
+     * number is the honest answer.
+     */
     baseSilenceMs: scale(2000, 500),
+    /**
+     * A complete-looking sentence, finished, with no sign of more coming. This
+     * is the common case in an ordinary exchange and it is where patience stops
+     * being a virtue: waiting here is not respectful, it is just slow, and it
+     * was the first thing a real caller complained about.
+     */
+    finishedClauseMs: scale(1100, 350),
     /** The sentence trailed off mid-clause. They are still thinking. */
-    trailingClauseMs: scale(4000, 1200),
+    trailingClauseMs: scale(6000, 2000),
     /** One- or two-word answer. Do not fill the silence; wait for the real one. */
-    shortAnswerMs: scale(3800, 1100),
+    shortAnswerMs: scale(4500, 1300),
+    /**
+     * Asked, and nothing said yet. The hardest moment in the call — after "Mm."
+     * on a week where nothing happened — and the one where an eager agent does
+     * the most damage. Hold the line open.
+     */
+    openingSilenceMs: scale(7000, 2500),
     /** Multiplier after a question the script marks as hard. */
     hardQuestionFactor: 1.6,
     /**
@@ -55,7 +72,15 @@ export function endpointing(sensitivity = num('ENDPOINTING_SENSITIVITY', 0.25)) 
      */
     withinTurnPauseFactor: +(2.2 + (1.2 - 2.2) * s).toFixed(2),
     /** Ceiling on that boost, so one long pause cannot make the rest glacial. */
-    withinTurnMaxMs: scale(6000, 2000),
+    withinTurnMaxMs: scale(7000, 2500),
+    /**
+     * How much of that boost survives once the sentence in front of us reads as
+     * finished. Someone who fragmented earlier may well fragment again, so the
+     * memory does not vanish — but holding the full boost after a complete
+     * clause is what made a 3-second mid-sentence pause cost six seconds of
+     * silence at the end, which is the thing that felt least like a person.
+     */
+    withinTurnFinishedWeight: 0.5,
     /** Absolute ceiling, so a dead line cannot hang the call forever. */
     maxWaitMs: num('ENDPOINTING_MAX_WAIT_MS', 9000),
     /** Below this, inbound speech is treated as backchannel, not a turn. */

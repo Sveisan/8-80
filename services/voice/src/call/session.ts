@@ -50,6 +50,11 @@ export async function runCall(opts: CallOptions): Promise<CallMetrics> {
   let turnIndex = 0;
   let overlapHandled = false;
   let greeted = false;
+  /**
+   * Whether a transcript of the caller has ever arrived. Until one does, the
+   * endpointer is reading energy alone and must not pretend otherwise.
+   */
+  let sawTranscript = false;
   let readyBeforeConnect = false;
   let closed = false;
 
@@ -121,6 +126,10 @@ export async function runCall(opts: CallOptions): Promise<CallMetrics> {
         if (lastAgentTurnId && HARD_TURNS.has(lastAgentTurnId)) timekeeper.markSensitive();
       },
       onUserTranscript: (text, final) => {
+        if (text.trim() && !sawTranscript) {
+          sawTranscript = true;
+          log('call.transcripts_live', {});
+        }
         if (!final) {
           partial = text;
           return;
@@ -171,7 +180,11 @@ export async function runCall(opts: CallOptions): Promise<CallMetrics> {
     const loud = rms(chunk) >= SPEECH_RMS;
     const hard = !!lastAgentTurnId && HARD_TURNS.has(lastAgentTurnId);
 
-    detector.setContext({ lastTurnWasHard: hard, patienceOffsetMs: opts.profile.patienceOffsetMs });
+    detector.setContext({
+      lastTurnWasHard: hard,
+      patienceOffsetMs: opts.profile.patienceOffsetMs,
+      transcriptsAvailable: sawTranscript,
+    });
     const ev = detector.frame(loud, partial, t);
 
     if (ev?.kind === 'speech_start') {
@@ -247,6 +260,7 @@ export async function runCall(opts: CallOptions): Promise<CallMetrics> {
   clearInterval(timer);
   metrics.endedAt = Date.now();
   metrics.trace = trace.build(ep.sensitivity, metrics.durationMs);
+  metrics.sawTranscripts = sawTranscript;
   live.close();
   log('call.end', metrics.summary());
   return metrics;

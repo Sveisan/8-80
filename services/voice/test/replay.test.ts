@@ -68,11 +68,30 @@ test('the corpus has teeth: at maximum eagerness it fails', () => {
 test('sensitivity is monotonic — more eager is never more patient', () => {
   const f = corpus.find((x) => x.id === 'pause-5s-midsentence');
   assert.ok(f);
+  // Measured by WHEN it decides, not by the budget of whichever pause it
+  // decided on: an eager setting ends the turn at an earlier pause entirely,
+  // and that pause can carry a larger budget than the later one a patient
+  // setting waits for. The decision time is the thing the caller experiences.
   let previous = Infinity;
   for (const s of [0, 0.25, 0.5, 0.75, 1]) {
     const r = replay(f, endpointing(s));
-    const waited = r.budgetMs ?? 0;
-    assert.ok(waited <= previous, `sensitivity ${s} was more patient than the step before it`);
-    previous = waited;
+    const decidedAt = r.endpointedAtMs ?? Infinity;
+    assert.ok(decidedAt <= previous, `sensitivity ${s} decided later than the step before it`);
+    previous = decidedAt;
   }
+});
+
+/**
+ * The design in one assertion. A single silence budget cannot serve both of
+ * these, and the first live caller heard both faults in one call: too slow
+ * after a finished sentence, and still talking over a five-second think.
+ */
+test('patience is asymmetric — the hard moments get many times the ordinary wait', () => {
+  const ordinary = replay(corpus.find((x) => x.id === 'ordinary-finished-sentence') as Fixture, cfg);
+  const hard = replay(corpus.find((x) => x.id === 'quiet-disclosure-fragmented') as Fixture, cfg);
+  assert.ok((ordinary.latenessMs ?? 0) <= 1200, `ordinary sentence waited ${ordinary.latenessMs}ms`);
+  assert.ok(
+    (hard.latenessMs ?? 0) >= (ordinary.latenessMs ?? 0) * 4,
+    'the disclosure must be given far more room than the ordinary answer, or the knob is just one number again',
+  );
 });

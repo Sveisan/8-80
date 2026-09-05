@@ -30,11 +30,12 @@ const TURNS = [
 ];
 
 /**
- * The beep. Two very different faults both present as "no voice", and the
- * only thing that separates them from the caller's side is whether a sound
- * this service generated itself arrives at all.
+ * The beep that separated "our audio is broken" from "the model is silent".
+ * It did its job and is now off by default: it makes the call feel like a
+ * prison line, which is not a note to take twice. `npm run stress -- --tone`
+ * brings it back the next time a call is silent.
  */
-process.env['PLAYBACK_TONE_MS'] ??= '600';
+if (process.argv.includes('--tone')) process.env['PLAYBACK_TONE_MS'] ??= '600';
 
 const SCORES = [
   ['naturalness', 'Voice naturalness'],
@@ -136,8 +137,12 @@ async function main(): Promise<void> {
     streamUrl,
   });
 
-  console.log('Ringing. When you answer you should hear a short beep first — that is this');
-  console.log('service testing its own audio path. Then the mentor opens the call.\n');
+  if (process.env['PLAYBACK_TONE_MS']) {
+    console.log('Ringing. You should hear a short beep first — that is this service testing');
+    console.log('its own audio path. Then the mentor opens the call.\n');
+  } else {
+    console.log('Ringing. The mentor opens the call.  (--tone adds the audio self-test beep.)\n');
+  }
   console.log('Answer, run the 8 turns, then hang up.\n');
   await rl.question('Press Enter once the call has ended… ');
 
@@ -147,8 +152,9 @@ async function main(): Promise<void> {
   await new Promise((r) => setTimeout(r, 1500));
   const metrics = completed.last;
 
-  const beep = (await rl.question('\n  Did you hear the beep at the start? (y/n): ')).trim().toLowerCase();
-  const heardTone = beep.startsWith('y');
+  const heardTone = process.env['PLAYBACK_TONE_MS']
+    ? (await rl.question('\n  Did you hear the beep at the start? (y/n): ')).trim().toLowerCase().startsWith('y')
+    : true;
 
   console.log('\nScores, 1-5.\n');
   const scores: Record<string, number> = {};
@@ -207,6 +213,16 @@ async function main(): Promise<void> {
     const s = metrics.summary();
     console.log(`  time-to-first-audio   ${s['timeToFirstAudioMs'] ?? '—'} ms`);
     console.log(`  median endpoint wait  ${s['medianEndpointLatencyMs'] ?? '—'} ms`);
+    const reasons = s['turnReasons'] as Record<string, number>;
+    const spread = Object.entries(reasons).map(([r, n]) => `${r}×${n}`).join('  ');
+    console.log(`  why it waited         ${spread || '—'}`);
+    if (!s['sawTranscripts']) {
+      console.log('');
+      console.log('  ⚠ No transcript of you ever arrived, so the endpointer ran on silence');
+      console.log('    timing alone — every lexical rule was blind. Turns 1, 2, 4 and 7 tested');
+      console.log('    a different system than the one we designed, and their scores do not');
+      console.log('    count. Check XAI_TRANSCRIBE_MODEL against what the provider accepts.');
+    }
     console.log(`  false interruptions   ${s['falseInterruptions']}`);
     console.log(`  backchannels ignored  ${s['backchannelsIgnored']}  (turn 4 should raise this, not bargeIns)`);
     console.log(`  cost                  ${JSON.stringify(s['cost'])}`);

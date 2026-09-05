@@ -15,14 +15,17 @@ export type DetectorEvent =
 export interface DetectorContext {
   lastTurnWasHard: boolean;
   patienceOffsetMs?: number;
+  /** False once we know no transcript of the caller is arriving. */
+  transcriptsAvailable?: boolean;
 }
 
-export function budgetReason(partial: string, hard: boolean): string {
+export function budgetReason(partial: string, hard: boolean, transcripts = true): string {
   const words = normalise(partial).split(' ').filter(Boolean);
+  if (!transcripts) return 'blind-no-transcript';
   if (hard) return 'hard-turn';
   if (words.length === 0) return 'nothing-said-yet';
   if (words.length <= 2) return 'short-answer';
-  return 'base';
+  return 'finished-clause';
 }
 
 export class TurnDetector {
@@ -78,6 +81,7 @@ export class TurnDetector {
         lastTurnWasHard: this.ctx.lastTurnWasHard,
         userPatienceOffsetMs: this.ctx.patienceOffsetMs,
         longestPauseInTurnMs: this.longestPauseInTurnMs,
+        transcriptsAvailable: this.ctx.transcriptsAvailable,
       },
       this.cfg,
     );
@@ -87,6 +91,6 @@ export class TurnDetector {
     this.pending = false;
 
     if (isBackchannel(partial)) return { kind: 'backchannel_end', at: now };
-    return { kind: 'turn_end', at: now, waitedMs, budgetMs, reason: budgetReason(partial, this.ctx.lastTurnWasHard) };
+    return { kind: 'turn_end', at: now, waitedMs, budgetMs, reason: budgetReason(partial, this.ctx.lastTurnWasHard, this.ctx.transcriptsAvailable !== false) };
   }
 }

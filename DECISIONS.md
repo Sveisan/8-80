@@ -443,4 +443,45 @@ Two things this does not yet settle:
   web app exists the field is set by hand, and the default is doing the choosing — which
   is exactly the thing this structure exists to make visible rather than permanent.
 
+## Patience is asymmetric — 2026-09-05, after the first full stress call
+
+Scores: naturalness 4, latency 3, interruptions 3, pauses 3. Two complaints, and they
+looked contradictory: *"it interrupted my five-second pause"* and *"the time it took to
+reply when it was clearly its turn was too long"*. Median endpoint wait: **3311ms** —
+not a distribution, the same budget almost every turn.
+
+One number cannot serve both. A finished sentence and a sentence that trails off need
+opposite treatment, and a single `baseSilenceMs` with `Math.max` rules layered on top
+collapses toward the most patient branch. So the budget is now chosen, not accumulated:
+
+| What we heard | Wait at 0.25 |
+|---|---|
+| A finished sentence | **913ms** |
+| One- or two-word answer | 3700ms |
+| Trailed off mid-clause | 5000ms |
+| Asked, nothing said yet | 5875ms |
+| No transcript available | 1625ms |
+
+Hard turns multiply by 1.6, and the within-turn fragmentation memory still overrides
+everything. Measured against the corpus: an ordinary answer is now answered in 900ms
+where it used to take 2000+; the fragmented disclosure is held for 8 seconds.
+
+Two things this cost, both caught by the corpus within seconds:
+
+- Trimming the fragmentation memory once a clause reads finished cut off
+  `quiet-disclosure-fragmented` — because *"I've been finding it hard"* IS a finished
+  clause, and it is the middle of a disclosure, not the end of one. The trim now never
+  applies on a hard turn. This is the second time that same sentence has caught a
+  regression; it has earned its place.
+- The monotonicity test was measuring the budget of whichever pause the turn ended on,
+  which is not comparable across settings. It now measures when the decision was made —
+  what the caller actually experiences.
+
+**And the open question the run did not answer.** If no transcript of the caller ever
+arrives, every lexical rule here is blind, and the old code silently defaulted the whole
+call to its most patient branch — which is exactly what a 3311ms median looks like. The
+endpointer now knows whether it can read words, uses one honest middling number when it
+cannot, and the stress run says so in capitals. The next run's `why it waited` breakdown
+settles whether that call was tuning or blindness.
+
 
