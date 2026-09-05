@@ -72,9 +72,12 @@ export class GrokVoiceProvider implements VoiceProvider {
           body += c.toString();
         });
         res.on('end', () => {
+          // xAI answers a bad key with 400, not 401, so the status alone
+          // points at the wrong thing. Read the body before deciding.
+          const saysKey = /api key/i.test(body);
           const hint =
-            res.statusCode === 401
-              ? ' — check XAI_API_KEY'
+            res.statusCode === 401 || saysKey
+              ? ' — the API key is not accepted. Check XAI_API_KEY, and run `npm run models` to test it directly.'
               : res.statusCode === 400
                 ? ` — check XAI_VOICE_MODEL (currently "${config.xai.model}") and XAI_VOICE_NAME (currently "${config.xai.voice}")`
                 : '';

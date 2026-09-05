@@ -19,10 +19,12 @@ to a real person.** Everything here is confined to two files —
 ## xAI / Grok
 
 - [ ] `wss://api.x.ai/v1/realtime?model=…` is the current endpoint, and `Authorization: Bearer` is accepted (ephemeral tokens are the documented alternative).
-- [ ] The model id. `grok-voice-think-fast-2.0` produced **HTTP 400 on the upgrade** on the
-      first live attempt — a rejected request, not a rejected key, which points at the
-      model string. Both client libraries default to `grok-voice-think-fast-1.0`.
-      Confirm the real id in the console; it is `XAI_VOICE_MODEL`, config not code.
+- [ ] The model id. Confirm against `npm run models`, which lists what the account can
+      actually use. `XAI_VOICE_MODEL` is config, not code.
+- [x] **xAI answers a bad API key with HTTP 400, not 401**, and the body says
+      "Incorrect API key provided". A status-only reading therefore blames the model id
+      and sends the debugging the wrong way — as it did here for two rounds. Always read
+      the body.
 - [ ] `session.update` accepts `{ instructions, voice, turn_detection, audio: { input: { format }, output: { format } } }`.
 - [ ] `turn_detection: null` really disables provider turn-taking, and the session then produces a response only on an explicit `response.create`. **This one matters most — the whole local endpointing design rests on it.**
 - [ ] `audio/pcmu` at 8000 Hz is accepted for both input and output, so no transcoding is needed.
