@@ -423,3 +423,24 @@ First reaction to the voice, unprompted: *"made me feel like I was talking to a 
 centre."* Naturalness 4, latency 4. That is the whole problem restated — the mechanics are
 fine and the delivery is wrong. Recorded here because it is the thing to beat, and because
 a later run scoring 4 on naturalness with the same complaint is not progress.
+
+## The mentor's voice is the caller's choice — 2026-09-05
+
+`eve` for callers who want a woman's voice, `rex` for a man's. Not a global setting: the
+preference lives on the caller profile and the names live in config
+(`XAI_VOICE_FEMALE` / `XAI_VOICE_MALE`), so changing provider or changing our minds is
+config, and a caller who has expressed no preference gets a fallback rather than a
+decision made for them.
+
+Two things this does not yet settle:
+
+- **The names are unverified.** The server does not echo a voice field and does not reject
+  a name that cannot exist, so nothing so far proves `rex` is a different person from
+  `eve` — or that either name does anything at all. `npm run audition` records each one
+  saying the opening line; if they are the same voice, this decision is decoration and the
+  whole question moves to the provider.
+- **Nobody is asked yet.** There is no signup, so no caller can express this. Until the
+  web app exists the field is set by hand, and the default is doing the choosing — which
+  is exactly the thing this structure exists to make visible rather than permanent.
+
+

@@ -71,7 +71,18 @@ export const config = {
   xai: {
     apiKey: () => req('XAI_API_KEY'),
     model: process.env.XAI_VOICE_MODEL ?? 'grok-voice-think-fast-2.0',
+    /** Fallback when a caller has expressed no preference. */
     voice: process.env.XAI_VOICE_NAME ?? 'eve',
+    /**
+     * The mentor's voice is the caller's choice, not a build-time constant, so
+     * the names live in config and the preference lives on the profile. Same
+     * reasoning as language: retrofitting a per-user field through a voice loop
+     * is a rewrite.
+     */
+    voices: {
+      female: process.env.XAI_VOICE_FEMALE ?? 'eve',
+      male: process.env.XAI_VOICE_MALE ?? 'rex',
+    } as Record<string, string>,
     /** Transcription of the caller, which our endpointer needs to read words. */
     transcribeModel: process.env.XAI_TRANSCRIBE_MODEL ?? 'whisper-1',
     url: process.env.XAI_REALTIME_URL ?? 'wss://api.x.ai/v1/realtime',

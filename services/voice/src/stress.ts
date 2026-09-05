@@ -4,6 +4,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { config, endpointing, repoRoot } from './config.ts';
 import { loadScript } from './script.ts';
+import { resolveVoice } from './prompt.ts';
 import { preflight, report } from './preflight.ts';
 import { checkReachable, waitReachable } from './reachability.ts';
 import { startTunnel, type Tunnel } from './tunnel.ts';
@@ -56,6 +57,7 @@ async function main(): Promise<void> {
   console.log(`turn-taking:  ${config.turnTaking}${config.turnTaking === 'local' ? ' (ours — provider VAD disabled)' : ' (provider server_vad — debug only)'}`);
   console.log(`sensitivity:  ${ep.sensitivity}  →  base ${ep.baseSilenceMs}ms · trailing ${ep.trailingClauseMs}ms · short-answer ${ep.shortAnswerMs}ms · max ${ep.maxWaitMs}ms`);
   console.log(`variants:     ${config.variants.nothing} · ${config.variants.nextAsk} · ${config.variants.closeQ}`);
+  console.log(`voice:        ${resolveVoice({ voice: process.env['STRESS_VOICE'] })}${process.env['STRESS_VOICE'] ? '' : '  (default — STRESS_VOICE=female|male to hear the other)'}`);
   console.log('─'.repeat(64));
   console.log('\nThe 8 turns to perform. 1, 2 and 7 are the ones that decide this:\n');
   for (const t of TURNS) {
@@ -119,7 +121,8 @@ async function main(): Promise<void> {
   console.log('yes.\n');
 
   const key = randomUUID();
-  expectCall(key, { callNumber: 2, lastCommitment: 'run three times', language: config.language });
+  const voice = process.env['STRESS_VOICE'] ?? '';
+  expectCall(key, { callNumber: 2, lastCommitment: 'run three times', language: config.language, voice });
   const streamUrl = `${config.wsPublicUrl().replace(/\/+$/, '')}/media?key=${key}`;
   console.log(`Calling ${maskTail(to)} from ${maskTail(from)}`);
   console.log(`Media stream → ${streamUrl.replace(key, '…')}\n`);

@@ -5,6 +5,7 @@ import { resolve } from 'node:path';
 import { parseScript } from '../src/script.ts';
 import { endpointing } from '../src/config.ts';
 import { runCall } from '../src/call/session.ts';
+import { resolveVoice } from '../src/prompt.ts';
 import { MockVoiceProvider } from '../src/adapters/voice/mock.ts';
 import type { MediaBridge } from '../src/adapters/telephony/types.ts';
 
@@ -142,4 +143,14 @@ test('no unfilled slot is ever left where the mentor could read it aloud', async
   // The model fills these three from what was actually said; anything else is a bug.
   const allowed = new Set(['{{commitment}}', '{{day}}', '{{eight|eighty}}']);
   assert.deepEqual(left.filter((s) => !allowed.has(s)), [], 'unfilled slot in the instructions');
+});
+
+test('the mentor voice follows the caller, not the build', () => {
+  // Set at signup, carried on the profile. A caller who has not been asked
+  // gets the default — which is a fallback, not a preference.
+  assert.equal(resolveVoice({ voice: 'female' }), 'eve');
+  assert.equal(resolveVoice({ voice: 'Male' }), 'rex', 'the stored preference should not be case-sensitive');
+  assert.equal(resolveVoice({ voice: 'ara' }), 'ara', 'a provider voice name passes straight through');
+  assert.equal(resolveVoice({}), 'eve', 'no preference falls back');
+  assert.equal(resolveVoice({ voice: '  ' }), 'eve', 'and so does an empty one');
 });

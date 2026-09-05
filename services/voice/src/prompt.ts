@@ -4,6 +4,12 @@ import type { ScriptLines } from './script.ts';
 export interface CallerProfile {
   name?: string;
   language?: string;
+  /**
+   * Which mentor voice this caller asked for — 'female', 'male', or a provider
+   * voice name outright. Absent means they have not been asked yet, which is
+   * not the same as not caring: the default is a fallback, not a choice.
+   */
+  voice?: string;
   lastCommitment?: string;
   /** How the next call is referred to out loud, e.g. "Tuesday" and "Tuesday at nine". */
   callDay?: string;
@@ -11,6 +17,13 @@ export interface CallerProfile {
   callNumber: number;
   consecutiveUndone?: number;
   patienceOffsetMs?: number;
+}
+
+/** The provider voice name for a caller: their preference, mapped, or the default. */
+export function resolveVoice(profile: Pick<CallerProfile, 'voice'>): string {
+  const want = profile.voice?.trim().toLowerCase();
+  if (!want) return config.xai.voice;
+  return config.xai.voices[want] ?? profile.voice ?? config.xai.voice;
 }
 
 /**

@@ -1,7 +1,7 @@
 import { config, endpointing, type Endpointing } from '../config.ts';
 import { log } from '../log.ts';
 import { HARD_TURNS, type ScriptLines } from '../script.ts';
-import { buildInstructions, type CallerProfile } from '../prompt.ts';
+import { buildInstructions, resolveVoice, type CallerProfile } from '../prompt.ts';
 import { CallMetrics } from '../metrics.ts';
 import { rms } from '../audio/mulaw.ts';
 import { toneFrames } from '../audio/tone.ts';
@@ -54,6 +54,7 @@ export async function runCall(opts: CallOptions): Promise<CallMetrics> {
   let closed = false;
 
   log('call.start', {
+    voice: resolveVoice(opts.profile),
     endpointing: { sensitivity: ep.sensitivity, base: ep.baseSilenceMs, trailing: ep.trailingClauseMs, short: ep.shortAnswerMs, max: ep.maxWaitMs },
     turnTaking: config.turnTaking,
     variants: config.variants,
@@ -74,7 +75,7 @@ export async function runCall(opts: CallOptions): Promise<CallMetrics> {
     {
       instructions: baseInstructions,
       language: opts.profile.language ?? config.language,
-      voice: config.xai.voice,
+      voice: resolveVoice(opts.profile),
       input: { kind: 'pcmu', rate: 8000 },
       output: { kind: 'pcmu', rate: 8000 },
       providerTurnDetection:

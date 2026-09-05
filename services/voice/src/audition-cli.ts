@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { WebSocket } from 'ws';
 import { config, repoRoot } from './config.ts';
 import { loadScript } from './script.ts';
+import { resolveVoice } from './prompt.ts';
 import { mulawToWav } from './audio/wav.ts';
 
 /**
@@ -85,7 +86,9 @@ async function say(voice: string, line: string): Promise<Buffer> {
 
 async function main(): Promise<void> {
   const wanted = process.argv.slice(2).filter((a) => !a.startsWith('-'));
-  const list = wanted.length ? wanted : CANDIDATES;
+  // "female" and "male" are what a caller picks; map them so the audition and
+  // the call are provably the same voice.
+  const list = (wanted.length ? wanted : CANDIDATES).map((v) => resolveVoice({ voice: v }));
   const line = loadScript().get('open.first.greet') ?? 'Hi — this is the 8 and 80 call.';
   const dir = resolve(repoRoot, 'runs', 'voices');
   mkdirSync(dir, { recursive: true });
