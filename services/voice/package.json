@@ -12,7 +12,8 @@
     "runs": "tsx src/runs-cli.ts",
     "checkurl": "tsx src/checkurl.ts",
     "prompt": "tsx src/prompt-cli.ts",
-    "models": "tsx src/models-cli.ts"
+    "models": "tsx src/models-cli.ts",
+    "voices": "tsx src/voices-cli.ts"
   },
   "dependencies": {
     "dotenv": "^16.4.5",

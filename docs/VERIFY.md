@@ -18,19 +18,20 @@ to a real person.** Everything here is confined to two files —
 
 ## xAI / Grok
 
-- [ ] `wss://api.x.ai/v1/realtime?model=…` is the current endpoint, and `Authorization: Bearer` is accepted (ephemeral tokens are the documented alternative).
-- [ ] The model id. Confirm against `npm run models`, which lists what the account can
-      actually use. `XAI_VOICE_MODEL` is config, not code.
+- [x] `wss://api.x.ai/v1/realtime?model=…` is the current endpoint, and `Authorization: Bearer` is accepted (ephemeral tokens are the documented alternative). Confirmed on the first live call, 2026-09-05.
+- [x] The model id: **`grok-voice-think-fast-1.0`** connects and speaks. `2.0` is refused, and
+      `/v1/models` does not enumerate voice models at all — the socket is the only test.
 - [x] **xAI answers a bad API key with HTTP 400, not 401**, and the body says
       "Incorrect API key provided". A status-only reading therefore blames the model id
       and sends the debugging the wrong way — as it did here for two rounds. Always read
       the body.
-- [ ] `session.update` accepts `{ instructions, voice, turn_detection, audio: { input: { format }, output: { format } } }`.
-- [ ] `turn_detection: null` really disables provider turn-taking, and the session then produces a response only on an explicit `response.create`. **This one matters most — the whole local endpointing design rests on it.**
-- [ ] `audio/pcmu` at 8000 Hz is accepted for both input and output, so no transcoding is needed.
-- [ ] Server event names: we handle both `response.output_audio.delta` and `response.audio.delta` (and the matching `.done` / transcript variants) because both appear across current clients. Confirm which 2.0 emits.
+- [x] `session.update` accepts `{ instructions, voice, turn_detection, audio: { input: { format }, output: { format } } }`, and answers with a `session.updated` that echoes it. We greet on that echo rather than on `session.created`, so the opening line is never spoken under default instructions.
+- [x] `turn_detection: null` really disables provider turn-taking: the session stayed silent until `response.create`, which is also how we found that nothing here ever sent one. **The whole local endpointing design rests on this.** Still to confirm across a full call with a talking caller.
+- [x] `audio/pcmu` at 8000 Hz is accepted for both input and output, echoed back as asked, and reaches the caller intelligibly. No transcoding on either leg. The PCM fallback in `grok.ts` has therefore never fired; keep it, it is one `session.updated` away from mattering.
+- [x] Server event names, observed on 1.0: audio arrives on the names we handle. Also emitted and harmless: `conversation.created`, `ping`, `response.output_item.added/done`, `conversation.item.added`, `response.content_part.added/done`, `response.done`. Unhandled names are now logged once each, which is how this list was obtained.
+- [ ] **Caller transcription.** We ask for `audio.input.transcription.model` (`XAI_TRANSCRIBE_MODEL`, default `whisper-1`) because our endpointer reads words, not just energy. No caller had spoken yet when this was added, so it is unconfirmed. `voice.transcripts` at call end says whether any arrived: zero after a call where someone spoke means the endpointer ran on timing alone and the stress scores for turns 1, 2, 4 and 7 mean nothing.
 - [ ] Confirm the post-cancel behaviour. LiveKit explicitly discards a response xAI "left in flight" after an interrupt; `grok.ts` mirrors that. If 2.0 fixed it, the workaround is harmless but should be noted.
-- [ ] Voice name: `eve` (options seen: eve, ara, rex, sal, leo).
+- [ ] Voice name: `eve` (options seen: eve, ara, rex, sal, leo). `npm run voices` probes them against the account without placing a call — it asks for each and checks what the server echoes back.
 - [ ] **Zero-retention / no-training must be turned on explicitly** and recorded in DECISIONS.md with the date and where it was set.
 
 ## Telnyx

@@ -83,6 +83,7 @@ export class GrokVoiceProvider implements VoiceProvider {
     let carry: Buffer = Buffer.alloc(0);
     let audioChunks = 0;
     let audioBytes = 0;
+    let userTranscripts = 0;
 
     /** Honour the contract: whatever arrives, the caller gets the configured format. */
     const toConfigured = (chunk: Buffer): Buffer => {
@@ -125,7 +126,17 @@ export class GrokVoiceProvider implements VoiceProvider {
               prefix_padding_ms: cfg.providerTurnDetection.prefixPaddingMs,
             }
           : null,
-        audio: { input: { format: fmt(cfg.input) }, output: { format: fmt(cfg.output) } },
+        audio: {
+          input: {
+            format: fmt(cfg.input),
+            // Our endpointer reads the words, not just the energy: trailing
+            // conjunctions buy patience, "mhm" is not a turn. Without a
+            // transcript of the caller it degrades to silence timing alone,
+            // which is the one thing this product cannot run on.
+            transcription: { model: config.xai.transcribeModel },
+          },
+          output: { format: fmt(cfg.output) },
+        },
         // The same request in the older field names. Which spelling this
         // server honours decides whether audio comes back as 8 kHz mu-law or
         // as 24 kHz PCM, and a server that ignores the format silently sends
@@ -227,8 +238,13 @@ export class GrokVoiceProvider implements VoiceProvider {
           events.onAgentTranscript?.(String(ev['transcript'] ?? ''), true);
           break;
 
+        case 'conversation.item.input_audio_transcription.delta':
+          events.onUserTranscript?.(String(ev['delta'] ?? ''), false);
+          break;
+
         case 'conversation.item.input_audio_transcription.completed':
         case 'conversation.item.input_audio_transcription.done':
+          userTranscripts++;
           events.onUserTranscript?.(String(ev['transcript'] ?? ''), true);
           break;
 
@@ -251,6 +267,9 @@ export class GrokVoiceProvider implements VoiceProvider {
     ws.on('close', (code) => {
       clearTimeout(readyFallback);
       log('voice.audio_received', { chunks: audioChunks, bytes: audioBytes, format: `${outFormat.kind}@${outFormat.rate}` });
+      // Zero here after a call where someone spoke means the endpointer ran
+      // blind, on timing alone. Worth knowing before trusting a stress score.
+      log('voice.transcripts', { user: userTranscripts });
       events.onClosed?.(code);
     });
     ws.on('error', (e) => events.onError?.(e instanceof Error ? e : new Error(String(e))));

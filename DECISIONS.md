@@ -399,3 +399,27 @@ It is aggregate only. It must never become per-user profiling, it segments by lo
 by nothing else, and locale is a field the user fills in — never something we detect from
 a voice, a name, or an accent. Fleet defaults also never silently override an individual's
 own measured behaviour once we have enough calls to know it.
+
+## First live call — 2026-09-05
+
+The call connected, the mentor spoke, and it was heard. Three findings worth keeping,
+because each one cost a call to learn:
+
+- **The agent must be told to speak first.** A speech-to-speech session with provider
+  turn-taking disabled produces nothing until an explicit `response.create`. Our loop only
+  sent one after detecting the end of a caller turn, so the line was silent while the
+  caller said hello into it. Every silent test call was this, not the model, the key, the
+  tunnel or the carrier.
+- **Ready means configured, not connected.** `session.created` arrives before our
+  instructions are applied. Greeting there would open the call as a generic assistant, in
+  a voice that is not the product.
+- **A silent call has two causes that feel identical on the phone**, so the stress run now
+  plays 600ms of tone it generates itself before the mentor speaks. Heard means the
+  telephony leg works and the fault is the model's audio; not heard means the model is
+  irrelevant and the fault is downstream of us. One question, and the diagnosis is decided
+  rather than guessed.
+
+First reaction to the voice, unprompted: *"made me feel like I was talking to a call
+centre."* Naturalness 4, latency 4. That is the whole problem restated — the mechanics are
+fine and the delivery is wrong. Recorded here because it is the thing to beat, and because
+a later run scoring 4 on naturalness with the same complaint is not progress.

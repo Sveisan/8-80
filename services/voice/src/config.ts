@@ -72,6 +72,8 @@ export const config = {
     apiKey: () => req('XAI_API_KEY'),
     model: process.env.XAI_VOICE_MODEL ?? 'grok-voice-think-fast-2.0',
     voice: process.env.XAI_VOICE_NAME ?? 'eve',
+    /** Transcription of the caller, which our endpointer needs to read words. */
+    transcribeModel: process.env.XAI_TRANSCRIBE_MODEL ?? 'whisper-1',
     url: process.env.XAI_REALTIME_URL ?? 'wss://api.x.ai/v1/realtime',
   },
   telnyx: {
