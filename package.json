@@ -15,7 +15,8 @@
     "preflight": "npm run -w @8and80/voice preflight",
     "runs": "npm run -w @8and80/voice runs",
     "checkurl": "npm run -w @8and80/voice checkurl",
-    "prompt": "npm run -w @8and80/voice prompt"
+    "prompt": "npm run -w @8and80/voice prompt",
+    "serve": "npm run -w @8and80/voice serve"
   },
   "devDependencies": {
     "@eslint/js": "^9.13.0",
