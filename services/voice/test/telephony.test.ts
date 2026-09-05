@@ -66,3 +66,26 @@ for (const [name, make, startFrame, sidKey] of [
     ws.emit('message', frame({ event: 'unknown-future-event' }));
   });
 }
+
+test('twilio: audio produced before the start frame is held, not dropped', () => {
+  const ws = new FakeSocket();
+  const bridge = twilioMediaBridge(asWs(ws));
+  // The greeting can be ready before Twilio's start frame arrives. Dropping it
+  // loses the opening words and is indistinguishable from a mute line.
+  bridge.send(Buffer.from([0x11, 0x22]));
+  assert.equal(ws.sent.length, 0, 'nothing can be sent before the stream id is known');
+  ws.emit('message', frame({ event: 'start', streamSid: 'MZ123' }));
+  assert.equal(ws.sent.length, 1, 'the held audio should follow the start frame');
+  const out = JSON.parse(ws.sent[0] as string) as { media: { payload: string } };
+  assert.deepEqual([...Buffer.from(out.media.payload, 'base64')], [0x11, 0x22]);
+});
+
+test('twilio: outbound audio is split into the 20ms frames the carrier expects', () => {
+  const ws = new FakeSocket();
+  const bridge = twilioMediaBridge(asWs(ws));
+  ws.emit('message', frame({ event: 'start', streamSid: 'MZ123' }));
+  bridge.send(Buffer.alloc(400, 0x7f));
+  assert.equal(ws.sent.length, 3, '400 bytes is two full frames and a partial');
+  const sizes = ws.sent.map((s) => Buffer.from((JSON.parse(s) as { media: { payload: string } }).media.payload, 'base64').length);
+  assert.deepEqual(sizes, [160, 160, 80]);
+});

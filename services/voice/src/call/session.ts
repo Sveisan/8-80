@@ -4,6 +4,7 @@ import { HARD_TURNS, type ScriptLines } from '../script.ts';
 import { buildInstructions, type CallerProfile } from '../prompt.ts';
 import { CallMetrics } from '../metrics.ts';
 import { rms } from '../audio/mulaw.ts';
+import { toneFrames } from '../audio/tone.ts';
 import { isBackchannel } from '../turn/endpointer.ts';
 import { TurnDetector } from '../turn/detector.ts';
 import { TraceRecorder } from '../turn/trace.ts';
@@ -144,6 +145,14 @@ export async function runCall(opts: CallOptions): Promise<CallMetrics> {
   );
 
   const live: VoiceSession = session;
+
+  // Before a word is said: prove the caller can hear us at all.
+  const toneMs = config.playbackToneMs();
+  if (toneMs > 0) {
+    log('call.tone', { ms: toneMs });
+    for (const frame of toneFrames(toneMs)) opts.media.send(frame);
+  }
+
   if (readyBeforeConnect) greet();
 
   function applyCorrections(): void {

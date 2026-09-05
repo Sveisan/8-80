@@ -88,6 +88,14 @@ export const config = {
   ringSeconds: num('RING_SECONDS', 25),
 
   /**
+   * Milliseconds of test tone played to the caller the moment the call
+   * connects, before the mentor speaks. 0 in production. A stress run turns it
+   * on, because "I heard nothing" has two completely different causes and the
+   * beep is what separates them.
+   */
+  playbackToneMs: () => num('PLAYBACK_TONE_MS', 0),
+
+  /**
    * 'local'    — we disable the provider's VAD and decide turns ourselves.
    * 'provider' — hand turn-taking to the provider's server_vad. Debug only.
    * See DECISIONS.md: the provider offers silence timing only, and silence

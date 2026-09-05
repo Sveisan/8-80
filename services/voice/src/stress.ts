@@ -28,6 +28,13 @@ const TURNS = [
   { n: 8, weight: 'secondary', do: 'Go off on a tangent that goes nowhere. Can it steer back without being rude?' },
 ];
 
+/**
+ * The beep. Two very different faults both present as "no voice", and the
+ * only thing that separates them from the caller's side is whether a sound
+ * this service generated itself arrives at all.
+ */
+process.env['PLAYBACK_TONE_MS'] ??= '600';
+
 const SCORES = [
   ['naturalness', 'Voice naturalness'],
   ['latencyFeel', 'Latency feel'],
@@ -126,7 +133,9 @@ async function main(): Promise<void> {
     streamUrl,
   });
 
-  console.log('Ringing. Answer, run the 8 turns, then hang up.\n');
+  console.log('Ringing. When you answer you should hear a short beep first — that is this');
+  console.log('service testing its own audio path. Then the mentor opens the call.\n');
+  console.log('Answer, run the 8 turns, then hang up.\n');
   await rl.question('Press Enter once the call has ended… ');
 
   // runCall publishes its metrics when the hangup propagates, which can land
@@ -134,6 +143,9 @@ async function main(): Promise<void> {
   // race as a missing result.
   await new Promise((r) => setTimeout(r, 1500));
   const metrics = completed.last;
+
+  const beep = (await rl.question('\n  Did you hear the beep at the start? (y/n): ')).trim().toLowerCase();
+  const heardTone = beep.startsWith('y');
 
   console.log('\nScores, 1-5.\n');
   const scores: Record<string, number> = {};
@@ -196,7 +208,7 @@ async function main(): Promise<void> {
     console.log(`  backchannels ignored  ${s['backchannelsIgnored']}  (turn 4 should raise this, not bargeIns)`);
     console.log(`  cost                  ${JSON.stringify(s['cost'])}`);
   } else {
-    console.log(diagnose());
+    console.log(diagnose(heardTone));
   }
 
   rl.close();
@@ -209,8 +221,36 @@ async function main(): Promise<void> {
  * A silent call has several causes and they feel identical on the phone. Say
  * which one it was, in words, rather than leaving it in a JSON log nobody reads.
  */
-function diagnose(): string {
+function diagnose(heardTone: boolean): string {
   const m = completed.last;
+
+  if (lastCall.mediaConnected && !heardTone) {
+    return [
+      '',
+      '  Diagnosis: nothing we generate is reaching your ear.',
+      '',
+      '  The beep is 600ms of mu-law this service builds itself and writes',
+      '  straight to the media socket, with no model involved. If that did not',
+      '  arrive, the fault is entirely in the leg between us and the carrier —',
+      '  not in the voice provider, the script, or the endpointing.',
+      '',
+      '  Look at {"event":"media.sent"} above. Zero frames means the stream',
+      '  never carried a streamSid; frames sent but nothing heard means Twilio',
+      '  accepted and discarded them, and its call log says why.',
+    ].join('\n');
+  }
+
+  if (heardTone && m?.voiceReady) {
+    return [
+      '',
+      '  Diagnosis: our audio path works — you heard the beep — and the model',
+      '  did send audio, but it was not intelligible speech to you.',
+      '',
+      '  That is a format mismatch, not a broken call. Check the',
+      '  {"event":"voice.session"} line above for what the provider says it is',
+      '  sending, and {"event":"voice.transcoding"} for whether we converted.',
+    ].join('\n');
+  }
 
   if (!lastCall.mediaConnected) {
     return [

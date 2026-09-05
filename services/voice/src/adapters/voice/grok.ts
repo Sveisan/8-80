@@ -1,6 +1,7 @@
 import { WebSocket } from 'ws';
 import { config } from '../../config.ts';
 import { log } from '../../log.ts';
+import { bytesToPcm16, pcm16ToMulaw, resample } from '../../audio/mulaw.ts';
 import type { AudioFormat, VoiceEvents, VoiceProvider, VoiceSession, VoiceSessionConfig } from './types.ts';
 
 /**
@@ -21,6 +22,34 @@ import type { AudioFormat, VoiceEvents, VoiceProvider, VoiceSession, VoiceSessio
 
 function fmt(a: AudioFormat): Record<string, unknown> {
   return a.kind === 'pcmu' ? { type: 'audio/pcmu', rate: 8000 } : { type: 'audio/pcm', rate: a.rate };
+}
+
+/** The pre-GA spelling of the same thing. */
+function legacyFmt(a: AudioFormat): string {
+  return a.kind === 'pcmu' ? 'g711_ulaw' : `pcm16`;
+}
+
+/**
+ * What the server says it will actually send, read back from its own echo of
+ * the session. Absent or unrecognised means we take it at its word that our
+ * request was honoured.
+ */
+function negotiatedOutput(session: unknown): { kind: 'pcmu' | 'pcm16'; rate: number } | undefined {
+  if (typeof session !== 'object' || session === null) return undefined;
+  const s = session as Record<string, unknown>;
+  const legacy = s['output_audio_format'];
+  const audio = s['audio'] as { output?: { format?: unknown } } | undefined;
+  const f = audio?.output?.format;
+  const asText = typeof legacy === 'string' ? legacy : typeof f === 'string' ? f : undefined;
+  const asObj = typeof f === 'object' && f !== null ? (f as Record<string, unknown>) : undefined;
+  const type = asText ?? (typeof asObj?.['type'] === 'string' ? (asObj['type'] as string) : undefined);
+  if (!type) return undefined;
+  if (/ulaw|pcmu/i.test(type)) return { kind: 'pcmu', rate: 8000 };
+  if (/pcm/i.test(type)) {
+    const rate = Number(asObj?.['rate'] ?? (/(\d{5,6})/.exec(type)?.[1] ?? 24000));
+    return { kind: 'pcm16', rate: Number.isFinite(rate) && rate > 0 ? rate : 24000 };
+  }
+  return undefined;
 }
 
 export class GrokVoiceProvider implements VoiceProvider {
@@ -45,6 +74,31 @@ export class GrokVoiceProvider implements VoiceProvider {
      * that acknowledges them, and only fall back to `session.created` if that
      * acknowledgement never comes.
      */
+    /**
+     * Set from the server's own echo of the session. Until it says otherwise we
+     * assume the format we asked for, and the audio path stays a passthrough.
+     */
+    let outFormat: { kind: 'pcmu' | 'pcm16'; rate: number } = cfg.output.kind === 'pcmu' ? { kind: 'pcmu', rate: 8000 } : { kind: 'pcm16', rate: cfg.output.rate };
+    let convertNoted = false;
+    let carry: Buffer = Buffer.alloc(0);
+    let audioChunks = 0;
+    let audioBytes = 0;
+
+    /** Honour the contract: whatever arrives, the caller gets the configured format. */
+    const toConfigured = (chunk: Buffer): Buffer => {
+      if (outFormat.kind === cfg.output.kind && outFormat.rate === (cfg.output.kind === 'pcmu' ? 8000 : cfg.output.rate)) return chunk;
+      if (outFormat.kind !== 'pcm16' || cfg.output.kind !== 'pcmu') return chunk;
+      if (!convertNoted) {
+        convertNoted = true;
+        log('voice.transcoding', { from: `pcm16@${outFormat.rate}`, to: 'pcmu@8000', reason: 'provider ignored the requested output format' });
+      }
+      const buf = carry.length ? Buffer.concat([carry, chunk]) : chunk;
+      carry = buf.length % 2 ? buf.subarray(buf.length - 1) : Buffer.alloc(0);
+      const body = buf.length % 2 ? buf.subarray(0, buf.length - 1) : buf;
+      return pcm16ToMulaw(resample(bytesToPcm16(body), outFormat.rate, 8000));
+    };
+
+    const seenUnknown = new Set<string>();
     let readyFired = false;
     let readyFallback: NodeJS.Timeout | undefined;
     const ready = () => {
@@ -72,6 +126,13 @@ export class GrokVoiceProvider implements VoiceProvider {
             }
           : null,
         audio: { input: { format: fmt(cfg.input) }, output: { format: fmt(cfg.output) } },
+        // The same request in the older field names. Which spelling this
+        // server honours decides whether audio comes back as 8 kHz mu-law or
+        // as 24 kHz PCM, and a server that ignores the format silently sends
+        // the latter — which is inaudible down a phone line. Asking both ways
+        // costs nothing; guessing wrong costs a call.
+        input_audio_format: legacyFmt(cfg.input),
+        output_audio_format: legacyFmt(cfg.output),
       },
     });
 
@@ -117,12 +178,14 @@ export class GrokVoiceProvider implements VoiceProvider {
 
       switch (type) {
         case 'session.created':
-          readyFallback ??= setTimeout(ready, 1500).unref();
+        case 'session.updated': {
+          const negotiated = negotiatedOutput(ev['session']);
+          if (negotiated) outFormat = negotiated;
+          log('voice.session', { event: type, output: `${outFormat.kind}@${outFormat.rate}`, echoed: negotiated ? 'yes' : 'no' });
+          if (type === 'session.updated') ready();
+          else readyFallback ??= setTimeout(ready, 1500).unref();
           break;
-
-        case 'session.updated':
-          ready();
-          break;
+        }
 
         case 'response.created':
           discardUntilNextResponse = false;
@@ -137,7 +200,12 @@ export class GrokVoiceProvider implements VoiceProvider {
             events.onAgentSpeechStarted?.(Date.now());
           }
           const d = ev['delta'];
-          if (typeof d === 'string') events.onAudio?.(Buffer.from(d, 'base64'));
+          if (typeof d === 'string') {
+            const raw = Buffer.from(d, 'base64');
+            audioChunks++;
+            audioBytes += raw.length;
+            events.onAudio?.(toConfigured(raw));
+          }
           break;
         }
 
@@ -169,12 +237,20 @@ export class GrokVoiceProvider implements VoiceProvider {
           break;
 
         default:
+          // The event names here came from two client libraries rather than
+          // from vendor documentation. An unhandled name is how audio goes
+          // missing silently, so it is named once and never again.
+          if (!seenUnknown.has(type)) {
+            seenUnknown.add(type);
+            log('voice.unhandled_event', { type });
+          }
           break;
       }
     });
 
     ws.on('close', (code) => {
       clearTimeout(readyFallback);
+      log('voice.audio_received', { chunks: audioChunks, bytes: audioBytes, format: `${outFormat.kind}@${outFormat.rate}` });
       events.onClosed?.(code);
     });
     ws.on('error', (e) => events.onError?.(e instanceof Error ? e : new Error(String(e))));

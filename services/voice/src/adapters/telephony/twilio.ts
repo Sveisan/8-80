@@ -79,6 +79,18 @@ export function twilioMediaBridge(ws: WebSocket): MediaBridge {
   let audioCb: ((c: Buffer) => void) | undefined;
   let hangupCb: (() => void) | undefined;
   let streamSid: string | undefined;
+  /**
+   * Outbound audio can be ready before Twilio's start frame arrives, and
+   * without the streamSid from that frame there is nowhere to send it. Held
+   * rather than dropped: dropping it loses the first syllables of the greeting
+   * and looks exactly like a mute line.
+   */
+  let held: Buffer[] = [];
+  let framesSent = 0;
+  let bytesSent = 0;
+
+  /** Twilio plays 8 kHz mu-law; 160 bytes is the 20ms frame it expects. */
+  const FRAME = 160;
 
   ws.on('message', (raw) => {
     let ev: Record<string, unknown>;
@@ -88,10 +100,14 @@ export function twilioMediaBridge(ws: WebSocket): MediaBridge {
       return;
     }
     switch (String(ev['event'] ?? '')) {
-      case 'start':
+      case 'start': {
         streamSid = String((ev['streamSid'] as string) ?? '');
-        log('media.start', { provider: 'twilio' });
+        log('media.start', { provider: 'twilio', held: held.length });
+        const queued = held;
+        held = [];
+        for (const c of queued) push(c);
         break;
+      }
       case 'media': {
         const payload = (ev['media'] as { payload?: string } | undefined)?.payload;
         if (payload && audioCb) audioCb(Buffer.from(payload, 'base64'));
@@ -105,7 +121,20 @@ export function twilioMediaBridge(ws: WebSocket): MediaBridge {
         break;
     }
   });
-  ws.on('close', () => hangupCb?.());
+  ws.on('close', () => {
+    log('media.sent', { provider: 'twilio', frames: framesSent, bytes: bytesSent });
+    hangupCb?.();
+  });
+
+  function push(chunk: Buffer): void {
+    if (ws.readyState !== 1 || !streamSid) return;
+    for (let o = 0; o < chunk.length; o += FRAME) {
+      const frame = chunk.subarray(o, Math.min(o + FRAME, chunk.length));
+      ws.send(JSON.stringify({ event: 'media', streamSid, media: { payload: frame.toString('base64') } }));
+      framesSent++;
+      bytesSent += frame.length;
+    }
+  }
 
   return {
     onAudio: (cb) => {
@@ -115,8 +144,11 @@ export function twilioMediaBridge(ws: WebSocket): MediaBridge {
       hangupCb = cb;
     },
     send: (chunk) => {
-      if (ws.readyState !== 1 || !streamSid) return;
-      ws.send(JSON.stringify({ event: 'media', streamSid, media: { payload: chunk.toString('base64') } }));
+      if (!streamSid) {
+        held.push(chunk);
+        return;
+      }
+      push(chunk);
     },
     close: () => ws.close(),
   };
