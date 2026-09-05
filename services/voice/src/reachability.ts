@@ -23,7 +23,12 @@ export async function checkReachable(timeoutMs = 10_000): Promise<Reachability> 
   const https = wss.replace(/^wss:/, 'https:');
 
   try {
-    const res = await fetch(`${https}/`, { signal: AbortSignal.timeout(timeoutMs) });
+    const res = await fetch(`${https}/`, {
+      signal: AbortSignal.timeout(timeoutMs),
+      // ngrok's free tier serves a browser interstitial instead of the origin
+      // unless this header is present. Harmless everywhere else.
+      headers: { 'ngrok-skip-browser-warning': 'true' },
+    });
     const body = await res.text();
     if (!res.ok || !body.includes('"ok"')) {
       return {
