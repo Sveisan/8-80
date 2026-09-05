@@ -61,6 +61,27 @@ export class GrokVoiceProvider implements VoiceProvider {
 
     await new Promise<void>((resolve, reject) => {
       ws.once('open', () => resolve());
+
+      // A rejected upgrade arrives as a plain HTTP response, and its body says
+      // exactly what was wrong — an unknown model, an unaccepted voice. The ws
+      // library reports only the status code unless we read it, and "400" sends
+      // the debugging in every direction at once.
+      ws.once('unexpected-response', (_req, res) => {
+        let body = '';
+        res.on('data', (c: Buffer) => {
+          body += c.toString();
+        });
+        res.on('end', () => {
+          const hint =
+            res.statusCode === 401
+              ? ' — check XAI_API_KEY'
+              : res.statusCode === 400
+                ? ` — check XAI_VOICE_MODEL (currently "${config.xai.model}") and XAI_VOICE_NAME (currently "${config.xai.voice}")`
+                : '';
+          reject(new Error(`xAI refused the connection: ${res.statusCode}${hint}\n      ${body.trim().slice(0, 400)}`));
+        });
+      });
+
       ws.once('error', (e) => reject(e instanceof Error ? e : new Error(String(e))));
     });
 
