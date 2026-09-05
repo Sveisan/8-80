@@ -129,6 +129,10 @@ async function main(): Promise<void> {
   console.log('Ringing. Answer, run the 8 turns, then hang up.\n');
   await rl.question('Press Enter once the call has ended… ');
 
+  // runCall publishes its metrics when the hangup propagates, which can land
+  // just after the Enter keypress. Give it a beat rather than reporting a
+  // race as a missing result.
+  await new Promise((r) => setTimeout(r, 1500));
   const metrics = completed.last;
 
   console.log('\nScores, 1-5.\n');
@@ -244,7 +248,29 @@ function diagnose(): string {
     ].join('\n');
   }
 
-  return '  No objective metrics captured.';
+  // The call reached us but runCall never completed — almost always the voice
+  // provider refusing the connection outright. The error is on lastCall
+  // because metrics are only published when a call finishes cleanly.
+  if (lastCall.error) {
+    return [
+      '',
+      '  Diagnosis: the call reached us, then the call loop failed.',
+      `\n  It said: ${lastCall.error}`,
+      '',
+      '  A connection refused at this point is the voice provider: a wrong API',
+      '  key, an unknown model id, or a rejected voice name. All three are',
+      '  config — XAI_API_KEY, XAI_VOICE_MODEL, XAI_VOICE_NAME.',
+    ].join('\n');
+  }
+
+  return [
+    '',
+    '  Diagnosis: audio arrived, but the call did not finish cleanly and left',
+    '  no metrics and no error.',
+    '',
+    '  Look for a line starting {"event":"call.failed" or {"event":"voice.error"',
+    '  in the output above — that carries the reason.',
+  ].join('\n');
 }
 
 function maskTail(n: string): string {
