@@ -38,6 +38,22 @@ export class GrokVoiceProvider implements VoiceProvider {
     let discardUntilNextResponse = false;
     let speaking = false;
 
+    /**
+     * Ready means configured, not merely connected. `session.created` arrives
+     * before our instructions are applied, and the mentor's opening line is
+     * spoken the moment we report ready — so we wait for the `session.updated`
+     * that acknowledges them, and only fall back to `session.created` if that
+     * acknowledgement never comes.
+     */
+    let readyFired = false;
+    let readyFallback: NodeJS.Timeout | undefined;
+    const ready = () => {
+      if (readyFired) return;
+      readyFired = true;
+      clearTimeout(readyFallback);
+      events.onReady?.();
+    };
+
     const send = (msg: Record<string, unknown>) => {
       if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
     };
@@ -101,8 +117,11 @@ export class GrokVoiceProvider implements VoiceProvider {
 
       switch (type) {
         case 'session.created':
+          readyFallback ??= setTimeout(ready, 1500).unref();
+          break;
+
         case 'session.updated':
-          events.onReady?.();
+          ready();
           break;
 
         case 'response.created':
@@ -154,7 +173,10 @@ export class GrokVoiceProvider implements VoiceProvider {
       }
     });
 
-    ws.on('close', (code) => events.onClosed?.(code));
+    ws.on('close', (code) => {
+      clearTimeout(readyFallback);
+      events.onClosed?.(code);
+    });
     ws.on('error', (e) => events.onError?.(e instanceof Error ? e : new Error(String(e))));
 
     log('voice.connected', { provider: 'grok', model: config.xai.model, turnTaking: config.turnTaking });
@@ -163,8 +185,9 @@ export class GrokVoiceProvider implements VoiceProvider {
       sendAudio(chunk) {
         send({ type: 'input_audio_buffer.append', audio: chunk.toString('base64') });
       },
-      respond() {
-        send({ type: 'input_audio_buffer.commit' });
+      respond(opts) {
+        // Committing an empty buffer is an error, so the opening turn skips it.
+        if (opts?.commitInput !== false) send({ type: 'input_audio_buffer.commit' });
         send({ type: 'response.create' });
       },
       cancel() {

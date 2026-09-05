@@ -127,3 +127,19 @@ test('instructions are built from SCRIPT.md and carry the silence rule', async (
   assert.match(voice.instructions, /Mm\./, 'the default nothing variant should be in the prompt');
   assert.ok(!voice.instructions.includes('!'), 'no exclamation marks reach the model');
 });
+
+test('the mentor speaks first — the caller is never answered by silence', async () => {
+  // No caller audio at all: whatever else happens, the line must not stay empty.
+  const { voice, media } = await drive([{ buf: QUIET, count: 5 }], false);
+  assert.equal(voice.greetings, 1, 'the agent should open the call exactly once');
+  assert.ok(media.sent.length > 0, 'the greeting never reached the caller');
+});
+
+test('no unfilled slot is ever left where the mentor could read it aloud', async () => {
+  const { voice } = await drive([{ buf: QUIET, count: 5 }], false);
+  const spoken = voice.instructions.split('\nSLOTS\n')[1]?.split('\n').slice(1).join('\n') ?? '';
+  const left = [...spoken.matchAll(/\{\{[^}]+\}\}/g)].map((m) => m[0]);
+  // The model fills these three from what was actually said; anything else is a bug.
+  const allowed = new Set(['{{commitment}}', '{{day}}', '{{eight|eighty}}']);
+  assert.deepEqual(left.filter((s) => !allowed.has(s)), [], 'unfilled slot in the instructions');
+});

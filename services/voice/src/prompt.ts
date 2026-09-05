@@ -5,6 +5,9 @@ export interface CallerProfile {
   name?: string;
   language?: string;
   lastCommitment?: string;
+  /** How the next call is referred to out loud, e.g. "Tuesday" and "Tuesday at nine". */
+  callDay?: string;
+  nextSlot?: string;
   callNumber: number;
   consecutiveUndone?: number;
   patienceOffsetMs?: number;
@@ -16,7 +19,14 @@ export interface CallerProfile {
  * than to improvise around them.
  */
 export function buildInstructions(script: ScriptLines, profile: CallerProfile): string {
-  const line = (id: string) => script.get(id) ?? '';
+  // SCRIPT.md marks its variable parts with {{slots}}. The ones we know are
+  // filled here; the rest are filled by the model from what was actually said.
+  // Either way a literal "{{" must never reach the caller's ear.
+  const fill = (text: string) =>
+    text
+      .replace('{{call_day}}', profile.callDay ?? 'week')
+      .replace('{{next_slot}}', profile.nextSlot ?? 'at the same time next week');
+  const line = (id: string) => fill(script.get(id) ?? '');
   const first = profile.callNumber <= 1;
 
   const stages: string[] = [];
@@ -73,6 +83,9 @@ export function buildInstructions(script: ScriptLines, profile: CallerProfile): 
     'A short "mhm" or "yeah" while you are speaking is them listening, not interrupting. Keep going.',
     'If you talk over them or cut them off, one beat and move on — no apology spiral. Say only: ' +
       `"${script.get('repair.interrupt') ?? 'Sorry — go on.'}"`,
+    '',
+    'SLOTS',
+    'Any text in double braces is a slot and is never spoken as written. {{commitment}} is the thing they committed to, in their own words. {{day}} is the day they named. {{eight|eighty}} is whichever of the two the week actually served. Say the real value; if you do not have one, rephrase the line without it.',
     '',
     'IF SOMETHING SERIOUS IS SAID',
     'Drop the framework entirely. Stop the accountability conversation and do not return to it. Do not mention time or billing. Do not counsel, diagnose, assess, or solve, and do not ask assessment questions. Stay present, respond warmly and without script, and make clear that a person would be better for this than you are.',

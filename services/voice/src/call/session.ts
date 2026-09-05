@@ -48,6 +48,8 @@ export async function runCall(opts: CallOptions): Promise<CallMetrics> {
   let lastAgentTurnId: string | undefined;
   let turnIndex = 0;
   let overlapHandled = false;
+  let greeted = false;
+  let readyBeforeConnect = false;
   let closed = false;
 
   log('call.start', {
@@ -56,7 +58,18 @@ export async function runCall(opts: CallOptions): Promise<CallMetrics> {
     variants: config.variants,
   });
 
-  const session: VoiceSession = await opts.voice.connect(
+  // Assigned by the connect() below; the ready callback can fire before that
+  // promise resolves, which is why this is not a const.
+  let session: VoiceSession | undefined = undefined;
+
+  function greet(): void {
+    if (greeted || session === undefined) return;
+    greeted = true;
+    log('call.greeting', {});
+    session.respond({ commitInput: false });
+  }
+
+  session = await opts.voice.connect(
     {
       instructions: baseInstructions,
       language: opts.profile.language ?? config.language,
@@ -69,6 +82,20 @@ export async function runCall(opts: CallOptions): Promise<CallMetrics> {
           : false,
     },
     {
+      onReady: () => {
+        // The mentor opens the call. Without this the loop only ever responds
+        // to a finished caller turn, so it connects and waits in silence while
+        // the caller says hello into nothing.
+        //
+        // A provider can report ready before connect() has resolved, so the
+        // greeting is deferred rather than reaching for a `session` that does
+        // not exist yet.
+        if (session === undefined) {
+          readyBeforeConnect = true;
+          return;
+        }
+        greet();
+      },
       onAudio: (chunk) => {
         metrics.voiceReady = true;
         metrics.firstAudio();
@@ -116,14 +143,18 @@ export async function runCall(opts: CallOptions): Promise<CallMetrics> {
     },
   );
 
+  const live: VoiceSession = session;
+  if (readyBeforeConnect) greet();
+
   function applyCorrections(): void {
+    if (session === undefined) return;
     session.updateInstructions(baseInstructions + corrections.render());
     log('call.correction', { kinds: corrections.all.map((c) => c.kind) });
   }
 
   // ---- inbound audio: our own turn detection -------------------------------
   opts.media.onAudio((chunk) => {
-    session.sendAudio(chunk);
+    live.sendAudio(chunk);
     if (config.turnTaking === 'provider') return;
 
     const t = now();
@@ -157,7 +188,7 @@ export async function runCall(opts: CallOptions): Promise<CallMetrics> {
           metrics.bargeIns++;
           corrections.add(verdict.correction);
           metrics.corrections.push(verdict.correction.kind);
-          session.cancel();
+          live.cancel();
           applyCorrections();
         }
       }
@@ -181,7 +212,7 @@ export async function runCall(opts: CallOptions): Promise<CallMetrics> {
       });
       falseCut.noteTurnEnd(t);
       log('turn.end', { index: turnIndex - 1, waitedMs: ev.waitedMs, budgetMs: ev.budgetMs, reason: ev.reason, hard });
-      session.respond();
+      live.respond();
     }
   });
 
@@ -192,10 +223,10 @@ export async function runCall(opts: CallOptions): Promise<CallMetrics> {
     const due = timekeeper.due(metrics.durationMs, atBreak);
     if (due && due.text) {
       log('call.time_mention', { mention: due.mention });
-      session.updateInstructions(
+      live.updateInstructions(
         `${baseInstructions}${corrections.render()}\n\nSay exactly this once, now, as a passing courtesy, then drop the subject entirely: "${due.text}"`,
       );
-      session.respond();
+      live.respond();
     }
   }, 5000);
 
@@ -206,7 +237,7 @@ export async function runCall(opts: CallOptions): Promise<CallMetrics> {
   clearInterval(timer);
   metrics.endedAt = Date.now();
   metrics.trace = trace.build(ep.sensitivity, metrics.durationMs);
-  session.close();
+  live.close();
   log('call.end', metrics.summary());
   return metrics;
 }

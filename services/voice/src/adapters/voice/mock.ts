@@ -11,15 +11,18 @@ export class MockVoiceProvider implements VoiceProvider {
   readonly bus = new EventEmitter();
   instructions = '';
   cancels = 0;
+  /** Turns taken in response to the caller. The opening greeting is counted separately. */
   responses = 0;
+  greetings = 0;
 
   async connect(cfg: VoiceSessionConfig, events: VoiceEvents): Promise<VoiceSession> {
     this.instructions = cfg.instructions;
     queueMicrotask(() => events.onReady?.());
     return {
       sendAudio: () => {},
-      respond: () => {
-        this.responses++;
+      respond: (opts) => {
+        if (opts?.commitInput === false) this.greetings++;
+        else this.responses++;
         events.onAgentSpeechStarted?.(Date.now());
         events.onAudio?.(Buffer.alloc(160, 0xff));
         events.onAgentSpeechDone?.(Date.now());

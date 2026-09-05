@@ -41,8 +41,13 @@ export interface VoiceEvents {
 export interface VoiceSession {
   /** Caller audio in, in the configured input format. */
   sendAudio(chunk: Buffer): void;
-  /** Ask the model to take its turn now. Only used when we own turn-taking. */
-  respond(): void;
+  /**
+   * Ask the model to take its turn now. Only used when we own turn-taking.
+   *
+   * `commitInput: false` opens a turn without committing caller audio — used
+   * for the greeting, before the caller has said anything.
+   */
+  respond(opts?: { commitInput?: boolean }): void;
   /** Stop the model mid-utterance — a real barge-in, not a backchannel. */
   cancel(): void;
   /** Replace the live instructions; how the in-call correction buffer is applied. */
