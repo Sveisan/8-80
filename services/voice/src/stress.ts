@@ -60,7 +60,9 @@ async function main(): Promise<void> {
   console.log(`variants:     ${config.variants.nothing} · ${config.variants.nextAsk} · ${config.variants.closeQ}`);
   console.log(`voice:        ${resolveVoice({ voice: process.env['STRESS_VOICE'] })}${process.env['STRESS_VOICE'] ? '' : '  (default — STRESS_VOICE=female|male to hear the other)'}`);
   console.log('─'.repeat(64));
-  console.log('\nThe 8 turns to perform. 1, 2 and 7 are the ones that decide this:\n');
+  console.log('\nThe 8 turns to perform. 1, 2 and 7 are the ones that decide this.');
+  console.log('The full script — what to say, when to stop, what a pass sounds like:');
+  console.log('  docs/STRESS-CALL.md\n');
   for (const t of TURNS) {
     console.log(`  ${t.n}. ${t.weight === 'decides it' ? '★' : ' '} ${t.do}`);
   }
