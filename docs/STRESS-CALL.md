@@ -1,173 +1,127 @@
-# The stress call — what to say, and when
+# The stress call
 
-The 8-turn test as a script you can read while the phone is ringing. You are not having
-a real accountability conversation; you are behaving, on purpose, in the eight ways that
-break voice agents. **Invent last week freely. The content does not matter. The timing
-is the entire test.**
-
-Run it:
+Read this while the phone rings. Everything you say is below in **bold** — say those words,
+nothing else needed. Make up last week freely; the words don't matter, the pauses do.
 
 ```bash
 cd ~/8-80 && git pull && npm run stress
 ```
 
-It dials you. Answer, and the mentor speaks first.
+It calls you. It speaks first. **It thinks you promised to run three times last week.**
 
-**What it already believes:** this is your second call, and last week you committed to
-**"run three times."** So it opens with *"Hello again"* and asks what happened with the
-running. Everything below assumes that.
-
-**How to count seconds:** say "one-thousand-and-one, one-thousand-and-two…" silently.
-Do not rush it — three seconds of silence on a phone feels like ten, and that discomfort
-is exactly the thing being measured.
+Counting: say "one-thousand-and-one, one-thousand-and-two…" in your head. Slower than
+feels right.
 
 ---
 
-## Turn 1 ★ — the three-second pause
+## 1 ★  Pause for 3
 
-> "I got out on the Monday, and then…"
+Say: **"I got out on the Monday, and then…"**
 
-**STOP. Count three.** Then finish:
+Stop. Count to **3**.
 
-> "…the rest of the week just fell apart."
+Say: **"…the rest of the week just fell apart."**
 
-**Pass:** silence while you count. It lets you finish your own sentence.
-**Fail:** it answers your half-sentence, or fills the gap with "mm-hm" or a question.
-
-> Why: you stopped on "and then" — an unfinished clause. It should recognise that and
-> wait about five seconds before assuming you are done.
+☐ It stayed quiet while you counted
 
 ---
 
-## Turn 2 ★ — the five-second pause
+## 2 ★  Pause for 5
 
-Wait for its next question, then:
+Wait for its next question.
 
-> "The thing is, I think the reason I didn't go is…"
+Say: **"The thing is, I think the reason I didn't go is…"**
 
-**STOP. Count five, slowly.** It will feel unbearable. That is the point. Then:
+Stop. Count to **5**. (Feels awful. Good.)
 
-> "…I've been avoiding it, honestly."
+Say: **"…I've been avoiding it, honestly."**
 
-**Pass:** still silent when you come back.
-**Fail:** anything at all before you resume — including an encouraging "take your time".
-
-> Why: this is the turn that decides the product. Last run it spoke at three seconds.
-> The budget for a trailing clause is now five seconds, so this is the direct re-test.
+☐ It stayed quiet the whole 5
 
 ---
 
-## Turn 3 — correct yourself
+## 3  Change your mind
 
-Right after it responds:
+Say: **"I did the long one Tuesday — no wait, Wednesday."**
 
-> "I did the long one Tuesday — no wait, Wednesday."
-
-**Pass:** it takes Wednesday and carries on. **Also listen to how fast it comes back** —
-this is a finished sentence, so it should reply in about a second. Slower than that and
-the change did not land.
-**Fail:** "Ah, Wednesday — got it!" Narrating your correction is a call-centre tell.
+☐ It went with Wednesday, no fuss
+☐ It came back fast — about a second, not three
 
 ---
 
-## Turn 4 — "mhm" while it is talking
+## 4  Say "mhm" over it
 
-Wait until it is **mid-sentence**. Then, quietly, once:
+Wait until it is **in the middle of a sentence**.
 
-> "mhm"
+Say, quietly, once: **"mhm"**
 
-Say nothing else. Let it keep going.
+Then nothing. Let it finish.
 
-**Pass:** it does not break stride.
-**Fail:** it stops and hands you the turn, or apologises.
-
-> Why: a backchannel is listening, not interrupting. Afterwards, `backchannels ignored`
-> should be at least 1 and `barge-ins` should stay 0. If it is the other way round, the
-> classifier is wrong.
+☐ It carried on talking
 
 ---
 
-## Turn 5 — a real interruption
+## 5  Cut it off properly
 
-Mid-sentence again, but this time cut across it properly, with force:
+Wait until it is **in the middle of a sentence** again.
 
-> "No — hang on. That's not what I meant."
+Say, loudly, over it: **"No — hang on. That's not what I meant."**
 
-**Pass:** it stops within about a second, one beat, then picks up from what you said.
-**Fail:** an apology spiral, or it finishes its sentence first.
-
----
-
-## Turn 6 — something quietly difficult
-
-It does not have to be true. Say it flatter and slower than the rest of the call:
-
-> "Honestly, the running isn't really the problem. I've not been sleeping much, and
-> I've been dreading most days lately."
-
-Then **stop and let it respond.** Do not rescue the silence.
-
-**Pass:** the framework drops. No commitment for next week, no mention of time or
-billing, no cheerfulness. The tone changes and it stays with you.
-**Fail:** "That sounds hard. So — one thing for next week?" Anything that carries on the
-agenda is a fail, however warmly it is said.
-
-> This is the most important non-timing turn in the test. Everything else is mechanics.
+☐ It stopped straight away
+☐ No long apology
 
 ---
 
-## Turn 7 ★ — one word, then silence
+## 6  Something heavy
 
-Wait for its next question. Whatever it asks, answer with one word:
+Slower and flatter than the rest of the call:
 
-> "Fine."
+Say: **"Honestly, the running isn't really the problem. I've not been sleeping much,
+and I've been dreading most days lately."**
 
-Then **say nothing for ten seconds.** Count them.
+Then stop, and let it be quiet. Don't help it.
 
-**Pass:** it waits. At most a soft "Mm." It does not ask a new question, does not offer
-options, does not rephrase.
-**Fail:** it fills the gap.
+☐ It dropped the whole agenda — no next week, no time, no cheerfulness
 
-> Why: a one-word answer is usually a placeholder before the real one. Its budget here is
-> about 3.7 seconds, so if it speaks at all it should be one syllable and then silence
-> again. If it asks something new, that is the failure.
+*This is the most important box on the page. "That sounds hard — so, one thing for next
+week?" is a fail no matter how kindly it is said.*
 
 ---
 
-## Turn 8 — the tangent
+## 7 ★  One word, then nothing
 
-> "That reminds me — my brother's been trying to sell his car for months, and this guy
-> came round to look at it last weekend, and honestly the whole thing was a farce…"
+Whatever it asks next, say only: **"Fine."**
 
-Keep going for a good twenty seconds. Let it wander nowhere.
+Then say nothing. Count to **10**.
 
-**Pass:** it brings you back without being rude about it.
-**Fail:** it either follows you into the car story, or cuts you off flatly.
+☐ It waited. (A soft "Mm" is fine. A new question is not.)
 
 ---
 
-## Then hang up
+## 8  Ramble
 
-Press Enter in the terminal and score honestly, 1–5. **Score what you felt, not what you
-hoped.** A generous 4 teaches us nothing; the note field is where the real information
-is, so write what actually bothered you, in your own words.
+Say: **"That reminds me — my brother's been trying to sell his car for months, and this
+guy came round to look at it last weekend, and honestly the whole thing was a farce…"**
 
-## What to check in the output
+Keep going about 20 seconds. Go nowhere with it.
+
+☐ It brought you back, without being rude
+
+---
+
+## Hang up
+
+Press Enter. Score 1–5 — **what you felt, not what you hoped.** The free-text box is worth
+more than the numbers: "felt like a call centre" told me more than five 4s.
+
+Say where you were, too — a café is a different test than a kitchen table, and the run
+records how noisy the line was.
+
+## The one line to check afterwards
 
 ```
 why it waited    finished-clause×6  trailing-clause×3  short-answer×2
 ```
 
-That breakdown is the point of the run. **All one reason means it was not really
-listening** — it applied a single budget to everything, which is the fault that made the
-last call both too slow and too quick at once.
-
-And if you see:
-
-```
-⚠ No transcript of you ever arrived
-```
-
-then every word-based rule was blind, the endpointer ran on silence timing alone, and
-turns 1, 2, 4 and 7 tested a different system than the one we designed. Their scores do
-not count and that becomes the next thing to fix.
+Several reasons = it was listening to the words. **All one reason = it wasn't**, and the
+call needs fixing before the scores mean anything.

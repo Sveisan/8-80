@@ -36,6 +36,8 @@ export class CallMetrics {
   sawTranscripts = false;
   /** Where the audio we sent the caller was written, when capture is on. */
   audioFile: string | null = null;
+  /** How noisy the caller's line was. A quiet room is near zero. */
+  noiseFloor = 0;
 
   firstAudio(at = Date.now()): void {
     if (this.timeToFirstAudioMs === null) this.timeToFirstAudioMs = at - this.startedAt;
@@ -79,6 +81,7 @@ export class CallMetrics {
         return acc;
       }, {}),
       sawTranscripts: this.sawTranscripts,
+      noiseFloor: +this.noiseFloor.toFixed(4),
       falseInterruptions: this.falseInterruptions,
       backchannelsIgnored: this.backchannelsIgnored,
       bargeIns: this.bargeIns,

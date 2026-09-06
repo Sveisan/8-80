@@ -536,4 +536,25 @@ Worth keeping in view: every one of these was invisible until the transcript arr
 each looked like a quality problem in the model. Two rounds of scores were spent on a
 system that could not hear.
 
+## The line's noise is measured, not assumed — 2026-09-06
+
+A caller testing from a café raised the question, and the answer was worse than expected:
+speech detection used one fixed energy threshold, chosen for a quiet room. Background
+noise in a café, a car, or a street sits above it, so the detector hears continuous speech,
+never finds a silence, and **the turn never ends**. The most patient endpointer in the
+world cannot rescue a call where the line is never quiet — and the people most likely to
+take this call in a noisy place are the ones with the least controllable weeks.
+
+The floor is now the quietest recent energy on the line, and speech is what rises clearly
+above it. Two edges, both found by testing rather than by reasoning:
+
+- Frames at unmistakable speech level never enter the floor's history. Otherwise someone
+  talking without a gap becomes their own noise floor and the line goes deaf exactly while
+  they are speaking most.
+- The floor can never lower the bar below the configured threshold. On a silent line a
+  breath must not become a turn.
+
+Each run now reports the measured noise, so "it interrupted me" from a café and from a
+kitchen table are no longer the same data point.
+
 

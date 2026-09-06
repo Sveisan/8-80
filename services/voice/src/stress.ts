@@ -218,6 +218,8 @@ async function main(): Promise<void> {
     const reasons = s['turnReasons'] as Record<string, number>;
     const spread = Object.entries(reasons).map(([r, n]) => `${r}×${n}`).join('  ');
     console.log(`  why it waited         ${spread || '—'}`);
+    const noise = s['noiseFloor'] as number;
+    console.log(`  line noise            ${noise.toFixed(3)}${noise > 0.02 ? '  (noisy — a café or a street, not a quiet room)' : '  (quiet line)'}`);
     if (!s['sawTranscripts']) {
       console.log('');
       console.log('  ⚠ No transcript of you ever arrived, so the endpointer ran on silence');

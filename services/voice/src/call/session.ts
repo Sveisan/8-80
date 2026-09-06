@@ -6,6 +6,7 @@ import { HARD_TURNS, type ScriptLines } from '../script.ts';
 import { buildInstructions, resolveVoice, type CallerProfile } from '../prompt.ts';
 import { CallMetrics } from '../metrics.ts';
 import { rms } from '../audio/mulaw.ts';
+import { NoiseFloor } from '../audio/floor.ts';
 import { toneFrames } from '../audio/tone.ts';
 import { mulawToWav } from '../audio/wav.ts';
 import { isBackchannel } from '../turn/endpointer.ts';
@@ -44,6 +45,9 @@ export async function runCall(opts: CallOptions): Promise<CallMetrics> {
   const baseInstructions = buildInstructions(opts.script, opts.profile);
 
   const detector = new TurnDetector(ep);
+  // Measured from the caller's own line, so a café is not mistaken for someone
+  // who never stops talking.
+  const floor = new NoiseFloor(SPEECH_RMS);
   const falseCut = new FalseCutEstimator();
   const trace = new TraceRecorder();
 
@@ -204,7 +208,7 @@ export async function runCall(opts: CallOptions): Promise<CallMetrics> {
     if (config.turnTaking === 'provider') return;
 
     const t = now();
-    const loud = rms(chunk) >= SPEECH_RMS;
+    const loud = floor.observe(rms(chunk));
     const hard = !!lastAgentTurnId && HARD_TURNS.has(lastAgentTurnId);
 
     detector.setContext({
@@ -299,6 +303,8 @@ export async function runCall(opts: CallOptions): Promise<CallMetrics> {
   }
   metrics.trace = trace.build(ep.sensitivity, metrics.durationMs);
   metrics.sawTranscripts = sawTranscript;
+  metrics.noiseFloor = floor.floor;
+  log('call.noise', { floor: +floor.floor.toFixed(4), threshold: +floor.threshold.toFixed(4), base: SPEECH_RMS });
   live.close();
   log('call.end', metrics.summary());
   return metrics;
