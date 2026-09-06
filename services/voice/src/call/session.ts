@@ -242,7 +242,11 @@ export async function runCall(opts: CallOptions): Promise<CallMetrics> {
           metrics.bargeIns++;
           corrections.add(verdict.correction);
           metrics.corrections.push(verdict.correction.kind);
+          // Both, and in this order: stop the model producing more, then drop
+          // what the carrier is still holding. Cancelling only the model leaves
+          // the agent talking over the person who interrupted it.
           live.cancel();
+          opts.media.clear();
           applyCorrections();
         }
       }

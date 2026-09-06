@@ -150,6 +150,14 @@ export function twilioMediaBridge(ws: WebSocket): MediaBridge {
       }
       push(chunk);
     },
+    clear: () => {
+      // Audio still held for a stream that has not started yet is cancelled
+      // too, or it arrives late and plays over the caller anyway.
+      held = [];
+      if (ws.readyState !== 1 || !streamSid) return;
+      ws.send(JSON.stringify({ event: 'clear', streamSid }));
+      log('media.cleared', { provider: 'twilio' });
+    },
     close: () => ws.close(),
   };
 }

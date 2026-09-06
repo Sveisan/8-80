@@ -89,3 +89,23 @@ test('twilio: outbound audio is split into the 20ms frames the carrier expects',
   const sizes = ws.sent.map((s) => Buffer.from((JSON.parse(s) as { media: { payload: string } }).media.payload, 'base64').length);
   assert.deepEqual(sizes, [160, 160, 80]);
 });
+
+test('twilio: clearing drops audio the carrier has not played yet', () => {
+  const ws = new FakeSocket();
+  const bridge = twilioMediaBridge(asWs(ws));
+  ws.emit('message', frame({ event: 'start', streamSid: 'MZ123' }));
+  bridge.send(Buffer.alloc(160, 0x7f));
+  bridge.clear();
+  const last = JSON.parse(ws.sent[ws.sent.length - 1] as string) as Record<string, unknown>;
+  assert.equal(last['event'], 'clear', 'a barge-in must stop the sound, not only the model');
+  assert.equal(last['streamSid'], 'MZ123');
+});
+
+test('twilio: clearing before the stream starts drops the held audio too', () => {
+  const ws = new FakeSocket();
+  const bridge = twilioMediaBridge(asWs(ws));
+  bridge.send(Buffer.alloc(160, 0x7f));
+  bridge.clear();
+  ws.emit('message', frame({ event: 'start', streamSid: 'MZ123' }));
+  assert.equal(ws.sent.length, 0, 'audio cancelled before it was sent must not arrive late');
+});

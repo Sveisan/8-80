@@ -18,6 +18,7 @@ const QUIET = Buffer.alloc(160, 0xff);
 function fakeMedia() {
   let audio: ((c: Buffer) => void) | undefined;
   let hangup: (() => void) | undefined;
+  let cleared = 0;
   const sent: Buffer[] = [];
   const bridge: MediaBridge = {
     onAudio: (cb) => {
@@ -29,11 +30,17 @@ function fakeMedia() {
     send: (c) => {
       sent.push(c);
     },
+    clear: () => {
+      cleared++;
+    },
     close: () => {},
   };
   return {
     bridge,
     sent,
+    get cleared() {
+      return cleared;
+    },
     push: (c: Buffer) => audio?.(c),
     end: () => hangup?.(),
   };

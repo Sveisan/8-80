@@ -24,6 +24,15 @@ export interface MediaBridge {
   onHangup(cb: () => void): void;
   /** Audio to play to the caller, PCMU 8k. */
   send(chunk: Buffer): void;
+  /**
+   * Drop audio already handed to the carrier but not yet heard.
+   *
+   * Without this a barge-in does not stop the agent: cancelling the model only
+   * stops it producing more, while everything already sent stays queued at the
+   * carrier and plays over the person who interrupted. Cancelling the model and
+   * cancelling the sound are two different acts.
+   */
+  clear(): void;
   close(): void;
 }
 

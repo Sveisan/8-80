@@ -97,6 +97,13 @@ export function telnyxMediaBridge(ws: WebSocket): MediaBridge {
       if (ws.readyState !== 1) return;
       ws.send(JSON.stringify({ event: 'media', stream_id: streamId, media: { payload: chunk.toString('base64') } }));
     },
+    clear: () => {
+      if (ws.readyState !== 1) return;
+      // Same intent as the Twilio leg: stop what is already queued to play.
+      // Unverified against a live Telnyx call — see docs/VERIFY.md.
+      ws.send(JSON.stringify({ event: 'clear', stream_id: streamId }));
+      log('media.cleared', { provider: 'telnyx' });
+    },
     close: () => ws.close(),
   };
 }
