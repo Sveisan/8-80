@@ -102,6 +102,17 @@ export class GrokVoiceProvider implements VoiceProvider {
      * provider's shape is already known.
      */
     let utterance = '';
+    /**
+     * Bytes of caller audio appended since the buffer was last committed.
+     * Committing an empty buffer is an error, and this server's own voice
+     * activity commits the buffer on its own — so by the time we commit, there
+     * can be nothing there. The error is quiet and the consequence is not: no
+     * response is produced, and the caller is left talking to a line that has
+     * stopped answering.
+     */
+    let appendedSinceCommit = 0;
+    /** Set when we have asked for a response and not yet seen one begin. */
+    let awaitingResponse: NodeJS.Timeout | undefined;
     let audioChunks = 0;
     let audioBytes = 0;
     let userTranscripts = 0;
@@ -233,6 +244,13 @@ export class GrokVoiceProvider implements VoiceProvider {
         case 'response.created':
           discardUntilNextResponse = false;
           responseActive = true;
+          clearTimeout(awaitingResponse);
+          awaitingResponse = undefined;
+          break;
+
+        case 'input_audio_buffer.committed':
+          // Committed by the provider's own voice activity, not by us.
+          appendedSinceCommit = 0;
           break;
 
         case 'response.done':
@@ -323,6 +341,7 @@ export class GrokVoiceProvider implements VoiceProvider {
 
     ws.on('close', (code) => {
       clearTimeout(readyFallback);
+      clearTimeout(awaitingResponse);
       log('voice.audio_received', { chunks: audioChunks, bytes: audioBytes, format: `${outFormat.kind}@${outFormat.rate}` });
       // Zero here after a call where someone spoke means the endpointer ran
       // blind, on timing alone. Worth knowing before trusting a stress score.
@@ -335,12 +354,30 @@ export class GrokVoiceProvider implements VoiceProvider {
 
     return {
       sendAudio(chunk) {
+        appendedSinceCommit += chunk.length;
         send({ type: 'input_audio_buffer.append', audio: chunk.toString('base64') });
       },
       respond(opts) {
-        // Committing an empty buffer is an error, so the opening turn skips it.
-        if (opts?.commitInput !== false) send({ type: 'input_audio_buffer.commit' });
+        // Committing an empty buffer is an error, so the opening turn skips it
+        // — and so does any turn where the provider already committed for us.
+        if (opts?.commitInput !== false && appendedSinceCommit > 0) {
+          appendedSinceCommit = 0;
+          send({ type: 'input_audio_buffer.commit' });
+        }
         send({ type: 'response.create' });
+
+        // A response that never begins is silent in the log and total on the
+        // phone: the caller keeps talking and nothing ever answers. Ask once
+        // more, then say so.
+        clearTimeout(awaitingResponse);
+        awaitingResponse = setTimeout(() => {
+          if (responseActive) return;
+          log('voice.no_response', { action: 'asking again' });
+          send({ type: 'response.create' });
+          awaitingResponse = setTimeout(() => {
+            if (!responseActive) log('voice.no_response', { action: 'gave up — the session has stopped answering' });
+          }, 4000).unref();
+        }, 4000).unref();
       },
       cancel() {
         if (!responseActive) {

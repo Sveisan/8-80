@@ -51,8 +51,15 @@ export function endpointing(sensitivity = num('ENDPOINTING_SENSITIVITY', 0.25)) 
      * was the first thing a real caller complained about.
      */
     finishedClauseMs: scale(1100, 350),
-    /** The sentence trailed off mid-clause. They are still thinking. */
-    trailingClauseMs: scale(6000, 2000),
+    /**
+     * The sentence trailed off mid-clause. They are still thinking.
+     *
+     * 5800 rather than 5000 at the default: a caller deliberately holding a
+     * five-second pause was answered at almost exactly five seconds, which is
+     * the right rule landing on the wrong side of the line it was drawn for.
+     * A budget equal to the pause it exists to survive is not a budget.
+     */
+    trailingClauseMs: scale(7000, 2200),
     /** One- or two-word answer. Do not fill the silence; wait for the real one. */
     shortAnswerMs: scale(4500, 1300),
     /**

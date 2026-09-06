@@ -629,4 +629,21 @@ Kept as a standing lesson: the moment audio is buffered anywhere, generation tim
 listening time are different clocks, and every judgement about turn-taking belongs to the
 second one.
 
+## First "yes" — 2026-09-06
+
+Interruption 5/5, pauses 4/5, would want it weekly: **yes**. The mechanics are close
+enough that what is left is the conversation. Three things from the same call:
+
+- **A five-second pause was answered at five seconds.** The trailing budget was exactly
+  5000ms — the right rule landing precisely on the line it was drawn for. A budget equal
+  to the pause it exists to survive is not a budget; it is now 5800.
+- **It stopped answering entirely for the last two steps.** Two causes found, both silent:
+  our commit can land on a buffer the provider's own voice activity already committed,
+  which is an error that produces no response at all; and a `response.create` that never
+  becomes a response looks like nothing in the log and like abandonment on the phone. We
+  now commit only what we actually appended, and ask a second time before concluding the
+  session has stopped answering.
+- **Backchannels are still zero.** Either the "mhm" step was skipped or it is still being
+  missed. Unresolved, and the next run should do that step deliberately.
+
 
