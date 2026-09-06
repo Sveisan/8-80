@@ -211,3 +211,42 @@ test('a returning call is told, in the first line, not to introduce itself', asy
   assert.match(voice.instructions, /Do NOT introduce yourself/);
   assert.ok(!voice.instructions.includes('Is now still a good moment'), 'the first-call lines must not be in a returning call at all');
 });
+
+test('a completed transcript does not wipe the turn it belongs to', async () => {
+  // The provider commits on its own voice activity, which happens many times
+  // per turn. Clearing the words on each completed transcript left nothing to
+  // read at the moment the budget was computed, and every turn in a live call
+  // fell to "nothing said yet" — 5.9 seconds, every time.
+  const media = fakeMedia();
+  const voice = new MockVoiceProvider();
+  let clock = 1_000_000;
+  const done = runCall({
+    script,
+    profile: { callNumber: 2, lastCommitment: 'run three times' },
+    media: media.bridge,
+    voice,
+    endpointingCfg: endpointing(0.25),
+    now: () => clock,
+  });
+  await new Promise((r) => setImmediate(r));
+
+  // Speech, with the provider finalising a transcript mid-turn, as it does.
+  voice.userSaid('Yes I went three times', false);
+  for (let i = 0; i < 40; i++) {
+    clock += 20;
+    media.push(LOUD);
+  }
+  voice.userSaid('Yes I went three times', true);
+  voice.userSaid('and it was fine', true);
+  for (let i = 0; i < 150; i++) {
+    clock += 20;
+    media.push(QUIET);
+  }
+  media.end();
+  const metrics = await done;
+
+  const turn = metrics.turns[0];
+  assert.ok(turn, 'the turn should have completed');
+  assert.equal(turn.reason, 'finished-clause', 'the words were there and should have been read');
+  assert.ok(turn.endpointLatencyMs <= 1500, `waited ${turn.endpointLatencyMs}ms with a full sentence in hand`);
+});

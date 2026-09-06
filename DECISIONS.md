@@ -507,4 +507,33 @@ weekly: yes. Three findings, in the order they matter:
   mu-law here, which is a direct A/B — and both versions are saved as .wav, so it is
   decided by listening rather than by argument.
 
+## Third full call — 2026-09-06. The transcript arrived, and showed three bugs
+
+`voice.transcripts: user 76`. The pre-GA field name worked; the GA one alone had produced
+nothing. That single change turned every remaining fault visible at once, and all three
+were ours:
+
+- **Every turn read "nothing said yet".** Transcription arrives as increments, and the
+  provider finalises an utterance whenever its own voice activity says so — many times
+  per turn. We overwrote the words with each fragment and cleared them on each
+  finalisation, so at the moment a budget was computed there were no words to read.
+  Result: 5875ms on all five turns. The caller scored latency 1 and said it did not seem
+  interested. It was waiting six seconds after every sentence because it believed nothing
+  had been said. Words now accumulate for the whole turn and are cleared only when we end
+  one.
+- **The agent was believed to be speaking for the entire call.** This server sends
+  `response.done` but no `response.audio.done`, so nothing ever cleared the speaking flag.
+  Every word the caller said was scored as talking over it: five barge-ins, five cancels.
+- **Five cancels of nothing.** Each barge-in cancelled a response that had already
+  finished, and the server answered "Cancellation failed: no active response found" —
+  which read like a call fault and was only a stale belief. Cancel now requires a response
+  in flight.
+
+The three compound: the cancels cut off the agent's own turns, which is why a caller who
+was never interrupted still felt unheard and got no questions back.
+
+Worth keeping in view: every one of these was invisible until the transcript arrived, and
+each looked like a quality problem in the model. Two rounds of scores were spent on a
+system that could not hear.
+
 

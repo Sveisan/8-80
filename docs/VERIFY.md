@@ -36,6 +36,12 @@ to a real person.** Everything here is confined to two files —
       we are deliberately holding open. If those events are trustworthy they are also a
       better VAD than our RMS threshold, and worth adopting.
 - [ ] **Caller transcription.** We ask for `audio.input.transcription.model` (`XAI_TRANSCRIBE_MODEL`, default `whisper-1`) because our endpointer reads words, not just energy. No caller had spoken yet when this was added, so it is unconfirmed. `voice.transcripts` at call end says whether any arrived: zero after a call where someone spoke means the endpointer ran on timing alone and the stress scores for turns 1, 2, 4 and 7 mean nothing.
+- [x] **`response.done` is the only end-of-speech signal.** No `response.audio.done` or
+      `response.output_audio.done` arrives, so a loop waiting for those believes the agent
+      is speaking for the rest of the call and scores every caller word as an interruption.
+- [x] **Cancelling with no response in flight is an error here**, answered with
+      "Cancellation failed: no active response found". Track the response, or the log fills
+      with faults that are only stale beliefs.
 - [ ] Confirm the post-cancel behaviour. LiveKit explicitly discards a response xAI "left in flight" after an interrupt; `grok.ts` mirrors that. If 2.0 fixed it, the workaround is harmless but should be noted.
 - [ ] Voice name: `eve` (options seen: eve, ara, rex, sal, leo). `npm run voices` probes them against the account without placing a call — it asks for each and checks what the server echoes back.
 - [ ] **Zero-retention / no-training must be turned on explicitly** and recorded in DECISIONS.md with the date and where it was set.

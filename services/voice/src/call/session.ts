@@ -48,7 +48,24 @@ export async function runCall(opts: CallOptions): Promise<CallMetrics> {
   const trace = new TraceRecorder();
 
   let agentSpeaking = false;
-  let partial = '';
+  /**
+   * What the caller has said since our last turn end — the whole turn, not the
+   * latest fragment of it.
+   *
+   * A turn can contain several completed utterances: the provider commits on
+   * its own voice activity, which fires far more often than a turn ends. The
+   * first version cleared this on every completed transcript, so by the time a
+   * budget was computed there were no words left to read and every turn in a
+   * live call fell to "nothing said yet" — 5.9 seconds, every time, which is
+   * exactly what the caller reported as the latency.
+   */
+  let turnText = '';
+  let livePartial = '';
+  const spokenSoFar = () => `${turnText} ${livePartial}`.trim();
+  const clearTurnText = () => {
+    turnText = '';
+    livePartial = '';
+  };
   let lastAgentTurnId: string | undefined;
   let turnIndex = 0;
   let overlapHandled = false;
@@ -120,7 +137,7 @@ export async function runCall(opts: CallOptions): Promise<CallMetrics> {
       onAgentSpeechStarted: () => {
         agentSpeaking = true;
         // If we started while they were still going, that is our failure.
-        if (detector.isSpeaking && partial.trim()) {
+        if (detector.isSpeaking && spokenSoFar()) {
           corrections.add(agentCutUserOff());
           applyCorrections();
         }
@@ -140,10 +157,11 @@ export async function runCall(opts: CallOptions): Promise<CallMetrics> {
           log('call.transcripts_live', {});
         }
         if (!final) {
-          partial = text;
+          livePartial = text;
           return;
         }
-        partial = '';
+        turnText = `${turnText} ${text}`.trim();
+        livePartial = '';
         const c = detectCorrectionPhrase(text);
         if (c) {
           corrections.add(c);
@@ -194,13 +212,13 @@ export async function runCall(opts: CallOptions): Promise<CallMetrics> {
       patienceOffsetMs: opts.profile.patienceOffsetMs,
       transcriptsAvailable: sawTranscript,
     });
-    const ev = detector.frame(loud, partial, t);
+    const ev = detector.frame(loud, spokenSoFar(), t);
 
     if (ev?.kind === 'speech_start') {
       overlapHandled = false;
       trace.speechStart(t - metrics.startedAt);
       // They started again right after we handed the turn over. We were early.
-      if (falseCut.noteUserSpeech(t, partial)) {
+      if (falseCut.noteUserSpeech(t, spokenSoFar())) {
         metrics.falseInterruptions++;
         trace.suspectedCut(t - metrics.startedAt);
         corrections.add(agentCutUserOff());
@@ -213,9 +231,9 @@ export async function runCall(opts: CallOptions): Promise<CallMetrics> {
     // judged once per utterance rather than once per 20ms frame.
     if (loud && agentSpeaking && !overlapHandled) {
       const overlapMs = detector.speakingForMs(t);
-      if (overlapMs > ep.backchannelMaxMs && !isBackchannel(partial)) {
+      if (overlapMs > ep.backchannelMaxMs && !isBackchannel(spokenSoFar())) {
         overlapHandled = true;
-        const verdict = classifyOverlap(partial, overlapMs, ep.backchannelMaxMs);
+        const verdict = classifyOverlap(spokenSoFar(), overlapMs, ep.backchannelMaxMs);
         if (verdict.type === 'interruption') {
           metrics.bargeIns++;
           corrections.add(verdict.correction);
@@ -227,14 +245,15 @@ export async function runCall(opts: CallOptions): Promise<CallMetrics> {
     }
 
     if (ev?.kind === 'backchannel_end') {
-      trace.speechEnd(ev.at - metrics.startedAt, partial);
+      trace.speechEnd(ev.at - metrics.startedAt, spokenSoFar());
       metrics.backchannelsIgnored++;
+      clearTurnText();
       return;
     }
 
     if (ev?.kind === 'turn_end') {
       // The turn ended `waitedMs` ago — that is when they actually stopped.
-      trace.speechEnd(ev.at - ev.waitedMs - metrics.startedAt, partial);
+      trace.speechEnd(ev.at - ev.waitedMs - metrics.startedAt, spokenSoFar());
       metrics.turns.push({
         index: turnIndex++,
         endpointLatencyMs: ev.waitedMs,
@@ -243,7 +262,8 @@ export async function runCall(opts: CallOptions): Promise<CallMetrics> {
         hardTurn: hard,
       });
       falseCut.noteTurnEnd(t);
-      log('turn.end', { index: turnIndex - 1, waitedMs: ev.waitedMs, budgetMs: ev.budgetMs, reason: ev.reason, hard });
+      log('turn.end', { index: turnIndex - 1, waitedMs: ev.waitedMs, budgetMs: ev.budgetMs, reason: ev.reason, hard, words: spokenSoFar().split(/\s+/).filter(Boolean).length });
+      clearTurnText();
       live.respond();
     }
   });

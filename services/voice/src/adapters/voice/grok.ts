@@ -89,6 +89,19 @@ export class GrokVoiceProvider implements VoiceProvider {
       providerOutput.kind === 'pcmu' ? { kind: 'pcmu', rate: 8000 } : { kind: 'pcm16', rate: providerOutput.rate };
     let convertNoted = false;
     let carry: Buffer = Buffer.alloc(0);
+    /**
+     * Whether a response is actually in flight. Cancelling when there is none
+     * is an error, and this server answers it with "Cancellation failed: no
+     * active response found" — five times in one call, each one a barge-in we
+     * detected against an agent that had already stopped speaking.
+     */
+    let responseActive = false;
+    /**
+     * Transcription arrives as increments. Everything above this line wants the
+     * whole utterance so far, so the accumulating is done here, where the
+     * provider's shape is already known.
+     */
+    let utterance = '';
     let audioChunks = 0;
     let audioBytes = 0;
     let userTranscripts = 0;
@@ -219,6 +232,18 @@ export class GrokVoiceProvider implements VoiceProvider {
 
         case 'response.created':
           discardUntilNextResponse = false;
+          responseActive = true;
+          break;
+
+        case 'response.done':
+          responseActive = false;
+          // The only reliable end-of-speech signal this server sends. Without
+          // it the loop believes the agent is still talking for the rest of the
+          // call, and every word the caller says is scored as talking over it.
+          if (speaking) {
+            speaking = false;
+            events.onAgentSpeechDone?.(Date.now());
+          }
           break;
 
         // Both spellings are present across current clients; accept either.
@@ -258,14 +283,27 @@ export class GrokVoiceProvider implements VoiceProvider {
           break;
 
         case 'conversation.item.input_audio_transcription.delta':
-          events.onUserTranscript?.(String(ev['delta'] ?? ''), false);
+          utterance = `${utterance}${String(ev['delta'] ?? '')}`;
+          events.onUserTranscript?.(utterance.trim(), false);
           break;
 
-        case 'conversation.item.input_audio_transcription.completed':
-        case 'conversation.item.input_audio_transcription.done':
-          userTranscripts++;
-          events.onUserTranscript?.(String(ev['transcript'] ?? ''), true);
+        // Cumulative rather than incremental: it carries the utterance so far.
+        case 'conversation.item.input_audio_transcription.updated': {
+          const t = ev['transcript'];
+          if (typeof t === 'string') utterance = t;
+          else utterance = `${utterance}${String(ev['delta'] ?? '')}`;
+          events.onUserTranscript?.(utterance.trim(), false);
           break;
+        }
+
+        case 'conversation.item.input_audio_transcription.completed':
+        case 'conversation.item.input_audio_transcription.done': {
+          userTranscripts++;
+          const done = String(ev['transcript'] ?? utterance).trim();
+          utterance = '';
+          events.onUserTranscript?.(done, true);
+          break;
+        }
 
         case 'error':
           events.onError?.(new Error(JSON.stringify(ev['error'] ?? ev)));
@@ -305,8 +343,15 @@ export class GrokVoiceProvider implements VoiceProvider {
         send({ type: 'response.create' });
       },
       cancel() {
+        if (!responseActive) {
+          // Nothing to interrupt. Sending it anyway earns an error event that
+          // looks like a fault in the call when it is only a stale belief.
+          log('voice.cancel_skipped', { reason: 'no response in flight' });
+          return;
+        }
         discardUntilNextResponse = true;
         speaking = false;
+        responseActive = false;
         send({ type: 'response.cancel' });
       },
       updateInstructions(instructions) {
