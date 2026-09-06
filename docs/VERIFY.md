@@ -46,6 +46,15 @@ to a real person.** Everything here is confined to two files —
 - [ ] Voice name: `eve` (options seen: eve, ara, rex, sal, leo). `npm run voices` probes them against the account without placing a call — it asks for each and checks what the server echoes back.
 - [ ] **Zero-retention / no-training must be turned on explicitly** and recorded in DECISIONS.md with the date and where it was set.
 
+### Twilio — the intermittent dead stream
+
+- [ ] **Roughly half of calls open a media stream that carries nothing in either
+      direction.** Same code, same tunnel, same tools; the audio we hand over is provably
+      good (recorded and listened to). Check the Twilio call log for the failing SIDs and
+      look for stream errors, then check whether `track: 'inbound_track'` is legal on
+      `<Connect><Stream>` at all — it is documented for `<Start><Stream>`, and this adapter
+      sets it on Connect. That is the first thing to remove if the console shows nothing.
+
 ## Telnyx
 
 - [ ] `calls.dial` with `stream_url`, `stream_track: 'inbound_track'`, `stream_bidirectional_mode: 'rtp'`, `stream_bidirectional_codec: 'PCMU'` is the right combination for two-way audio over our own websocket.

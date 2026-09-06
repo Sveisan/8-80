@@ -88,6 +88,8 @@ export function twilioMediaBridge(ws: WebSocket): MediaBridge {
   let held: Buffer[] = [];
   let framesSent = 0;
   let bytesSent = 0;
+  let framesReceived = 0;
+  const seenEvents = new Set<string>();
 
   /** Twilio plays 8 kHz mu-law; 160 bytes is the 20ms frame it expects. */
   const FRAME = 160;
@@ -110,6 +112,7 @@ export function twilioMediaBridge(ws: WebSocket): MediaBridge {
       }
       case 'media': {
         const payload = (ev['media'] as { payload?: string } | undefined)?.payload;
+        if (payload) framesReceived++;
         if (payload && audioCb) audioCb(Buffer.from(payload, 'base64'));
         break;
       }
@@ -118,11 +121,22 @@ export function twilioMediaBridge(ws: WebSocket): MediaBridge {
         hangupCb?.();
         break;
       default:
+        // A stream that fails carries its reason in an event we were dropping
+        // on the floor. A call where nothing is heard in either direction, with
+        // a healthy websocket, is exactly the case this makes speakable.
+        if (!seenEvents.has(String(ev['event'] ?? ''))) {
+          seenEvents.add(String(ev['event'] ?? ''));
+          log('media.event', { provider: 'twilio', event: ev['event'], ...(ev['event'] === 'error' ? { payload: JSON.stringify(ev).slice(0, 400) } : {}) });
+        }
         break;
     }
   });
   ws.on('close', () => {
     log('media.sent', { provider: 'twilio', frames: framesSent, bytes: bytesSent });
+    // Zero here means the carrier opened a stream and put nothing in it. That
+    // is not our audio path, our tunnel, or the model — and saying so is the
+    // difference between one call and three.
+    log('media.received', { provider: 'twilio', frames: framesReceived, events: [...seenEvents] });
     hangupCb?.();
   });
 

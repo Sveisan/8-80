@@ -557,4 +557,25 @@ above it. Two edges, both found by testing rather than by reasoning:
 Each run now reports the measured noise, so "it interrupted me" from a café and from a
 kitchen table are no longer the same data point.
 
+## The intermittent silent call is the carrier's, not ours — 2026-09-06
+
+Settled by listening rather than reasoning. On a call where the caller heard nothing, the
+recording of what we handed to Twilio contains 4.94 seconds of clear speech. Our audio
+path, the model, the format and the tunnel were all fine; the carrier did not play it.
+
+The second half of the evidence is stronger: on that same call the measured line noise was
+0.000 — not one frame of the caller's own audio arrived either. A stream that carries
+nothing in either direction, while the websocket stays healthy, is a carrier-side failure
+wearing the costume of an audio bug. Roughly one call in two.
+
+Two things this cost, and both are now closed:
+
+- Twilio media events we did not handle were dropped silently, including `error`, which is
+  where a stream failure states its reason. They are named in the log now.
+- Nothing counted inbound frames, so "no audio from the caller" and "the caller said
+  nothing" looked identical. They are separate lines now.
+
+Standing rule this suggests: every leg of the path reports what it carried. Three calls
+were spent bisecting a silence that either leg could have named in one.
+
 

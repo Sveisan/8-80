@@ -109,3 +109,17 @@ test('twilio: clearing before the stream starts drops the held audio too', () =>
   ws.emit('message', frame({ event: 'start', streamSid: 'MZ123' }));
   assert.equal(ws.sent.length, 0, 'audio cancelled before it was sent must not arrive late');
 });
+
+test('twilio: an event we do not handle is named, not dropped', () => {
+  // A failing stream carries its reason in one of these. Silently ignoring it
+  // is how a carrier-side failure gets debugged as an audio bug for two days.
+  const ws = new FakeSocket();
+  const bridge = twilioMediaBridge(asWs(ws));
+  ws.emit('message', frame({ event: 'start', streamSid: 'MZ123' }));
+  ws.emit('message', frame({ event: 'error', code: 31951, message: 'Stream - Protocol - Invalid message' }));
+  bridge.close();
+  // The assertion is that it does not throw and the socket keeps working;
+  // the naming itself goes to the log, which is where a human reads it.
+  ws.emit('message', frame({ event: 'media', media: { payload: Buffer.from([0x7f]).toString('base64') } }));
+  assert.ok(true);
+});
