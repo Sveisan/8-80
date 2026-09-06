@@ -142,3 +142,29 @@ test('twilio: an event we do not handle is named, not dropped', () => {
   ws.emit('message', frame({ event: 'media', media: { payload: Buffer.from([0x7f]).toString('base64') } }));
   assert.ok(true);
 });
+
+test('twilio: pacing follows the clock, so jitter cannot accumulate', async () => {
+  const ws = new FakeSocket();
+  const bridge = twilioMediaBridge(asWs(ws));
+  ws.emit('message', frame({ event: 'start', streamSid: 'MZ123' }));
+  // Half a second of audio: 25 frames at 20ms.
+  bridge.send(Buffer.alloc(160 * 25, 0x7f));
+  await new Promise((r) => setTimeout(r, 300));
+  const sent = ws.sent.length;
+  // Counting timer ticks drifts — a 20ms interval fires at 21 or 22 — and over
+  // a long utterance the caller hears the gap as scattered speech.
+  assert.ok(sent >= 13 && sent <= 17, `after 300ms about 15 frames should have gone, sent ${sent}`);
+  bridge.close();
+});
+
+test('twilio: pendingMs reports what the caller has not heard yet', async () => {
+  const ws = new FakeSocket();
+  const bridge = twilioMediaBridge(asWs(ws));
+  ws.emit('message', frame({ event: 'start', streamSid: 'MZ123' }));
+  bridge.send(Buffer.alloc(160 * 50, 0x7f)); // one second
+  const pending = bridge.pendingMs();
+  assert.ok(pending > 800, `a second of audio should read as ~1000ms, got ${pending}`);
+  bridge.clear();
+  assert.equal(bridge.pendingMs(), 0, 'clearing empties it');
+  bridge.close();
+});

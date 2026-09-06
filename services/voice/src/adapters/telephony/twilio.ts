@@ -100,6 +100,7 @@ export function twilioMediaBridge(ws: WebSocket): MediaBridge {
 
   /** Twilio plays 8 kHz mu-law; 160 bytes is the 20ms frame it expects. */
   const FRAME = 160;
+  const FRAME_MS = 20;
   /**
    * Outbound audio is paced at the speed it is heard, not the speed it arrives.
    *
@@ -112,6 +113,12 @@ export function twilioMediaBridge(ws: WebSocket): MediaBridge {
    */
   const queue: Buffer[] = [];
   let pump: NodeJS.Timeout | undefined;
+  /**
+   * When the next frame is due, by the clock. Counting ticks instead drifts:
+   * a 20ms interval fires at 21 or 22, so a forty-second utterance arrives
+   * several seconds late in pieces, and the caller hears it as scattered.
+   */
+  let nextDueAt = 0;
 
   ws.on('message', (raw) => {
     let ev: Record<string, unknown>;
@@ -168,21 +175,26 @@ export function twilioMediaBridge(ws: WebSocket): MediaBridge {
 
   function start(): void {
     if (pump || queue.length === 0) return;
-    sendOne();
-    pump = setInterval(sendOne, 20);
+    nextDueAt = Date.now();
+    drain();
+    pump = setInterval(drain, 10);
   }
 
-  function sendOne(): void {
-    const frame = queue.shift();
-    if (frame === undefined) {
+  /** Send every frame that is due by now, so timer jitter cannot accumulate. */
+  function drain(): void {
+    const now = Date.now();
+    while (queue.length && nextDueAt <= now) {
+      const frame = queue.shift() as Buffer;
+      nextDueAt += FRAME_MS;
+      if (ws.readyState !== 1 || !streamSid) continue;
+      ws.send(JSON.stringify({ event: 'media', streamSid, media: { payload: frame.toString('base64') } }));
+      framesSent++;
+      bytesSent += frame.length;
+    }
+    if (queue.length === 0) {
       clearInterval(pump);
       pump = undefined;
-      return;
     }
-    if (ws.readyState !== 1 || !streamSid) return;
-    ws.send(JSON.stringify({ event: 'media', streamSid, media: { payload: frame.toString('base64') } }));
-    framesSent++;
-    bytesSent += frame.length;
   }
 
   return {
@@ -199,11 +211,22 @@ export function twilioMediaBridge(ws: WebSocket): MediaBridge {
       }
       push(chunk);
     },
+    /**
+     * How much audio is queued but not yet heard, in milliseconds.
+     *
+     * The model finishes generating long before the caller finishes hearing:
+     * a thirty-second answer is produced in a couple of seconds and then plays
+     * for thirty. Anything that reasons about whether the agent is currently
+     * speaking has to ask this, not the model — otherwise it believes the agent
+     * fell silent half a minute before the caller does.
+     */
+    pendingMs: () => (queue.length * FRAME_MS) + Math.max(0, nextDueAt - Date.now()),
     clear: () => {
       // Audio still held or queued is cancelled too, or it arrives late and
       // plays over the caller anyway.
       held = [];
       queue.length = 0;
+      nextDueAt = 0;
       if (ws.readyState !== 1 || !streamSid) return;
       ws.send(JSON.stringify({ event: 'clear', streamSid }));
       log('media.cleared', { provider: 'twilio' });

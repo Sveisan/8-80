@@ -603,4 +603,30 @@ is intermittent, so two good calls prove nothing. What would settle it is severa
 cloudflared with no silence, or one silent call on cloudflared — which would clear ngrok
 and put it back on us.
 
+## Pacing split the call in two — 2026-09-06
+
+Pacing outbound audio fixed the intermittent silence (fifteen turns, no dead stream) and
+broke the conversation, which is a fair trade only because the second problem is the more
+interesting one.
+
+Scores fell: naturalness 2, latency 1, pauses 1, would want it weekly: no. The caller's
+words: *"when it started speaking, but I was not done, it completed its whole phrase
+without being bothered by me"*, and *"the line felt scattered"*. Two causes, both mine:
+
+- **The model finishes generating long before the caller finishes hearing.** A thirty
+  second answer is produced in about two seconds and then plays for thirty. Every piece of
+  logic asking "is the agent speaking?" was asking the model, which had said yes and then
+  no while the caller still had half a minute of audio to come. So a caller talking over
+  the agent was recorded as talking to silence, and the barge-in never fired: bargeIns 0
+  in a call where he deliberately interrupted. The question is now asked of the playback
+  queue — `pendingMs()` — because that is what the caller is actually in.
+- **Counting timer ticks drifts.** A 20ms interval fires at 21 or 22, so each frame went
+  out slightly late and the error accumulated across a forty-second utterance. Pacing now
+  follows the wall clock and sends everything due, which is the difference between speech
+  and scattered speech.
+
+Kept as a standing lesson: the moment audio is buffered anywhere, generation time and
+listening time are different clocks, and every judgement about turn-taking belongs to the
+second one.
+
 

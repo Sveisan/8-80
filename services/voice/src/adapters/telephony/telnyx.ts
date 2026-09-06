@@ -97,6 +97,8 @@ export function telnyxMediaBridge(ws: WebSocket): MediaBridge {
       if (ws.readyState !== 1) return;
       ws.send(JSON.stringify({ event: 'media', stream_id: streamId, media: { payload: chunk.toString('base64') } }));
     },
+    // Telnyx audio is not paced here yet, so nothing is ever waiting.
+    pendingMs: () => 0,
     clear: () => {
       if (ws.readyState !== 1) return;
       // Same intent as the Twilio leg: stop what is already queued to play.

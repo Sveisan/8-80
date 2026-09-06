@@ -25,6 +25,13 @@ export interface MediaBridge {
   /** Audio to play to the caller, PCMU 8k. */
   send(chunk: Buffer): void;
   /**
+   * Audio queued but not yet played to the caller, in milliseconds.
+   *
+   * The model finishes generating long before the caller finishes hearing, so
+   * "is the agent speaking?" cannot be answered by the model's own events.
+   */
+  pendingMs(): number;
+  /**
    * Drop audio already handed to the carrier but not yet heard.
    *
    * Without this a barge-in does not stop the agent: cancelling the model only

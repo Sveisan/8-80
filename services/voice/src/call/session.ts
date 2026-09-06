@@ -53,6 +53,18 @@ export async function runCall(opts: CallOptions): Promise<CallMetrics> {
 
   let agentSpeaking = false;
   /**
+   * Is the caller currently hearing the agent?
+   *
+   * Not the same question as "has the model finished generating". A thirty
+   * second answer is produced in about two seconds and then plays for thirty,
+   * so the model's own done-event fires while the caller is still most of a
+   * minute from the end. Judging interruptions by the model's state means a
+   * caller who talks over the agent is recorded as talking to silence — which
+   * is exactly what a caller reported: it "completed its whole phrase without
+   * being bothered by me".
+   */
+  const agentAudible = () => agentSpeaking || opts.media.pendingMs() > 0;
+  /**
    * What the caller has said since our last turn end — the whole turn, not the
    * latest fragment of it.
    *
@@ -233,7 +245,7 @@ export async function runCall(opts: CallOptions): Promise<CallMetrics> {
 
     // Speaking over the agent: a backchannel is not an interruption, and this is
     // judged once per utterance rather than once per 20ms frame.
-    if (loud && agentSpeaking && !overlapHandled) {
+    if (loud && agentAudible() && !overlapHandled) {
       const overlapMs = detector.speakingForMs(t);
       if (overlapMs > ep.backchannelMaxMs && !isBackchannel(spokenSoFar())) {
         overlapHandled = true;
@@ -270,7 +282,17 @@ export async function runCall(opts: CallOptions): Promise<CallMetrics> {
         hardTurn: hard,
       });
       falseCut.noteTurnEnd(t);
-      log('turn.end', { index: turnIndex - 1, waitedMs: ev.waitedMs, budgetMs: ev.budgetMs, reason: ev.reason, hard, words: spokenSoFar().split(/\s+/).filter(Boolean).length });
+      log('turn.end', {
+        index: turnIndex - 1,
+        waitedMs: ev.waitedMs,
+        budgetMs: ev.budgetMs,
+        reason: ev.reason,
+        hard,
+        words: spokenSoFar().split(/\s+/).filter(Boolean).length,
+        // Audio still waiting to be heard when their turn ended. Large numbers
+        // mean the two sides of the conversation are drifting apart.
+        pendingMs: Math.round(opts.media.pendingMs()),
+      });
       clearTurnText();
       live.respond();
     }
@@ -279,7 +301,7 @@ export async function runCall(opts: CallOptions): Promise<CallMetrics> {
   // ---- time courtesy -------------------------------------------------------
   const timer = setInterval(() => {
     if (closed || timekeeper.finished) return;
-    const atBreak = !agentSpeaking && !detector.isSpeaking;
+    const atBreak = !agentAudible() && !detector.isSpeaking;
     const due = timekeeper.due(metrics.durationMs, atBreak);
     if (due && due.text) {
       log('call.time_mention', { mention: due.mention });

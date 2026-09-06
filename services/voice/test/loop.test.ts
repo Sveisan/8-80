@@ -30,6 +30,7 @@ function fakeMedia() {
     send: (c) => {
       sent.push(c);
     },
+    pendingMs: () => 0,
     clear: () => {
       cleared++;
     },
