@@ -51,9 +51,11 @@ to a real person.** Everything here is confined to two files —
 - [ ] **Roughly half of calls open a media stream that carries nothing in either
       direction.** Same code, same tunnel, same tools; the audio we hand over is provably
       good (recorded and listened to). Check the Twilio call log for the failing SIDs and
-      look for stream errors, then check whether `track: 'inbound_track'` is legal on
-      `<Connect><Stream>` at all — it is documented for `<Start><Stream>`, and this adapter
-      sets it on Connect. That is the first thing to remove if the console shows nothing.
+      look for stream errors. **`track: 'inbound_track'` has been removed from
+      `<Connect><Stream>`** — it is documented for `<Start><Stream>`, where a stream is
+      one-way and the direction must be named; a Connect stream is bidirectional by
+      definition. Whether that was the cause is unproven: the failure was intermittent, so
+      only a run of calls settles it, and a run of good calls proves nothing on its own.
 
 ## Telnyx
 

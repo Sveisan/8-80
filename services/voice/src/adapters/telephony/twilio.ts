@@ -40,7 +40,14 @@ export class TwilioProvider implements TelephonyProvider {
   async placeCall(opts: PlaceCallOptions): Promise<CallHandle> {
     const vr = new twilio.twiml.VoiceResponse();
     // Connect (not Start) is the bidirectional form — we need to speak back.
-    vr.connect().stream({ url: opts.streamUrl, track: 'inbound_track' });
+    //
+    // No `track` here on purpose. It is documented for <Start><Stream>, where a
+    // stream is one-way and you must say which way. <Connect><Stream> is
+    // bidirectional by definition, and naming a single track on it is at best
+    // meaningless and at worst an instruction to carry one direction only.
+    // Half the calls carried nothing in either direction; this was the only
+    // thing in the request that had no business being there.
+    vr.connect().stream({ url: opts.streamUrl });
 
     const call = await this.client.calls.create({
       to: opts.to,
