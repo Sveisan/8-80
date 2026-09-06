@@ -19,6 +19,7 @@ function fakeMedia() {
   let audio: ((c: Buffer) => void) | undefined;
   let hangup: (() => void) | undefined;
   let cleared = 0;
+  let pending = 0;
   const sent: Buffer[] = [];
   const bridge: MediaBridge = {
     onAudio: (cb) => {
@@ -30,9 +31,12 @@ function fakeMedia() {
     send: (c) => {
       sent.push(c);
     },
-    pendingMs: () => 0,
+    // What the caller still has left to hear. The real bridge computes this
+    // from its own queue; a test sets it to put the caller mid-utterance.
+    pendingMs: () => pending,
     clear: () => {
       cleared++;
+      pending = 0;
     },
     close: () => {},
   };
@@ -41,6 +45,9 @@ function fakeMedia() {
     sent,
     get cleared() {
       return cleared;
+    },
+    hearing: (ms: number) => {
+      pending = ms;
     },
     push: (c: Buffer) => audio?.(c),
     end: () => hangup?.(),
@@ -257,4 +264,40 @@ test('a completed transcript does not wipe the turn it belongs to', async () => 
   assert.ok(turn, 'the turn should have completed');
   assert.equal(turn.reason, 'finished-clause', 'the words were there and should have been read');
   assert.ok(turn.endpointLatencyMs <= 1500, `waited ${turn.endpointLatencyMs}ms with a full sentence in hand`);
+});
+
+test('a short sound made while the agent is talking is listening, not a turn', async () => {
+  // "mhm" is ~300ms. Transcription arrives a second or two later, so at the
+  // moment it must be classified there is no text for it — it has to be
+  // judged by duration and by whether they could hear us.
+  const media = fakeMedia();
+  const voice = new MockVoiceProvider();
+  let clock = 1_000_000;
+  const done = runCall({
+    script,
+    profile: { callNumber: 2, lastCommitment: 'run three times' },
+    media: media.bridge,
+    voice,
+    endpointingCfg: endpointing(0.25),
+    now: () => clock,
+  });
+  await new Promise((r) => setImmediate(r));
+  const before = voice.responses;
+
+  // 300ms of sound while the agent is mid-utterance, then silence.
+  media.hearing(4000); // four seconds of agent audio still to be heard
+  for (let i = 0; i < 15; i++) {
+    clock += 20;
+    media.push(LOUD);
+  }
+  for (let i = 0; i < 400; i++) {
+    clock += 20;
+    media.push(QUIET);
+  }
+  media.end();
+  const metrics = await done;
+
+  assert.equal(metrics.backchannelsIgnored, 1, 'the backchannel should be counted');
+  assert.equal(metrics.turns.length, 0, 'and must not become a turn');
+  assert.equal(voice.responses, before, 'answering a backchannel is the same mistake made audible');
 });

@@ -646,4 +646,20 @@ enough that what is left is the conversation. Three things from the same call:
 - **Backchannels are still zero.** Either the "mhm" step was skipped or it is still being
   missed. Unresolved, and the next run should do that step deliberately.
 
+## Backchannels are judged by duration, not by words — 2026-09-06
+
+The "mhm" step passed by ear and read 0 in the metrics on every call. The behaviour was
+right and the measurement was wrong, which is the worse of the two to leave alone: a
+number that says zero when the thing happened teaches the wrong lesson for weeks.
+
+The classification was lexical — is this word in the backchannel set — and transcription
+arrives a second or two behind. At the moment a 300ms "mhm" has to be judged there is
+usually no text for it at all. It is now judged by what is actually knowable at that
+instant: a burst shorter than the backchannel window, made while the caller could still
+hear us. Words remain the finer test where they exist; duration is the one that is there
+in time.
+
+It also stops a stray sound from being answered as though it were a turn — the same
+mistake, made audible.
+
 

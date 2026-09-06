@@ -85,6 +85,9 @@ export async function runCall(opts: CallOptions): Promise<CallMetrics> {
   let lastAgentTurnId: string | undefined;
   let turnIndex = 0;
   let overlapHandled = false;
+  /** When this burst of caller speech began, and whether they could hear us then. */
+  let speechStartedAt = 0;
+  let spokeOverAgent = false;
   let greeted = false;
   /**
    * Whether a transcript of the caller has ever arrived. Until one does, the
@@ -232,6 +235,8 @@ export async function runCall(opts: CallOptions): Promise<CallMetrics> {
 
     if (ev?.kind === 'speech_start') {
       overlapHandled = false;
+      speechStartedAt = t;
+      spokeOverAgent = agentAudible();
       trace.speechStart(t - metrics.startedAt);
       // They started again right after we handed the turn over. We were early.
       if (falseCut.noteUserSpeech(t, spokenSoFar())) {
@@ -272,6 +277,22 @@ export async function runCall(opts: CallOptions): Promise<CallMetrics> {
     }
 
     if (ev?.kind === 'turn_end') {
+      // A short burst made while they could hear us is listening, not a turn.
+      //
+      // Judged by duration and by whether we were audible, not by the words:
+      // transcription arrives a second or two late, so at the moment a 300ms
+      // "mhm" has to be classified there is usually no text for it at all. The
+      // behaviour was already right — the agent kept talking — but nothing
+      // counted it, and answering a backchannel as though it were a turn is
+      // the same mistake made audible.
+      const utteranceMs = ev.at - ev.waitedMs - speechStartedAt;
+      if (spokeOverAgent && utteranceMs > 0 && utteranceMs <= ep.backchannelMaxMs) {
+        trace.speechEnd(ev.at - ev.waitedMs - metrics.startedAt, spokenSoFar());
+        metrics.backchannelsIgnored++;
+        log('turn.backchannel', { utteranceMs });
+        clearTurnText();
+        return;
+      }
       // The turn ended `waitedMs` ago — that is when they actually stopped.
       trace.speechEnd(ev.at - ev.waitedMs - metrics.startedAt, spokenSoFar());
       metrics.turns.push({
