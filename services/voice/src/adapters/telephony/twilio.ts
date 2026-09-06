@@ -100,6 +100,18 @@ export function twilioMediaBridge(ws: WebSocket): MediaBridge {
 
   /** Twilio plays 8 kHz mu-law; 160 bytes is the 20ms frame it expects. */
   const FRAME = 160;
+  /**
+   * Outbound audio is paced at the speed it is heard, not the speed it arrives.
+   *
+   * The model returns a whole utterance at once: forty seconds of speech became
+   * two thousand websocket messages inside a few milliseconds. Twilio buffers
+   * that, but everything between us and Twilio has to carry the burst too, and
+   * a free tunnel is not obliged to. Pacing also makes an interrupt mean
+   * something — audio still in this queue has not been sent yet, so dropping it
+   * actually stops the voice.
+   */
+  const queue: Buffer[] = [];
+  let pump: NodeJS.Timeout | undefined;
 
   ws.on('message', (raw) => {
     let ev: Record<string, unknown>;
@@ -139,6 +151,8 @@ export function twilioMediaBridge(ws: WebSocket): MediaBridge {
     }
   });
   ws.on('close', () => {
+    clearInterval(pump);
+    pump = undefined;
     log('media.sent', { provider: 'twilio', frames: framesSent, bytes: bytesSent });
     // Zero here means the carrier opened a stream and put nothing in it. That
     // is not our audio path, our tunnel, or the model — and saying so is the
@@ -148,13 +162,27 @@ export function twilioMediaBridge(ws: WebSocket): MediaBridge {
   });
 
   function push(chunk: Buffer): void {
-    if (ws.readyState !== 1 || !streamSid) return;
-    for (let o = 0; o < chunk.length; o += FRAME) {
-      const frame = chunk.subarray(o, Math.min(o + FRAME, chunk.length));
-      ws.send(JSON.stringify({ event: 'media', streamSid, media: { payload: frame.toString('base64') } }));
-      framesSent++;
-      bytesSent += frame.length;
+    for (let o = 0; o < chunk.length; o += FRAME) queue.push(chunk.subarray(o, Math.min(o + FRAME, chunk.length)));
+    start();
+  }
+
+  function start(): void {
+    if (pump || queue.length === 0) return;
+    sendOne();
+    pump = setInterval(sendOne, 20);
+  }
+
+  function sendOne(): void {
+    const frame = queue.shift();
+    if (frame === undefined) {
+      clearInterval(pump);
+      pump = undefined;
+      return;
     }
+    if (ws.readyState !== 1 || !streamSid) return;
+    ws.send(JSON.stringify({ event: 'media', streamSid, media: { payload: frame.toString('base64') } }));
+    framesSent++;
+    bytesSent += frame.length;
   }
 
   return {
@@ -172,13 +200,18 @@ export function twilioMediaBridge(ws: WebSocket): MediaBridge {
       push(chunk);
     },
     clear: () => {
-      // Audio still held for a stream that has not started yet is cancelled
-      // too, or it arrives late and plays over the caller anyway.
+      // Audio still held or queued is cancelled too, or it arrives late and
+      // plays over the caller anyway.
       held = [];
+      queue.length = 0;
       if (ws.readyState !== 1 || !streamSid) return;
       ws.send(JSON.stringify({ event: 'clear', streamSid }));
       log('media.cleared', { provider: 'twilio' });
     },
-    close: () => ws.close(),
+    close: () => {
+      clearInterval(pump);
+      pump = undefined;
+      ws.close();
+    },
   };
 }

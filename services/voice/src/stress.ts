@@ -87,8 +87,26 @@ async function main(): Promise<void> {
   // Prove the carrier can reach us BEFORE spending a call. A stale tunnel
   // hostname produces a connected call that sits in silence, and from the
   // phone that is indistinguishable from a broken voice session.
+  // A tunnel that connects is not the same as a tunnel that carries a call.
+  // Half of these calls produced a healthy websocket that moved no audio in
+  // either direction, with the carrier reporting no fault — so the tunnel has
+  // to be swappable in one command, or it can never be ruled in or out.
+  if (process.env['TUNNEL'] === 'cloudflared') {
+    console.log('TUNNEL=cloudflared — ignoring VOICE_WS_PUBLIC_URL for this run.');
+    try {
+      tunnel = await startTunnel(config.port);
+      process.env['VOICE_WS_PUBLIC_URL'] = tunnel.url.replace(/^https:/, 'wss:');
+      console.log(`  Tunnel up: ${tunnel.url}`);
+    } catch (e) {
+      console.log(`  Could not start one: ${e instanceof Error ? e.message : String(e)}`);
+      console.log('  Install it with `brew install cloudflared`.\n');
+      rl.close();
+      process.exit(1);
+    }
+  }
+
   process.stdout.write('Checking the carrier can reach this service… ');
-  let reach = await checkReachable();
+  let reach = process.env['TUNNEL'] === 'cloudflared' ? await waitReachable({ onAttempt: () => process.stdout.write('.') }) : await checkReachable();
 
   // Quick tunnels change hostname on every restart and die when the window
   // closes, so a stale one in .env is the normal state of affairs rather than

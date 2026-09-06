@@ -578,4 +578,29 @@ Two things this cost, and both are now closed:
 Standing rule this suggests: every leg of the path reports what it carried. Three calls
 were spent bisecting a silence that either leg could have named in one.
 
+## The silent calls: what the carrier's own log ruled out — 2026-09-06
+
+Twilio's debugger shows the same single warning on all four calls — a missing AMD status
+callback, which is harmless and identical on the two that worked and the two that did not.
+No stream errors, no 31900-series codes, every call "Completed". The carrier believes
+nothing went wrong on any of them.
+
+Combined with what we already knew — good audio recorded on our side, zero inbound frames,
+a healthy websocket — that leaves the path between us and the carrier, which is currently
+a free ngrok tunnel. Two changes, in order of confidence:
+
+- **Outbound audio is paced at the speed it is heard.** The model returns a whole
+  utterance at once, so forty seconds of speech became two thousand websocket messages
+  inside a few milliseconds. Twilio buffers that; a free tunnel is under no obligation to.
+  Pacing is also what makes an interrupt mean anything: audio still in our queue has not
+  been sent, so dropping it actually stops the voice rather than only stopping the model.
+- **`TUNNEL=cloudflared` swaps the tunnel for one run**, ignoring the configured hostname.
+  A tunnel that connects is not the same as a tunnel that carries a call, and until it can
+  be swapped in one command it can be suspected but never ruled out.
+
+Still unproven, and it must stay that way until a run of calls says otherwise: the failure
+is intermittent, so two good calls prove nothing. What would settle it is several calls on
+cloudflared with no silence, or one silent call on cloudflared — which would clear ngrok
+and put it back on us.
+
 

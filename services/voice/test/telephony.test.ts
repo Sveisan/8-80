@@ -80,14 +80,33 @@ test('twilio: audio produced before the start frame is held, not dropped', () =>
   assert.deepEqual([...Buffer.from(out.media.payload, 'base64')], [0x11, 0x22]);
 });
 
-test('twilio: outbound audio is split into the 20ms frames the carrier expects', () => {
+test('twilio: outbound audio is split into 20ms frames and paced at the speed it is heard', async () => {
   const ws = new FakeSocket();
   const bridge = twilioMediaBridge(asWs(ws));
   ws.emit('message', frame({ event: 'start', streamSid: 'MZ123' }));
   bridge.send(Buffer.alloc(400, 0x7f));
+
+  // The model returns a whole utterance at once. Sending it at once turns
+  // forty seconds of speech into two thousand messages in a few milliseconds,
+  // and everything between us and the carrier has to carry that burst.
+  assert.equal(ws.sent.length, 1, 'only the first frame goes immediately');
+  await new Promise((r) => setTimeout(r, 120));
   assert.equal(ws.sent.length, 3, '400 bytes is two full frames and a partial');
   const sizes = ws.sent.map((s) => Buffer.from((JSON.parse(s) as { media: { payload: string } }).media.payload, 'base64').length);
   assert.deepEqual(sizes, [160, 160, 80]);
+  bridge.close();
+});
+
+test('twilio: clearing drops audio that is queued but not yet sent', async () => {
+  const ws = new FakeSocket();
+  const bridge = twilioMediaBridge(asWs(ws));
+  ws.emit('message', frame({ event: 'start', streamSid: 'MZ123' }));
+  bridge.send(Buffer.alloc(1600, 0x7f)); // a second of speech
+  bridge.clear();
+  await new Promise((r) => setTimeout(r, 120));
+  const media = ws.sent.filter((s) => (JSON.parse(s) as { event: string }).event === 'media');
+  assert.equal(media.length, 1, 'a barge-in must stop the audio that has not left yet');
+  bridge.close();
 });
 
 test('twilio: clearing drops audio the carrier has not played yet', () => {
