@@ -202,3 +202,12 @@ test('the model is told to stop after a question, not to talk past it', async ()
   assert.match(voice.instructions, /stop dead and wait/);
   assert.match(voice.instructions, /separate turns, not a speech/);
 });
+
+test('a returning call is told, in the first line, not to introduce itself', async () => {
+  // It opened call two with the first-call introduction. The branch was right;
+  // the instruction was implicit, and implicit lost to the model's habit.
+  const { voice } = await drive([{ buf: QUIET, count: 5 }], false);
+  assert.match(voice.instructions, /THIS IS NOT THE FIRST CALL/);
+  assert.match(voice.instructions, /Do NOT introduce yourself/);
+  assert.ok(!voice.instructions.includes('Is now still a good moment'), 'the first-call lines must not be in a returning call at all');
+});

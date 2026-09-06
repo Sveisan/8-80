@@ -53,6 +53,7 @@ export function buildInstructions(script: ScriptLines, profile: CallerProfile): 
     );
   } else {
     stages.push(
+      `0. THIS IS NOT THE FIRST CALL. It is call number ${profile.callNumber}. You have spoken before, they know what this is, and they know who you are. Do NOT introduce yourself. Do NOT explain how this works or what happens next week. Do NOT ask whether now is a good time. Do NOT say the name of this call. Start at 1.`,
       `1. Open: "${line('open.return.greet')}"`,
       `2. One beat, then ask about last week, quoting their own words back: "${line('open.return.callback').replace('{{commitment}}', profile.lastCommitment ?? 'the thing you named')}"`,
       `3. If they did it: "${line('last.did')}" If partly: "${line('last.partial')}"`,
