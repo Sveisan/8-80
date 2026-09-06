@@ -29,6 +29,12 @@ to a real person.** Everything here is confined to two files —
 - [x] `turn_detection: null` really disables provider turn-taking: the session stayed silent until `response.create`, which is also how we found that nothing here ever sent one. **The whole local endpointing design rests on this.** Still to confirm across a full call with a talking caller.
 - [x] `audio/pcmu` at 8000 Hz is accepted for both input and output, echoed back as asked, and reaches the caller intelligibly. No transcoding on either leg. The PCM fallback in `grok.ts` has therefore never fired; keep it, it is one `session.updated` away from mattering.
 - [x] Server event names, observed on 1.0: audio arrives on the names we handle. Also emitted and harmless: `conversation.created`, `ping`, `response.output_item.added/done`, `conversation.item.added`, `response.content_part.added/done`, `response.done`. Unhandled names are now logged once each, which is how this list was obtained.
+- [ ] **Provider VAD is still running even with `turn_detection: null`.** A live call emitted
+      `input_audio_buffer.speech_started` and `speech_stopped` around the caller's speech.
+      It did not produce an unasked-for response, so local turn-taking still holds — but
+      confirm it never auto-commits, because a provider commit racing ours would end turns
+      we are deliberately holding open. If those events are trustworthy they are also a
+      better VAD than our RMS threshold, and worth adopting.
 - [ ] **Caller transcription.** We ask for `audio.input.transcription.model` (`XAI_TRANSCRIBE_MODEL`, default `whisper-1`) because our endpointer reads words, not just energy. No caller had spoken yet when this was added, so it is unconfirmed. `voice.transcripts` at call end says whether any arrived: zero after a call where someone spoke means the endpointer ran on timing alone and the stress scores for turns 1, 2, 4 and 7 mean nothing.
 - [ ] Confirm the post-cancel behaviour. LiveKit explicitly discards a response xAI "left in flight" after an interrupt; `grok.ts` mirrors that. If 2.0 fixed it, the workaround is harmless but should be noted.
 - [ ] Voice name: `eve` (options seen: eve, ara, rex, sal, leo). `npm run voices` probes them against the account without placing a call — it asks for each and checks what the server echoes back.

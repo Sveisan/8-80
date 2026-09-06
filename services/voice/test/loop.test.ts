@@ -193,3 +193,12 @@ test('with no transcript the endpointer says so, instead of guessing patiently',
   assert.equal(turn.reason, 'blind-no-transcript');
   assert.equal(metrics.sawTranscripts, false);
 });
+
+test('the model is told to stop after a question, not to talk past it', async () => {
+  // A caller heard the opening greeting, explanation and first question in one
+  // breath, and it moved on before there was time to answer.
+  const { voice } = await drive([{ buf: QUIET, count: 5 }], false);
+  assert.match(voice.instructions, /ONE THING AT A TIME/);
+  assert.match(voice.instructions, /stop dead and wait/);
+  assert.match(voice.instructions, /separate turns, not a speech/);
+});

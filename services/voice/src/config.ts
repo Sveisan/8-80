@@ -110,6 +110,12 @@ export const config = {
     } as Record<string, string>,
     /** Transcription of the caller, which our endpointer needs to read words. */
     transcribeModel: process.env.XAI_TRANSCRIBE_MODEL ?? 'whisper-1',
+    /**
+     * Ask the provider for this format instead of the phone's own. "pcm16" is
+     * the A/B for the hiss a caller heard under the voice: if their mu-law
+     * encoder is the source of it, PCM converted here will be cleaner.
+     */
+    outputFormat: process.env.XAI_OUTPUT_FORMAT ?? '',
     url: process.env.XAI_REALTIME_URL ?? 'wss://api.x.ai/v1/realtime',
   },
   telnyx: {

@@ -484,4 +484,27 @@ endpointer now knows whether it can read words, uses one honest middling number 
 cannot, and the stress run says so in capitals. The next run's `why it waited` breakdown
 settles whether that call was tuning or blindness.
 
+## Second full call — 2026-09-06
+
+The voice came back (the silent run before it was a stale checkout, not a regression —
+the same build then produced audio end to end). Naturalness 4, latency 4, would want it
+weekly: yes. Three findings, in the order they matter:
+
+- **It asked a question and talked past it.** The opening greeting, the framing and the
+  first question arrived in one 11-second breath, and it moved on before there was time
+  to think. The prompt listed the stages as a numbered sequence and the model read the
+  sequence as a speech. Now stated outright: the stages are separate turns, and anything
+  with a question mark ends the turn.
+- **Still no transcript, and now we know the provider hears us anyway** — it emits
+  `input_audio_buffer.speech_started`/`stopped` around the caller's speech while
+  returning no transcription at all. So the endpointer is running blind on every call,
+  and `blind-no-transcript` was the only reason in the whole run. The pre-GA field name
+  is now sent alongside the GA one; that is the same fix that made the audio format work.
+  If it still returns nothing, this stops being config: either we run our own ASR beside
+  the voice session, or the provider cannot support the design.
+- **A soft noise layer under the voice.** Could be their mu-law encoder rather than the
+  model. `XAI_OUTPUT_FORMAT=pcm16` now asks for 24 kHz PCM and converts to the phone's
+  mu-law here, which is a direct A/B — and both versions are saved as .wav, so it is
+  decided by listening rather than by argument.
+
 

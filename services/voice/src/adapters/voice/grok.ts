@@ -56,6 +56,13 @@ export class GrokVoiceProvider implements VoiceProvider {
   readonly name = 'grok';
 
   async connect(cfg: VoiceSessionConfig, events: VoiceEvents): Promise<VoiceSession> {
+    /**
+     * What we ask the provider for, which is not always what the caller needs.
+     * The phone leg is mu-law 8k regardless; asking for PCM at a higher rate
+     * and converting here is worth trying when the provider's own mu-law
+     * encoder is the thing adding hiss.
+     */
+    const providerOutput = cfg.preferProviderOutput ?? cfg.output;
     const url = `${config.xai.url}?model=${encodeURIComponent(config.xai.model)}`;
     const ws = new WebSocket(url, { headers: { Authorization: `Bearer ${config.xai.apiKey()}` } });
 
@@ -78,7 +85,8 @@ export class GrokVoiceProvider implements VoiceProvider {
      * Set from the server's own echo of the session. Until it says otherwise we
      * assume the format we asked for, and the audio path stays a passthrough.
      */
-    let outFormat: { kind: 'pcmu' | 'pcm16'; rate: number } = cfg.output.kind === 'pcmu' ? { kind: 'pcmu', rate: 8000 } : { kind: 'pcm16', rate: cfg.output.rate };
+    let outFormat: { kind: 'pcmu' | 'pcm16'; rate: number } =
+      providerOutput.kind === 'pcmu' ? { kind: 'pcmu', rate: 8000 } : { kind: 'pcm16', rate: providerOutput.rate };
     let convertNoted = false;
     let carry: Buffer = Buffer.alloc(0);
     let audioChunks = 0;
@@ -140,7 +148,7 @@ export class GrokVoiceProvider implements VoiceProvider {
             // bisects that in one line rather than one guess per phone call.
             ...(config.xai.transcribeModel ? { transcription: { model: config.xai.transcribeModel } } : {}),
           },
-          output: { format: fmt(cfg.output) },
+          output: { format: fmt(providerOutput) },
         },
         // The same request in the older field names. Which spelling this
         // server honours decides whether audio comes back as 8 kHz mu-law or
@@ -148,7 +156,11 @@ export class GrokVoiceProvider implements VoiceProvider {
         // the latter — which is inaudible down a phone line. Asking both ways
         // costs nothing; guessing wrong costs a call.
         input_audio_format: legacyFmt(cfg.input),
-        output_audio_format: legacyFmt(cfg.output),
+        output_audio_format: legacyFmt(providerOutput),
+        // Same reasoning, same server: the GA spelling above produced no
+        // transcript at all, while the audio format only started working once
+        // both spellings were sent. Asking twice costs nothing.
+        ...(config.xai.transcribeModel ? { input_audio_transcription: { model: config.xai.transcribeModel } } : {}),
       },
     });
 
@@ -197,7 +209,7 @@ export class GrokVoiceProvider implements VoiceProvider {
         case 'session.updated': {
           const negotiated = negotiatedOutput(ev['session']);
           if (negotiated) outFormat = negotiated;
-          const asked = cfg.output.kind === 'pcmu' ? 'pcmu@8000' : `pcm16@${cfg.output.rate}`;
+          const asked = providerOutput.kind === 'pcmu' ? 'pcmu@8000' : `pcm16@${providerOutput.rate}`;
           const got = `${outFormat.kind}@${outFormat.rate}`;
           log('voice.session', { event: type, asked, output: got, echoed: negotiated ? 'yes' : 'no', ...(got === asked ? {} : { WARNING: 'the provider is not sending the format we asked for' }) });
           if (type === 'session.updated') ready();

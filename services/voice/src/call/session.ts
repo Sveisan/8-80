@@ -88,6 +88,7 @@ export async function runCall(opts: CallOptions): Promise<CallMetrics> {
       voice: resolveVoice(opts.profile),
       input: { kind: 'pcmu', rate: 8000 },
       output: { kind: 'pcmu', rate: 8000 },
+      ...(config.xai.outputFormat === 'pcm16' ? { preferProviderOutput: { kind: 'pcm16' as const, rate: 24000 as const } } : {}),
       providerTurnDetection:
         config.turnTaking === 'provider'
           ? { silenceMs: ep.baseSilenceMs, threshold: 0.85, prefixPaddingMs: 333 }

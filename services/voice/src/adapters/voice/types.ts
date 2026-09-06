@@ -18,7 +18,14 @@ export interface VoiceSessionConfig {
   language: string;
   voice: string;
   input: AudioFormat;
+  /** What the caller must receive. The adapter guarantees this, converting if it must. */
   output: AudioFormat;
+  /**
+   * What to ask the provider for, when that differs. The phone leg is fixed at
+   * mu-law 8k; a provider whose own mu-law encoder sounds thin may be worth
+   * asking for PCM instead, converting on our side.
+   */
+  preferProviderOutput?: AudioFormat;
   /**
    * When false, the provider must not decide turns — we do, in our own
    * endpointer, and we call respond() explicitly.
