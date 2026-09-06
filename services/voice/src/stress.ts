@@ -228,6 +228,12 @@ async function main(): Promise<void> {
     console.log(`  false interruptions   ${s['falseInterruptions']}`);
     console.log(`  backchannels ignored  ${s['backchannelsIgnored']}  (turn 4 should raise this, not bargeIns)`);
     console.log(`  cost                  ${JSON.stringify(s['cost'])}`);
+    if (metrics.audioFile) {
+      console.log('');
+      console.log(`  What the caller was sent, as a file:\n    ${metrics.audioFile}`);
+      console.log('    Play it. Speech there but silence on the phone means the fault is in');
+      console.log('    delivery, not in the model. Noise there means it is ours.');
+    }
   } else {
     console.log(diagnose(heardTone));
   }

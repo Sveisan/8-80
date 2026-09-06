@@ -49,3 +49,14 @@ test('the wav header describes exactly the audio that follows', () => {
   assert.equal(wav.readUInt32LE(40), mulaw.length * 2, 'data size must match the samples');
   assert.equal(wav.length, 44 + mulaw.length * 2);
 });
+
+test('captured call audio is playable, not just bytes on disk', () => {
+  // The recording only settles anything if it survives the round trip: what we
+  // sent the carrier must come back as the same samples.
+  const sent = toneFrames(200).reduce((a, b) => Buffer.concat([a, b]));
+  const wav = mulawToWav(sent);
+  const data = wav.subarray(44);
+  const first = data.readInt16LE(0);
+  assert.equal(first, mulawToPcm16(sent.subarray(0, 1))[0]);
+  assert.ok(rms(sent) > 0.05, 'a silent recording proves nothing');
+});

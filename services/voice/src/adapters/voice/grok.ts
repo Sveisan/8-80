@@ -133,7 +133,12 @@ export class GrokVoiceProvider implements VoiceProvider {
             // conjunctions buy patience, "mhm" is not a turn. Without a
             // transcript of the caller it degrades to silence timing alone,
             // which is the one thing this product cannot run on.
-            transcription: { model: config.xai.transcribeModel },
+            //
+            // Asking for it is also the newest thing in this payload, and a
+            // server that dislikes one field can reject or reshape the whole
+            // object — so an empty XAI_TRANSCRIBE_MODEL omits it entirely and
+            // bisects that in one line rather than one guess per phone call.
+            ...(config.xai.transcribeModel ? { transcription: { model: config.xai.transcribeModel } } : {}),
           },
           output: { format: fmt(cfg.output) },
         },
@@ -192,7 +197,9 @@ export class GrokVoiceProvider implements VoiceProvider {
         case 'session.updated': {
           const negotiated = negotiatedOutput(ev['session']);
           if (negotiated) outFormat = negotiated;
-          log('voice.session', { event: type, output: `${outFormat.kind}@${outFormat.rate}`, echoed: negotiated ? 'yes' : 'no' });
+          const asked = cfg.output.kind === 'pcmu' ? 'pcmu@8000' : `pcm16@${cfg.output.rate}`;
+          const got = `${outFormat.kind}@${outFormat.rate}`;
+          log('voice.session', { event: type, asked, output: got, echoed: negotiated ? 'yes' : 'no', ...(got === asked ? {} : { WARNING: 'the provider is not sending the format we asked for' }) });
           if (type === 'session.updated') ready();
           else readyFallback ??= setTimeout(ready, 1500).unref();
           break;

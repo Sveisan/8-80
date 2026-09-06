@@ -34,6 +34,8 @@ export class CallMetrics {
    * different system than the one we designed.
    */
   sawTranscripts = false;
+  /** Where the audio we sent the caller was written, when capture is on. */
+  audioFile: string | null = null;
 
   firstAudio(at = Date.now()): void {
     if (this.timeToFirstAudioMs === null) this.timeToFirstAudioMs = at - this.startedAt;

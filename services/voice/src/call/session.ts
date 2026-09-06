@@ -1,10 +1,13 @@
-import { config, endpointing, type Endpointing } from '../config.ts';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { config, endpointing, repoRoot, type Endpointing } from '../config.ts';
 import { log } from '../log.ts';
 import { HARD_TURNS, type ScriptLines } from '../script.ts';
 import { buildInstructions, resolveVoice, type CallerProfile } from '../prompt.ts';
 import { CallMetrics } from '../metrics.ts';
 import { rms } from '../audio/mulaw.ts';
 import { toneFrames } from '../audio/tone.ts';
+import { mulawToWav } from '../audio/wav.ts';
 import { isBackchannel } from '../turn/endpointer.ts';
 import { TurnDetector } from '../turn/detector.ts';
 import { TraceRecorder } from '../turn/trace.ts';
@@ -55,6 +58,8 @@ export async function runCall(opts: CallOptions): Promise<CallMetrics> {
    * endpointer is reading energy alone and must not pretend otherwise.
    */
   let sawTranscript = false;
+  const capture = config.captureCallAudio();
+  const captured: Buffer[] = [];
   let readyBeforeConnect = false;
   let closed = false;
 
@@ -106,6 +111,9 @@ export async function runCall(opts: CallOptions): Promise<CallMetrics> {
       onAudio: (chunk) => {
         metrics.voiceReady = true;
         metrics.firstAudio();
+        // Kept in the caller's own format, so the recording is the audio the
+        // carrier was given — not a re-rendering of what we hoped it was.
+        if (capture && captured.length < 4000) captured.push(chunk);
         opts.media.send(chunk);
       },
       onAgentSpeechStarted: () => {
@@ -259,6 +267,15 @@ export async function runCall(opts: CallOptions): Promise<CallMetrics> {
 
   clearInterval(timer);
   metrics.endedAt = Date.now();
+
+  if (capture && captured.length) {
+    const dir = resolve(repoRoot, 'runs');
+    mkdirSync(dir, { recursive: true });
+    const file = resolve(dir, `call-${new Date(metrics.startedAt).toISOString().replace(/[:.]/g, '-')}.wav`);
+    writeFileSync(file, mulawToWav(Buffer.concat(captured)));
+    metrics.audioFile = file;
+    log('call.audio_saved', { file, chunks: captured.length });
+  }
   metrics.trace = trace.build(ep.sensitivity, metrics.durationMs);
   metrics.sawTranscripts = sawTranscript;
   live.close();

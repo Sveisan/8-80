@@ -134,6 +134,13 @@ export const config = {
   playbackToneMs: () => num('PLAYBACK_TONE_MS', 0),
 
   /**
+   * Save the audio we hand to the carrier, as a playable file. A silent call
+   * looks identical whether the fault is ours or the carrier's; this is the
+   * recording that separates them without another phone call.
+   */
+  captureCallAudio: () => process.env['CAPTURE_CALL_AUDIO'] !== '0',
+
+  /**
    * 'local'    — we disable the provider's VAD and decide turns ourselves.
    * 'provider' — hand turn-taking to the provider's server_vad. Debug only.
    * See DECISIONS.md: the provider offers silence timing only, and silence
