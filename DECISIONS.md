@@ -662,4 +662,32 @@ in time.
 It also stops a stray sound from being answered as though it were a turn — the same
 mistake, made audible.
 
+## Turn-taking is done. What is left is the words — 2026-09-06
+
+Latency 5, interruption 5, pauses 5, naturalness 4. Median wait 922ms; the five-second
+pause held at 5815ms; the backchannel counted; the barge-in landed. Eighteen turns, no
+silence, no drift (`pendingMs` zero at every turn end). The mechanical problem this
+project has spent two days on is finished, and the remaining score — *"yes if it becomes
+more confident"* — is entirely about what the mentor says.
+
+Three findings from that call, in the order they cost the caller something:
+
+- **"I answered yes, and then it went silent."** My own regression, an hour old. The
+  duration rule for backchannels swallowed a genuine one-word answer given while the tail
+  of our audio was still playing. A short sound with seconds of our speech still to come
+  is listening; the same sound over the last half second of a question is an answer to it.
+  Gated on that now — and a backchannel that is followed by silence from both sides is
+  re-read as a turn after 2.5 seconds, because nothing about this call may end in silence
+  waiting for the other one to speak.
+- **It said "a person would probably be better at this than I am" three times**, in
+  response to avoidance, poor sleep, and a tangent about a car. The §10 instruction was
+  written for danger and the model applied it to ordinary difficulty — which is most of
+  what this call exists for. Serious now means danger, explicitly; the line may be said
+  once in a call and never about a hard week. Repeating it is not care. It reads as
+  flinching, and it leaves the caller managing the mentor's discomfort on top of their own.
+  This is very probably the whole of "if it becomes more confident".
+- **It opened as though it were the first call**, again, despite being told not to. The
+  negative instruction was not enough, so it is now positive and exact: your first
+  sentence is this sentence.
+
 

@@ -88,6 +88,10 @@ export async function runCall(opts: CallOptions): Promise<CallMetrics> {
   /** When this burst of caller speech began, and whether they could hear us then. */
   let speechStartedAt = 0;
   let spokeOverAgent = false;
+  /** How much of our own audio they still had left to hear when they spoke. */
+  let pendingAtSpeechStart = 0;
+  /** A short sound we treated as listening. If nothing follows, we were wrong. */
+  let backchannelAt = 0;
   let greeted = false;
   /**
    * Whether a transcript of the caller has ever arrived. Until one does, the
@@ -236,7 +240,9 @@ export async function runCall(opts: CallOptions): Promise<CallMetrics> {
     if (ev?.kind === 'speech_start') {
       overlapHandled = false;
       speechStartedAt = t;
+      pendingAtSpeechStart = opts.media.pendingMs();
       spokeOverAgent = agentAudible();
+      backchannelAt = 0;
       trace.speechStart(t - metrics.startedAt);
       // They started again right after we handed the turn over. We were early.
       if (falseCut.noteUserSpeech(t, spokenSoFar())) {
@@ -269,6 +275,17 @@ export async function runCall(opts: CallOptions): Promise<CallMetrics> {
       }
     }
 
+    // A backchannel we misread leaves the caller waiting for an answer that is
+    // never coming. Nothing about this call may end in silence: if they said
+    // their short thing, we finished speaking, and neither of us has said
+    // anything since, it was a turn after all.
+    if (backchannelAt && !agentAudible() && !detector.isSpeaking && t - backchannelAt > 2500) {
+      backchannelAt = 0;
+      log('turn.backchannel_was_a_turn', {});
+      live.respond();
+      return;
+    }
+
     if (ev?.kind === 'backchannel_end') {
       trace.speechEnd(ev.at - metrics.startedAt, spokenSoFar());
       metrics.backchannelsIgnored++;
@@ -286,10 +303,17 @@ export async function runCall(opts: CallOptions): Promise<CallMetrics> {
       // counted it, and answering a backchannel as though it were a turn is
       // the same mistake made audible.
       const utteranceMs = ev.at - ev.waitedMs - speechStartedAt;
-      if (spokeOverAgent && utteranceMs > 0 && utteranceMs <= ep.backchannelMaxMs) {
+      // Mid-utterance, not almost-finished. "Yes" said over the last half
+      // second of a question is an answer to it; the same sound said with
+      // seconds of our speech still to come is listening. Without this
+      // distinction a caller answers "yes" and the line goes silent on them —
+      // which is exactly what happened on the call that found it.
+      const wellInsideOurTurn = spokeOverAgent && pendingAtSpeechStart > 1500;
+      if (wellInsideOurTurn && utteranceMs > 0 && utteranceMs <= ep.backchannelMaxMs) {
         trace.speechEnd(ev.at - ev.waitedMs - metrics.startedAt, spokenSoFar());
         metrics.backchannelsIgnored++;
-        log('turn.backchannel', { utteranceMs });
+        log('turn.backchannel', { utteranceMs, pendingMs: Math.round(pendingAtSpeechStart) });
+        backchannelAt = ev.at;
         clearTurnText();
         return;
       }

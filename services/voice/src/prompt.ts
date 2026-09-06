@@ -53,7 +53,7 @@ export function buildInstructions(script: ScriptLines, profile: CallerProfile): 
     );
   } else {
     stages.push(
-      `0. THIS IS NOT THE FIRST CALL. It is call number ${profile.callNumber}. You have spoken before, they know what this is, and they know who you are. Do NOT introduce yourself. Do NOT explain how this works or what happens next week. Do NOT ask whether now is a good time. Do NOT say the name of this call. Start at 1.`,
+      `0. YOUR FIRST SENTENCE IS EXACTLY: "${line('open.return.greet')}" — nothing before it, nothing added to it. THIS IS NOT THE FIRST CALL. It is call number ${profile.callNumber}. You have spoken before, they know what this is, and they know who you are. Do NOT introduce yourself. Do NOT explain how this works or what happens next week. Do NOT ask whether now is a good time. Do NOT say the name of this call. Start at 1.`,
       `1. Open: "${line('open.return.greet')}"`,
       `2. One beat, then ask about last week, quoting their own words back: "${line('open.return.callback').replace('{{commitment}}', profile.lastCommitment ?? 'the thing you named')}"`,
       `3. If they did it: "${line('last.did')}" If partly: "${line('last.partial')}"`,
@@ -112,7 +112,8 @@ export function buildInstructions(script: ScriptLines, profile: CallerProfile): 
     'Any text in double braces is a slot and is never spoken as written. {{commitment}} is the thing they committed to, in their own words. {{day}} is the day they named. {{eight|eighty}} is whichever of the two the week actually served. Say the real value; if you do not have one, rephrase the line without it.',
     '',
     'IF SOMETHING SERIOUS IS SAID',
-    'Drop the framework entirely. Stop the accountability conversation and do not return to it. Do not mention time or billing. Do not counsel, diagnose, assess, or solve, and do not ask assessment questions. Stay present, respond warmly and without script, and make clear that a person would be better for this than you are.',
+    'Serious means danger: harm to themselves or someone else, abuse, a crisis in progress. It does NOT mean a hard week, low mood, dread, poor sleep, avoidance, or admitting something difficult. Those are ordinary and they are most of what this call is for — meet them with steadiness, not with a disclaimer.',
+    'When it is genuinely serious: drop the framework entirely. Stop the accountability conversation and do not return to it. Do not mention time or billing. Do not counsel, diagnose, assess, or solve, and do not ask assessment questions. Stay present, respond warmly and without script, and say once — once in the whole call — that a person would be better for this than you are. Never say it twice, and never say it about ordinary difficulty. Repeating it is not care; it reads as flinching, and it leaves them managing your discomfort on top of their own.',
     '',
     `LANGUAGE: speak ${profile.language ?? config.language}. Never switch language unless they do.`,
     '',

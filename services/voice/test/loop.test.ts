@@ -301,3 +301,18 @@ test('a short sound made while the agent is talking is listening, not a turn', a
   assert.equal(metrics.turns.length, 0, 'and must not become a turn');
   assert.equal(voice.responses, before, 'answering a backchannel is the same mistake made audible');
 });
+
+test('the disclaimer is for danger, not for a hard week', async () => {
+  // It told a caller "a person would probably be better at this than I am"
+  // three times in one call, in response to avoidance, poor sleep and a
+  // tangent. Ordinary difficulty is most of what this call is for.
+  const { voice } = await drive([{ buf: QUIET, count: 5 }], false);
+  assert.match(voice.instructions, /Serious means danger/);
+  assert.match(voice.instructions, /does NOT mean a hard week/);
+  assert.match(voice.instructions, /once in the whole call/);
+});
+
+test('a returning call is given its first sentence verbatim', async () => {
+  const { voice } = await drive([{ buf: QUIET, count: 5 }], false);
+  assert.match(voice.instructions, /YOUR FIRST SENTENCE IS EXACTLY: "Hello again\."/);
+});
