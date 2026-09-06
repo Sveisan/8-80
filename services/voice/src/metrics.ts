@@ -38,6 +38,12 @@ export class CallMetrics {
   audioFile: string | null = null;
   /** How noisy the caller's line was. A quiet room is near zero. */
   noiseFloor = 0;
+  /**
+   * What they committed to for next week, if the call reached one. Content, not
+   * a measure — it is here because the call produces it, and it is encrypted
+   * before it goes anywhere.
+   */
+  commitment: { text: string; day?: string } | null = null;
 
   firstAudio(at = Date.now()): void {
     if (this.timeToFirstAudioMs === null) this.timeToFirstAudioMs = at - this.startedAt;
@@ -82,6 +88,8 @@ export class CallMetrics {
       }, {}),
       sawTranscripts: this.sawTranscripts,
       noiseFloor: +this.noiseFloor.toFixed(4),
+      // The words themselves never go in a summary that gets written to runs/.
+      commitment: this.commitment ? { reached: true, day: this.commitment.day ?? null } : { reached: false },
       falseInterruptions: this.falseInterruptions,
       backchannelsIgnored: this.backchannelsIgnored,
       bargeIns: this.bargeIns,

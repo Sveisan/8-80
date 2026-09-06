@@ -10,6 +10,8 @@ import { checkReachable, waitReachable } from './reachability.ts';
 import { startTunnel, type Tunnel } from './tunnel.ts';
 import { completed, expectCall, lastCall, start } from './server.ts';
 import { telephonyProvider } from './adapters/telephony/index.ts';
+import { FileStore } from './store/file.ts';
+import { hasKey } from './store/crypto.ts';
 
 /**
  * The 8-turn stress test, as a repeatable command rather than a one-off script.
@@ -151,7 +153,27 @@ async function main(): Promise<void> {
 
   const key = randomUUID();
   const voice = process.env['STRESS_VOICE'] ?? '';
-  expectCall(key, { callNumber: 2, lastCommitment: 'run three times', language: config.language, voice });
+
+  // The caller's own history, so a second call is actually a second call.
+  // STRESS_FRESH=1 forgets them and tests the first-call script instead.
+  const store = new FileStore();
+  if (process.env['STRESS_FRESH'] === '1') {
+    console.log('STRESS_FRESH=1 — treating this as a first call.\n');
+  }
+  const known = process.env['STRESS_FRESH'] === '1' ? undefined : await store.load(to);
+  const profile = {
+    callNumber: known?.callNumber ?? 1,
+    lastCommitment: known?.lastCommitment,
+    consecutiveUndone: known?.consecutiveUndone ?? 0,
+    language: known?.language ?? config.language,
+    voice: voice || known?.voice,
+  };
+  console.log(
+    known?.lastCommitment
+      ? `Call number ${profile.callNumber}. Last week you said you would: "${known.lastCommitment}"\n`
+      : `Call number ${profile.callNumber}. Nothing remembered from last week.\n`,
+  );
+  expectCall(key, profile);
   const streamUrl = `${config.wsPublicUrl().replace(/\/+$/, '')}/media?key=${key}`;
   console.log(`Calling ${maskTail(to)} from ${maskTail(from)}`);
   console.log(`Media stream → ${streamUrl.replace(key, '…')}\n`);
@@ -234,6 +256,23 @@ async function main(): Promise<void> {
       ),
     );
     console.log(`Saved ${tracePath}  (${metrics.trace.segments.length} segments, ${metrics.trace.suspectedCutsAtMs.length} suspected cuts)`);
+  }
+
+  // What was agreed, kept for next week. Never the transcript, never the audio.
+  if (metrics?.commitment) {
+    if (hasKey()) {
+      await store.record(to, {
+        at: new Date().toISOString(),
+        durationMs: metrics.durationMs,
+        commitment: metrics.commitment.text,
+        day: metrics.commitment.day,
+      });
+      console.log(`\n  Remembered for next week: "${metrics.commitment.text}"${metrics.commitment.day ? ` (${metrics.commitment.day})` : ''}`);
+    } else {
+      console.log('\n  A commitment was reached but DATA_ENCRYPTION_KEY is unset, so it was not');
+      console.log('  written. What someone said is not going to disk in the clear.');
+      console.log('  Generate one:  echo "DATA_ENCRYPTION_KEY=$(openssl rand -base64 32)" >> .env');
+    }
   }
 
   console.log(`\nSaved ${path}`);

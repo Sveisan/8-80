@@ -14,6 +14,7 @@ import { TurnDetector } from '../turn/detector.ts';
 import { TraceRecorder } from '../turn/trace.ts';
 import { FalseCutEstimator } from './falsecut.ts';
 import { CorrectionBuffer, agentCutUserOff, classifyOverlap, detectCorrectionPhrase } from './corrections.ts';
+import { extractCommitment } from './commitment.ts';
 import { Timekeeper } from './timekeeper.ts';
 import type { MediaBridge } from '../adapters/telephony/types.ts';
 import type { VoiceProvider, VoiceSession } from '../adapters/voice/types.ts';
@@ -171,6 +172,13 @@ export async function runCall(opts: CallOptions): Promise<CallMetrics> {
       },
       onAgentTranscript: (text, final) => {
         if (!final) return;
+        // The read-back is the one moment the commitment is stated plainly, in
+        // their words, by us. Taken here rather than reconstructed afterwards.
+        const c = extractCommitment(text, opts.script);
+        if (c) {
+          metrics.commitment = c;
+          log('call.commitment', { day: c.day ?? null, words: c.text.split(' ').length });
+        }
         lastAgentTurnId = matchTurnId(text, opts.script);
         if (lastAgentTurnId && HARD_TURNS.has(lastAgentTurnId)) timekeeper.markSensitive();
       },

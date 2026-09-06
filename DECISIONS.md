@@ -690,4 +690,34 @@ Three findings from that call, in the order they cost the caller something:
   negative instruction was not enough, so it is now positive and exact: your first
   sentence is this sentence.
 
+## The call remembers now — 2026-09-06
+
+Every call so far believed the same hardcoded sentence: *"last week you said you'd run
+three times."* A second call that cannot quote the first is a demo, not the product, and
+everything after this — the scheduler, the recap email, the third-week-running pattern —
+depends on the week-to-week thread being real.
+
+Three decisions inside it:
+
+- **The commitment is taken from the read-back, not reconstructed.** SCRIPT.md pins it on
+  purpose: *"Right. {{commitment}}, {{day}}. That's what I'll ask you about."* That line is
+  the one moment in the call where the thing is stated plainly, in their words, by us.
+  Reconstructing it from the caller's transcript would mean guessing which sentence in a
+  paragraph of reasoning was the promise. If the read-back never happened, no commitment
+  was reached and none is stored — next week must not open by quoting something they never
+  said. A call that reaches no commitment also does not overwrite the last one: they are
+  still on the hook for what they said the week before.
+- **Nothing a caller said goes to disk without a key.** `DATA_ENCRYPTION_KEY` unset means
+  the record is not written at all, rather than written in the clear — the failure mode
+  should cost us a feature, not them a confidence. The number is hashed for the filename,
+  so a directory listing is not a list of phone numbers.
+- **It is a file store, and that is temporary.** Postgres and Drizzle remain the decision;
+  what exists now is the `Store` interface with a file implementation behind it, because
+  the Norwegian box is not reachable yet and week-to-week behaviour needed to be testable
+  rather than hypothetical. Swapping in Drizzle is one file, not a change to the call loop.
+
+Owed, and not yet done: the per-user data key wrapped by a master key in a secret manager.
+What exists is a single service key, which is the honest version of what we have today and
+a key-management change behind the same interface.
+
 
