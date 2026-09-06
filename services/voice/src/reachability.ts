@@ -37,11 +37,15 @@ export async function checkReachable(timeoutMs = 10_000): Promise<Reachability> 
         detail: `${https} answered ${res.status}, but not with our service. Something else is on that hostname, or the tunnel points at the wrong port.`,
       };
     }
-  } catch {
+  } catch (e) {
+    // The reason matters: DNS that has not propagated, a refused connection, a
+    // TLS failure and a blocked host all look identical without it, and each
+    // one is a different fix.
+    const why = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
     return {
       ok: false,
       step: 'http',
-      detail: `Nothing answered at ${https}. The tunnel is not running, or the hostname is stale — it changes on every restart.`,
+      detail: `Nothing answered at ${https} — ${why}. The tunnel is not running, the hostname is stale (it changes on every restart), or this network is blocking it.`,
     };
   }
 
@@ -72,7 +76,12 @@ export async function checkReachable(timeoutMs = 10_000): Promise<Reachability> 
  * at all because it blames the hostname.
  */
 export async function waitReachable(
-  opts: { attempts?: number; delayMs?: number; onAttempt?: (n: number, total: number) => void } = {},
+  opts: {
+    attempts?: number;
+    delayMs?: number;
+    onAttempt?: (n: number, total: number) => void;
+    onFirstFailure?: (r: Reachability) => void;
+  } = {},
 ): Promise<Reachability> {
   const attempts = opts.attempts ?? 12;
   const delayMs = opts.delayMs ?? 3000;
@@ -82,6 +91,10 @@ export async function waitReachable(
     opts.onAttempt?.(i, attempts);
     last = await checkReachable(5000);
     if (last.ok) return last;
+    // Say why on the first failure rather than only after every attempt: a
+    // hostname that will never work looks exactly like one that is still
+    // starting up, for the whole minute it takes to find out.
+    if (i === 1) opts.onFirstFailure?.(last);
     if (i < attempts) await new Promise((r) => setTimeout(r, delayMs));
   }
   return last;

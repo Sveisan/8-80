@@ -105,13 +105,21 @@ async function main(): Promise<void> {
     }
   }
 
+  const forcedTunnel = process.env['TUNNEL'] === 'cloudflared';
   process.stdout.write('Checking the carrier can reach this service… ');
-  let reach = process.env['TUNNEL'] === 'cloudflared' ? await waitReachable({ onAttempt: () => process.stdout.write('.') }) : await checkReachable();
+  let reach = forcedTunnel
+    ? await waitReachable({
+        onAttempt: () => process.stdout.write('.'),
+        onFirstFailure: (r) => console.log(`\n  (still trying — ${r.detail})`),
+      })
+    : await checkReachable();
 
   // Quick tunnels change hostname on every restart and die when the window
   // closes, so a stale one in .env is the normal state of affairs rather than
   // a mistake. Start a fresh one and carry on.
-  if (!reach.ok && reach.step === 'http') {
+  // A tunnel we started ourselves is not replaced by another one we start
+  // ourselves: two dead tunnels take twice as long to prove the same thing.
+  if (!reach.ok && reach.step === 'http' && !forcedTunnel) {
     console.log('no.');
     console.log('  The public hostname is not answering. Starting a fresh tunnel…');
     try {
