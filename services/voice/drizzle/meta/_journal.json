@@ -15,6 +15,13 @@
       "when": 1789247582326,
       "tag": "0001_schedule",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789247935721,
+      "tag": "0002_recap_address",
+      "breakpoints": true
     }
   ]
 }

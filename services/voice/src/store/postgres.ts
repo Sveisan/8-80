@@ -49,6 +49,7 @@ export class PostgresStore implements Store {
     return {
       phone,
       name: row.name ?? undefined,
+      email: row.emailEnc ? decrypt(row.emailEnc) : undefined,
       language: row.language ?? undefined,
       voice: row.voice ?? undefined,
       callNumber: row.callNumber,
@@ -99,14 +100,19 @@ export class PostgresStore implements Store {
   }
 
   /** Only the caller's own fields — never anything the call produced. */
-  async upsertProfile(phone: string, profile: Pick<CallerRecord, 'name' | 'language' | 'voice'>): Promise<void> {
+  async upsertProfile(
+    phone: string,
+    profile: Pick<CallerRecord, 'name' | 'language' | 'voice' | 'email'>,
+  ): Promise<void> {
     if (!hasKey()) throw new Error('DATA_ENCRYPTION_KEY is required to store a phone number');
+    const { email, ...rest } = profile;
+    const fields = { ...rest, ...(email === undefined ? {} : { emailEnc: encrypt(email) }) };
     await this.db
       .insert(callers)
-      .values({ phoneHash: phoneKey(phone), phoneEnc: encrypt(phone), ...profile })
+      .values({ phoneHash: phoneKey(phone), phoneEnc: encrypt(phone), ...fields })
       .onConflictDoUpdate({
         target: callers.phoneHash,
-        set: { ...profile, updatedAt: sql`now()` },
+        set: { ...fields, updatedAt: sql`now()` },
       });
   }
 

@@ -134,10 +134,22 @@ test('a number can be recovered to ring it, and only that way', { skip: skip() }
 test('a profile can be set without a call having happened', { skip: skip() }, async () => {
   await withKey(async () => {
     const s = store as PostgresStore;
-    await s.upsertProfile('+4790000004', { name: 'Eirik', language: 'no', voice: 'male' });
+    await s.upsertProfile('+4790000004', { name: 'Eirik', language: 'no', voice: 'male', email: 'e@example.com' });
     const rec = await s.load('+4790000004');
     assert.equal(rec.name, 'Eirik');
     assert.equal(rec.voice, 'male');
+    assert.equal(rec.email, 'e@example.com');
     assert.equal(rec.callNumber, 1, 'a profile is not a call');
+  });
+});
+
+test('the address the recap goes to is not readable in the table either', { skip: skip() }, async () => {
+  await withKey(async () => {
+    const s = store as PostgresStore;
+    await s.upsertProfile('+4790000005', { email: 'eirik@example.com' });
+    const rows = await (raw as postgres.Sql)`select * from callers`;
+    // An address identifies a person as squarely as a number does.
+    assert.ok(!JSON.stringify(rows).includes('eirik@example.com'));
+    assert.equal((await s.load('+4790000005')).email, 'eirik@example.com');
   });
 });

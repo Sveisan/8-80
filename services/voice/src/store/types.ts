@@ -10,6 +10,8 @@ export interface CallerRecord {
   /** E.164. The identity of a caller is their number until there are accounts. */
   phone: string;
   name?: string;
+  /** Where the recap the close promised is sent. */
+  email?: string;
   language?: string;
   /** 'female' | 'male' | a provider voice name. Their choice, not a default. */
   voice?: string;

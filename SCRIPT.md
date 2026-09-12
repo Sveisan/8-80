@@ -458,3 +458,55 @@ follow them, but the mentor does not.
 - "How are you feeling about that on a scale of"
 - Anything with an exclamation mark
 - Anything congratulating the user for having answered the phone
+
+
+---
+
+## 12. The recap email
+
+_The close promises it — "there's an email coming with the one thing and what you used of
+the hour" — so this is not optional content, it is a promise the call makes. It arrives
+after the call and does the summarising the mentor deliberately does not do out loud._
+
+_Same voice rules as everything above. Short, no encouragement, no recap of insights, no
+sign-off with a name. It exists so they can find the one thing on a Thursday, not so they
+can read about themselves._
+
+_One key per paragraph — the parser joins consecutive quoted lines into a single line, so
+a blank line inside a quote is not a paragraph break, it is a stray pair of quotes in the
+middle of a sentence. The composer stitches these with the blank lines between them._
+
+_Slots: `{{commitment}}` and `{{day}}` are their own words from the read-back.
+`{{minutes}}` is how long the call ran. `{{next_slot}}` is how the next call was referred
+to out loud._
+
+`email.subject`
+> "The one thing — {{day}}"
+
+`email.subject.none`
+> "This week's call"
+
+`email.body.commitment`
+> "{{commitment}}, {{day}}."
+
+_First, alone, because finding it is the whole reason to open this. Everything below can
+go unread._
+
+`email.body.ask`
+> "That's the one I'll ask you about."
+
+`email.body.none`
+> "No one thing this week — we'll pick it up next time."
+
+_Never "that's okay", and never a reassurance about the week not having produced one. The
+call already declined to forgive it; the email does not get to either._
+
+`email.body.logistics`
+> "We spoke for {{minutes}} minutes. I'll call you {{next_slot}}."
+
+`email.body.logistics.one`
+> "We spoke for a minute. I'll call you {{next_slot}}."
+
+_A separate line rather than a plural rule in code, for the same reason as every other
+line here: the grammar of the next language is not English's, and a rule written into the
+composer would have to be unwritten to translate it._

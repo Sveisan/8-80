@@ -26,6 +26,8 @@ export const callers = pgTable(
     /** E.164, encrypted. The only way back to a number we can ring. */
     phoneEnc: text('phone_enc').notNull(),
     name: text('name'),
+    /** Where the recap goes. Encrypted — an address is as identifying as a number. */
+    emailEnc: text('email_enc'),
     language: text('language'),
     /** 'female' | 'male' | a provider voice name. Their choice, not a default. */
     voice: text('voice'),
