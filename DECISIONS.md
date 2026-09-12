@@ -721,3 +721,72 @@ What exists is a single service key, which is the honest version of what we have
 a key-management change behind the same interface.
 
 
+
+## The Speechify bake-off — 2026-09-12
+
+0b was paused for an hour to test whether a platform that sells the whole voice agent —
+Speechify Agents, $0.07/min — does the hard part better than we do. It took rather more
+than an hour, and it was worth it.
+
+**The scores, in the same eight-turn stress test:**
+
+|                | Grok build | Speechify |
+| -------------- | ---------- | --------- |
+| Latency        | 5          | 5         |
+| Interruption   | 5          | 5         |
+| Pauses         | 5          | 5         |
+| Naturalness    | 4          | 5         |
+| Want it weekly | yes        | yes       |
+
+**But that table is confounded and must not be read as a verdict.** Grok scored 4 on the
+first prompt. Speechify scored 2 on that same prompt — it marched through the script and
+answered a disclosure about dread and poor sleep with a perspective question — and reached
+5 only on the third revision. What moved it from 2 to 5 was not the platform. It was a
+rule that had never been written down anywhere: *respond to what they just said, and then
+take it further; the stage list is the least important thing in this prompt.* That rule is
+now in `prompt.ts` and the honest comparison has not been run yet.
+
+Three findings that outlive the choice:
+
+- **Turn-taking is table stakes now, and we did not know that.** Every mechanical axis —
+  the three-second pause, the five-second pause, the one-word answer, barge-in, "mhm" —
+  passed on their platform out of the box. That is the week of work that produced the
+  endpointer, the noise floor, the playback-queue state and the pacing fix. It is worth
+  knowing that this is purchasable, and worth noticing that it was purchasable before we
+  built it.
+- **The prompt is the asset, not the loop.** It is portable, it is the only part neither
+  vendor supplied, and it is what actually moved the number. Three calls of tuning beat a
+  week of audio engineering on the axis the caller can feel.
+- **Their model obeys emphasis as law.** Grok treated a strong instruction as a strong
+  hint. GPT-5.6 Terra — which is what Speechify runs underneath — took "most turns should
+  contain no new question" absolutely and became a mirror, agreeing with everything and
+  asking nothing. Prompts that work on one are not safe on the other, and they choose the
+  model.
+
+### What it does not change
+
+**Their Memory stays off, permanently.** It would not reduce latency — within a call the
+transcript is already in context, and cross-call memory resolves once at setup — so the
+only thing it buys is a longitudinal record of someone's avoidance, sleep and dread
+accumulating on a US platform. The commitment history is the one thing in this product
+that compounds, and the one thing that makes a vendor unswappable if they hold it. It
+lives in our Postgres, encrypted, and reaches the call as a dynamic variable.
+
+**The DPA is the gate, and it is not about quality.** No Article 28 processing agreement
+outside Enterprise means a second person's conversation cannot lawfully go on that
+platform; consent under Article 6 is a separate requirement and does not substitute. Asked
+in writing 2026-09-12, along with zero retention for transcripts and audio, EU-region
+processing, and whether conversation data trains anything. Their SCCs are in place; the
+rest is open.
+
+**A silent call reported "Succeeded".** Conversation `conv_01m21by5nben2adjh1k10t2rh0`:
+the agent spoke from 0:00, no audio reached the phone, the dashboard showed success and
+raised nothing. A later call dropped words twice mid-sentence. On our own build the media
+logs made the first silent call diagnosable in an afternoon. This does not improve with
+more testing — it is what owning the loop buys, and what renting it costs.
+
+So: run it on a single caller — ourselves — where the household exemption applies and no
+DPA is needed, because the question that matters more than either platform is whether a
+weekly call changes what someone does. Keep the Grok build warm. Keep the boundary clean
+enough that the choice stays a one-adapter decision, and re-run the stress test on our own
+stack now that the prompt that earned the 5 exists on both sides.
