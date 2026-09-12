@@ -133,6 +133,14 @@ export const config = {
     from: () => req('OUTBOUND_CALLER_NUMBER'),
     stressTarget: () => req('STRESS_TEST_TARGET_NUMBER'),
   },
+  /**
+   * Unset means the file store, which is for a laptop and not for callers.
+   * Nothing falls back silently in the other direction: a DATABASE_URL that
+   * does not connect is an error at startup, not a quiet demotion to files.
+   */
+  database: {
+    url: process.env['DATABASE_URL'] ?? '',
+  },
 
   port: num('VOICE_SERVICE_PORT', 8080),
   wsPublicUrl: () => req('VOICE_WS_PUBLIC_URL'),

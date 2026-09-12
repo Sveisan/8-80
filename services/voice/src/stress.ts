@@ -10,7 +10,7 @@ import { checkReachable, waitReachable } from './reachability.ts';
 import { startTunnel, type Tunnel } from './tunnel.ts';
 import { completed, expectCall, lastCall, start } from './server.ts';
 import { telephonyProvider } from './adapters/telephony/index.ts';
-import { FileStore } from './store/file.ts';
+import { openStore } from './store/index.ts';
 import { hasKey } from './store/crypto.ts';
 
 /**
@@ -156,7 +156,7 @@ async function main(): Promise<void> {
 
   // The caller's own history, so a second call is actually a second call.
   // STRESS_FRESH=1 forgets them and tests the first-call script instead.
-  const store = new FileStore();
+  const store = openStore();
   if (process.env['STRESS_FRESH'] === '1') {
     console.log('STRESS_FRESH=1 — treating this as a first call.\n');
   }
