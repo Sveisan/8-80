@@ -47,8 +47,14 @@ _Wait. If no: reschedule per §7c and end. If yes:_
 `open.first.disclosure`
 > "Good. Two things before we start, quickly. I'm an AI, not a person — you'll probably
 > hear it. And I write this conversation down and keep it, the words rather than the
-> audio, so that next week I know what we said. If you want to stop at any point, say
-> stop and I'll go. That's all of it."
+> audio, so that next week I know what we said. It runs through a service in the States
+> to work at all, so they see it too. If you want to stop at any point, say stop and
+> I'll go. That's all of it."
+
+_"They see it too" is there because it is true while the call runs on a third-party
+platform, and this is the one line in the call that has to be. It comes out the day
+the platform is ours or confirms it retains nothing — not before. Three seconds is a
+cheap price for the sentence after it being believed._
 
 `open.first.frame`
 > "So. Fifteen minutes, give or take. I'll ask what you're trying to do, and then next

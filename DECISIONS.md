@@ -790,3 +790,31 @@ DPA is needed, because the question that matters more than either platform is wh
 weekly call changes what someone does. Keep the Grok build warm. Keep the boundary clean
 enough that the choice stays a one-adapter decision, and re-run the stress test on our own
 stack now that the prompt that earned the 5 exists on both sides.
+
+## Speechify is the voice layer, until it proves otherwise — 2026-09-12
+
+Decided against my recommendation, which was to build on the Grok stack. The reasoning
+against me is sound and is recorded here rather than in a chat log:
+
+- **The buyer argument was wrong.** I argued a B2B purchaser would ask for a DPA and the
+  absence would quietly lose deals. This is a B2C product. No procurement gate exists, so
+  the argument does not apply. Withdrawn.
+- **Special category data is accepted knowingly, by both sides.** The caller is told what
+  this is and what happens to it. That is not a loophole; it is the actual basis the
+  regulation asks for, and the person on the phone is the one whose call it is.
+- **The remaining objections are conditional, not structural.** No DPA outside Enterprise
+  and no alert on a silent call are both things Speechify may answer within days. Building
+  three weeks of scheduler and store on a stack we might swap costs nothing, because none
+  of that work touches the voice layer.
+
+**The script changed the same day, and that is the non-negotiable half.** `open.first.disclosure`
+now says the call runs through a service in the States and they see it too. A call whose
+entire premise is *tell me the true thing* cannot open with an incomplete account of where
+the true thing goes. The sentence comes out when the platform is ours, or when Speechify
+confirms it retains nothing — not before, and not because it costs three seconds.
+
+**What would send us back to our own stack:** a second silent call that reports success,
+Speechify declining zero retention outright, or the stress run showing the naturalness gap
+was the prompt all along. The first is the one I would watch. It is also now our job to
+detect rather than theirs to report — a completed call with no caller turns in the
+transcript is a failed call, and the scheduler treats it as one.
