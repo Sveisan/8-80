@@ -174,8 +174,6 @@ values file plus a model session parameter — no change to the voice loop.
 ## Not yet decided
 
 - Post-call model vendor.
-- Transactional email vendor for recaps. The recap itself is composed and tested; what
-  exists behind the `Mailer` interface today writes the email to a file.
 - Secret manager for the encryption master key.
 - Norwegian +47 mobile termination rates, Telnyx vs Twilio — the last input in the cost
   model still running on US reference prices.

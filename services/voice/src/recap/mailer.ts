@@ -3,9 +3,27 @@ import { resolve } from 'node:path';
 import { repoRoot } from '../config.ts';
 import { log } from '../log.ts';
 import type { Recap } from './compose.ts';
+import { ResendMailer } from './resend.ts';
 
 export interface Mailer {
   send(to: string, recap: Recap): Promise<void>;
+}
+
+/**
+ * Resend when it is configured, a file when it is not.
+ *
+ * Nothing falls back the other way. A misconfigured key must not quietly turn
+ * into a recap nobody receives while the logs say a call went fine.
+ */
+export function openMailer(): Mailer {
+  const key = process.env['RESEND_API_KEY'];
+  const from = process.env['RECAP_FROM_ADDRESS'];
+  if (key && from) return new ResendMailer(key, from);
+  if (key || from) {
+    throw new Error('RESEND_API_KEY and RECAP_FROM_ADDRESS go together — one without the other sends nothing.');
+  }
+  log('recap.mailer', { kind: 'file', note: 'RESEND_API_KEY is unset — recaps are written, not sent' });
+  return new FileMailer();
 }
 
 /**

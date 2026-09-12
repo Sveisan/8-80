@@ -10,6 +10,8 @@ export interface CallerProfile {
    * not the same as not caring: the default is a fallback, not a choice.
    */
   voice?: string;
+  /** Present means the recap has somewhere to go and the first call need not ask. */
+  email?: string;
   lastCommitment?: string;
   /** How the next call is referred to out loud, e.g. "Tuesday" and "Tuesday at nine". */
   callDay?: string;
@@ -43,6 +45,8 @@ export function buildInstructions(script: ScriptLines, profile: CallerProfile): 
   const first = profile.callNumber <= 1;
 
   const stages: string[] = [];
+  /** First-call-only turns that leave the system able to ring them again. */
+  const setup: string[] = [];
 
   if (first) {
     stages.push(
@@ -72,6 +76,17 @@ export function buildInstructions(script: ScriptLines, profile: CallerProfile): 
     );
   }
 
+  if (first) {
+    // The only call that collects these. A caller with no slot is never due,
+    // so a first call that skips this produces somebody who signed up and was
+    // never rung again.
+    setup.push(
+      `S1. The weekly slot, asked as an arrangement and not as a form: "${line('setup.when')}" Give them the whole question and stop. Do not offer options and do not suggest a time. If they name a day but no time, or a time but no day, once only: "${line('setup.when.vague')}" Then read it back: "${line('setup.when.confirm')}"`,
+    );
+    if (!profile.email) setup.push(`S2. Where the recap goes, since the close is about to promise it: "${line('setup.email')}"`);
+    if (!profile.voice) setup.push(`S3. Theirs to choose, and not important: "${line('setup.voice')}" If they do not care, that is an answer. Do not ask twice and do not demonstrate.`);
+  }
+
   stages.push(
     `7. The read — never name it as a framework, never say "eight and eighty" as a label: "${line('read.eight')}" then "${line('read.eighty')}" then, if both were thin: "${line('read.neither')}" and be quiet. Do not answer it for them.`,
     `8. The one thing for next week: "${line(config.variants.nextAsk)}"`,
@@ -80,6 +95,7 @@ export function buildInstructions(script: ScriptLines, profile: CallerProfile): 
       : '',
     `   If they offer several: "${line('next.narrow')}" If vague: "${line('next.concrete')}" If oversized: "${line('next.oversized')}"`,
     `   Then pin the day: "${line('next.when')}" and read it back: "${line('next.confirm')}"`,
+    ...setup,
     `9. Close: "${line('close.logistics')}" then "${line(config.variants.closeQ)}" then "${line('close.end')}" and stop.`,
   );
 
