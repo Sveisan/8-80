@@ -1,0 +1,1 @@
+ALTER TABLE "call_attempts" ADD COLUMN "sms_sent_at" timestamp with time zone;

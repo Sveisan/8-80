@@ -99,6 +99,12 @@ export const callAttempts = pgTable(
     durationMs: integer('duration_ms'),
     /** Why it failed, in our words. Never anything the caller said. */
     note: text('note'),
+    /**
+     * When the one missed-call text went out. Its purpose is to be null exactly
+     * once: SCRIPT.md §13 allows a single text per missed call, and a retry, a
+     * redeploy or a second worker must not turn that into two.
+     */
+    smsSentAt: timestamp('sms_sent_at', { withTimezone: true }),
   },
   (t) => [
     uniqueIndex('call_attempts_slot_key').on(t.phoneHash, t.scheduledFor),

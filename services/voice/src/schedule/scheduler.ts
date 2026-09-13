@@ -162,6 +162,31 @@ export class Scheduler {
   }
 
   /**
+   * Take the right to send the one missed-call text, or find it already taken.
+   *
+   * SCRIPT.md §13 allows exactly one text per missed call, and "exactly one"
+   * has to survive a retry, a redeploy and a second worker. The column is null
+   * once and the update that sets it returns a row once; everybody else gets
+   * nothing back and sends nothing.
+   */
+  async claimNudge(attemptId: string): Promise<boolean> {
+    const won = await this.sql<{ id: string }[]>`
+      update call_attempts set sms_sent_at = now()
+      where id = ${attemptId} and sms_sent_at is null
+      returning id
+    `;
+    return won.length > 0;
+  }
+
+  /** A one-off call today, leaving the weekly arrangement untouched. */
+  async callAgainAt(phone: string, at: Date): Promise<void> {
+    await this.sql`
+      update callers set next_call_at = ${at}, updated_at = now()
+      where phone_hash = ${phoneKey(phone)}
+    `;
+  }
+
+  /**
    * Attempts that were claimed or placed and then went quiet.
    *
    * A claim that never became a call is a week someone silently did not get.

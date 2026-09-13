@@ -360,7 +360,7 @@ keep._
 _Fires only when the answer has a day but no time, or a time but no day. Never twice._
 
 `setup.when.confirm`
-> "{{call_day}}, then. I'll ring you."
+> "{{call_day}}, then. I'll ring you — and if you miss one I'll text, so you can move it."
 
 `setup.email`
 > "And where should the recap go — which address?"
@@ -564,3 +564,49 @@ call already declined to forgive it; the email does not get to either._
 _A separate line rather than a plural rule in code, for the same reason as every other
 line here: the grammar of the next language is not English's, and a rule written into the
 composer would have to be unwritten to translate it._
+
+---
+
+## 13. The text after a missed call
+
+_Sent once when a call is not answered, or when answering-machine detection says the line
+went to voicemail. No message is ever left on voicemail — see ARCHITECTURE.md. This text
+is the entire follow-up._
+
+_**Once.** Never a second text, never a reminder about the reminder, never a "just
+checking". A product whose premise is that it does not nag cannot nag, and the missed
+call is exactly the moment a lesser product would send three._
+
+_**Never the commitment.** A missed-call text arrives while somebody is in a meeting and
+the lock screen is visible to whoever is sitting next to them. It says when, never what.
+The same rule as the encrypted column, for the same reason._
+
+_`SKIP` rather than `STOP`: STOP is a reserved carrier keyword that permanently
+unsubscribes the number from all messages, silently, before our code sees it. Somebody
+meaning "not this week" must not lose the service._
+
+`sms.missed`
+> "Rang you just now. Want me to try later today, or move it? Reply with a day and time, or SKIP to leave this week."
+
+`sms.moved`
+> "{{when}}, then. Your usual slot stays as it is — say ALWAYS if you'd rather move it for good."
+
+_A day and time after a missed call means this week, not a new standing arrangement. Most
+people mean the former and a system that silently rewrites the latter has changed
+something they did not ask it to change. The escape hatch is named in the same breath._
+
+`sms.moved.always`
+> "Moved for good. {{when}} from now on."
+
+`sms.later`
+> "I'll try again this evening."
+
+`sms.skipped`
+> "Left this week. Talk next time."
+
+`sms.unparsed`
+> "I didn't follow that one. A day and a time works, or SKIP to leave this week."
+
+_Never guess. "Not this week, I'm at my mother's funeral" read as a reschedule request is
+the kind of failure that ends the relationship, and a parser confident enough to try is
+confident enough to get that wrong._
