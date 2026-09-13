@@ -11,10 +11,26 @@ import postgres from 'postgres';
  * generated at development time and applied at runtime, so the Norwegian box
  * needs Node and nothing else.
  */
-export async function applyMigrations(url: string, folder = resolve(import.meta.dirname, '../../drizzle')): Promise<void> {
-  const client = postgres(url, { max: 1 });
+export async function applyMigrations(
+  url: string,
+  folder = resolve(import.meta.dirname, '../../drizzle'),
+  options: postgres.Options<Record<string, never>> = {},
+  /**
+   * Where the record of applied migrations lives. It defaults to drizzle's own
+   * schema, which is deliberately independent of `search_path` — so two
+   * databases-within-a-database sharing this journal will have the second one
+   * told its migrations are already applied, and it will come up with no
+   * tables at all. That is only a problem for tests, and it is their job to
+   * pass a journal of their own.
+   */
+  migrationsSchema?: string,
+): Promise<void> {
+  const client = postgres(url, { max: 1, ...options });
   try {
-    await migrate(drizzle(client), { migrationsFolder: folder });
+    await migrate(drizzle(client), {
+      migrationsFolder: folder,
+      ...(migrationsSchema ? { migrationsSchema } : {}),
+    });
   } finally {
     await client.end({ timeout: 5 });
   }

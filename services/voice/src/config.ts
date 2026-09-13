@@ -141,6 +141,20 @@ export const config = {
   database: {
     url: process.env['DATABASE_URL'] ?? '',
   },
+  speechify: {
+    apiKey: () => req('SPEECHIFY_API_KEY'),
+    agentId: () => req('SPEECHIFY_AGENT_ID'),
+    callerIdNumber: process.env['SPEECHIFY_CALLER_ID_NUMBER'] ?? '',
+    webhookSecret: () => req('SPEECHIFY_WEBHOOK_SECRET'),
+    /**
+     * Answering-machine detection, on by default and not a preference. A
+     * fifteen-minute accountability call left on a voicemail box is not a
+     * wasted call; it is somebody's worst week recorded onto a machine other
+     * people can play back. It costs a few seconds before the greeting.
+     */
+    amd: process.env['SPEECHIFY_AMD'] !== '0',
+    ringingTimeoutMs: num('RINGING_TIMEOUT_MS', 30_000),
+  },
 
   port: num('VOICE_SERVICE_PORT', 8080),
   wsPublicUrl: () => req('VOICE_WS_PUBLIC_URL'),
