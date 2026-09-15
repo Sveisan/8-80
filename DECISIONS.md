@@ -818,3 +818,40 @@ Speechify declining zero retention outright, or the stress run showing the natur
 was the prompt all along. The first is the one I would watch. It is also now our job to
 detect rather than theirs to report — a completed call with no caller turns in the
 transcript is a failed call, and the scheduler treats it as one.
+
+## A +47 caller ID may not survive the journey — 2026-09-15
+
+Telnyx's own documentation warns that a call presenting a caller ID from the country it
+terminates in, arriving over international transit, is subject to rejection by local
+operators as anti-spoofing protection — and may stop working without notice. That is
+exactly the plan: a Norwegian number, ringing Norwegian mobiles, originated by a voice
+platform whose SIP infrastructure is in the United States.
+
+The mechanism matters more than the warning, because it says what the fix is. The check
+happens at the interconnect into the Norwegian network, not at the point the number was
+bought. An operator asked to present +47 for a call handed over from an international
+exchange cannot verify that the caller owns it, so it strips or blocks the CLI. A carrier
+with its own Norwegian numbering range and domestic interconnect presenting its own number
+is not spoofing anything. **So the question is not who sells the number. It is who hands
+the call to the Norwegian network, and from where.** That question goes to every carrier
+before anything else, and to Speechify about where their SIP egress terminates.
+
+**It does not block anything yet, and the reason is worth writing down.** This product does
+not cold-call. Somebody agreed to Tuesday at eight, on a call where they were asked which
+day suited them. An unknown number ringing out of the blue is a spam problem; an
+appointment is not — and `setup.save_number` now asks them to save it on the first call,
+once, lightly. A saved contact is answered whatever the network did to the CLI, which
+makes a foreign number an inconvenience rather than a failure while the carrier question
+is settled properly.
+
+The research that found this could not verify Norwegian per-minute rates, DPA availability
+or retention defaults for any of the four carriers looked at, and said so rather than
+filling the cells. Recorded here in the same spirit: **46elks** host everything on their own
+servers in Sweden and already sell a realtime-voice product for exactly this use case, but
+a Norwegian mobile number is "call us" rather than self-serve. **LINK Mobility** are
+Norwegian, Oslo-listed, with direct operator relationships — and no published pricing and
+an enterprise sales motion, for a pilot of twenty. **Sinch** are the only one documenting
+self-service SIP trunking, and whether they hold +47 mobile numbers is behind a login.
+**Telnyx** sell Norway numbers from $1 and are the ones who raised the warning.
+
+Nothing is chosen. The US number stays while the only caller is the person building it.

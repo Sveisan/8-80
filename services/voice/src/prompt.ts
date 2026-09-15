@@ -83,8 +83,9 @@ export function buildInstructions(script: ScriptLines, profile: CallerProfile): 
     setup.push(
       `S1. The weekly slot, asked as an arrangement and not as a form: "${line('setup.when')}" Give them the whole question and stop. Do not offer options and do not suggest a time. If they name a day but no time, or a time but no day, once only: "${line('setup.when.vague')}" Then read it back: "${line('setup.when.confirm')}"`,
     );
-    if (!profile.email) setup.push(`S2. Where the recap goes, since the close is about to promise it: "${line('setup.email')}"`);
-    if (!profile.voice) setup.push(`S3. Theirs to choose, and not important: "${line('setup.voice')}" If they do not care, that is an answer. Do not ask twice and do not demonstrate.`);
+    setup.push(`S2. Once, lightly, not as an instruction: "${line('setup.save_number')}"`);
+    if (!profile.email) setup.push(`S3. Where the recap goes, since the close is about to promise it: "${line('setup.email')}"`);
+    if (!profile.voice) setup.push(`S4. Theirs to choose, and not important: "${line('setup.voice')}" If they do not care, that is an answer. Do not ask twice and do not demonstrate.`);
   }
 
   stages.push(

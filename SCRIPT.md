@@ -362,6 +362,19 @@ _Fires only when the answer has a day but no time, or a time but no day. Never t
 `setup.when.confirm`
 > "{{call_day}}, then. I'll ring you — and if you miss one I'll text, so you can move it."
 
+`setup.save_number`
+> "Worth saving the number I'm on, so you know it's me on the Tuesday."
+
+_Said once, on the first call, and never again. It is a small thing that does real work:
+a scheduled call from a saved contact is answered, and an unknown number ringing at eight
+in the morning is declined by reflex however good the conversation would have been._
+
+_It is also the product's defence against a problem cold-callers cannot solve. Norwegian
+operators reject or strip a +47 caller ID presented by a call arriving over international
+transit, as anti-spoofing protection, so the number somebody sees may be foreign for a
+while. It matters far less when they agreed to the appointment and have the contact
+saved — see DECISIONS.md._
+
 `setup.email`
 > "And where should the recap go — which address?"
 
