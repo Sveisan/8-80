@@ -150,7 +150,6 @@ export const config = {
      * a missed-call text that silently never goes out.
      */
     publicUrl: (): string => process.env['PUBLIC_URL'] ?? '',
-    secret: () => req('LINK_SECRET'),
   },
   speechify: {
     apiKey: () => req('SPEECHIFY_API_KEY'),

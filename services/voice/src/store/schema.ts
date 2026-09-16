@@ -114,3 +114,32 @@ export const callAttempts = pgTable(
 
 export type CallerRow = typeof callers.$inferSelect;
 export type CallAttemptRow = typeof callAttempts.$inferSelect;
+
+/**
+ * Short codes for the reschedule page.
+ *
+ * A signed stateless token carries its own claims and needs no table — and is
+ * eighty characters of base64 in a text message, which looks like exactly the
+ * kind of link nobody should tap. A row is shorter and better: ten characters,
+ * and because it exists somewhere it can also be revoked, which a signed token
+ * cannot be without rotating the secret for everyone.
+ *
+ * The code is random, not derived. A code derived from the caller would let
+ * anybody holding one work out the others.
+ */
+export const links = pgTable(
+  'links',
+  {
+    /** Ten characters of unambiguous base32 — no 0/O, no 1/l. */
+    code: text('code').primaryKey(),
+    phoneHash: text('phone_hash').notNull(),
+    /** Exactly one thing this code may do. */
+    purpose: text('purpose').notNull().default('reschedule'),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
+  },
+  (t) => [index('links_expiry_idx').on(t.expiresAt)],
+);
+
+export type LinkRow = typeof links.$inferSelect;

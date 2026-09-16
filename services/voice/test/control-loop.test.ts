@@ -68,9 +68,8 @@ after(async () => {
 });
 
 beforeEach(async () => {
-  if (sql) await sql`truncate table callers, call_attempts`;
+  if (sql) await sql`truncate table callers, call_attempts, links`;
   process.env['DATA_ENCRYPTION_KEY'] = KEY;
-  process.env['LINK_SECRET'] = 'link_secret';
   process.env['PUBLIC_URL'] = 'https://8and80.example';
   agent.reset();
   mail.length = 0;

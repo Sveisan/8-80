@@ -2,7 +2,7 @@ import { log } from '../log.ts';
 import { settle } from '../call/outcome.ts';
 import { composeRecap } from '../recap/compose.ts';
 import { textAfterMissedCall } from '../sms/missed.ts';
-import { mintLink } from '../link/token.ts';
+import { Links } from '../link/token.ts';
 import { config } from '../config.ts';
 import { eventOf, toTranscript } from '../webhook/speechify.ts';
 import type { LoopDeps } from './deps.ts';
@@ -81,7 +81,9 @@ export async function settleConversation(payload: unknown, deps: LoopDeps): Prom
   // one warm SMS — and `textAfterMissedCall` guarantees the "one".
   if (outcome.status === 'failed' && NOT_ANSWERED.test(transcript.endedReason ?? '')) {
     const base = config.link.publicUrl();
-    const link = base ? `${base.replace(/\/$/, '')}/r/${mintLink(attempt.phoneHash, config.link.secret())}` : undefined;
+    const link = base
+      ? `${base.replace(/\/$/, '')}/r/${await new Links(deps.store.raw).mint(attempt.phoneHash)}`
+      : undefined;
     await textAfterMissedCall(attempt.id, phone, deps, link);
   }
 

@@ -1,62 +1,78 @@
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { randomInt } from 'node:crypto';
+import postgres from 'postgres';
 
-/** A week, so the link outlives the missed call it was sent about. */
+/** A week, so the code outlives the missed call it was sent about. */
 const TTL_MS = 7 * 24 * 3600_000;
 
+/** No 0/O and no 1/l: somebody may read this off one screen and type it into another. */
+const ALPHABET = 'abcdefghjkmnpqrstuvwxyz23456789';
+const LENGTH = 10;
+
 export interface LinkClaims {
-  /** Never the number itself: a URL ends up in message threads and logs. */
   phoneHash: string;
-  /** Exactly one thing this token may do. */
   purpose: 'reschedule';
-  expiresAt: number;
 }
 
 export type Opened = { ok: true; claims: LinkClaims } | { ok: false; why: string };
 
 /**
- * A link somebody can act on without logging in.
+ * Short codes for the reschedule page.
  *
- * There is no account to log into and there should not be one for this: asking
- * somebody to remember a password in order to move a phone call is how a small
- * courtesy becomes a chore they do not bother with.
+ * Ten random characters — about fifty bits, which is far past guessing over
+ * HTTP for a code that expires in a week and can only move a phone call. The
+ * shortness is the feature: a text message carrying eighty characters of
+ * base64 looks like precisely the link nobody should tap, and this product's
+ * whole problem is being trusted enough to be answered.
  *
- * So the safety comes from what the token can do rather than from who holds it.
- * It carries a hash, not a number. It may only move a call. It cannot read the
- * commitment, cancel the account, or change an email address, and the page it
- * opens shows nothing a stranger could use. Worst case, somebody who finds the
- * link in a shared message thread moves a call — which the caller sees at once,
- * and which the next call would put right anyway.
+ * Stateful rather than signed, because a row can be deleted. A signed token
+ * cannot be withdrawn without rotating the secret for everybody at once.
  */
-export function mintLink(phoneHash: string, secret: string, now = new Date()): string {
-  const claims: LinkClaims = { phoneHash, purpose: 'reschedule', expiresAt: now.getTime() + TTL_MS };
-  const payload = Buffer.from(JSON.stringify(claims), 'utf8').toString('base64url');
-  return `${payload}.${sign(payload, secret)}`;
-}
+export class Links {
+  constructor(private readonly sql: postgres.Sql) {}
 
-export function openLink(token: string, secret: string, now = new Date()): Opened {
-  const [payload, given] = token.split('.');
-  if (!payload || !given) return { ok: false, why: 'malformed' };
-
-  const expected = sign(payload, secret);
-  const a = Buffer.from(given);
-  const b = Buffer.from(expected);
-  // Length first: timingSafeEqual throws on a mismatch, and a throw is a timing
-  // signal of its own.
-  if (a.length !== b.length || !timingSafeEqual(a, b)) return { ok: false, why: 'bad signature' };
-
-  let claims: LinkClaims;
-  try {
-    claims = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as LinkClaims;
-  } catch {
-    return { ok: false, why: 'unreadable' };
+  async mint(phoneHash: string, now = new Date()): Promise<string> {
+    // ISO strings rather than Date objects: the driver serialises a Date
+    // correctly in most positions and threw here, and a timestamp that is
+    // already text cannot be misread by anything downstream.
+    const expiresAt = new Date(now.getTime() + TTL_MS).toISOString();
+    // Collisions are vanishingly unlikely and not impossible; retrying twice
+    // is cheaper than the incident where two people share a link.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const code = randomCode();
+      const inserted = await this.sql<{ code: string }[]>`
+        insert into links (code, phone_hash, purpose, expires_at)
+        values (${code}, ${phoneHash}, 'reschedule', ${expiresAt})
+        on conflict (code) do nothing
+        returning code
+      `;
+      if (inserted[0]) return code;
+    }
+    throw new Error('could not mint a link code');
   }
 
-  if (claims.purpose !== 'reschedule') return { ok: false, why: 'wrong purpose' };
-  if (!claims.phoneHash) return { ok: false, why: 'no subject' };
-  if (claims.expiresAt < now.getTime()) return { ok: false, why: 'expired' };
+  async open(code: string, now = new Date()): Promise<Opened> {
+    if (!/^[a-z2-9]{4,32}$/.test(code)) return { ok: false, why: 'malformed' };
 
-  return { ok: true, claims };
+    const rows = await this.sql<{ phone_hash: string; purpose: string; expires_at: Date }[]>`
+      update links set last_used_at = now()
+      where code = ${code} and expires_at > ${now.toISOString()}
+      returning phone_hash, purpose, expires_at
+    `;
+    const row = rows[0];
+    if (!row) return { ok: false, why: 'unknown or expired' };
+    if (row.purpose !== 'reschedule') return { ok: false, why: 'wrong purpose' };
+    return { ok: true, claims: { phoneHash: row.phone_hash, purpose: 'reschedule' } };
+  }
+
+  /** Housekeeping. An expired code is refused either way; this stops the table growing. */
+  async prune(now = new Date()): Promise<number> {
+    const gone = await this.sql<{ code: string }[]>`delete from links where expires_at < ${now.toISOString()} returning code`;
+    return gone.length;
+  }
 }
 
-const sign = (payload: string, secret: string): string =>
-  createHmac('sha256', secret).update(payload).digest('base64url');
+function randomCode(): string {
+  let out = '';
+  for (let i = 0; i < LENGTH; i++) out += ALPHABET[randomInt(ALPHABET.length)];
+  return out;
+}

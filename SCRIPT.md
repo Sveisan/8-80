@@ -594,12 +594,19 @@ _**Never the commitment.** A missed-call text arrives while somebody is in a mee
 the lock screen is visible to whoever is sitting next to them. It says when, never what.
 The same rule as the encrypted column, for the same reason._
 
+_**Dry, and at its own expense.** A text from an automated system is an imposition, and
+the smallest amount of humour makes it land as a person rather than a process — but only
+if the joke is on the mentor. Never on the caller, never about the week they have had,
+never a joke that needs them to be in a good mood to read it. One light touch per message
+at most, and none at all in §12's email or anywhere after §10: nobody wants wit from the
+thing that just heard them say they are not sleeping._
+
 _`SKIP` rather than `STOP`: STOP is a reserved carrier keyword that permanently
 unsubscribes the number from all messages, silently, before our code sees it. Somebody
 meaning "not this week" must not lose the service._
 
 `sms.missed`
-> "Rang you just now. Move it or leave this week: {{link}}"
+> "Rang just now. Didn't leave a message — nobody wants that. Move it or skip this week: {{link}}"
 
 _A link rather than a conversation, for a reason that is not laziness. A reply only works
 when the text came from a real number in the caller's own country — an alphanumeric sender
@@ -620,17 +627,19 @@ something they did not ask it to change. The escape hatch is named in the same b
 > "Moved for good. {{when}} from now on."
 
 `sms.later`
-> "I'll try again this evening."
+> "Right. I'll have another go this evening."
 
 `sms.skipped`
-> "Left this week. Talk next time."
+> "Consider it skipped. Talk next week."
 
 `sms.unparsed`
-> "I didn't follow that one. A day and a time works, or SKIP to leave this week."
+> "That one's beyond me, sorry. A day and a time works, or SKIP to leave this week."
 
 _Never guess. "Not this week, I'm at my mother's funeral" read as a reschedule request is
 the kind of failure that ends the relationship, and a parser confident enough to try is
-confident enough to get that wrong._
+confident enough to get that wrong. The "sorry" is doing real work here: this is the one
+message that is the mentor's fault, and saying so is what keeps the lightness from
+reading as a shrug._
 
 ---
 
@@ -666,10 +675,10 @@ whoever is holding the phone, so the page is built for a stranger to find boring
 > "Leave this week"
 
 `page.close`
-> "You can close this."
+> "That's it. You can close this."
 
 `page.expired`
-> "This link has expired"
+> "This link has gone off"
 
 `page.expired.detail`
-> "Links last a week. The next call will come as usual, and you can move it then."
+> "They only last a week. The next call comes as usual, and you can move it then."

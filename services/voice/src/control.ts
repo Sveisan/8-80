@@ -10,7 +10,7 @@ import { openMailer } from './recap/mailer.ts';
 import { openSms } from './sms/index.ts';
 import { handleReply } from './sms/missed.ts';
 import { verifySignature } from './webhook/signature.ts';
-import { openLink } from './link/token.ts';
+import { Links } from './link/token.ts';
 import { donePage, gonePage, reschedulePage } from './link/page.ts';
 import { parseLocalTime } from './schedule/time.ts';
 import { settleConversation } from './loop/settle.ts';
@@ -133,7 +133,7 @@ export function controlPlane(deps: LoopDeps, secret = config.speechify.webhookSe
       // remember a password in order to move a phone call is how a courtesy
       // becomes a chore. The token is what limits the damage — see link/token.ts.
       if (url.pathname.startsWith('/r/')) {
-        const opened = openLink(decodeURIComponent(url.pathname.slice(3)), config.link.secret());
+        const opened = await new Links(deps.store.raw).open(decodeURIComponent(url.pathname.slice(3)));
         if (!opened.ok) {
           log('link.refused', { why: opened.why });
           return html(res, 410, gonePage(deps.script));
