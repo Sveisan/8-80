@@ -599,7 +599,15 @@ unsubscribes the number from all messages, silently, before our code sees it. So
 meaning "not this week" must not lose the service._
 
 `sms.missed`
-> "Rang you just now. Want me to try later today, or move it? Reply with a day and time, or SKIP to leave this week."
+> "Rang you just now. Move it or leave this week: {{link}}"
+
+_A link rather than a conversation, for a reason that is not laziness. A reply only works
+when the text came from a real number in the caller's own country — an alphanumeric sender
+has nothing to reply to, and a foreign number charges them international rates to answer.
+A link works from any sender, in any country, with no number bought anywhere. The reply
+parser stays, and quietly handles anyone who tries it._
+
+_Short on purpose. This arrives while somebody is in a meeting._
 
 `sms.moved`
 > "{{when}}, then. Your usual slot stays as it is — say ALWAYS if you'd rather move it for good."
@@ -623,3 +631,45 @@ something they did not ask it to change. The escape hatch is named in the same b
 _Never guess. "Not this week, I'm at my mother's funeral" read as a reschedule request is
 the kind of failure that ends the relationship, and a parser confident enough to try is
 confident enough to get that wrong._
+
+---
+
+## 14. The reschedule page
+
+_Where the missed-call text points. Same rule as every other sentence here: the page
+contains no English of its own, so Norwegian is a values file rather than a second
+template._
+
+_It shows the slot and offers three things. It shows nothing else — no name, no
+commitment, no history. The link may sit in a message thread for years and be opened by
+whoever is holding the phone, so the page is built for a stranger to find boring._
+
+`page.title`
+> "Move this week's call"
+
+`page.usually`
+> "Usually {{when}}."
+
+`page.later`
+> "Try again later today"
+
+`page.pick`
+> "Or pick another time this week"
+
+`page.move`
+> "Move it"
+
+`page.always`
+> "Every week from now on"
+
+`page.skip`
+> "Leave this week"
+
+`page.close`
+> "You can close this."
+
+`page.expired`
+> "This link has expired"
+
+`page.expired.detail`
+> "Links last a week. The next call will come as usual, and you can move it then."

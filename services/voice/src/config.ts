@@ -141,6 +141,17 @@ export const config = {
   database: {
     url: process.env['DATABASE_URL'] ?? '',
   },
+  link: {
+    /**
+     * Where the reschedule page lives, e.g. https://8and80.com
+     *
+     * Read on use rather than at import, like every other secret here. A value
+     * frozen when the module loads cannot be set by a test, and the symptom is
+     * a missed-call text that silently never goes out.
+     */
+    publicUrl: (): string => process.env['PUBLIC_URL'] ?? '',
+    secret: () => req('LINK_SECRET'),
+  },
   speechify: {
     apiKey: () => req('SPEECHIFY_API_KEY'),
     agentId: () => req('SPEECHIFY_AGENT_ID'),

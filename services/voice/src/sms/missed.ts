@@ -16,13 +16,17 @@ export async function textAfterMissedCall(
   attemptId: string,
   phone: string,
   deps: { sms: Sms; scheduler: Scheduler; script: ScriptLines },
+  link?: string,
 ): Promise<boolean> {
   // Somebody else may already have sent it. Losing the race means sending
   // nothing, not sending a second one.
   if (!(await deps.scheduler.claimNudge(attemptId))) return false;
-  const body = deps.script.get('sms.missed');
-  if (!body) return false;
-  await deps.sms.send(phone, body);
+  const template = deps.script.get('sms.missed');
+  if (!template) return false;
+  // Without a link there is nothing to act on, and a text that only says the
+  // call was missed is a notification about a failure. Better to send nothing.
+  if (!link) return false;
+  await deps.sms.send(phone, template.replace('{{link}}', link));
   return true;
 }
 

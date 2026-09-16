@@ -70,6 +70,8 @@ after(async () => {
 beforeEach(async () => {
   if (sql) await sql`truncate table callers, call_attempts`;
   process.env['DATA_ENCRYPTION_KEY'] = KEY;
+  process.env['LINK_SECRET'] = 'link_secret';
+  process.env['PUBLIC_URL'] = 'https://8and80.example';
   agent.reset();
   mail.length = 0;
   texts.length = 0;
@@ -195,7 +197,9 @@ test('a call that rang out produces the one text', { skip: skip() }, async () =>
     deps(),
   );
   assert.equal(texts.length, 1);
-  assert.ok(texts[0]?.body.includes('SKIP'));
+  assert.ok(texts[0]?.body.includes('https://8and80.example/r/'), texts[0]?.body);
+  // The link carries a hash, never the number it was sent to.
+  assert.ok(!texts[0]?.body.includes('4790000048'));
 });
 
 test('a conversation we did not place is acknowledged and ignored', { skip: skip() }, async () => {

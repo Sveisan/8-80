@@ -10,6 +10,9 @@ import { openMailer } from './recap/mailer.ts';
 import { openSms } from './sms/index.ts';
 import { handleReply } from './sms/missed.ts';
 import { verifySignature } from './webhook/signature.ts';
+import { openLink } from './link/token.ts';
+import { donePage, gonePage, reschedulePage } from './link/page.ts';
+import { parseLocalTime } from './schedule/time.ts';
 import { settleConversation } from './loop/settle.ts';
 import { UnreadablePayload } from './webhook/speechify.ts';
 import type { LoopDeps } from './loop/deps.ts';
@@ -40,6 +43,44 @@ const send = (res: ServerResponse, status: number, body: unknown): void => {
   res.writeHead(status, { 'content-type': 'application/json' });
   res.end(JSON.stringify(body));
 };
+
+const html = (res: ServerResponse, status: number, body: string): void => {
+  res.writeHead(status, {
+    'content-type': 'text/html; charset=utf-8',
+    // The link is in somebody's messages. It should not also be in a cache.
+    'cache-control': 'no-store',
+    'referrer-policy': 'no-referrer',
+  });
+  res.end(body);
+};
+
+/**
+ * The page's buttons, as the sentence a text would have said.
+ *
+ * Deliberately routed through the same parser. Two ways to move a call that
+ * each own their own logic is two things to keep in agreement, and they will
+ * not stay in agreement.
+ */
+function phraseFor(form: URLSearchParams): string | undefined {
+  const action = form.get('action');
+  if (action === 'later') return 'later';
+  if (action === 'skip') return 'skip';
+  if (action !== 'move') return undefined;
+
+  const weekday = Number(form.get('weekday'));
+  const minute = parseLocalTime(form.get('time') ?? '');
+  if (!Number.isInteger(weekday) || weekday < 0 || weekday > 6 || minute === undefined) return undefined;
+
+  const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  const time = `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`;
+  return `${days[weekday]} ${time}${form.get('always') ? ' always' : ''}`;
+}
+
+/**
+ * The page already told them what happened, on the page. A text saying the
+ * same thing arrives as a second notification about something they just did.
+ */
+const silent = { send: async (): Promise<void> => undefined };
 
 export function controlPlane(deps: LoopDeps, secret = config.speechify.webhookSecret()): Server {
   return createServer((req, res) => {
@@ -86,6 +127,34 @@ export function controlPlane(deps: LoopDeps, secret = config.speechify.webhookSe
 
         const out = await handleReply(from, text, slot, deps);
         return send(res, 200, { action: out.action });
+      }
+
+      // The page a missed-call text points at. No login: asking somebody to
+      // remember a password in order to move a phone call is how a courtesy
+      // becomes a chore. The token is what limits the damage — see link/token.ts.
+      if (url.pathname.startsWith('/r/')) {
+        const opened = openLink(decodeURIComponent(url.pathname.slice(3)), config.link.secret());
+        if (!opened.ok) {
+          log('link.refused', { why: opened.why });
+          return html(res, 410, gonePage(deps.script));
+        }
+
+        const phone = await deps.store.phoneFor(opened.claims.phoneHash);
+        const slot = phone ? await deps.scheduler.slotFor(phone) : undefined;
+        if (!phone || !slot) return html(res, 410, gonePage(deps.script));
+        const caller = await deps.store.load(phone);
+
+        if (req.method === 'GET') return html(res, 200, reschedulePage(slot, deps.script, caller.language));
+
+        if (req.method === 'POST') {
+          const form = new URLSearchParams((await rawBody(req)).toString('utf8'));
+          const said = phraseFor(form);
+          if (!said) return html(res, 200, reschedulePage(slot, deps.script, caller.language));
+          // Straight through the same path a text would take, so the two ways
+          // of moving a call cannot drift apart.
+          const out = await handleReply(phone, said, slot, { ...deps, sms: silent }, new Date());
+          return html(res, 200, donePage(out.said, deps.script, caller.language));
+        }
       }
 
       return send(res, 404, { error: 'not found' });

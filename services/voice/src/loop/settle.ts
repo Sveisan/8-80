@@ -2,6 +2,8 @@ import { log } from '../log.ts';
 import { settle } from '../call/outcome.ts';
 import { composeRecap } from '../recap/compose.ts';
 import { textAfterMissedCall } from '../sms/missed.ts';
+import { mintLink } from '../link/token.ts';
+import { config } from '../config.ts';
 import { eventOf, toTranscript } from '../webhook/speechify.ts';
 import type { LoopDeps } from './deps.ts';
 
@@ -78,7 +80,9 @@ export async function settleConversation(payload: unknown, deps: LoopDeps): Prom
   // Nobody picked up. This is the one text — ARCHITECTURE.md: never voicemail,
   // one warm SMS — and `textAfterMissedCall` guarantees the "one".
   if (outcome.status === 'failed' && NOT_ANSWERED.test(transcript.endedReason ?? '')) {
-    await textAfterMissedCall(attempt.id, phone, deps);
+    const base = config.link.publicUrl();
+    const link = base ? `${base.replace(/\/$/, '')}/r/${mintLink(attempt.phoneHash, config.link.secret())}` : undefined;
+    await textAfterMissedCall(attempt.id, phone, deps, link);
   }
 
   log('settle.done', { status: outcome.status, event });

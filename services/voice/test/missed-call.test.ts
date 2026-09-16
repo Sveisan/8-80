@@ -40,6 +40,7 @@ beforeEach(async () => {
 });
 
 const NOW = new Date('2026-09-08T06:00:00Z');
+const LINK = 'https://8and80.example/r/tok';
 
 async function missedCall(phone: string): Promise<string> {
   await (store as PostgresStore).upsertProfile(phone, { name: 'Test' });
@@ -49,32 +50,41 @@ async function missedCall(phone: string): Promise<string> {
   return (claim as { attemptId: string }).attemptId;
 }
 
+test('with nowhere to send them, no text goes out at all', { skip: skip() }, async () => {
+  const id = await missedCall('+479000003X'.replace('X', '9'));
+  const sms = new Outbox();
+  // A text that only reports the call was missed is a notification about a
+  // failure. Saying nothing is better.
+  assert.equal(await textAfterMissedCall(id, '+4790000039', { sms, scheduler: sched as Scheduler, script }), false);
+  assert.equal(sms.sent.length, 0);
+});
+
 test('a missed call produces exactly one text, whatever tries to send it', { skip: skip() }, async () => {
   const id = await missedCall('+4790000030');
   const sms = new Outbox();
   const deps = { sms, scheduler: sched as Scheduler, script };
 
   const [a, b] = await Promise.all([
-    textAfterMissedCall(id, '+4790000030', deps),
-    textAfterMissedCall(id, '+4790000030', deps),
+    textAfterMissedCall(id, '+4790000030', deps, LINK),
+    textAfterMissedCall(id, '+4790000030', deps, LINK),
   ]);
   assert.equal([a, b].filter(Boolean).length, 1, 'two workers, one text');
   assert.equal(sms.sent.length, 1);
 
   // And a later retry, after everything settled, still sends nothing.
-  assert.equal(await textAfterMissedCall(id, '+4790000030', deps), false);
+  assert.equal(await textAfterMissedCall(id, '+4790000030', deps, LINK), false);
   assert.equal(sms.sent.length, 1);
 });
 
 test('the text says when, never what', { skip: skip() }, async () => {
   const id = await missedCall('+4790000031');
   const sms = new Outbox();
-  await textAfterMissedCall(id, '+4790000031', { sms, scheduler: sched as Scheduler, script });
+  await textAfterMissedCall(id, '+4790000031', { sms, scheduler: sched as Scheduler, script }, LINK);
   const body = sms.sent[0]?.body ?? '';
   // A lock screen is visible to whoever is sitting next to them.
   assert.ok(!/commit|last week|you said/i.test(body), body);
   assert.ok(!body.includes('!'));
-  assert.ok(body.includes('SKIP'), 'the escape hatch has to be in the message');
+  assert.ok(body.includes(LINK), 'without somewhere to act, the text is a notification about a failure');
   assert.ok(!/\bSTOP\b/.test(body), 'STOP is the carrier keyword and would unsubscribe them');
 });
 
