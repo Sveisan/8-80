@@ -5,18 +5,29 @@ Twilio can open a websocket to, and your `.env`. Twenty minutes, most of it DNS.
 
 ## 1. DNS — the one thing that is easy to get wrong
 
-Point a subdomain at the VPS:
+The domain is `8and80.me`, at Cloudflare. Four records:
 
 ```
-voice.<yourdomain>.   A   <vps-ip>
+8and80.me.        A   <vps-ip>    proxied      # the reschedule page and /r/ links
+api.8and80.me.    A   <vps-ip>    proxied      # webhooks in
+voice.8and80.me.  A   <vps-ip>    DNS-only     # the media socket, if Grok is ever used
+mail.8and80.me.   …                            # Resend's three records, §6
 ```
 
-**In Cloudflare this record must be DNS-only — grey cloud, not orange.**
+**`voice.` must be DNS-only — grey cloud, not orange.** This is the single easiest
+mistake in the whole architecture, because turning the proxy on looks like a security
+improvement. It is not, here: proxying real-time audio adds latency to every turn and
+drops long-held connections, and a fifteen-minute call is one connection. Everything
+else can and should sit behind the proxy.
 
-This is the single easiest mistake in the whole architecture, because turning the proxy
-on looks like a security improvement. It is not, here: proxying real-time audio adds
-latency to every turn and drops long-held connections, and a fifteen-minute call is one
-connection. The web app sits behind Cloudflare; the voice socket never does.
+**`/r/` links live on the apex, and that is permanent.** A reschedule link goes out in a
+text message and may be opened a week later, so whatever host it names has to answer
+forever. The apex is also the shortest thing to type, which is the point of the short
+codes — `8and80.me/r/k4m9x2qpzt` is 23 characters and looks like something a person
+would send.
+
+Webhooks get their own hostname for the opposite reason: nothing external remembers
+`api.8and80.me` beyond the next delivery, so it can move whenever it needs to.
 
 ## 2. The box
 
