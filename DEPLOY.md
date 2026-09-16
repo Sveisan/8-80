@@ -29,7 +29,43 @@ would send.
 Webhooks get their own hostname for the opposite reason: nothing external remembers
 `api.8and80.me` beyond the next delivery, so it can move whenever it needs to.
 
-## 2. The box
+## 2. The box — one command
+
+```bash
+ssh <you>@91.189.127.85
+sudo git clone -b claude/8-80-prompt-v3-f9tk4m https://github.com/Sveisan/8-80.git /opt/8-80
+sudo bash /opt/8-80/deploy/control-setup.sh
+```
+
+That installs Node 22, Postgres, and Caddy; creates the database, its role and a
+service user; writes the Caddyfile for `8and80.me` and `api.8and80.me`; installs the
+systemd units; and opens 80 and 443. Safe to re-run.
+
+It stops before `.env`, on purpose. Everything in that file — the database password, the
+Speechify key, and above all `DATA_ENCRYPTION_KEY` — is yours to paste on the box and
+nowhere else. A secret that passes through a chat window or another machine's shell
+history is a secret with more copies than you can account for.
+
+The script prints the exact `DATABASE_URL` and a freshly generated
+`DATA_ENCRYPTION_KEY`. **Keep the key from the first run.** Changing it makes every
+commitment already stored unreadable, and there is no way back from that — the callers
+would still be on the hook for things the system could no longer quote.
+
+Then:
+
+```bash
+cd /opt/8-80 && npm install && npm run db:migrate
+sudo chmod 600 .env && sudo chown eightandeighty .env
+sudo systemctl enable --now 8and80-control 8and80-tick.timer
+
+curl -sS https://api.8and80.me/health        # {"ok":true}
+```
+
+`8and80-tick.timer` fires every minute and exits. A daemon with a sleep in it is a
+product that silently stops calling people the night it dies; systemd restarting a
+one-shot is somebody else's solved problem.
+
+## 2b. The voice service — only if the Grok path is used
 
 ```bash
 ssh <you>@<vps>

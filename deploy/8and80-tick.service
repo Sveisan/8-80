@@ -1,0 +1,25 @@
+# One tick: ring whoever is due, then exit.
+#
+# A timer rather than a daemon with a sleep in it. A daemon that dies at three in
+# the morning is a product that silently stops calling anybody; systemd
+# restarting a one-shot is somebody else's solved problem.
+
+[Unit]
+Description=8&80 scheduler tick
+After=network-online.target postgresql.service
+
+[Service]
+Type=oneshot
+User=eightandeighty
+WorkingDirectory=/opt/8-80
+EnvironmentFile=/opt/8-80/.env
+ExecStart=/usr/bin/npm run tick
+
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+NoNewPrivileges=true
+ReadWritePaths=/opt/8-80/runs
+
+StandardOutput=journal
+StandardError=journal

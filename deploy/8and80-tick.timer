@@ -1,0 +1,12 @@
+[Unit]
+Description=8&80 scheduler tick, every minute
+
+[Timer]
+OnCalendar=*:0/1
+# A box that was off through somebody's slot must not fire the moment it wakes:
+# the tick itself records the missed week and moves on. See schedule/scheduler.ts.
+Persistent=false
+AccuracySec=10s
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,20 @@
+# TLS for the control plane.
+#
+# Two names, one service. The apex serves the reschedule links, which go out in
+# text messages and must answer for as long as any of them might be opened;
+# api. takes the webhooks, which nothing remembers past the next delivery.
+#
+# Unlike the voice socket, both of these SHOULD sit behind Cloudflare's proxy.
+# Nothing here is long-lived: a request arrives, something is written down, the
+# request ends.
+
+8and80.me, api.8and80.me {
+	reverse_proxy 127.0.0.1:8080
+
+	log {
+		# Never log bodies. A webhook body is a transcript, and a /r/ path is a
+		# link somebody was sent. Neither belongs on disk.
+		output file /var/log/caddy/control.log
+		format json
+	}
+}
