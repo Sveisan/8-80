@@ -126,6 +126,11 @@ export class PostgresStore implements Store {
     return rows[0] ? decrypt(rows[0].enc) : undefined;
   }
 
+  /** The same connection, for the scheduler — one pool, not two. */
+  get raw(): postgres.Sql {
+    return this.sqlClient;
+  }
+
   async close(): Promise<void> {
     await this.sqlClient.end({ timeout: 5 });
   }

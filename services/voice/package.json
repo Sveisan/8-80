@@ -16,7 +16,9 @@
     "voices": "tsx src/voices-cli.ts",
     "audition": "tsx src/audition-cli.ts",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "tsx src/migrate-cli.ts"
+    "db:migrate": "tsx src/migrate-cli.ts",
+    "tick": "tsx src/tick-cli.ts",
+    "control": "tsx src/control-cli.ts"
   },
   "dependencies": {
     "dotenv": "^16.4.5",

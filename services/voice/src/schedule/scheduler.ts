@@ -12,7 +12,7 @@ export interface Claim {
   scheduledFor: Date;
 }
 
-export type AttemptStatus = 'claimed' | 'placed' | 'completed' | 'silent' | 'failed' | 'missed';
+export type AttemptStatus = 'claimed' | 'placed' | 'settling' | 'completed' | 'silent' | 'failed' | 'missed';
 
 /**
  * How late a call may be and still be the call. Past this it is recorded as
@@ -132,9 +132,53 @@ export class Scheduler {
     return next;
   }
 
+  /** The weekly arrangement, for reading a text against. */
+  async slotFor(phone: string): Promise<Slot | undefined> {
+    const rows = await this.sql<{ slot_weekday: number | null; slot_minute: number | null; timezone: string | null }[]>`
+      select slot_weekday, slot_minute, timezone from callers where phone_hash = ${phoneKey(phone)} limit 1
+    `;
+    const row = rows[0];
+    if (!row || row.slot_weekday === null || row.slot_minute === null || !row.timezone) return undefined;
+    return { weekday: row.slot_weekday, minute: row.slot_minute, timezone: row.timezone };
+  }
+
   /** Their choice to stop. The slot stays, so resuming is not re-entering it. */
   async setPaused(phone: string, paused: boolean): Promise<void> {
     await this.sql`update callers set paused = ${paused}, updated_at = now() where phone_hash = ${phoneKey(phone)}`;
+  }
+
+  /** The attempt a webhook is about, found by the id the platform gave us. */
+  async attemptForConversation(
+    conversationId: string,
+  ): Promise<{ id: string; phoneHash: string; status: string } | undefined> {
+    const rows = await this.sql<{ id: string; phone_hash: string; status: string }[]>`
+      select id, phone_hash, status from call_attempts
+      where provider_call_id = ${conversationId}
+      limit 1
+    `;
+    const row = rows[0];
+    return row ? { id: row.id, phoneHash: row.phone_hash, status: row.status } : undefined;
+  }
+
+  /**
+   * Take the right to settle this call, once.
+   *
+   * Webhooks are retried. Settling twice would increment the call number twice,
+   * overwrite the commitment with itself, and send the recap again — three
+   * wrongs a caller would notice. So the transition out of `placed` is the
+   * permission slip, and whoever loses it does nothing.
+   *
+   * A crash after winning leaves the attempt in `settling`, which `stale` finds.
+   * That is the failure worth having: visible and rare, rather than silent and
+   * duplicated.
+   */
+  async claimSettlement(attemptId: string): Promise<boolean> {
+    const won = await this.sql<{ id: string }[]>`
+      update call_attempts set status = 'settling'
+      where id = ${attemptId} and status in ('claimed', 'placed')
+      returning id
+    `;
+    return won.length > 0;
   }
 
   async markPlaced(attemptId: string, providerCallId: string): Promise<void> {
@@ -147,7 +191,7 @@ export class Scheduler {
 
   async finish(
     attemptId: string,
-    status: Exclude<AttemptStatus, 'claimed' | 'placed'>,
+    status: Exclude<AttemptStatus, 'claimed' | 'placed' | 'settling'>,
     detail: { durationMs?: number; note?: string } = {},
   ): Promise<void> {
     await this.sql`
@@ -198,7 +242,7 @@ export class Scheduler {
     const cutoff = new Date(now.getTime() - olderThanMs);
     const rows = await this.sql<{ id: string; phone_hash: string; status: string }[]>`
       select id, phone_hash, status from call_attempts
-      where status in ('claimed', 'placed') and claimed_at < ${cutoff}
+      where status in ('claimed', 'placed', 'settling') and claimed_at < ${cutoff}
       order by claimed_at
     `;
     return rows.map((r) => ({ id: r.id, phoneHash: r.phone_hash, status: r.status }));

@@ -26,7 +26,7 @@ export interface CallTranscript {
 }
 
 export interface Settlement {
-  status: Exclude<AttemptStatus, 'claimed' | 'placed' | 'missed'>;
+  status: Exclude<AttemptStatus, 'claimed' | 'placed' | 'settling' | 'missed'>;
   outcome?: CallOutcome;
   /** Why, in our words. Never anything the caller said. */
   note?: string;
