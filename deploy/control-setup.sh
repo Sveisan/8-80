@@ -68,6 +68,10 @@ cp "$HERE/Caddyfile.control" /etc/caddy/Caddyfile
 mkdir -p /var/log/caddy
 systemctl reload caddy || systemctl restart caddy
 
+# systemd's ReadWritePaths must exist before the unit starts, and runs/ is
+# gitignored so a fresh clone has no such directory.
+mkdir -p "$REPO/runs"
+
 echo "==> systemd"
 cp "$HERE/8and80-control.service" "$HERE/8and80-tick.service" "$HERE/8and80-tick.timer" /etc/systemd/system/
 systemctl daemon-reload

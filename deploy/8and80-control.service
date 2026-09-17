@@ -21,7 +21,16 @@ PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
 NoNewPrivileges=true
-ReadWritePaths=/opt/8-80/runs
+# The dash matters: runs/ is gitignored, so a fresh clone does not have it, and
+# systemd refuses to start a unit whose ReadWritePaths does not exist —
+# 226/NAMESPACE, which says nothing about a missing directory.
+ReadWritePaths=-/opt/8-80/runs
+
+# npm writes a debug log when a script fails, and everything else is read-only
+# under ProtectSystem=strict. Without this the log write fails and hides the
+# error it was written to explain.
+Environment=NPM_CONFIG_CACHE=/opt/8-80/runs/.npm
+Environment=NPM_CONFIG_UPDATE_NOTIFIER=false
 
 StandardOutput=journal
 StandardError=journal
