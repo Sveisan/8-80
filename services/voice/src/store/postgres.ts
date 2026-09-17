@@ -30,8 +30,13 @@ export function phoneKey(phone: string): string {
 export class PostgresStore implements Store {
   private readonly db: PostgresJsDatabase;
   private readonly sqlClient: postgres.Sql;
+  private readonly url: string;
+  private readonly options: postgres.Options<Record<string, never>>;
+  private rawClient: postgres.Sql | undefined;
 
   constructor(url: string, options: postgres.Options<Record<string, never>> = {}) {
+    this.url = url;
+    this.options = options;
     this.sqlClient = postgres(url, { max: 4, ...options });
     this.db = drizzle(this.sqlClient);
   }
@@ -126,12 +131,25 @@ export class PostgresStore implements Store {
     return rows[0] ? decrypt(rows[0].enc) : undefined;
   }
 
-  /** The same connection, for the scheduler — one pool, not two. */
+  /**
+   * A client for hand-written SQL — deliberately not the one drizzle wraps.
+   *
+   * Drizzle installs its own serialisers on the postgres.js instance it is
+   * given, and a Date passed to a raw tagged query on that instance is then
+   * written as a string and throws inside the driver. Nothing says so; the
+   * error is ERR_INVALID_ARG_TYPE from Buffer.byteLength, several frames deep.
+   *
+   * It stayed hidden for a while because the tests build their scheduler from
+   * their own client, so every test passed while the deployed process could not
+   * set a slot at all. A second small pool is a cheap price for the two never
+   * touching each other again.
+   */
   get raw(): postgres.Sql {
-    return this.sqlClient;
+    this.rawClient ??= postgres(this.url, { max: 4, ...this.options });
+    return this.rawClient;
   }
 
   async close(): Promise<void> {
-    await this.sqlClient.end({ timeout: 5 });
+    await Promise.all([this.sqlClient.end({ timeout: 5 }), this.rawClient?.end({ timeout: 5 })]);
   }
 }

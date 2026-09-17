@@ -2,6 +2,7 @@ import { test, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import postgres from 'postgres';
 import { PostgresStore, phoneKey } from '../src/store/postgres.ts';
+import { Scheduler } from '../src/schedule/scheduler.ts';
 import { openTestDb } from './helpers/db.ts';
 
 
@@ -141,5 +142,23 @@ test('the address the recap goes to is not readable in the table either', { skip
     // An address identifies a person as squarely as a number does.
     assert.ok(!JSON.stringify(rows).includes('eirik@example.com'));
     assert.equal((await s.load('+4790000005')).email, 'eirik@example.com');
+  });
+});
+
+test('a scheduler built from store.raw can write a timestamp', { skip: skip() }, async () => {
+  await withKey(async () => {
+    const s = store as PostgresStore;
+    await s.upsertProfile('+4790000006', { name: 'Raw' });
+    // The production wiring, which the other tests do not use: they build a
+    // scheduler from their own client, and drizzle had quietly replaced the
+    // serialisers on the one the store hands out. Every test passed while the
+    // deployed process could not set a slot.
+    await new Scheduler(s.raw).setSlot(
+      '+4790000006',
+      { weekday: 2, minute: 480, timezone: 'Europe/Oslo' },
+      new Date('2026-09-07T10:00:00Z'),
+    );
+    const rows = await (sql as postgres.Sql)`select next_call_at from callers where phone_hash = ${phoneKey('+4790000006')}`;
+    assert.equal((rows[0]?.['next_call_at'] as Date).toISOString(), '2026-09-08T06:00:00.000Z');
   });
 });
