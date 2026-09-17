@@ -12,8 +12,11 @@ import { repoRoot } from './config.ts';
  *
  * Format parsed:
  *     `some.id`
- *     > "first line"
- *     > "continued"
+ *     > "a line that runs long enough
+ *     > to need wrapping"
+ *
+ * The quotes mark the whole utterance, not each wrapped row: rows are joined
+ * with a space and only the outermost pair is stripped.
  */
 export type ScriptLines = Map<string, string>;
 

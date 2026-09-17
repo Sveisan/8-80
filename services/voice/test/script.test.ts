@@ -17,7 +17,9 @@ test('joins multi-line quoted blocks into one utterance', () => {
   // Against a fixture, not against SCRIPT.md's wording. The parser's job is to
   // join; the copy is Eirik's to rewrite, and a test that fails when he warms a
   // sentence is a test that teaches people to stop warming sentences.
-  const lines = parseScript('`x.y`\n> "first line"\n> "second line"\n');
+  // One opening quote and one closing quote across the whole block, which is how
+  // SCRIPT.md wraps a long line — the quotes mark the utterance, not each row.
+  const lines = parseScript('`x.y`\n> "first line\n> second line"\n');
   assert.equal(lines.get('x.y'), 'first line second line');
 });
 
@@ -42,6 +44,9 @@ test('the product voice rules hold across every spoken line', () => {
   for (const [id, text] of lines) {
     assert.ok(!text.includes('!'), `${id} contains an exclamation mark`);
     assert.ok(!/\b(amazing|great job|well done)\b/i.test(text), `${id} congratulates`);
+    // A stray quote means somebody quoted each wrapped row instead of the block,
+    // and the mentor would read the quote out loud.
+    assert.ok(!text.includes('"'), `${id} has a stray quote mark`);
   }
 });
 
