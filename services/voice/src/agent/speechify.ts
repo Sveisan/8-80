@@ -77,9 +77,14 @@ export class SpeechifyAgent {
       body: JSON.stringify(body),
     });
     if (!res.ok) {
-      // Their validator echoes the request back on a 4xx, and the request has a
-      // phone number in it. The status is what goes in the log.
-      log('agent.call_failed', { status: res.status, path });
+      // Their validator echoes the request back on a 4xx, phone number and all
+      // — which is why this looked unloggable at first. It is not: log() strips
+      // numbers and addresses from every string at any depth, so the one thing
+      // that says *why* a call did not happen can be read without leaking who
+      // it was for. A 400 with nothing but its status attached is a morning
+      // spent guessing.
+      const detail = await res.text().catch(() => '');
+      log('agent.call_failed', { status: res.status, path, detail: detail.slice(0, 600) });
       throw new Error(`Speechify refused ${path} (HTTP ${res.status})`);
     }
     return await res.json();
