@@ -26,10 +26,14 @@ console.log('─'.repeat(72));
 console.log(buildInstructions(script, profile));
 console.log('─'.repeat(72));
 
-const text = buildInstructions(script, profile);
+// The voice rules apply to what the mentor SAYS, not to the prompt that tells it
+// what not to say — linting the assembled text flagged the prohibition list
+// itself every single run, which is how a check teaches people to ignore it.
 const problems: string[] = [];
-if (text.includes('!')) problems.push('contains an exclamation mark');
-for (const w of ['amazing', 'great job', 'well done']) {
-  if (new RegExp(`\\b${w}\\b`, 'i').test(text)) problems.push(`contains "${w}"`);
+for (const [id, spoken] of script) {
+  if (spoken.includes('!')) problems.push(`${id} contains an exclamation mark`);
+  for (const w of ['amazing', 'great job', 'well done']) {
+    if (new RegExp(`\\b${w}\\b`, 'i').test(spoken)) problems.push(`${id} contains "${w}"`);
+  }
 }
 console.log(problems.length ? `\n  ✕ ${problems.join('; ')}\n` : '\n  · voice rules hold\n');
