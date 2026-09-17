@@ -12,6 +12,13 @@ export interface Claim {
   scheduledFor: Date;
 }
 
+/** Nobody by that number. Raised rather than returned so it cannot be ignored. */
+export class UnknownCaller extends Error {
+  constructor() {
+    super('No caller with that number — enrol them before setting a slot.');
+  }
+}
+
 export type AttemptStatus = 'claimed' | 'placed' | 'settling' | 'completed' | 'silent' | 'failed' | 'missed';
 
 /**
@@ -116,10 +123,17 @@ export class Scheduler {
     });
   }
 
-  /** Set or change someone's weekly slot, and work out when it next comes round. */
+  /**
+   * Set or change someone's weekly slot, and work out when it next comes round.
+   *
+   * Throws if there is no such caller. An UPDATE that matches nothing succeeds
+   * quietly, and this one reported a slot it had not set — so the caller was
+   * never due, the scheduler never claimed them, and the only symptom was a
+   * phone that did not ring on a morning somebody was expecting it to.
+   */
   async setSlot(phone: string, slot: Slot, now = new Date()): Promise<Date> {
     const next = nextSlotAfter(now, slot);
-    await this.sql`
+    const rows = await this.sql<{ phone_hash: string }[]>`
       update callers
       set timezone = ${slot.timezone},
           slot_weekday = ${slot.weekday},
@@ -128,7 +142,9 @@ export class Scheduler {
           paused = false,
           updated_at = now()
       where phone_hash = ${phoneKey(phone)}
+      returning phone_hash
     `;
+    if (!rows.length) throw new UnknownCaller();
     return next;
   }
 
@@ -222,12 +238,14 @@ export class Scheduler {
     return won.length > 0;
   }
 
-  /** A one-off call today, leaving the weekly arrangement untouched. */
+  /** A one-off call, leaving the weekly arrangement untouched. Throws if unknown. */
   async callAgainAt(phone: string, at: Date): Promise<void> {
-    await this.sql`
+    const rows = await this.sql<{ phone_hash: string }[]>`
       update callers set next_call_at = ${at}, updated_at = now()
       where phone_hash = ${phoneKey(phone)}
+      returning phone_hash
     `;
+    if (!rows.length) throw new UnknownCaller();
   }
 
   /**

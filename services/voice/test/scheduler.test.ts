@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import postgres from 'postgres';
 import { PostgresStore, phoneKey } from '../src/store/postgres.ts';
 import { openTestDb } from './helpers/db.ts';
-import { Scheduler } from '../src/schedule/scheduler.ts';
+import { Scheduler, UnknownCaller } from '../src/schedule/scheduler.ts';
 import type { Slot } from '../src/schedule/time.ts';
 
 
@@ -147,4 +147,25 @@ test('months of downtime do not write an unbounded backlog', { skip: skip() }, a
   await (sched as Scheduler).claimDue(new Date('2027-06-01T09:00:00Z'));
   const rows = await (sql as postgres.Sql)`select count(*)::int as n from call_attempts`;
   assert.ok((rows[0]?.['n'] as number) <= 12, `wrote ${rows[0]?.['n']} rows for a nine-month gap`);
+});
+
+test('setting a slot for nobody is an error, not a quiet success', { skip: skip() }, async () => {
+  // An UPDATE matching no rows succeeds. This one printed "Slot set" for a
+  // caller who did not exist, so nobody was ever due and the only symptom was
+  // a phone that did not ring on a morning it was expected to.
+  await assert.rejects(
+    () => (sched as Scheduler).setSlot('+4790000099', OSLO, new Date('2026-09-07T10:00:00Z')),
+    UnknownCaller,
+  );
+  await assert.rejects(
+    () => (sched as Scheduler).callAgainAt('+4790000099', new Date()),
+    UnknownCaller,
+  );
+});
+
+test('enrolling then setting a slot leaves somebody actually due', { skip: skip() }, async () => {
+  await (store as NonNullable<typeof store>).upsertProfile('+4790000098', {});
+  await (sched as Scheduler).setSlot('+4790000098', OSLO, new Date('2026-09-07T10:00:00Z'));
+  const claims = await (sched as Scheduler).claimDue(new Date('2026-09-08T06:00:00Z'));
+  assert.equal(claims.length, 1, 'a slot that was set must produce a call');
 });

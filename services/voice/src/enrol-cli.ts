@@ -62,7 +62,11 @@ try {
     const v = flag(k);
     if (v) profile[k] = v;
   }
-  if (Object.keys(profile).length) await store.upsertProfile(phone, profile);
+  // Always, even with nothing to set. Everything below is an UPDATE, and an
+  // UPDATE against a caller who does not exist succeeds while doing nothing —
+  // which is how "Slot set" was printed for somebody the scheduler had never
+  // heard of.
+  await store.upsertProfile(phone, profile);
 
   const day = flag('day');
   const time = flag('time');
