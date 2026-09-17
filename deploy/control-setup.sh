@@ -4,8 +4,13 @@
 #   sudo bash deploy/control-setup.sh
 #
 # Installs Node, Postgres and Caddy, creates the database and the service user,
-# writes the systemd units, and stops — deliberately — before touching .env.
-# Every secret this needs is yours to paste on the box and nowhere else.
+# writes the systemd units, and seeds .env with the two secrets it generates.
+#
+# It prints neither of them. An earlier version printed both and the
+# instructions then asked for the output to be pasted into a chat — which is
+# how a secret ends up somewhere nobody intended, by two reasonable steps that
+# contradict each other. The values go straight into a 0600 file owned by the
+# service user, and the only thing on screen is what is still missing.
 set -euo pipefail
 
 REPO="${REPO:-/opt/8-80}"
@@ -27,12 +32,20 @@ echo "==> Postgres"
 apt-get install -y postgresql
 systemctl enable --now postgresql
 
-# The password is generated here and printed once. Nobody types it, and it never
-# travels through a chat window or a shell history on another machine.
+# Generated here and written straight to .env. Never printed, never typed.
+#
+# The password is set whenever .env is about to be written, including when the
+# role already exists: a re-run that kept the old password would have no way to
+# learn it, and would seed a connection string with an empty one. The rule is
+# that whoever writes .env also sets the password, so the two cannot disagree.
 DB_PASS="$(openssl rand -base64 24 | tr -d '/+=' | cut -c1-24)"
-if sudo -u postgres psql -tAc "select 1 from pg_roles where rolname='$DB_USER'" | grep -q 1; then
-  echo "    role $DB_USER exists — leaving its password alone"
+ROLE_EXISTS="$(sudo -u postgres psql -tAc "select 1 from pg_roles where rolname='$DB_USER'" || true)"
+if [ -f "$REPO/.env" ]; then
+  echo "    .env exists — leaving the role and its password alone"
   DB_PASS=""
+elif [ "$ROLE_EXISTS" = "1" ]; then
+  echo "    role $DB_USER exists — setting a fresh password for the new .env"
+  sudo -u postgres psql -qc "alter role $DB_USER password '$DB_PASS'"
 else
   sudo -u postgres psql -qc "create role $DB_USER login password '$DB_PASS'"
 fi
@@ -64,30 +77,63 @@ if command -v ufw >/dev/null; then ufw allow 80/tcp || true; ufw allow 443/tcp |
 
 chown -R "$SERVICE_USER":"$SERVICE_USER" "$REPO"
 
+echo "==> .env"
+if [ -f "$REPO/.env" ]; then
+  echo "    .env exists — not touching it"
+  SEEDED="no"
+else
+  # Written before anything reads it, and with the umask set so there is no
+  # window in which the file exists and is world-readable.
+  ( umask 077
+    {
+      echo "# Seeded by deploy/control-setup.sh on $(date -Iseconds)."
+      echo "# The two secrets below were generated on this machine and printed nowhere."
+      echo "DATABASE_URL=postgres://$DB_USER:${DB_PASS}@127.0.0.1:5432/$DB_NAME"
+      echo "DATA_ENCRYPTION_KEY=$(openssl rand -base64 32)"
+      echo "PUBLIC_URL=https://8and80.me"
+      echo "CONTROL_PORT=8080"
+      echo ""
+      echo "# From the Speechify console — these are the only ones left to fill in."
+      echo "SPEECHIFY_API_KEY="
+      echo "SPEECHIFY_AGENT_ID="
+      echo "SPEECHIFY_WEBHOOK_SECRET="
+    } > "$REPO/.env"
+  )
+  SEEDED="yes"
+fi
+chown "$SERVICE_USER":"$SERVICE_USER" "$REPO/.env"
+chmod 600 "$REPO/.env"
+
+chown -R "$SERVICE_USER":"$SERVICE_USER" "$REPO"
+
+if [ "$SEEDED" = "no" ]; then
+  cat <<EOF
+
+Installed. $REPO/.env was already there and has been left alone.
+EOF
+else
+  cat <<EOF
+
+Installed. $REPO/.env now holds a database URL and an encryption key, both
+generated on this machine. Neither has been printed, and neither should be:
+DATA_ENCRYPTION_KEY is what stands between a stolen database and a transcript of
+somebody's worst week. Changing it later makes everything already stored
+unreadable, so back it up somewhere you trust and leave it alone.
+EOF
+fi
+
 cat <<EOF
 
-Installed. Nothing is running yet, because .env does not exist.
+Three values are still empty. Fill them in from the Speechify console:
 
-Write $REPO/.env — start from .env.example. These four have to be right:
+  sudo -u $SERVICE_USER nano $REPO/.env
 
-  DATABASE_URL=postgres://$DB_USER:${DB_PASS:-<the password you already set>}@127.0.0.1:5432/$DB_NAME
-  DATA_ENCRYPTION_KEY=$(openssl rand -base64 32)
-  PUBLIC_URL=https://8and80.me
-  CONTROL_PORT=8080
-
-Then the Speechify three, from their console:
-
-  SPEECHIFY_API_KEY=  SPEECHIFY_AGENT_ID=  SPEECHIFY_WEBHOOK_SECRET=
+  SPEECHIFY_API_KEY   SPEECHIFY_AGENT_ID   SPEECHIFY_WEBHOOK_SECRET
 
 Then:
 
   cd $REPO && npm install && npm run db:migrate
-  chmod 600 $REPO/.env && chown $SERVICE_USER $REPO/.env
   systemctl enable --now 8and80-control 8and80-tick.timer
 
   curl -sS https://api.8and80.me/health     # expect {"ok":true}
-
-The DATA_ENCRYPTION_KEY above is generated fresh every run. Use the one from the
-FIRST run and keep it: changing it makes every commitment already stored
-unreadable, and there is no way back from that.
 EOF
