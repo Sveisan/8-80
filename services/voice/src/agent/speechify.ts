@@ -39,17 +39,29 @@ export class SpeechifyAgent {
     private readonly apiKey: string,
     private readonly agentId: string,
     private readonly base = 'https://api.speechify.ai',
+    /** Which optional fields this account's API will actually accept. */
+    private readonly send: {
+      variables: boolean;
+      amd: boolean;
+      ringingTimeout: boolean;
+      language: boolean;
+    } = { variables: false, amd: false, ringingTimeout: false, language: false },
   ) {}
 
   async placeCall(req: PlaceCallRequest): Promise<PlacedCall> {
+    // agent_id and to are the two fields proven to work against the live API.
+    // Everything else is optional in their documentation and each one is opt-in
+    // here, because a body carrying all of them came back "Request body is not
+    // valid JSON" — a message that says nothing about which field offended, so
+    // the only way through is one at a time. `send` says which are allowed.
     const body: Record<string, unknown> = {
       agent_id: this.agentId,
       to: req.to,
-      ...(req.variables ? { dynamic_variables: req.variables } : {}),
       ...(req.callerIdNumber ? { caller_id_number: req.callerIdNumber } : {}),
-      ...(req.language ? { language: req.language } : {}),
-      ...(req.ringingTimeoutMs ? { ringing_timeout_ms: req.ringingTimeoutMs } : {}),
-      ...(req.amd === undefined ? {} : { amd: req.amd }),
+      ...(this.send.variables && req.variables ? { dynamic_variables: req.variables } : {}),
+      ...(this.send.language && req.language ? { language: req.language } : {}),
+      ...(this.send.ringingTimeout && req.ringingTimeoutMs ? { ringing_timeout_ms: req.ringingTimeoutMs } : {}),
+      ...(this.send.amd && req.amd !== undefined ? { amd: req.amd } : {}),
     };
 
     const res = await this.post('/v1/agents/outbound-calls', body);
@@ -70,7 +82,7 @@ export class SpeechifyAgent {
     return await res.json();
   }
 
-  private async post(path: string, body: unknown): Promise<unknown> {
+  private async post(path: string, body: Record<string, unknown>): Promise<unknown> {
     const res = await fetch(`${this.base}${path}`, {
       method: 'POST',
       headers: { authorization: `Bearer ${this.apiKey}`, 'content-type': 'application/json' },
@@ -84,7 +96,14 @@ export class SpeechifyAgent {
       // it was for. A 400 with nothing but its status attached is a morning
       // spent guessing.
       const detail = await res.text().catch(() => '');
-      log('agent.call_failed', { status: res.status, path, detail: detail.slice(0, 600) });
+      // The field names, never the values: which key was too much is the whole
+      // question, and the values are a phone number and somebody's commitment.
+      log('agent.call_failed', {
+        status: res.status,
+        path,
+        sent: Object.keys(body as Record<string, unknown>),
+        detail: detail.slice(0, 600),
+      });
       throw new Error(`Speechify refused ${path} (HTTP ${res.status})`);
     }
     return await res.json();

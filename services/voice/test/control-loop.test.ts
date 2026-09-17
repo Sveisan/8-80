@@ -107,7 +107,8 @@ test('a tick rings whoever is due, carrying last week in their own words', { ski
   assert.equal(agent.placed[0]?.to, '+4790000040');
   assert.equal(agent.placed[0]?.variables?.['commitment'], 'run three times');
   assert.equal(agent.placed[0]?.variables?.['day'], 'wednesday');
-  // AMD is on by default: a fifteen-minute call must never reach a machine.
+  // AMD is requested by the loop; whether it reaches the wire is the agent's
+  // business, and is off until their API is proven to accept the field.
   assert.equal(agent.placed[0]?.amd, true);
 });
 

@@ -154,6 +154,20 @@ export const config = {
   speechify: {
     apiKey: () => req('SPEECHIFY_API_KEY'),
     agentId: () => req('SPEECHIFY_AGENT_ID'),
+    /** Their API host. Documented paths, undocumented hostname. */
+    base: process.env['SPEECHIFY_API_BASE'] ?? 'https://api.speechify.ai',
+    /**
+     * Optional request fields, each off until proven accepted.
+     *
+     * A body carrying all of them was refused with "Request body is not valid
+     * JSON", which names no field, so they go back one at a time.
+     */
+    send: {
+      variables: process.env['SPEECHIFY_SEND_VARIABLES'] === '1',
+      amd: process.env['SPEECHIFY_SEND_AMD'] === '1',
+      ringingTimeout: process.env['SPEECHIFY_SEND_RINGING_TIMEOUT'] === '1',
+      language: process.env['SPEECHIFY_SEND_LANGUAGE'] === '1',
+    },
     callerIdNumber: process.env['SPEECHIFY_CALLER_ID_NUMBER'] ?? '',
     webhookSecret: () => req('SPEECHIFY_WEBHOOK_SECRET'),
     /**
