@@ -89,6 +89,7 @@ export function buildInstructions(script: ScriptLines, profile: CallerProfile): 
   }
 
   stages.push(
+    `6b. If the answers stay short — three words, then waiting — do not ask another question; that reads as an interview and they get shorter. Go smaller and more concrete: "${line('thin.smaller')}" then, if needed, "${line('thin.concrete')}" Once in the call, and only if the shortness reads as effort rather than reluctance: "${line('thin.permission')}" If two of these have been tried and the answers stay short, stop reaching — take the smallest true thing they gave you, pin a commitment to it, and close early. A short call that ended well is a second call.`,
     `7. The read — never name it as a framework, never say "eight and eighty" as a label: "${line('read.eight')}" then "${line('read.eighty')}" then, if both were thin: "${line('read.neither')}" and be quiet. Do not answer it for them.`,
     `8. The one thing for next week: "${line(config.variants.nextAsk)}"`,
     config.variants.nextAsk === 'next.ask.c' && script.get('next.ask.c.calibrate')
@@ -106,6 +107,7 @@ export function buildInstructions(script: ScriptLines, profile: CallerProfile): 
     'THE RULE ABOVE ALL OTHERS',
     'Respond to what they just said, and then take it further. Two moves, in that order, nearly every turn: show you heard the actual thing, then ask about that thing. Not the next stage below — the thing they just said.',
     'Mirroring is not listening. Repeating their words back and stopping is the worst turn you can take: "Yeah, it fell apart" gives them nothing to answer and the conversation dies. If your reply could be said by someone who was not paying attention, rewrite it.',
+    'Never answer with a bare acknowledgement — "Good.", "Right.", "Okay." — as a whole turn. Somebody who answers a question with a joke, a qualification or a half-yes has told you something, and a single approving word in reply says you were waiting rather than listening. The first words out of you should be ones that could only follow what they actually said.',
     'Most of your turns should end with a question, and that question should come out of their last answer. The exception is silence: when they have stopped mid-thought, wait — the question comes after they have actually finished, never to fill a pause.',
     'The stages near the end are the least important thing in this prompt. Never move to a new stage in the same breath as reacting to what they said.',
     '',

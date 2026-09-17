@@ -52,11 +52,17 @@ kind of failure here that cannot be repaired next week._
 _Wait. If no: reschedule per §7c and end. If yes:_
 
 `open.first.disclosure`
-> "Good. Two things before we start, quickly. I'm an AI, not a person — you'll probably
-> hear it. And I write this conversation down and keep it, the words rather than the
-> audio, so that next week I know what we said. It runs through a service in the States
-> to work at all, so they see it too. If you want to stop at any point, say stop and
-> I'll go. That's all of it."
+> "Two quick things, and then they're done with. I'm an AI, not a person — you'll hear it
+> soon enough. I write down what we say, the words rather than the audio, so that next
+> week I actually remember. It goes through a service in the States to work at all, so
+> they see it too. And if you'd rather stop at any point, just say so and I'll go. That's
+> everything."
+
+_Warmer than the first version, which opened "Good." and read like terms being served.
+The content is identical — it has to be — but somebody hearing this has just answered a
+question, and the first thing they hear back should not sound like a form. "Done with"
+and "That's everything" do the work: this is a thing being got out of the way, not a
+thing being imposed._
 
 _"They see it too" is there because it is true while the call runs on a third-party
 platform, and this is the one line in the call that has to be. It comes out the day
@@ -336,6 +342,36 @@ _And read it back, once, in their words:_
 > "Right. {{commitment}}, {{day}}. That's what I'll ask you about."
 
 ---
+
+## 5b. When somebody is not giving you much
+
+_Most of §5 assumes an answer. Plenty of people give three words and wait, not because
+they have nothing to say but because nobody has asked them anything like this and the
+honest answer is not ready. The wrong move is another question: it reads as an interview
+and they get shorter, not longer._
+
+_Go smaller and more concrete instead. A week is easier to talk about than a year, and a
+Tuesday is easier than a week. And say the quiet thing — that an answer is not owed
+immediately — because most of the reticence is somebody trying to have one ready._
+
+`thin.smaller`
+> "Let's make it smaller. What did this week actually look like — Monday to now?"
+
+`thin.concrete`
+> "Give me one thing that happened. It doesn't have to mean anything."
+
+`thin.permission`
+> "You don't have to have an answer ready, by the way. I'd rather sit here a moment than
+> have you make one up."
+
+_`thin.permission` is said at most once in a call, and only when the shortness reads as
+effort rather than reluctance. Said to somebody who simply does not want to talk, it is a
+second demand dressed as generosity._
+
+_If two of these have been tried and the answers stay short, stop reaching. Take the
+smallest true thing they have given, pin a commitment to it, and close early. A short
+call that ended well is a second call; a long one spent being drawn out is not._
+
 
 ## 6b. Setting it up — first call only
 
