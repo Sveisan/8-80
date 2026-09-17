@@ -152,3 +152,18 @@ export function buildInstructions(script: ScriptLines, profile: CallerProfile): 
     'The quoted lines are good lines. Use them when you arrive at them naturally. Never use one to escape a conversation that is still going — and never let the fear of interrupting turn you into someone who only agrees.',
   ].join('\n');
 }
+
+/**
+ * The Speechify console owns `{{name}}` for its own dynamic variables: paste a
+ * prompt containing one it has not been told about and it flags the prompt as
+ * broken, and paste one it HAS been told about and it substitutes — quietly
+ * emptying the read-back line that is the whole point of the call. Our braces
+ * are a note to the model, not a variable to fill, so for that console they are
+ * rendered as angle brackets instead. SCRIPT.md stays as it is; this is a
+ * dialect of the target, not a change to the source.
+ */
+export function renderForConsole(instructions: string): string {
+  return instructions
+    .replace('Any text in double braces is a slot', 'Any text in angle brackets is a slot')
+    .replace(/\{\{([^}]+)\}\}/g, '<$1>');
+}

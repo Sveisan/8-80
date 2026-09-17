@@ -1,16 +1,24 @@
 import { loadScript } from './script.ts';
-import { buildInstructions } from './prompt.ts';
+import { buildInstructions, renderForConsole } from './prompt.ts';
 import { config } from './config.ts';
 
 /**
- * npm run prompt            — a returning call
- * npm run prompt -- first   — the first call a user ever gets
- * npm run prompt -- third   — the third-week-running case
+ * npm run prompt                      — a returning call
+ * npm run prompt -- first              — the first call a user ever gets
+ * npm run prompt -- third              — the third-week-running case
+ * npm run --silent prompt -- first console
+ *                                      — the same, rendered for the Speechify
+ *                                        console and printed bare, so it can be
+ *                                        piped to a file or the clipboard
+ *                                        (--silent, or npm's own banner lands
+ *                                        in the middle of what you paste)
  *
  * Prints exactly what the model is told, assembled from SCRIPT.md. Edit the
  * script, run this, see the difference — no call, no keys, no network.
  */
-const arg = process.argv[2] ?? 'return';
+const args = process.argv.slice(2);
+const console_ = args.includes('console');
+const arg = args.find((a) => a !== 'console') ?? 'return';
 const script = loadScript();
 
 const profile =
@@ -20,11 +28,18 @@ const profile =
       ? { callNumber: 4, lastCommitment: 'run three times', consecutiveUndone: 3 }
       : { callNumber: 2, lastCommitment: 'run three times' };
 
-console.log('─'.repeat(72));
-console.log(`SCRIPT.md: ${script.size} keyed lines · variants: ${config.variants.nothing} · ${config.variants.nextAsk} · ${config.variants.closeQ}`);
-console.log('─'.repeat(72));
-console.log(buildInstructions(script, profile));
-console.log('─'.repeat(72));
+if (console_) {
+  // Bare, so the whole of stdout is the thing to paste. Everything else goes to
+  // stderr, where a pipe will not pick it up.
+  process.stderr.write(`SCRIPT.md: ${script.size} keyed lines · rendered for the Speechify console\n`);
+  console.log(renderForConsole(buildInstructions(script, profile)));
+} else {
+  console.log('─'.repeat(72));
+  console.log(`SCRIPT.md: ${script.size} keyed lines · variants: ${config.variants.nothing} · ${config.variants.nextAsk} · ${config.variants.closeQ}`);
+  console.log('─'.repeat(72));
+  console.log(buildInstructions(script, profile));
+  console.log('─'.repeat(72));
+}
 
 // The voice rules apply to what the mentor SAYS, not to the prompt that tells it
 // what not to say — linting the assembled text flagged the prohibition list
