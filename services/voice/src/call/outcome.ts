@@ -2,6 +2,7 @@ import type { ScriptLines } from '../script.ts';
 import type { AttemptStatus } from '../schedule/scheduler.ts';
 import type { CallOutcome } from '../store/types.ts';
 import { extractCommitment } from './commitment.ts';
+import { extractReschedule, type SpokenTime } from './reschedule.ts';
 
 /** One line of a call, from whichever platform ran it. */
 export interface Turn {
@@ -30,6 +31,12 @@ export interface Settlement {
   outcome?: CallOutcome;
   /** Why, in our words. Never anything the caller said. */
   note?: string;
+  /**
+   * A time the mentor agreed to ring back at, as spoken. Left unresolved here:
+   * turning "17:30 today" into an instant needs the caller's zone and the
+   * moment the call ended, and this function has neither.
+   */
+  callAgain?: SpokenTime;
 }
 
 /** Below this, a call with no caller in it is a failure rather than a short call. */
@@ -71,6 +78,20 @@ export function settle(transcript: CallTranscript, script: ScriptLines): Settlem
   // be split by a backchannel.
   const spoken = agentTurns.map((t) => t.text).join(' ');
   const commitment = extractCommitment(spoken, script);
+  const callAgain = extractReschedule(spoken, script);
+
+  // A call moved before it got anywhere is not a failed call and not a week
+  // that happened. It is an appointment, and the only thing to carry out of it
+  // is the time. Recording it as completed would make next week's call open by
+  // asking what happened to a commitment nobody ever made.
+  if (callAgain && !commitment) {
+    return {
+      status: 'completed',
+      callAgain,
+      note: 'moved during the call',
+      outcome: { at: new Date().toISOString(), durationMs: transcript.durationMs },
+    };
+  }
 
   const outcome: CallOutcome = {
     at: new Date().toISOString(),
@@ -81,6 +102,7 @@ export function settle(transcript: CallTranscript, script: ScriptLines): Settlem
   return {
     status: 'completed',
     outcome,
+    ...(callAgain ? { callAgain } : {}),
     ...(commitment ? {} : { note: 'no commitment was reached' }),
   };
 }

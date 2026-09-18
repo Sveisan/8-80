@@ -28,3 +28,12 @@ test('the read questions are never softened into self-care', () => {
   const p = buildInstructions(loadScript(), { callNumber: 2 });
   assert.match(p, /do not paraphrase them into a question about self-care/i);
 });
+
+test('the prompt tells the mentor how to move a call so it actually moves', () => {
+  // The read-back is the mechanism: settle() takes the time from that sentence
+  // and nowhere else, so a prompt that omits it produces an agreement the
+  // scheduler never hears about — which is exactly what happened.
+  const p = buildInstructions(loadScript(), { callNumber: 1 });
+  assert.match(p, /ring you back at/i);
+  assert.match(p, /digits/i);
+});

@@ -251,3 +251,59 @@ test('the webhook endpoint refuses anything it cannot prove', { skip: skip() }, 
 
   await new Promise<void>((r) => server.close(() => r()));
 });
+
+test('a call moved during the call is actually moved', { skip: skip() }, async () => {
+  // The failure this exists for: the mentor told a caller "I'll ring you back
+  // at 17:30" and the scheduler never heard about it, so nothing rang. A
+  // promise the product cannot keep is worse than a refusal.
+  await enrol('+4790000070');
+  await tick(deps(), NOW);
+
+  const before = await (sql as NonNullable<typeof sql>)<{ next_call_at: Date }[]>`
+    select next_call_at from callers`;
+
+  const agreed = (script.get('reschedule.confirm') ?? '')
+    .replace('{{time}}', '17:30')
+    .replace('{{day}}', 'today');
+  const out = await settleConversation(
+    completed('conv_1', [
+      { role: 'assistant', content: 'Hi — this is the 8 and 80 call. Is now still a good moment?' },
+      { role: 'user', content: "I'm in a shop, can we do this later?" },
+      { role: 'assistant', content: agreed },
+    ], 30_000),
+    deps(),
+  );
+  assert.equal(out.handled, true);
+
+  const [after_] = await (sql as NonNullable<typeof sql>)<{ next_call_at: Date }[]>`
+    select next_call_at from callers`;
+  assert.notEqual(
+    after_?.next_call_at.toISOString(),
+    before[0]?.next_call_at.toISOString(),
+    'the weekly slot was left standing and the callback never happened',
+  );
+  // 17:30 Oslo, and in the future rather than the 17:30 that has already gone.
+  assert.match(after_?.next_call_at.toISOString() ?? '', /T15:30:00/);
+  assert.ok((after_?.next_call_at.getTime() ?? 0) > Date.now());
+});
+
+test('a call that reached a commitment is not also moved by the close', { skip: skip() }, async () => {
+  // close.logistics says "I'll call you {{next_slot}}" and next.confirm names a
+  // day. Neither is an agreement to ring back, and reading either as one would
+  // move every good call to a time nobody asked for.
+  await enrol('+4790000071');
+  await tick(deps(), NOW);
+  const before = await (sql as NonNullable<typeof sql>)<{ next_call_at: Date }[]>`select next_call_at from callers`;
+
+  await settleConversation(
+    completed('conv_1', [
+      { role: 'assistant', content: readBack },
+      { role: 'user', content: 'Yes.' },
+      { role: 'assistant', content: "That's us. I'll call you Tuesday at 08:00. There's an email coming." },
+    ]),
+    deps(),
+  );
+
+  const [after_] = await (sql as NonNullable<typeof sql>)<{ next_call_at: Date }[]>`select next_call_at from callers`;
+  assert.equal(after_?.next_call_at.toISOString(), before[0]?.next_call_at.toISOString());
+});

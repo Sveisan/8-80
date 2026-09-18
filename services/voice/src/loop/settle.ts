@@ -5,6 +5,7 @@ import { textAfterMissedCall } from '../sms/missed.ts';
 import { Links } from '../link/token.ts';
 import { config } from '../config.ts';
 import { eventOf, toTranscript } from '../webhook/speechify.ts';
+import { resolveSpokenTime } from '../call/reschedule.ts';
 import type { LoopDeps } from './deps.ts';
 
 export interface Settled {
@@ -86,6 +87,23 @@ export async function settleConversation(
     durationMs: transcript.durationMs,
     ...(outcome.note ? { note: outcome.note } : {}),
   });
+
+  // The mentor said it would ring back, so the system rings back. Until this
+  // existed the agreement was a sentence and nothing else: a caller was told
+  // "I'll ring you at half five", believed it, and the scheduler knew nothing
+  // about it. A promise the product cannot keep is worse than a refusal.
+  if (outcome.callAgain) {
+    const slot = await deps.scheduler.slotFor(phone);
+    if (slot) {
+      const at = resolveSpokenTime(outcome.callAgain, slot.timezone, new Date());
+      await deps.scheduler.callAgainAt(phone, at);
+      log('settle.call_again', { at: at.toISOString() });
+    } else {
+      // No zone means no instant we could defend, and a callback at the wrong
+      // hour is worse than none. The weekly slot stands.
+      log('settle.call_again_unresolved', { why: 'no slot, so no timezone' });
+    }
+  }
 
   // Nobody picked up. This is the one text — ARCHITECTURE.md: never voicemail,
   // one warm SMS — and `textAfterMissedCall` guarantees the "one".

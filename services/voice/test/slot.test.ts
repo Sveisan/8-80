@@ -65,3 +65,11 @@ test('weekdays and times are read the way someone would type them', () => {
   assert.equal(parseLocalTime('24:00'), undefined);
   assert.equal(parseLocalTime('eight'), undefined);
 });
+
+test('an empty day is not Sunday', () => {
+  // Number('') is 0. Without a guard, `enrol --day ""` books a Sunday call and
+  // says "Slot set", and every blank token in a sentence parses as a weekday.
+  for (const blank of ['', '   ', '\t']) assert.equal(parseWeekday(blank), undefined, JSON.stringify(blank));
+  assert.equal(parseWeekday('sunday'), 0, 'a real Sunday still works');
+  assert.equal(parseWeekday('0'), 0);
+});

@@ -603,6 +603,34 @@ call that never returns is a call that ends having pinned nothing.
 
 ---
 
+## 9c. Moving the call, during the call
+
+_Somebody answers and it is the wrong moment: they are in a shop, a meeting is starting,
+they are walking into something. The mentor does not push on, and it does not pretend to
+be flexible and then ring at the usual time anyway. It agrees, and the system actually
+moves._
+
+_The confirmation is the mechanism, not a courtesy. Exactly as with `next.confirm`, the
+time is taken from the line the mentor says, never from the caller's — so the mentor must
+say it back plainly, in clock time, or nothing is moved._
+
+`reschedule.confirm`
+> "Fine. I'll ring you back at {{time}} {{day}}."
+
+_`{{time}}` is a clock time in digits — "17:30", not "half five" and not "later this
+afternoon". `{{day}}` is "today", "tomorrow", or a weekday. Both are spoken aloud as
+written; a caller hearing "17:30" hears somebody being precise, which is the point of
+saying it back at all._
+
+_This ends the call. Do not carry on afterwards, do not ask one more question, do not use
+it as a way to reach the commitment first. The whole meaning of moving a call is that
+this is not the moment._
+
+_If they say only "later" with no time, ask once for one: "When suits?" If they still do
+not give one, do not invent it — the weekly slot stands and there is nothing to move._
+
+---
+
 ## 10. When something serious is said
 
 _Wording deferred to Milestone 5, for review before it reaches anyone._

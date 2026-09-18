@@ -73,7 +73,7 @@ export function zonedTimeToUtc(
 }
 
 /** The local calendar date a zone is showing at an instant. */
-function localDate(instant: Date, timezone: string): { year: number; month: number; day: number; weekday: number } {
+export function localDate(instant: Date, timezone: string): { year: number; month: number; day: number; weekday: number } {
   const wall = new Date(wallClock(instant, timezone));
   return {
     year: wall.getUTCFullYear(),
@@ -113,6 +113,10 @@ export function nextSlotAfter(after: Date, slot: Slot): Date {
 export function parseWeekday(text: string): number | undefined {
   const names = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
   const want = text.trim().toLowerCase();
+  // Number('') is 0, so without this an empty string is Sunday — which reaches
+  // `enrol --day ""` as a silently scheduled Sunday call, and reaches the
+  // reschedule parser as a weekday found in every gap between words.
+  if (!want) return undefined;
   const byName = names.findIndex((n) => n === want || n.slice(0, 3) === want);
   if (byName >= 0) return byName;
   const n = Number(want);
