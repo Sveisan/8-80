@@ -48,3 +48,13 @@ test('missing keys are named individually, not as one failure', () => {
   assert.ok(f.includes('TWILIO_ACCOUNT_SID'));
   assert.ok(f.includes('XAI_API_KEY'));
 });
+
+test('a text from a different number than the call is refused', () => {
+  const f = fails({ ...base, SPEECHIFY_CALLER_ID_NUMBER: '+4790000001', SMS_FROM_NUMBER: '+4790000002' });
+  assert.ok(f.some((l) => l.includes('different numbers')));
+});
+
+test('the same number for both passes', () => {
+  const same = { ...base, SPEECHIFY_CALLER_ID_NUMBER: '+4790000001', SMS_FROM_NUMBER: '+4790000001' };
+  assert.ok(!fails(same).some((l) => l.includes('different numbers')));
+});

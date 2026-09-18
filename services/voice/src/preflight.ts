@@ -72,6 +72,31 @@ export function preflight(env: NodeJS.ProcessEnv = process.env): Check[] {
     });
   }
 
+  // The caller sees ONE number or the product lies to them. sms.missed opens
+  // "Rang just now", and setup.save_number asks them to save the number "I'm
+  // on" so they know it is us on the Tuesday — both are false if the text
+  // arrives from somewhere else, and a link from an unknown number is the exact
+  // shape of a phishing message. One number that does voice and SMS, or no
+  // text at all.
+  const voiceFrom = env['SPEECHIFY_CALLER_ID_NUMBER'];
+  const smsFrom = env['SMS_FROM_NUMBER'];
+  if (voiceFrom && smsFrom && voiceFrom !== smsFrom) {
+    checks.push({
+      ok: false,
+      label: 'the call and the text come from different numbers',
+      detail:
+        'SPEECHIFY_CALLER_ID_NUMBER and SMS_FROM_NUMBER must be the same number. ' +
+        'The missed-call text says "Rang just now" and carries a link; from an unfamiliar number that reads as phishing, ' +
+        'and the first call asks them to save the number so they recognise it next week.',
+    });
+  } else if (voiceFrom && !smsFrom) {
+    checks.push({
+      ok: true,
+      label: 'no SMS number',
+      detail: 'Texts are written to disk, not sent. A missed call costs somebody their week with no way back in.',
+    });
+  }
+
   return checks;
 }
 
