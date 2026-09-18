@@ -37,6 +37,9 @@ export async function tick(deps: LoopDeps, now = new Date()): Promise<TickResult
       const caller = await deps.store.load(phone);
       const placed = await deps.agent.placeCall({
         to: phone,
+        // Which kind of call it is, not which agent serves it: the mapping from
+        // one to the other is the platform's business and lives in the adapter.
+        firstCall: caller.callNumber <= 1,
         variables: variablesFor(caller),
         ...(config.speechify.callerIdNumber ? { callerIdNumber: config.speechify.callerIdNumber } : {}),
         ...(caller.language ? { language: caller.language } : {}),
@@ -66,9 +69,17 @@ export async function tick(deps: LoopDeps, now = new Date()): Promise<TickResult
  * it stays off, and this is what replaces it.
  */
 function variablesFor(caller: { name?: string; lastCommitment?: string; lastCommitmentDay?: string; callNumber: number }): Record<string, string> {
-  const vars: Record<string, string> = { call_number: String(caller.callNumber) };
-  if (caller.name) vars['name'] = caller.name;
-  if (caller.lastCommitment) vars['commitment'] = caller.lastCommitment;
-  if (caller.lastCommitmentDay) vars['day'] = caller.lastCommitmentDay;
-  return vars;
+  return {
+    call_number: String(caller.callNumber),
+    caller_name: caller.name ?? '',
+    // Always sent, even empty — a platform that substitutes a prompt does it
+    // blindly, and a missing variable becomes "Last week you said you'd . What
+    // happened?" The marker is a value the prompt has an instruction for; an
+    // omission is a hole nothing can act on.
+    last_commitment: caller.lastCommitment ?? NOTHING_RECORDED,
+    last_day: caller.lastCommitmentDay ?? '',
+  };
 }
+
+/** What the prompt is told to look for when nothing was written down. */
+export const NOTHING_RECORDED = '(nothing recorded)';

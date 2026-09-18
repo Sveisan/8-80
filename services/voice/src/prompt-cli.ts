@@ -1,5 +1,5 @@
 import { loadScript } from './script.ts';
-import { buildInstructions, renderForConsole } from './prompt.ts';
+import { buildInstructions, renderForConsole, CONSOLE_VARIABLES } from './prompt.ts';
 import { config } from './config.ts';
 
 /**
@@ -21,18 +21,32 @@ const console_ = args.includes('console');
 const arg = args.find((a) => a !== 'console') ?? 'return';
 const script = loadScript();
 
+// For the console, a returning prompt must carry the caller's own details as
+// Speechify variables rather than as one caller's baked-in answers — that
+// prompt is served to everybody. So the "profile" here is the variable syntax
+// itself, which renderForConsole then leaves alone.
+const forConsole = console_ && arg !== 'first';
 const profile =
   arg === 'first'
     ? { callNumber: 1 }
     : arg === 'third'
       ? { callNumber: 4, lastCommitment: 'run three times', consecutiveUndone: 3 }
-      : { callNumber: 2, lastCommitment: 'run three times' };
+      : forConsole
+        ? { callNumber: 2, lastCommitment: '{{last_commitment}}', callDay: '{{last_day}}' }
+        : { callNumber: 2, lastCommitment: 'run three times' };
 
 if (console_) {
   // Bare, so the whole of stdout is the thing to paste. Everything else goes to
   // stderr, where a pipe will not pick it up.
   process.stderr.write(`SCRIPT.md: ${script.size} keyed lines · rendered for the Speechify console\n`);
-  console.log(renderForConsole(buildInstructions(script, profile)));
+  const text = renderForConsole(buildInstructions(script, profile), forConsole ? CONSOLE_VARIABLES : []);
+  if (forConsole) {
+    const used = [...new Set([...text.matchAll(/\{\{([^}]+)\}\}/g)].map((m) => m[1]))];
+    process.stderr.write(
+      `Declare these in the agent's Variables tab, or the console will refuse the prompt: ${used.join(', ')}\n`,
+    );
+  }
+  console.log(text);
 } else {
   console.log('─'.repeat(72));
   console.log(`SCRIPT.md: ${script.size} keyed lines · variants: ${config.variants.nothing} · ${config.variants.nextAsk} · ${config.variants.closeQ}`);

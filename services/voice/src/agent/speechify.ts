@@ -2,6 +2,8 @@ import { log } from '../log.ts';
 
 export interface PlaceCallRequest {
   to: string;
+  /** Their first call ever, which is a different agent with a different prompt. */
+  firstCall?: boolean;
   /** Per-caller context, injected into the agent's prompt before the first turn. */
   variables?: Record<string, string>;
   callerIdNumber?: string;
@@ -38,6 +40,8 @@ export class SpeechifyAgent {
   constructor(
     private readonly apiKey: string,
     private readonly agentId: string,
+    /** The agent for first calls. Defaults to the one above. */
+    private readonly firstCallAgentId: string = agentId,
     private readonly base = 'https://api.speechify.ai',
     /** Which optional fields this account's API will actually accept. */
     private readonly send: {
@@ -55,7 +59,7 @@ export class SpeechifyAgent {
     // valid JSON" — a message that says nothing about which field offended, so
     // the only way through is one at a time. `send` says which are allowed.
     const body: Record<string, unknown> = {
-      agent_id: this.agentId,
+      agent_id: req.firstCall ? this.firstCallAgentId : this.agentId,
       to: req.to,
       ...(req.callerIdNumber ? { caller_id_number: req.callerIdNumber } : {}),
       ...(this.send.variables && req.variables ? { dynamic_variables: req.variables } : {}),

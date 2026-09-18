@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildInstructions, renderForConsole } from '../src/prompt.ts';
+import { buildInstructions, renderForConsole, CONSOLE_VARIABLES } from '../src/prompt.ts';
 import { loadScript } from '../src/script.ts';
 
 test('nothing rendered for the console can be mistaken for a console variable', () => {
@@ -56,4 +56,28 @@ test('a first call is given a shape and a returning call is not', () => {
 test('the shape is never something the caller hears about', () => {
   const p = buildInstructions(loadScript(), { callNumber: 1 });
   assert.match(p, /never announce it/i);
+});
+
+test('only the names the loop actually sends survive as console variables', () => {
+  // A brace the console does not know about gets flagged; a brace it does know
+  // about gets substituted. Both are wrong for a note meant for the model, and
+  // the substitution is the dangerous one because it is silent.
+  const rendered = renderForConsole(
+    buildInstructions(loadScript(), { callNumber: 2, lastCommitment: '{{last_commitment}}', callDay: '{{last_day}}' }),
+    CONSOLE_VARIABLES,
+  );
+  const left = [...new Set([...rendered.matchAll(/\{\{([^}]+)\}\}/g)].map((m) => m[1]))];
+  for (const name of left) {
+    assert.ok(
+      (CONSOLE_VARIABLES as readonly string[]).includes(name),
+      `{{${name}}} would be substituted with nothing, or refused as undeclared`,
+    );
+  }
+  assert.ok(left.length > 0, 'a returning prompt with no variables cannot remember anything');
+});
+
+test('the prompt knows what to do when nothing was recorded', () => {
+  const p = buildInstructions(loadScript(), { callNumber: 2, lastCommitment: '{{last_commitment}}' });
+  assert.match(p, /\(nothing recorded\)/);
+  assert.match(p, /do not pretend to remember/i);
 });

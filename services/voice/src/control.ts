@@ -199,7 +199,13 @@ export function openDeps(): LoopDeps {
   return {
     store,
     scheduler: new Scheduler(store.raw),
-    agent: new SpeechifyAgent(config.speechify.apiKey(), config.speechify.agentId(), config.speechify.base, config.speechify.send),
+    agent: new SpeechifyAgent(
+      config.speechify.apiKey(),
+      config.speechify.agentId(),
+      config.speechify.firstCallAgentId(),
+      config.speechify.base,
+      config.speechify.send,
+    ),
     mailer: openMailer(),
     sms: openSms(),
     script: loadScript(),

@@ -659,10 +659,10 @@ time is taken from the line the mentor says, never from the caller's — so the 
 say it back plainly, in clock time, or nothing is moved._
 
 `reschedule.confirm`
-> "Fine. I'll ring you back at {{time}} {{day}}."
+> "Fine. I'll ring you back at {{time}} {{when}}."
 
 _`{{time}}` is a clock time in digits — "17:30", not "half five" and not "later this
-afternoon". `{{day}}` is "today", "tomorrow", or a weekday. Both are spoken aloud as
+afternoon". `{{when}}` is "today", "tomorrow", or a weekday. Both are spoken aloud as
 written; a caller hearing "17:30" hears somebody being precise, which is the point of
 saying it back at all._
 

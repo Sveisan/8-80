@@ -6,7 +6,7 @@ import { loadScript } from '../src/script.ts';
 import { openTestDb } from './helpers/db.ts';
 import { Scheduler } from '../src/schedule/scheduler.ts';
 import type { Slot } from '../src/schedule/time.ts';
-import { tick } from '../src/loop/tick.ts';
+import { tick, NOTHING_RECORDED } from '../src/loop/tick.ts';
 import { sweep } from '../src/loop/sweep.ts';
 import { settleConversation } from '../src/loop/settle.ts';
 import { controlPlane } from '../src/control.ts';
@@ -105,8 +105,9 @@ test('a tick rings whoever is due, carrying last week in their own words', { ski
   const result = await tick(deps(), NOW);
   assert.deepEqual(result, { claimed: 1, placed: 1, failed: 0 });
   assert.equal(agent.placed[0]?.to, '+4790000040');
-  assert.equal(agent.placed[0]?.variables?.['commitment'], 'run three times');
-  assert.equal(agent.placed[0]?.variables?.['day'], 'wednesday');
+  assert.equal(agent.placed[0]?.variables?.['last_commitment'], 'run three times');
+  assert.equal(agent.placed[0]?.variables?.['last_day'], 'wednesday');
+  assert.equal(agent.placed[0]?.firstCall, false, 'a second call is not an introduction');
   // AMD is requested by the loop; whether it reaches the wire is the agent's
   // business, and is off until their API is proven to accept the field.
   assert.equal(agent.placed[0]?.amd, true);
@@ -306,4 +307,19 @@ test('a call that reached a commitment is not also moved by the close', { skip: 
 
   const [after_] = await (sql as NonNullable<typeof sql>)<{ next_call_at: Date }[]>`select next_call_at from callers`;
   assert.equal(after_?.next_call_at.toISOString(), before[0]?.next_call_at.toISOString());
+});
+
+test('a caller with nothing recorded still gets every variable', { skip: skip() }, async () => {
+  // Speechify substitutes blindly. An omitted variable becomes "Last week you
+  // said you'd . What happened?" — so the marker goes instead, and the prompt
+  // has an instruction for the marker.
+  await enrol('+4790000080');
+  await tick(deps(), NOW);
+
+  const vars = agent.placed[0]?.variables ?? {};
+  for (const key of ['call_number', 'caller_name', 'last_commitment', 'last_day']) {
+    assert.ok(key in vars, `${key} was omitted, and the console would substitute nothing`);
+  }
+  assert.equal(vars['last_commitment'], NOTHING_RECORDED);
+  assert.equal(agent.placed[0]?.firstCall, true, 'their first call is the first-call agent');
 });

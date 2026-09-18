@@ -154,6 +154,19 @@ export const config = {
   speechify: {
     apiKey: () => req('SPEECHIFY_API_KEY'),
     agentId: () => req('SPEECHIFY_AGENT_ID'),
+    /**
+     * A separate agent for first calls, because a Speechify agent carries one
+     * static prompt and a first call and a returning call are different calls.
+     * One agent would have to hold both and branch on a variable inside its own
+     * instructions, which is the arrangement most likely to leak an
+     * introduction into week six.
+     *
+     * Falls back to the single agent, so nothing breaks before the second one
+     * exists — it just means first calls get the returning prompt, which is the
+     * situation today.
+     */
+    firstCallAgentId: (): string =>
+      process.env['SPEECHIFY_FIRST_CALL_AGENT_ID'] || req('SPEECHIFY_AGENT_ID'),
     /** Their API host. Documented paths, undocumented hostname. */
     base: process.env['SPEECHIFY_API_BASE'] ?? 'https://api.speechify.ai',
     /**

@@ -60,6 +60,7 @@ export function buildInstructions(script: ScriptLines, profile: CallerProfile): 
       `0. YOUR FIRST SENTENCE IS EXACTLY: "${line('open.return.greet')}" — nothing before it, nothing added to it. THIS IS NOT THE FIRST CALL. It is call number ${profile.callNumber}. You have spoken before, they know what this is, and they know who you are. Do NOT introduce yourself. Do NOT explain how this works or what happens next week. Do NOT ask whether now is a good time. Do NOT say the name of this call. Start at 1.`,
       `1. Open: "${line('open.return.greet')}"`,
       `2. One beat, then ask about last week, quoting their own words back: "${line('open.return.callback').replace('{{commitment}}', profile.lastCommitment ?? 'the thing you named')}"`,
+      '   If what you have for last week reads "(nothing recorded)", then nothing was written down and there is nothing to quote. Do not say the line, and do not pretend to remember. Ask what they ended up working on instead, and carry on from their answer.',
       `3. If they did it: "${line('last.did')}" If partly: "${line('last.partial')}"`,
       `4. If they did nothing, use exactly this and then STOP TALKING until they speak, however long that takes: "${line(config.variants.nothing)}"`,
     );
@@ -165,7 +166,7 @@ export function buildInstructions(script: ScriptLines, profile: CallerProfile): 
       `"${script.get('repair.interrupt') ?? 'Sorry — go on.'}"`,
     '',
     'SLOTS',
-    'Any text in double braces is a slot and is never spoken as written. {{commitment}} is the thing they committed to, in their own words. {{day}} is the day they named. {{eight|eighty}} is whichever of the two the week actually served. Say the real value; if you do not have one, rephrase the line without it.',
+    'Some quoted lines have a slot in them, written in braces, and a slot is never spoken as written. A "commitment" slot is the thing they committed to, in their own words. A "day" slot is the day they named. An "eight or eighty" slot is whichever of the two the week actually served. Say the real value; if you do not have one, rephrase the line without it.',
     '',
     'IF SOMETHING SERIOUS IS SAID',
     'Serious means danger: harm to themselves or someone else, abuse, a crisis in progress. It does NOT mean a hard week, low mood, dread, poor sleep, avoidance, or admitting something difficult. Those are ordinary and they are most of what this call is for — meet them with steadiness, not with a disclaimer.',
@@ -206,8 +207,16 @@ export function buildInstructions(script: ScriptLines, profile: CallerProfile): 
  * rendered as angle brackets instead. SCRIPT.md stays as it is; this is a
  * dialect of the target, not a change to the source.
  */
-export function renderForConsole(instructions: string): string {
+export function renderForConsole(instructions: string, keep: readonly string[] = []): string {
+  const kept = new Set(keep);
   return instructions
     .replace('Any text in double braces is a slot', 'Any text in angle brackets is a slot')
-    .replace(/\{\{([^}]+)\}\}/g, '<$1>');
+    .replace(/\{\{([^}]+)\}\}/g, (whole, name: string) => (kept.has(name) ? whole : `<${name}>`));
 }
+
+/**
+ * What the loop sends as `dynamic_variables`, and therefore the only names a
+ * console prompt may leave in double braces. Anything else in braces is a note
+ * to the model, and the console would substitute it with nothing.
+ */
+export const CONSOLE_VARIABLES = ['last_commitment', 'last_day', 'caller_name', 'call_number'] as const;

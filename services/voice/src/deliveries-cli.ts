@@ -4,7 +4,6 @@ import { Deliveries } from './webhook/deliveries.ts';
 import { shapeOf, UnreadablePayload } from './webhook/speechify.ts';
 import { settleConversation } from './loop/settle.ts';
 import { Scheduler } from './schedule/scheduler.ts';
-import { SpeechifyAgent } from './agent/speechify.ts';
 import { loadScript } from './script.ts';
 import { hasKey } from './store/crypto.ts';
 import type { LoopDeps } from './loop/deps.ts';
@@ -111,7 +110,18 @@ try {
   const deps: LoopDeps = {
     store,
     scheduler: new Scheduler(store.raw),
-    agent: new SpeechifyAgent(config.speechify.apiKey(), config.speechify.agentId(), config.speechify.base, config.speechify.send),
+    // Nothing in settle dials, and a replay that could would be a replay that
+    // rings somebody about a call from last Tuesday. Made impossible rather
+    // than merely unused — this file also stopped compiling honestly the moment
+    // the real constructor grew an argument, since every parameter is a string.
+    agent: {
+      placeCall: () => {
+        throw new Error('a replay never places a call');
+      },
+      conversation: () => {
+        throw new Error('a replay never calls the platform');
+      },
+    } as unknown as LoopDeps['agent'],
     mailer: { send: async () => undefined },
     sms: { send: async () => undefined },
     script: loadScript(),
