@@ -4,6 +4,7 @@ import type { PostgresStore } from '../store/postgres.ts';
 import type { SpeechifyAgent } from '../agent/speechify.ts';
 import type { Mailer } from '../recap/mailer.ts';
 import type { Sms } from '../sms/types.ts';
+import type { Deliveries } from '../webhook/deliveries.ts';
 
 /**
  * Everything the loop touches, passed in rather than imported.
@@ -20,4 +21,10 @@ export interface LoopDeps {
   mailer: Mailer;
   sms: Sms;
   script: ScriptLines;
+  /**
+   * Optional, and optional on purpose: this is a debugging buffer, and the
+   * settle path must work identically without it. The tests that prove settle
+   * correct leave it out, which is also what proves it is not load-bearing.
+   */
+  deliveries?: Deliveries;
 }

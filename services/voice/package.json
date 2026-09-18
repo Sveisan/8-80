@@ -8,6 +8,8 @@
     "control": "tsx src/control-cli.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/migrate-cli.ts",
+    "deliveries": "tsx src/deliveries-cli.ts",
+    "doctor": "tsx src/doctor-cli.ts",
     "enrol": "tsx src/enrol-cli.ts",
     "models": "tsx src/models-cli.ts",
     "preflight": "tsx src/preflight.ts",

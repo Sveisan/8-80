@@ -15,6 +15,7 @@ import { donePage, gonePage, reschedulePage } from './link/page.ts';
 import { parseLocalTime } from './schedule/time.ts';
 import { settleConversation } from './loop/settle.ts';
 import { UnreadablePayload, shapeOf } from './webhook/speechify.ts';
+import { Deliveries } from './webhook/deliveries.ts';
 import type { LoopDeps } from './loop/deps.ts';
 
 /**
@@ -99,20 +100,29 @@ export function controlPlane(deps: LoopDeps, secret = config.speechify.webhookSe
           return send(res, 401, { error: 'unauthorized' });
         }
 
+        const event = req.headers['speechify-event'] as string | undefined;
+
+        // Stored before it is understood — the deliveries worth keeping are the
+        // ones we cannot read. Kept encrypted and pruned; see the table comment.
+        const deliveryId = await deps.deliveries?.record(body, {
+          ...(typeof req.headers['speechify-delivery-id'] === 'string'
+            ? { deliveryId: req.headers['speechify-delivery-id'] }
+            : {}),
+          ...(event ? { event } : {}),
+        });
+
         let parsed: unknown;
         try {
           parsed = JSON.parse(body.toString('utf8'));
         } catch {
           log('webhook.not_json', {});
+          await deps.deliveries?.verdict(deliveryId, 'not json');
           return send(res, 400, { error: 'not json' });
         }
 
         try {
-          const out = await settleConversation(
-            parsed,
-            deps,
-            req.headers['speechify-event'] as string | undefined,
-          );
+          const out = await settleConversation(parsed, deps, event);
+          await deps.deliveries?.verdict(deliveryId, out.why ?? out.status ?? 'handled');
           return send(res, 200, out);
         } catch (e) {
           if (e instanceof UnreadablePayload) {
@@ -121,6 +131,7 @@ export function controlPlane(deps: LoopDeps, secret = config.speechify.webhookSe
             // "no conversation_id" says a field is missing, and only the field
             // names say where it actually is. Names and types, never values.
             log('webhook.unreadable', { why: e.message, shape: shapeOf(parsed) });
+            await deps.deliveries?.verdict(deliveryId, `unreadable: ${e.message}`);
             return send(res, 500, { error: 'unreadable payload' });
           }
           throw e;
@@ -192,5 +203,6 @@ export function openDeps(): LoopDeps {
     mailer: openMailer(),
     sms: openSms(),
     script: loadScript(),
+    deliveries: new Deliveries(store.raw),
   };
 }

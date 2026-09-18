@@ -12,6 +12,8 @@
     "control": "npm run -w @8and80/voice control",
     "db:generate": "npm run -w @8and80/voice db:generate",
     "db:migrate": "npm run -w @8and80/voice db:migrate",
+    "deliveries": "npm run -w @8and80/voice deliveries --",
+    "doctor": "npm run -w @8and80/voice doctor",
     "enrol": "npm run -w @8and80/voice enrol --",
     "lint": "eslint .",
     "models": "npm run -w @8and80/voice models",

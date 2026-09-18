@@ -143,3 +143,47 @@ export const links = pgTable(
 );
 
 export type LinkRow = typeof links.$inferSelect;
+
+/**
+ * Every webhook delivery we accepted the signature of, kept briefly.
+ *
+ * This exists because of one evening: three real conversations arrived,
+ * verified, and were discarded on a line of code, and finding out why cost five
+ * phone calls at midnight — book a call, answer it, say something, hang up,
+ * wait, read a log. A stored delivery turns that loop into `npm run deliveries
+ * -- --replay <id>`, which runs the same code against the same bytes in a
+ * second.
+ *
+ * It is written BEFORE the payload is parsed, which is the entire point: the
+ * deliveries worth having are the ones we could not read.
+ *
+ * The body is a transcript, so two things are true of this table that are not
+ * true of the others. It is encrypted like everything a caller said. And it is
+ * pruned on a timer — `CallerRecord` says this is an accountability call and
+ * not a file on someone, and a debugging buffer that is never emptied becomes
+ * the file it promised not to be. The default is fourteen days, long enough to
+ * debug last week's call and not long enough to be a record.
+ */
+export const webhookDeliveries = pgTable(
+  'webhook_deliveries',
+  {
+    /** Their `Speechify-Delivery-Id`, so a retry overwrites rather than piles up. */
+    id: text('id').primaryKey(),
+    /** From the header, before anything is parsed. Null when they sent none. */
+    event: text('event'),
+    /** Best effort, for looking one up by the call it belongs to. */
+    conversationId: text('conversation_id'),
+    /** The raw body, verbatim and encrypted. Verbatim matters: a re-serialised
+     * payload is a different payload, and the bug may be in the difference. */
+    bodyEnc: text('body_enc').notNull(),
+    /** What we made of it: 'settled', 'unreadable: …', 'ignored', and so on. */
+    verdict: text('verdict'),
+    receivedAt: timestamp('received_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('webhook_deliveries_received_idx').on(t.receivedAt),
+    index('webhook_deliveries_conversation_idx').on(t.conversationId),
+  ],
+);
+
+export type WebhookDeliveryRow = typeof webhookDeliveries.$inferSelect;
