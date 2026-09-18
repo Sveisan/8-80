@@ -99,3 +99,33 @@ test('the shape shows names and types and never a value', () => {
   assert.match(shape, /messages:array\[1\]/);
   assert.match(shape, /duration_ms:number/);
 });
+
+test('the real delivery envelope is read', () => {
+  // The shape a live conversation.completed delivery actually has:
+  // { created_at, data: { evaluations, messages, object }, id, type, version }
+  const t = toTranscript({
+    created_at: '2026-09-18T20:38:00Z',
+    id: 'evt_delivery_not_the_conversation',
+    type: 'conversation.completed',
+    version: '2026-09-28',
+    data: {
+      evaluations: [],
+      messages: [
+        { role: 'assistant', content: 'Hi — this is the 8 and 80 call.' },
+        { role: 'user', content: 'Something funny.' },
+      ],
+      object: { id: 'conv_real', duration_seconds: 42, status: 'completed' },
+    },
+  });
+  assert.equal(t.providerCallId, 'conv_real', 'the delivery id must never be used as the conversation id');
+  assert.equal(t.durationMs, 42_000, 'seconds are scaled, not read as milliseconds');
+  assert.equal(t.endedReason, 'completed');
+  assert.deepEqual(t.turns.map((x) => x.speaker), ['agent', 'caller']);
+});
+
+test('a duration with no unit in its name is refused rather than guessed', () => {
+  assert.throws(
+    () => toTranscript({ data: { messages: [], object: { id: 'conv_x', duration: 42 } } }),
+    UnreadablePayload,
+  );
+});

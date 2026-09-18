@@ -33,10 +33,28 @@ export function toTranscript(payload: unknown): CallTranscript {
   if (!payload || typeof payload !== 'object') throw new UnreadablePayload('payload is not an object');
   const p = payload as Record<string, unknown>;
 
-  const conversationId = str(p['conversation_id']) ?? str(p['conversationId']);
+  // A delivery is an envelope — { id, type, version, created_at, data } — and
+  // the conversation lives inside it. The top-level `id` is the DELIVERY's id,
+  // deliberately not consulted below: it matches no attempt on a good day and
+  // could match the wrong one on a bad day, and a call filed against somebody
+  // else's week is worse than a call filed against nobody's.
+  const data = obj(p['data']);
+  const inner = obj(data?.['object']) ?? obj(data?.['conversation']);
+
+  const conversationId =
+    str(inner?.['conversation_id']) ??
+    str(inner?.['id']) ??
+    str(data?.['conversation_id']) ??
+    str(p['conversation_id']) ??
+    str(p['conversationId']);
   if (!conversationId) throw new UnreadablePayload('no conversation_id');
 
-  const raw = p['messages'] ?? p['transcript'] ?? (p['conversation'] as Record<string, unknown>)?.['messages'];
+  const raw =
+    data?.['messages'] ??
+    inner?.['messages'] ??
+    p['messages'] ??
+    p['transcript'] ??
+    obj(p['conversation'])?.['messages'];
   if (!Array.isArray(raw)) throw new UnreadablePayload('no messages array');
 
   const turns: Turn[] = raw.map((m, i) => {
@@ -49,10 +67,19 @@ export function toTranscript(payload: unknown): CallTranscript {
     return { speaker, text };
   });
 
-  const durationMs = num(p['duration_ms']) ?? num(p['durationMs']);
+  // Milliseconds or seconds, each named so. A bare `duration` is not read: the
+  // unit would be a guess, and a call recorded as 18 milliseconds long reads
+  // exactly like one that never connected.
+  const durationMs = first(
+    [inner, data, p],
+    (o) => num(o['duration_ms']) ?? num(o['durationMs']),
+  ) ?? scale(first([inner, data, p], (o) => num(o['duration_seconds']) ?? num(o['durationSeconds'])));
   if (durationMs === undefined) throw new UnreadablePayload('no duration_ms');
 
-  const endedReason = str(p['end_reason']) ?? str(p['ended_reason']) ?? str(p['status']);
+  const endedReason = first(
+    [inner, data, p],
+    (o) => str(o['end_reason']) ?? str(o['ended_reason']) ?? str(o['status']),
+  );
 
   return { providerCallId: conversationId, turns, durationMs, ...(endedReason ? { endedReason } : {}) };
 }
@@ -82,18 +109,33 @@ export function eventOf(payload: unknown, header?: string): WebhookEvent | undef
  * "no conversation_id" says the field is missing, and this says where the
  * fields actually are, without a word anybody said appearing in a log file.
  */
-export function shapeOf(value: unknown, depth = 0): string {
+export function shapeOf(value: unknown, depth = 0, limit = 3): string {
   if (value === null) return 'null';
   if (Array.isArray(value)) {
-    return `array[${value.length}]${value.length && depth < 2 ? `<${shapeOf(value[0], depth + 1)}>` : ''}`;
+    return `array[${value.length}]${value.length && depth < limit ? `<${shapeOf(value[0], depth + 1, limit)}>` : ''}`;
   }
   if (typeof value !== 'object') return typeof value;
-  if (depth >= 2) return 'object';
+  if (depth >= limit) return 'object';
   const entries = Object.entries(value as Record<string, unknown>).map(
-    ([k, v]) => `${k}:${shapeOf(v, depth + 1)}`,
+    ([k, v]) => `${k}:${shapeOf(v, depth + 1, limit)}`,
   );
   return `{${entries.join(',')}}`;
 }
 
 const str = (v: unknown): string | undefined => (typeof v === 'string' && v ? v : undefined);
+const obj = (v: unknown): Record<string, unknown> | undefined =>
+  v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : undefined;
+const scale = (v: number | undefined): number | undefined => (v === undefined ? undefined : Math.round(v * 1000));
+/** The first of these objects that yields a value, so nesting is searched outward. */
+const first = <T>(
+  sources: (Record<string, unknown> | undefined)[],
+  pick: (o: Record<string, unknown>) => T | undefined,
+): T | undefined => {
+  for (const s of sources) {
+    if (!s) continue;
+    const v = pick(s);
+    if (v !== undefined) return v;
+  }
+  return undefined;
+};
 const num = (v: unknown): number | undefined => (typeof v === 'number' && Number.isFinite(v) ? v : undefined);
