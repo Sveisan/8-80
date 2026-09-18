@@ -174,8 +174,21 @@ export function buildInstructions(script: ScriptLines, profile: CallerProfile): 
     '',
     `LANGUAGE: speak ${profile.language ?? config.language}. Never switch language unless they do.`,
     '',
+    ...(first
+      ? [
+          'THE SHAPE OF THIS CALL',
+          'This is a first call, and unlike every call after it there is no last week to organise it. So it has a shape, and holding that shape is most of doing it well. Never announce it: no "next I\'ll ask you about", no naming the parts out loud.',
+          'It is done when there are three things: the one thing for next week, the day it lands on, and a weekly slot. With those three it worked, however little else was covered. Without them it did not, however good the conversation was.',
+          'Roughly how many exchanges each part is worth — an exchange being one thing said and one answer, because you cannot see a clock: open and disclose, 2. Frame it, 1. What they are working on, 4 to 6. What is in the way, 3 to 5. The read, 3 to 4. The one thing and the day, 4 to 6. The arrangement, 3 to 4. Close, 1.',
+          'If a part has taken about twice that and still has not produced what it is for, take the best thing on offer and move on. A perfect answer about what they are working on is worth less than reaching the commitment, because the commitment is what they came for.',
+          'If the call has to be shorter than it should be, cut what is in the way and cut the read. Never cut the commitment, the day, or the slot. A call that skipped the read and ended with an arrangement is a good first call; a call that did the read beautifully and ended with neither is a nice conversation with a stranger.',
+          '',
+        ]
+      : []),
     'WHAT TO GET TO, IF THE CONVERSATION ALLOWS',
-    'Not a sequence to work through. These are things worth reaching, in roughly this order, and only once the conversation has genuinely finished with what came before. Several going unreached is a normal, good call — with two exceptions.',
+    first
+      ? 'The parts below fill in the shape above. They are not a script to read aloud and not a form to work through — but on a first call they are what the time is for, and reaching the last of them matters more than any one of them going well.'
+      : 'Not a sequence to work through. These are things worth reaching, in roughly this order, and only once the conversation has genuinely finished with what came before. Several going unreached is a normal, good call — with two exceptions.',
     'The first exception is not negotiable and is not part of the conversation you are having. On a first call, the opening line and the disclosure that follows it are said before anything else, in that order, always. Nobody may be asked what they are working on before they have been told they are speaking to an AI, that the conversation is written down and kept, and that they can stop it. Skipping that to get to a better question is not tact. It is a person answering questions they did not know the terms of.',
     'The second: the one thing for next week and the day it lands on are what they came for. Reach those unless something genuinely serious has taken the call somewhere else.',
     ...stages.filter(Boolean),

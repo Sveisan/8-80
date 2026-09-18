@@ -37,3 +37,23 @@ test('the prompt tells the mentor how to move a call so it actually moves', () =
   assert.match(p, /ring you back at/i);
   assert.match(p, /digits/i);
 });
+
+test('a first call is given a shape and a returning call is not', () => {
+  // The first call has no last week to organise it, so it needs a spine. A
+  // returning call already has one and would only be made stiffer by this.
+  const firstCall = buildInstructions(loadScript(), { callNumber: 1 });
+  assert.match(firstCall, /THE SHAPE OF THIS CALL/);
+  assert.match(firstCall, /never cut the commitment, the day, or the slot/i);
+
+  for (const n of [2, 4]) {
+    assert.ok(
+      !buildInstructions(loadScript(), { callNumber: n }).includes('THE SHAPE OF THIS CALL'),
+      `call ${n} was given the first-call shape`,
+    );
+  }
+});
+
+test('the shape is never something the caller hears about', () => {
+  const p = buildInstructions(loadScript(), { callNumber: 1 });
+  assert.match(p, /never announce it/i);
+});
