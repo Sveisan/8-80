@@ -57,9 +57,20 @@ export function toTranscript(payload: unknown): CallTranscript {
   return { providerCallId: conversationId, turns, durationMs, ...(endedReason ? { endedReason } : {}) };
 }
 
-/** The event name, when it is one we act on. */
-export function eventOf(payload: unknown): WebhookEvent | undefined {
-  const name = str((payload as Record<string, unknown> | null)?.['event']);
+/**
+ * The event name, when it is one we act on.
+ *
+ * Speechify sends it in the `Speechify-Event` header, which is where this looks
+ * first. Reading only `payload.event` is what silently discarded the first
+ * three real calls: the delivery verified, parsed and returned 200 with
+ * `handled: false`, so every log and every dashboard said the webhook was fine
+ * while nothing was ever written down. The body keys are kept as a fallback
+ * because a header is easy to lose through a proxy and costs nothing to check.
+ */
+export function eventOf(payload: unknown, header?: string): WebhookEvent | undefined {
+  const p = payload as Record<string, unknown> | null;
+  const name =
+    str(header) ?? str(p?.['event']) ?? str(p?.['type']) ?? str(p?.['event_type']) ?? str(p?.['eventType']);
   return name === 'conversation.completed' || name === 'conversation.failed' ? name : undefined;
 }
 

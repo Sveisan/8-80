@@ -72,3 +72,17 @@ test('the silent call, as it would actually arrive', () => {
   assert.equal(outcome.status, 'silent');
   assert.equal(outcome.outcome, undefined);
 });
+
+test('the event name is taken from the header Speechify actually sends', () => {
+  // Three real calls were discarded because this read only payload.event while
+  // the deliveries carried "Speechify-Event: conversation.completed".
+  assert.equal(eventOf({ conversation_id: 'c' }, 'conversation.completed'), 'conversation.completed');
+  assert.equal(eventOf({ conversation_id: 'c' }, 'conversation.failed'), 'conversation.failed');
+  assert.equal(eventOf({}, 'conversation.started'), undefined);
+});
+
+test('the body is still read when no header arrives', () => {
+  assert.equal(eventOf({ event: 'conversation.completed' }), 'conversation.completed');
+  assert.equal(eventOf({ type: 'conversation.completed' }), 'conversation.completed');
+  assert.equal(eventOf({ event_type: 'conversation.failed' }), 'conversation.failed');
+});

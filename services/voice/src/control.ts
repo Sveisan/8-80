@@ -100,7 +100,11 @@ export function controlPlane(deps: LoopDeps, secret = config.speechify.webhookSe
         }
 
         try {
-          const out = await settleConversation(JSON.parse(body.toString('utf8')), deps);
+          const out = await settleConversation(
+            JSON.parse(body.toString('utf8')),
+            deps,
+            req.headers['speechify-event'] as string | undefined,
+          );
           return send(res, 200, out);
         } catch (e) {
           if (e instanceof UnreadablePayload) {

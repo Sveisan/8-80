@@ -30,9 +30,19 @@ const NOT_ANSWERED = /no[_ -]?answer|unanswered|voicemail|machine|busy|rejected|
  * hear produces no email: writing to somebody about a conversation they did not
  * have is worse than saying nothing.
  */
-export async function settleConversation(payload: unknown, deps: LoopDeps): Promise<Settled> {
-  const event = eventOf(payload);
-  if (!event) return { handled: false, why: 'not an event we act on' };
+export async function settleConversation(
+  payload: unknown,
+  deps: LoopDeps,
+  headerEvent?: string,
+): Promise<Settled> {
+  const event = eventOf(payload, headerEvent);
+  if (!event) {
+    // Logged, because this is the branch that threw away three real calls in
+    // silence. An event we do not act on is ordinary; an event we cannot NAME
+    // is a payload we have misunderstood, and the two must not look alike.
+    log('webhook.ignored', { header: headerEvent ?? null });
+    return { handled: false, why: 'not an event we act on' };
+  }
 
   const transcript = toTranscript(payload);
   const attempt = await deps.scheduler.attemptForConversation(transcript.providerCallId);
