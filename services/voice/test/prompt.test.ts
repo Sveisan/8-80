@@ -11,3 +11,20 @@ test('nothing rendered for the console can be mistaken for a console variable', 
   assert.match(rendered, /<commitment>/, 'the slot itself must still be there to fill');
   assert.ok(!rendered.includes('double braces'), 'the note must describe the notation actually used');
 });
+
+test('the boundary that keeps this off the therapist\'s ground is in every prompt', () => {
+  // The first long call spent ten minutes on past relationships and loneliness
+  // because nothing forbade going looking. These are the rules that stop it.
+  for (const callNumber of [1, 2, 4]) {
+    const p = buildInstructions(loadScript(), { callNumber });
+    assert.match(p, /never ask about the past/i, `call ${callNumber}`);
+    assert.match(p, /second question about a feeling/i, `call ${callNumber}`);
+    assert.match(p, /therapist/i, `call ${callNumber}`);
+    assert.match(p, /two turns off the spine/i, `call ${callNumber}`);
+  }
+});
+
+test('the read questions are never softened into self-care', () => {
+  const p = buildInstructions(loadScript(), { callNumber: 2 });
+  assert.match(p, /do not paraphrase them into a question about self-care/i);
+});
