@@ -66,7 +66,7 @@ test('only the names the loop actually sends survive as console variables', () =
     buildInstructions(loadScript(), { callNumber: 2, lastCommitment: '{{last_commitment}}', callDay: '{{last_day}}' }),
     CONSOLE_VARIABLES,
   );
-  const left = [...new Set([...rendered.matchAll(/\{\{([^}]+)\}\}/g)].map((m) => m[1]))];
+  const left = [...new Set([...rendered.matchAll(/\{\{([^}]+)\}\}/g)].map((m) => m[1] ?? ''))];
   for (const name of left) {
     assert.ok(
       (CONSOLE_VARIABLES as readonly string[]).includes(name),

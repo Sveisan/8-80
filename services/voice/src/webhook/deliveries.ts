@@ -58,6 +58,11 @@ export class Deliveries {
   /** What we made of it, written after the fact. Also never fatal. */
   async verdict(id: string | undefined, verdict: string): Promise<void> {
     if (!id) return;
+    // This column is not encrypted — it is our own word for what happened, and
+    // it is what `doctor` prints on a screen somebody else can see. An
+    // unreadable-payload message quotes the offending field back, which is
+    // payload text, so it is trimmed to something that cannot carry a sentence.
+    verdict = verdict.slice(0, 120);
     try {
       await this.sql`update webhook_deliveries set verdict = ${verdict} where id = ${id}`;
     } catch (e) {

@@ -673,6 +673,12 @@ this is not the moment._
 _If they say only "later" with no time, ask once for one: "When suits?" If they still do
 not give one, do not invent it — the weekly slot stands and there is nothing to move._
 
+_A callback is only agreed to between 07:00 and 21:00 on their clock. Outside that, the
+system leaves the weekly slot alone whatever was said: the read-back is written by a model
+and a model can be talked into most things, and a phone ringing at four in the morning is
+a bug whichever way it got there. The weekly slot itself is set deliberately and is not
+bounded — somebody who wants a 05:00 call can have one, just not by accident, mid-call._
+
 ---
 
 ## 10. When something serious is said

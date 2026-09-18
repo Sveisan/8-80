@@ -118,6 +118,8 @@ export function eventOf(payload: unknown, header?: string): WebhookEvent | undef
  * "no conversation_id" says the field is missing, and this says where the
  * fields actually are, without a word anybody said appearing in a log file.
  */
+const MAX_KEYS = 40;
+
 export function shapeOf(value: unknown, depth = 0, limit = 3): string {
   if (value === null) return 'null';
   if (Array.isArray(value)) {
@@ -125,9 +127,15 @@ export function shapeOf(value: unknown, depth = 0, limit = 3): string {
   }
   if (typeof value !== 'object') return typeof value;
   if (depth >= limit) return 'object';
-  const entries = Object.entries(value as Record<string, unknown>).map(
-    ([k, v]) => `${k}:${shapeOf(v, depth + 1, limit)}`,
-  );
+  // Field names come from the payload, so this output is text somebody else
+  // chose, going into a log line. Signed, so not anonymous — but a signed
+  // payload with ten thousand keys would still be ten thousand keys in the
+  // journal, and one name long enough to bury the line above it.
+  const all = Object.entries(value as Record<string, unknown>);
+  const entries = all
+    .slice(0, MAX_KEYS)
+    .map(([k, v]) => `${k.slice(0, 64)}:${shapeOf(v, depth + 1, limit)}`);
+  if (all.length > MAX_KEYS) entries.push(`…${all.length - MAX_KEYS} more`);
   return `{${entries.join(',')}}`;
 }
 

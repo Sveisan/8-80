@@ -38,6 +38,19 @@ const loosen = (s: string): string =>
 const CLOCK = /\b([01]?\d|2[0-3])[:.]([0-5]\d)\s*(am|pm)?\b/;
 const BARE_HOUR = /\b(1[0-2]|[1-9])\s*(am|pm)\b/;
 
+/**
+ * The hours a callback may land in, on the caller's own clock.
+ *
+ * The mentor's read-back is written by a model, and a model can be talked into
+ * saying most things — including "I'll ring you back at 03:00" by somebody who
+ * did not mean it, or by nothing at all. The weekly slot is set deliberately
+ * through `enrol` and is not bounded here; an ad-hoc callback agreed mid-call
+ * is, because a phone ringing at four in the morning is a bug whichever way it
+ * got there.
+ */
+const EARLIEST = Number(process.env['CALLBACK_EARLIEST_HOUR'] ?? 7);
+const LATEST = Number(process.env['CALLBACK_LATEST_HOUR'] ?? 21);
+
 export function extractReschedule(spoken: string, script: ScriptLines): SpokenTime | undefined {
   const template = script.get('reschedule.confirm');
   if (!template) return undefined;
@@ -68,6 +81,7 @@ export function extractReschedule(spoken: string, script: ScriptLines): SpokenTi
   if (meridiem === 'pm' && hour < 12) hour += 12;
   if (meridiem === 'am' && hour === 12) hour = 0;
   if (hour > 23 || minute > 59) return undefined;
+  if (hour < EARLIEST || hour > LATEST) return undefined;
 
   // parseWeekday wants a weekday and nothing else; this is a phrase. Each word
   // is offered to it rather than reimplementing the names in a second place.

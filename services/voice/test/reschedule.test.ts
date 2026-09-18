@@ -87,3 +87,19 @@ test('a weekday that is today but already past goes to next week', () => {
   const when = resolveSpokenTime({ hour: 9, minute: 0, day: 5 /* Friday */ }, OSLO, friday);
   assert.equal(when.toISOString(), '2026-09-25T07:00:00.000Z');
 });
+
+test('a callback in the middle of the night is not agreed to', () => {
+  // The read-back is written by a model, and a model can be talked into saying
+  // most things. The weekly slot is chosen deliberately and is not bounded;
+  // an ad-hoc callback is, because a phone ringing at four in the morning is a
+  // bug whichever way it got there. Nothing moves — the weekly slot stands.
+  for (const hour of ['03:00', '04:30', '23:30']) {
+    assert.equal(
+      extractReschedule(`Fine. I'll ring you back at ${hour} tomorrow.`, script),
+      undefined,
+      hour,
+    );
+  }
+  assert.ok(extractReschedule("Fine. I'll ring you back at 07:00 tomorrow.", script), 'seven is fine');
+  assert.ok(extractReschedule("Fine. I'll ring you back at 21:00 today.", script), 'nine at night is fine');
+});
