@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { eventOf, toTranscript, UnreadablePayload } from '../src/webhook/speechify.ts';
+import { eventOf, toTranscript, shapeOf, UnreadablePayload } from '../src/webhook/speechify.ts';
 import { settle } from '../src/call/outcome.ts';
 import { loadScript } from '../src/script.ts';
 
@@ -85,4 +85,17 @@ test('the body is still read when no header arrives', () => {
   assert.equal(eventOf({ event: 'conversation.completed' }), 'conversation.completed');
   assert.equal(eventOf({ type: 'conversation.completed' }), 'conversation.completed');
   assert.equal(eventOf({ event_type: 'conversation.failed' }), 'conversation.failed');
+});
+
+test('the shape shows names and types and never a value', () => {
+  const shape = shapeOf({
+    data: { conversation_id: 'conv_secret', messages: [{ role: 'user', content: 'I am not sleeping' }] },
+    duration_ms: 1200,
+  });
+  assert.ok(!shape.includes('conv_secret'), 'an id leaked');
+  assert.ok(!shape.includes('not sleeping'), 'a transcript leaked');
+  assert.ok(!shape.includes('user'), 'a value leaked');
+  assert.match(shape, /conversation_id:string/);
+  assert.match(shape, /messages:array\[1\]/);
+  assert.match(shape, /duration_ms:number/);
 });

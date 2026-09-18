@@ -14,7 +14,7 @@ import { Links } from './link/token.ts';
 import { donePage, gonePage, reschedulePage } from './link/page.ts';
 import { parseLocalTime } from './schedule/time.ts';
 import { settleConversation } from './loop/settle.ts';
-import { UnreadablePayload } from './webhook/speechify.ts';
+import { UnreadablePayload, shapeOf } from './webhook/speechify.ts';
 import type { LoopDeps } from './loop/deps.ts';
 
 /**
@@ -99,9 +99,17 @@ export function controlPlane(deps: LoopDeps, secret = config.speechify.webhookSe
           return send(res, 401, { error: 'unauthorized' });
         }
 
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(body.toString('utf8'));
+        } catch {
+          log('webhook.not_json', {});
+          return send(res, 400, { error: 'not json' });
+        }
+
         try {
           const out = await settleConversation(
-            JSON.parse(body.toString('utf8')),
+            parsed,
             deps,
             req.headers['speechify-event'] as string | undefined,
           );
@@ -109,8 +117,10 @@ export function controlPlane(deps: LoopDeps, secret = config.speechify.webhookSe
         } catch (e) {
           if (e instanceof UnreadablePayload) {
             // 500 so it is retried and noticed. A 200 here would mean a call
-            // quietly recorded as never having happened.
-            log('webhook.unreadable', { why: e.message });
+            // quietly recorded as never having happened. The shape goes with it:
+            // "no conversation_id" says a field is missing, and only the field
+            // names say where it actually is. Names and types, never values.
+            log('webhook.unreadable', { why: e.message, shape: shapeOf(parsed) });
             return send(res, 500, { error: 'unreadable payload' });
           }
           throw e;

@@ -74,5 +74,26 @@ export function eventOf(payload: unknown, header?: string): WebhookEvent | undef
   return name === 'conversation.completed' || name === 'conversation.failed' ? name : undefined;
 }
 
+/**
+ * The field NAMES in a payload, two levels deep, with types instead of values.
+ *
+ * A payload we cannot read is the one thing we most need to see and the one
+ * thing we must never log: it is a transcript. Names and types are neither —
+ * "no conversation_id" says the field is missing, and this says where the
+ * fields actually are, without a word anybody said appearing in a log file.
+ */
+export function shapeOf(value: unknown, depth = 0): string {
+  if (value === null) return 'null';
+  if (Array.isArray(value)) {
+    return `array[${value.length}]${value.length && depth < 2 ? `<${shapeOf(value[0], depth + 1)}>` : ''}`;
+  }
+  if (typeof value !== 'object') return typeof value;
+  if (depth >= 2) return 'object';
+  const entries = Object.entries(value as Record<string, unknown>).map(
+    ([k, v]) => `${k}:${shapeOf(v, depth + 1)}`,
+  );
+  return `{${entries.join(',')}}`;
+}
+
 const str = (v: unknown): string | undefined => (typeof v === 'string' && v ? v : undefined);
 const num = (v: unknown): number | undefined => (typeof v === 'number' && Number.isFinite(v) ? v : undefined);
