@@ -4,6 +4,13 @@ export type WebhookEvent = 'conversation.completed' | 'conversation.failed';
 
 export class UnreadablePayload extends Error {}
 
+/**
+ * Roles that are real and are not somebody speaking: the system prompt, a tool
+ * call. Dropped deliberately, which is not the same as guessing — an unknown
+ * role still throws, because a role we have never seen might be a person.
+ */
+const NOT_A_TURN = new Set(['system', 'developer', 'tool', 'function']);
+
 /** Their word for who spoke, mapped to ours. Anything else is an error. */
 const SPEAKERS: Record<string, Turn['speaker']> = {
   agent: 'agent',
@@ -57,14 +64,16 @@ export function toTranscript(payload: unknown): CallTranscript {
     obj(p['conversation'])?.['messages'];
   if (!Array.isArray(raw)) throw new UnreadablePayload('no messages array');
 
-  const turns: Turn[] = raw.map((m, i) => {
+  const turns: Turn[] = [];
+  raw.forEach((m, i) => {
     if (!m || typeof m !== 'object') throw new UnreadablePayload(`message ${i} is not an object`);
     const msg = m as Record<string, unknown>;
     const role = (str(msg['role']) ?? str(msg['speaker']) ?? '').toLowerCase();
+    if (NOT_A_TURN.has(role)) return;
     const speaker = SPEAKERS[role];
     if (!speaker) throw new UnreadablePayload(`message ${i} has an unknown role ${JSON.stringify(role)}`);
     const text = str(msg['content']) ?? str(msg['text']) ?? '';
-    return { speaker, text };
+    turns.push({ speaker, text });
   });
 
   // Milliseconds or seconds, each named so. A bare `duration` is not read: the

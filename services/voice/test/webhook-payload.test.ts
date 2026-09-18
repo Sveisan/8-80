@@ -129,3 +129,23 @@ test('a duration with no unit in its name is refused rather than guessed', () =>
     UnreadablePayload,
   );
 });
+
+test('the system prompt is not a turn, and an unknown role still throws', () => {
+  const t = toTranscript({
+    data: {
+      messages: [
+        { role: 'system', content: 'You are the mentor on an 8&80 call.' },
+        { role: 'assistant', content: 'Hi.' },
+        { role: 'user', content: 'Something funny.' },
+      ],
+      object: { id: 'conv_x', duration_ms: 9000, end_reason: 'completed' },
+    },
+  });
+  assert.deepEqual(t.turns.map((x) => x.speaker), ['agent', 'caller'], 'the prompt must not count as speech');
+
+  assert.throws(
+    () => toTranscript({ data: { messages: [{ role: 'oracle', content: 'x' }], object: { id: 'c', duration_ms: 1 } } }),
+    UnreadablePayload,
+    'a role nobody has seen might be a person, so it must not be dropped',
+  );
+});
