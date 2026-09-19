@@ -83,7 +83,7 @@ function phraseFor(form: URLSearchParams): string | undefined {
  */
 const silent = { send: async (): Promise<void> => undefined };
 
-export function controlPlane(deps: LoopDeps, secret = config.speechify.webhookSecret()): Server {
+export function controlPlane(deps: LoopDeps, secret: string | readonly string[] = config.speechify.webhookSecrets()): Server {
   return createServer((req, res) => {
     void (async () => {
       const url = new URL(req.url ?? '/', 'http://x');

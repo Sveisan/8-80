@@ -182,7 +182,19 @@ export const config = {
       language: process.env['SPEECHIFY_SEND_LANGUAGE'] === '1',
     },
     callerIdNumber: process.env['SPEECHIFY_CALLER_ID_NUMBER'] ?? '',
-    webhookSecret: () => req('SPEECHIFY_WEBHOOK_SECRET'),
+    /**
+     * Every secret a delivery may be signed with.
+     *
+     * A signing secret belongs to an agent, and there are two agents — so this
+     * is a comma-separated list, and a single value is just a list of one.
+     * Also how a rotation is survivable: add the new one, move the agents over,
+     * remove the old one, with no window where a finished call goes unrecorded.
+     */
+    webhookSecrets: (): string[] =>
+      req('SPEECHIFY_WEBHOOK_SECRET')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean),
     /**
      * Answering-machine detection, on by default and not a preference. A
      * fifteen-minute accountability call left on a voicemail box is not a

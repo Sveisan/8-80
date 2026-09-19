@@ -62,3 +62,36 @@ test('a short signature does not crash the comparison', () => {
   const t = Math.floor(NOW.getTime() / 1000);
   assert.equal(verifySignature(`t=${t},v0=ab`, BODY, SECRET, NOW).ok, false);
 });
+
+test('a delivery signed by either agent is accepted', () => {
+  // The signing secret belongs to an agent, and there are two of them
+  // delivering to one endpoint.
+  const body = '{"type":"conversation.completed"}';
+  for (const secret of ['whsec_onboarding', 'whsec_returning']) {
+    const t = Math.floor(Date.now() / 1000);
+    const v0 = createHmac('sha256', secret).update(`${t}.${body}`).digest('hex');
+    assert.deepEqual(
+      verifySignature(`t=${t},v0=${v0}`, body, ['whsec_onboarding', 'whsec_returning']),
+      { ok: true },
+      secret,
+    );
+  }
+});
+
+test('a third secret is still refused, and is not told which failed', () => {
+  const body = '{"type":"conversation.completed"}';
+  const t = Math.floor(Date.now() / 1000);
+  const v0 = createHmac('sha256', 'whsec_someone_else').update(`${t}.${body}`).digest('hex');
+  const out = verifySignature(`t=${t},v0=${v0}`, body, ['whsec_onboarding', 'whsec_returning']);
+  assert.equal(out.ok, false);
+  assert.equal(out.ok === false && out.why, 'signature does not match');
+});
+
+test('an empty list of secrets accepts nothing', () => {
+  // Rather than accepting everything, which is what an empty HMAC key would do.
+  const body = '{}';
+  const t = Math.floor(Date.now() / 1000);
+  const v0 = createHmac('sha256', '').update(`${t}.${body}`).digest('hex');
+  assert.equal(verifySignature(`t=${t},v0=${v0}`, body, ['']).ok, false);
+  assert.equal(verifySignature(`t=${t},v0=${v0}`, body, []).ok, false);
+});

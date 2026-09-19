@@ -26,10 +26,22 @@ export type Verdict = { ok: true } | { ok: false; why: string };
 export function verifySignature(
   header: string | undefined,
   rawBody: string | Buffer,
-  secret: string,
+  secret: string | readonly string[],
   now = new Date(),
 ): Verdict {
   if (!header) return { ok: false, why: 'no signature header' };
+
+  // More than one secret, because the signing secret is a property of an AGENT
+  // and this product has two of them: an onboarding agent and a returning-call
+  // agent, both delivering to one endpoint. Sharing one secret between them
+  // would mean rotating it breaks the other agent until somebody notices, which
+  // on this endpoint means calls silently going unrecorded.
+  //
+  // Every candidate is tried and the first match wins. That is not a weakening:
+  // each is a full-strength HMAC check, and holding two keys is the ordinary
+  // shape of key rotation.
+  const secrets = (typeof secret === 'string' ? [secret] : secret).filter(Boolean);
+  if (!secrets.length) return { ok: false, why: 'no signing secret configured' };
 
   const parts = new Map<string, string>(
     header
@@ -47,17 +59,20 @@ export function verifySignature(
     return { ok: false, why: 'timestamp outside the five-minute window' };
   }
 
-  const body = typeof rawBody === 'string' ? Buffer.from(rawBody, 'utf8') : rawBody;
-  const expected = createHmac('sha256', secret)
-    .update(Buffer.concat([Buffer.from(`${t}.`, 'utf8'), body]))
-    .digest();
-
   if (!/^[0-9a-f]*$/i.test(v0)) return { ok: false, why: 'v0 is not hex' };
   const given = Buffer.from(v0, 'hex');
-  // Length has to match before timingSafeEqual, which throws otherwise — and a
-  // throw is a timing signal of its own.
-  if (given.length !== expected.length) return { ok: false, why: 'signature does not match' };
-  if (!timingSafeEqual(given, expected)) return { ok: false, why: 'signature does not match' };
+  const body = typeof rawBody === 'string' ? Buffer.from(rawBody, 'utf8') : rawBody;
+  const signed = Buffer.concat([Buffer.from(`${t}.`, 'utf8'), body]);
 
-  return { ok: true };
+  for (const candidate of secrets) {
+    const expected = createHmac('sha256', candidate).update(signed).digest();
+    // Length has to match before timingSafeEqual, which throws otherwise — and
+    // a throw is a timing signal of its own.
+    if (given.length !== expected.length) continue;
+    if (timingSafeEqual(given, expected)) return { ok: true };
+  }
+
+  // Which secret failed is never said. A caller tuning a forgery learns
+  // something from "matched none of two" that it does not learn from this.
+  return { ok: false, why: 'signature does not match' };
 }
