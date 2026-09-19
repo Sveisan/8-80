@@ -12,7 +12,25 @@ import { hasKey } from './store/crypto.ts';
  * commands, two passwords and knowing which of two systemd units to ask.
  *
  * Read-only. Nothing here dials, writes or sends. Safe to run while worried.
+ *
+ * Every section is wrapped, and that is not defensiveness for its own sake: the
+ * first time this ran on the server it died on a table a pending migration had
+ * not yet created, and took the four sections after it down with it. A
+ * diagnostic that stops at the first broken thing is no better than the four
+ * commands it replaced — the broken thing is usually what you came to see.
  */
+async function section(title: string, body: () => Promise<void>): Promise<void> {
+  console.log(`\n${title}`);
+  try {
+    await body();
+  } catch (e) {
+    const message = (e as Error).message;
+    console.log(`  ✕ ${message}`);
+    if (/relation .* does not exist/.test(message)) {
+      console.log('      A migration has not been applied here. Run: npm run db:migrate');
+    }
+  }
+}
 const check = (ok: boolean, label: string, detail?: string): void => {
   console.log(`  ${ok ? '·' : '✕'} ${label}${detail ? `\n      ${detail}` : ''}`);
 };
@@ -51,7 +69,7 @@ if (!config.database.url) {
 
 const store = new PostgresStore(config.database.url);
 try {
-  console.log('\nCALLERS');
+  await section('CALLERS', async () => {
   const callers = await store.raw<
     { call_number: number; paused: boolean; next_call_at: Date | null; slot_weekday: number | null; slot_minute: number | null; timezone: string | null }[]
   >`select call_number, paused, next_call_at, slot_weekday, slot_minute, timezone from callers order by next_call_at`;
@@ -66,9 +84,11 @@ try {
     console.log(`  call #${c.call_number}  ${slot}${c.paused ? '  (paused)' : ''}`);
     console.log(`      next: ${c.next_call_at?.toISOString() ?? 'never'}`);
   }
+  });
 
-  console.log('\nLAST FIVE ATTEMPTS');
-  const attempts = await store.raw<
+  let attempts: { scheduled_for: Date; status: string; duration_ms: number | null; note: string | null; sms_sent_at: Date | null }[] = [];
+  await section('LAST FIVE ATTEMPTS', async () => {
+  attempts = await store.raw<
     { scheduled_for: Date; status: string; duration_ms: number | null; note: string | null; sms_sent_at: Date | null }[]
   >`select scheduled_for, status, duration_ms, note, sms_sent_at from call_attempts order by scheduled_for desc limit 5`;
   if (!attempts.length) console.log('  No call has ever been attempted.');
@@ -79,8 +99,9 @@ try {
     );
     if (a.note) console.log(`      ${a.note}`);
   }
+  });
 
-  console.log('\nLAST FIVE DELIVERIES');
+  await section('LAST FIVE DELIVERIES', async () => {
   if (!hasKey()) {
     console.log('  Not kept — DATA_ENCRYPTION_KEY is unset.');
   } else {
@@ -92,6 +113,7 @@ try {
       );
     }
   }
+  });
 
   // The one sentence worth reading if you read nothing else.
   const stuck = attempts.filter((a) => a.status === 'placed' || a.status === 'claimed').length;
