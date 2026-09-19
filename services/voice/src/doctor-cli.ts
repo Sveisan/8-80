@@ -2,6 +2,7 @@ import { config } from './config.ts';
 import { PostgresStore } from './store/postgres.ts';
 import { Deliveries } from './webhook/deliveries.ts';
 import { hasKey } from './store/crypto.ts';
+import { FEATURE_GROUPS } from './preflight.ts';
 
 /**
  * npm run doctor — what the system knows about itself, on one screen.
@@ -45,7 +46,10 @@ const NEEDED: [string, string][] = [
   ['SPEECHIFY_FIRST_CALL_AGENT_ID', 'First calls are served the returning-call prompt.'],
   ['PUBLIC_URL', 'The missed-call text has no link, so no text is sent at all.'],
   ['RESEND_API_KEY', 'Recaps are written to disk instead of sent.'],
+  ['RECAP_FROM_ADDRESS', 'Goes with RESEND_API_KEY. One without the other sends nothing.'],
   ['SMS_FROM_NUMBER', 'Missed-call texts are written to disk instead of sent.'],
+  ['TWILIO_ACCOUNT_SID', 'Goes with SMS_FROM_NUMBER and the auth token.'],
+  ['TWILIO_AUTH_TOKEN', 'Goes with SMS_FROM_NUMBER and the account SID.'],
   ['SPEECHIFY_CALLER_ID_NUMBER', 'Calls arrive from whatever number the platform picks.'],
 ];
 
@@ -54,6 +58,17 @@ console.log('CONFIGURATION');
 for (const [key, why] of NEEDED) {
   const set = Boolean(process.env[key]);
   check(set, key, set ? undefined : why);
+}
+
+// A feature half set is worse than one not set at all, and is invisible in the
+// list above: every name reads as present or absent on its own. The groups and
+// their triggers live in preflight, so the two cannot drift apart.
+for (const group of FEATURE_GROUPS) {
+  if (!group.trigger.some((k) => process.env[k])) continue;
+  const missing = group.needs.filter((k) => !process.env[k]);
+  if (missing.length) {
+    check(false, `${group.label} is half configured`, `Missing: ${missing.join(', ')}. It is written to disk instead.`);
+  }
 }
 
 const voiceFrom = process.env['SPEECHIFY_CALLER_ID_NUMBER'];

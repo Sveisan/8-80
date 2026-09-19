@@ -2,6 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadScript } from '../src/script.ts';
 import { settle, type CallTranscript } from '../src/call/outcome.ts';
+import { openMailer, FileMailer } from '../src/recap/mailer.ts';
+import { openSms } from '../src/sms/index.ts';
 
 const script = loadScript();
 
@@ -75,4 +77,25 @@ test('a long call where the caller said nothing is not called silent', () => {
     script,
   );
   assert.equal(s.status, 'completed');
+});
+
+test('a half-configured mailer degrades instead of stopping the calls', () => {
+  // openMailer runs inside openDeps, which every tick calls. Throwing here
+  // meant a missing email address cancelled everybody's phone call.
+  const before = { ...process.env };
+  try {
+    process.env['RESEND_API_KEY'] = 're_half';
+    delete process.env['RECAP_FROM_ADDRESS'];
+    assert.ok(openMailer() instanceof FileMailer);
+
+    process.env['TWILIO_ACCOUNT_SID'] = 'AC1';
+    delete process.env['TWILIO_AUTH_TOKEN'];
+    delete process.env['SMS_FROM_NUMBER'];
+    assert.equal(openSms().constructor.name, 'FileSms');
+  } finally {
+    for (const k of ['RESEND_API_KEY', 'RECAP_FROM_ADDRESS', 'TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN', 'SMS_FROM_NUMBER']) {
+      if (before[k] === undefined) delete process.env[k];
+      else process.env[k] = before[k];
+    }
+  }
 });

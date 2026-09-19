@@ -12,15 +12,25 @@ export interface Mailer {
 /**
  * Resend when it is configured, a file when it is not.
  *
- * Nothing falls back the other way. A misconfigured key must not quietly turn
- * into a recap nobody receives while the logs say a call went fine.
+ * A half-configured pair used to throw here, which was the right instinct and
+ * the wrong place. `openMailer` is called from `openDeps`, which every tick
+ * calls — so one missing address stopped the tick, and a misconfigured EMAIL
+ * silently cancelled everybody's CALLS. The email is the courtesy; the call is
+ * the product, and the courtesy must never be able to take it down.
+ *
+ * So it degrades here and complains loudly, and `preflight` and `doctor` fail
+ * on it where failing costs nobody their week. Nothing ever falls back the
+ * other way: a recap is not quietly dropped while the logs say a call went fine.
  */
 export function openMailer(): Mailer {
   const key = process.env['RESEND_API_KEY'];
   const from = process.env['RECAP_FROM_ADDRESS'];
   if (key && from) return new ResendMailer(key, from);
   if (key || from) {
-    throw new Error('RESEND_API_KEY and RECAP_FROM_ADDRESS go together — one without the other sends nothing.');
+    log('recap.misconfigured', {
+      note: `RESEND_API_KEY and RECAP_FROM_ADDRESS go together — ${key ? 'RECAP_FROM_ADDRESS' : 'RESEND_API_KEY'} is missing, so recaps are written, not sent`,
+    });
+    return new FileMailer();
   }
   log('recap.mailer', { kind: 'file', note: 'RESEND_API_KEY is unset — recaps are written, not sent' });
   return new FileMailer();

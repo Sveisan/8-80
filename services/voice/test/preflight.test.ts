@@ -58,3 +58,22 @@ test('the same number for both passes', () => {
   const same = { ...base, SPEECHIFY_CALLER_ID_NUMBER: '+4790000001', SMS_FROM_NUMBER: '+4790000001' };
   assert.ok(!fails(same).some((l) => l.includes('different numbers')));
 });
+
+test('half a group is caught, because half is the dangerous state', () => {
+  // Invisible in a per-variable list — each name reads as present or absent on
+  // its own — and until recently it stopped the tick that places the calls.
+  assert.ok(fails({ ...base, RESEND_API_KEY: 're_x' }).some((l) => l.includes('recap email is half configured')));
+  const noToken = { ...base, SMS_FROM_NUMBER: '+4790000001', TWILIO_AUTH_TOKEN: '' };
+  assert.ok(fails(noToken).some((l) => l.includes('missed-call text is half configured')));
+
+  // All of it, or none of it, is fine.
+  assert.ok(!fails({ ...base, SMS_FROM_NUMBER: '+4790000001' }).some((l) => l.includes('half configured')));
+  assert.ok(!fails(base).some((l) => l.includes('half configured')));
+});
+
+test('Twilio credentials without an SMS number are not a fault', () => {
+  // The account SID and auth token are shared with the telephony adapter.
+  // Holding them and no SMS number is what using Twilio for voice looks like,
+  // and reporting it would train somebody to ignore the whole report.
+  assert.ok(!fails(base).some((l) => l.includes('half configured')));
+});

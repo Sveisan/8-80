@@ -13,6 +13,23 @@ export interface Check {
 
 const E164 = /^\+[1-9]\d{6,14}$/;
 
+/** Features that need every variable or none, and what says somebody meant to enable one. */
+export const FEATURE_GROUPS: { label: string; trigger: string[]; needs: string[] }[] = [
+  {
+    label: 'the recap email',
+    trigger: ['RESEND_API_KEY', 'RECAP_FROM_ADDRESS'],
+    needs: ['RESEND_API_KEY', 'RECAP_FROM_ADDRESS'],
+  },
+  {
+    // Only SMS_FROM_NUMBER triggers it: the account SID and auth token are
+    // shared with the telephony adapter, and holding those without an SMS
+    // number is what using Twilio for voice alone looks like.
+    label: 'the missed-call text',
+    trigger: ['SMS_FROM_NUMBER'],
+    needs: ['TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN', 'SMS_FROM_NUMBER'],
+  },
+];
+
 export function preflight(env: NodeJS.ProcessEnv = process.env): Check[] {
   const checks: Check[] = [];
   // Read the provider from the env we were handed, not from module-level
@@ -95,6 +112,26 @@ export function preflight(env: NodeJS.ProcessEnv = process.env): Check[] {
       label: 'no SMS number',
       detail: 'Texts are written to disk, not sent. A missed call costs somebody their week with no way back in.',
     });
+  }
+
+  // Half a feature configured is the dangerous state: invisible in a
+  // per-variable list, since every name reads as present or absent on its own,
+  // and until recently it took down the tick that places the calls.
+  //
+  // Each group has a trigger — the variable whose presence means somebody meant
+  // to turn this on. Without one, the Twilio credentials shared with the
+  // telephony adapter would read as a half-configured SMS sender, which is an
+  // ordinary and correct state for somebody who uses Twilio for voice only.
+  for (const group of FEATURE_GROUPS) {
+    if (!group.trigger.some((k) => env[k])) continue;
+    const missing = group.needs.filter((k) => !env[k]);
+    if (missing.length) {
+      checks.push({
+        ok: false,
+        label: `${group.label} is half configured`,
+        detail: `Missing: ${missing.join(', ')}`,
+      });
+    }
   }
 
   return checks;
