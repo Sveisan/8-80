@@ -160,6 +160,27 @@ function checkOneNumber(env: NodeJS.ProcessEnv, checks: Check[]): void {
       label: 'no SMS number',
       detail: 'Texts are written to disk, not sent. A missed call costs somebody their week with no way back in.',
     });
+  } else if (smsFrom && !voiceFrom) {
+    // The mismatch is just as real when one side is the platform's default:
+    // the caller still gets a call from one number and a text from another.
+    checks.push({
+      ok: false,
+      label: 'the text has a number and the call does not',
+      detail:
+        'SMS_FROM_NUMBER is set but SPEECHIFY_CALLER_ID_NUMBER is not, so calls arrive from whatever the platform picks ' +
+        'and the text arrives from somewhere else entirely — which is the shape the missed-call text must never have.',
+    });
+  }
+
+  // A text to a Norwegian phone from a number that is not Norwegian.
+  if (smsFrom && !smsFrom.startsWith('+47')) {
+    checks.push({
+      ok: true,
+      label: `SMS from ${smsFrom.slice(0, 3)}… to Norwegian numbers`,
+      detail:
+        'Fine for testing the plumbing, wrong for callers: it may be filtered or rewritten by their operator, ' +
+        'and replying costs them international rates — which is why SCRIPT.md §13 sends a link and not a conversation.',
+    });
   }
 }
 

@@ -138,3 +138,26 @@ test('the one-number rule and the half-configured groups apply to Speechify too'
   );
   assert.ok(fails({ ...speechify, RESEND_API_KEY: 're_x' }).some((l) => l.includes('half configured')));
 });
+
+test('a text number with no caller id is still two numbers to the caller', () => {
+  // The mismatch is as real when one side is the platform's default: they get
+  // a call from one number and a text from another.
+  assert.ok(
+    fails({ ...speechify, SMS_FROM_NUMBER: '+4790000001' }).some((l) =>
+      l.includes('the text has a number and the call does not'),
+    ),
+  );
+});
+
+test('a non-Norwegian SMS sender is noted, not failed', () => {
+  // It works well enough to test the plumbing with, and is wrong to ship.
+  const usNumber = {
+    ...speechify,
+    TWILIO_ACCOUNT_SID: 'ACxxxx',
+    TWILIO_AUTH_TOKEN: 'secret',
+    SPEECHIFY_CALLER_ID_NUMBER: '+15074805619',
+    SMS_FROM_NUMBER: '+15074805619',
+  };
+  assert.ok(preflight(usNumber).some((c) => c.label.includes('to Norwegian numbers')));
+  assert.deepEqual(fails(usNumber), [], 'a note, not a failure — it is a real setup, just not the final one');
+});
