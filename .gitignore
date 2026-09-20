@@ -23,6 +23,14 @@ out/
 *.raw
 recordings/
 
+# What the file mailer and the file SMS sender write when no provider is
+# configured: recap emails carrying somebody's commitment and their address,
+# and missed-call texts carrying a reschedule link. Three comments in the
+# source already claimed this directory was ignored. It was not, and one
+# `git add -A` on the server would have committed a caller's week.
+# Also the npm cache, which the systemd units point here.
+runs/
+
 # local
 *.log
 .DS_Store
