@@ -14,6 +14,7 @@
     "models": "tsx src/models-cli.ts",
     "preflight": "tsx src/preflight.ts",
     "prompt": "tsx src/prompt-cli.ts",
+    "recap": "tsx src/recap-cli.ts",
     "replay": "tsx src/replay-cli.ts",
     "runs": "tsx src/runs-cli.ts",
     "serve": "tsx src/server.ts",

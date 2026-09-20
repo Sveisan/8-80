@@ -19,6 +19,7 @@
     "models": "npm run -w @8and80/voice models",
     "preflight": "npm run -w @8and80/voice preflight",
     "prompt": "npm run -w @8and80/voice prompt",
+    "recap": "npm run -w @8and80/voice recap --",
     "replay": "npm run -w @8and80/voice replay",
     "runs": "npm run -w @8and80/voice runs",
     "serve": "npm run -w @8and80/voice serve",
