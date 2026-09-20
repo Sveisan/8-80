@@ -50,3 +50,49 @@ test('a move lands on the right instant in the caller zone', () => {
   // Oslo is UTC+2 in September: 09:00 local on Wednesday the 9th is 07:00Z.
   assert.equal(at.toISOString(), '2026-09-09T07:00:00.000Z');
 });
+
+test('a concrete day and time beats any phrase sharing the line with it', () => {
+  // All three of these had their week quietly cancelled: they offered an
+  // alternative and the phrase checks got there first.
+  const thursday = parseReply('Can we move it to next week, Thursday 10:00?');
+  assert.deepEqual(thursday, { kind: 'move', weekday: 4, minute: 600, always: false });
+
+  const saturday = parseReply("I'm not free Friday, how about Saturday 10:00?");
+  assert.equal(saturday.kind, 'move');
+
+  const tomorrow = parseReply("sorry, can't do today — try me tomorrow at 9", new Date('2026-09-20T12:00:00Z'));
+  assert.deepEqual(tomorrow, { kind: 'move', weekday: 1, minute: 540, always: false });
+});
+
+test('a day with no time is not rounded down to skipping their week', () => {
+  // They asked for something specific. Cancelling the week is not a smaller
+  // version of it, so a human answers.
+  assert.deepEqual(parseReply("Let's do Tuesday next week"), { kind: 'unparsed' });
+  assert.deepEqual(parseReply('Monday'), { kind: 'unparsed' });
+});
+
+test('a refusal still wins over a day, because not ringing is the safe error', () => {
+  assert.equal(parseReply('skip Tuesday').kind, 'skip');
+  assert.equal(parseReply('not this week, Tuesday is bad too').kind, 'skip');
+});
+
+test('today and tomorrow are the caller\'s, not the server\'s', () => {
+  // 00:30 on Monday in Oslo is 22:30 on Sunday in UTC. Read against the server
+  // clock, "tomorrow" named the day they were already in.
+  const lateSunday = new Date('2026-09-20T22:30:00Z');
+  assert.equal(parseReply('tomorrow at 9', lateSunday, 'Europe/Oslo').kind, 'move');
+  assert.deepEqual(
+    parseReply('tomorrow at 9', lateSunday, 'Europe/Oslo'),
+    { kind: 'move', weekday: 2, minute: 540, always: false },
+    'Tuesday — it is already Monday where they are',
+  );
+});
+
+test('"next week" means skip only when no day speaks for it', () => {
+  // On its own it means skip this week. As the tail of "Tuesday next week" it
+  // is part of a move, and reading it as skip cancelled the week of somebody
+  // who had just named a day.
+  assert.deepEqual(parseReply('Can we do next week?'), { kind: 'skip' });
+  assert.deepEqual(parseReply('leave it, next week is fine'), { kind: 'skip' });
+  assert.deepEqual(parseReply("Let's do Tuesday next week"), { kind: 'unparsed' });
+});

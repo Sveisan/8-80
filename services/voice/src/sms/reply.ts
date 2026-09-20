@@ -1,4 +1,4 @@
-import { nextSlotAfter, parseLocalTime, parseWeekday, type Slot } from '../schedule/time.ts';
+import { localDate, nextSlotAfter, parseLocalTime, parseWeekday, type Slot } from '../schedule/time.ts';
 
 export type Reply =
   /** Try again later today, without touching the slot. */
@@ -11,7 +11,16 @@ export type Reply =
   | { kind: 'unparsed' };
 
 const LATER = ['later', 'tonight', 'this evening', 'in a bit', 'try again', 'call me later'];
-const SKIP = ['skip', 'pause', 'not this week', 'no thanks', 'next week'];
+const SKIP = ['skip', 'pause', 'not this week', 'no thanks'];
+/**
+ * Skip, but only when nothing more specific is in the message.
+ *
+ * "leave it, next week is fine" means skip. "Let's do Tuesday next week" means
+ * move, and reading it as skip cancelled the week of somebody who had just
+ * named a day. Unlike the phrases above it carries no refusal of its own, so it
+ * only speaks when there is no day to speak for it.
+ */
+const SKIP_IF_VAGUE = ['next week', 'leave it'];
 const ALWAYS = ['always', 'every week', 'from now on', 'permanently', 'for good'];
 /**
  * A refusal with nothing schedulable in it. Erring towards not ringing somebody
@@ -39,22 +48,33 @@ const CLOCK = /\b(\d{1,2})(?:[:.](\d{2}))?\s*(am|pm)?\b/;
  * `unparsed` and gets a human answer, and the parser never guesses to seem
  * clever.
  *
- * The `skip` check runs before the day check for exactly that reason — "not this
- * week" contains no weekday but does contain an intention, and a parser that
- * scanned for days first would find none and fall through to guessing.
+ * A concrete day and time is checked FIRST, because it is the most specific
+ * thing a message can contain and it beats any phrase sharing the line with it.
+ * The phrase checks used to run first, on the reasoning that "not this week"
+ * carries an intention and no weekday — which is true, and only true when there
+ * is no weekday. It meant "Can we move it to next week, Thursday 10:00?" was
+ * read as skip, because it contains "next week": somebody offered a specific
+ * alternative and had their week quietly cancelled instead.
  */
-export function parseReply(text: string): Reply {
+export function parseReply(text: string, now = new Date(), timezone = 'UTC'): Reply {
   const said = text.toLowerCase().trim();
   if (!said) return { kind: 'unparsed' };
 
-  if (SKIP.some((p) => said.includes(p))) return { kind: 'skip' };
-  if (LATER.some((p) => said.includes(p))) return { kind: 'later' };
-
-  const weekday = findWeekday(said);
+  const weekday = findWeekday(said, now, timezone);
   const minute = findMinute(said);
   if (weekday !== undefined && minute !== undefined) {
     return { kind: 'move', weekday, minute, always: ALWAYS.some((p) => said.includes(p)) };
   }
+
+  if (SKIP.some((p) => said.includes(p))) return { kind: 'skip' };
+  if (LATER.some((p) => said.includes(p))) return { kind: 'later' };
+
+  // A day with no time attached is a request we cannot act on and must not
+  // round down to "skip": they asked for something specific, and skipping their
+  // week is not a smaller version of it. A human answers.
+  if (weekday !== undefined) return { kind: 'unparsed' };
+
+  if (SKIP_IF_VAGUE.some((p) => said.includes(p))) return { kind: 'skip' };
 
   // A refusal we cannot schedule is a refusal. Answering "I didn't follow that
   // one" to somebody who has just said they cannot make it — and who may have
@@ -65,7 +85,18 @@ export function parseReply(text: string): Reply {
   return { kind: 'unparsed' };
 }
 
-function findWeekday(said: string): number | undefined {
+function findWeekday(said: string, now: Date, timezone: string): number | undefined {
+  // Their day, not the server's. At half past midnight in Oslo it is still
+  // yesterday in UTC, so "tomorrow" resolved against the server clock names
+  // the day they are already in.
+  const today = localDate(now, timezone).weekday;
+  // "tomorrow at 9" is at least as likely as naming the day, and far more
+  // likely in a reply sent minutes after a missed call. Without these, that
+  // message found no day, fell through to the negation rule on "can't", and
+  // skipped the week of somebody who had just offered a time.
+  if (/\btomorrow\b/.test(said)) return (today + 1) % 7;
+  if (/\btoday\b/.test(said) || /\btonight\b/.test(said)) return today;
+
   for (const word of said.split(/[^a-z]+/)) {
     if (!/[a-z]/.test(word)) continue;
     // "wednesdays" is how somebody writes a standing arrangement.

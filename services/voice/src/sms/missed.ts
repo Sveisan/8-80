@@ -50,7 +50,7 @@ export async function handleReply(
   deps: { sms: Sms; scheduler: Scheduler; script: ScriptLines },
   now = new Date(),
 ): Promise<ReplyOutcome> {
-  const reply = parseReply(text);
+  const reply = parseReply(text, now, slot.timezone);
   const say = async (key: string, when?: string): Promise<string> => {
     const body = (deps.script.get(key) ?? '').replace('{{when}}', when ?? '');
     if (body) await deps.sms.send(phone, body);
