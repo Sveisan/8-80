@@ -97,7 +97,13 @@ export function endpointing(sensitivity = num('ENDPOINTING_SENSITIVITY', 0.25)) 
 export type Endpointing = ReturnType<typeof endpointing>;
 
 export const config = {
-  voiceProvider: process.env.VOICE_PROVIDER ?? 'grok',
+  /**
+   * 'speechify' is what actually places calls today; 'grok' is the self-hosted
+   * path the stress harness exercises. The default used to be grok, which meant
+   * `preflight` checked a stack nobody was running and said nothing about the
+   * one they were.
+   */
+  voiceProvider: process.env.VOICE_PROVIDER ?? 'speechify',
   telephonyProvider: process.env.TELEPHONY_PROVIDER ?? 'telnyx',
 
   xai: {

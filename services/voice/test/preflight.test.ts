@@ -2,7 +2,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { preflight } from '../src/preflight.ts';
 
+// The self-hosted Grok path, which is what `stress` runs. The Speechify path
+// is a separate deployment with its own fixture below.
 const base = {
+  VOICE_PROVIDER: 'grok',
   TELEPHONY_PROVIDER: 'twilio',
   TWILIO_ACCOUNT_SID: 'ACxxxxxxxx',
   TWILIO_AUTH_TOKEN: 'secret',
@@ -44,7 +47,11 @@ test('an international pair surfaces the geo-permissions trap', () => {
 });
 
 test('missing keys are named individually, not as one failure', () => {
-  const f = fails({ TELEPHONY_PROVIDER: 'twilio', VOICE_WS_PUBLIC_URL: 'wss://x.example.com' } as NodeJS.ProcessEnv);
+  const f = fails({
+    VOICE_PROVIDER: 'grok',
+    TELEPHONY_PROVIDER: 'twilio',
+    VOICE_WS_PUBLIC_URL: 'wss://x.example.com',
+  } as NodeJS.ProcessEnv);
   assert.ok(f.includes('TWILIO_ACCOUNT_SID'));
   assert.ok(f.includes('XAI_API_KEY'));
 });
@@ -76,4 +83,58 @@ test('Twilio credentials without an SMS number are not a fault', () => {
   // Holding them and no SMS number is what using Twilio for voice looks like,
   // and reporting it would train somebody to ignore the whole report.
   assert.ok(!fails(base).some((l) => l.includes('half configured')));
+});
+
+const speechify = {
+  VOICE_PROVIDER: 'speechify',
+  SPEECHIFY_API_KEY: 'sk-x',
+  SPEECHIFY_AGENT_ID: 'agent_returning',
+  SPEECHIFY_FIRST_CALL_AGENT_ID: 'agent_first',
+  SPEECHIFY_WEBHOOK_SECRET: 'whsec_a,whsec_b',
+  DATABASE_URL: 'postgres://x',
+  DATA_ENCRYPTION_KEY: 'k',
+  PUBLIC_URL: 'https://8and80.me',
+} as NodeJS.ProcessEnv;
+
+test('the Speechify deployment is checked on its own terms', () => {
+  // It shares no variables with the Grok path. Checking both at once reported
+  // half a dozen failures for a stack nobody was running, and nothing about
+  // the one they were.
+  assert.deepEqual(fails(speechify), []);
+  const grokOnly = ['XAI_API_KEY', 'VOICE_WS_PUBLIC_URL', 'TELNYX_API_KEY', 'OUTBOUND_CALLER_NUMBER'];
+  for (const key of grokOnly) {
+    assert.ok(!fails(speechify).some((l) => l.includes(key)), `${key} is not part of this deployment`);
+  }
+});
+
+test('the variables that silently lose a call are required', () => {
+  for (const key of ['SPEECHIFY_WEBHOOK_SECRET', 'DATA_ENCRYPTION_KEY', 'DATABASE_URL', 'PUBLIC_URL']) {
+    const without = { ...speechify };
+    delete without[key];
+    assert.ok(fails(without).includes(key), key);
+  }
+});
+
+test('a missing first-call agent is a note, not a failure', () => {
+  // It falls back to the returning agent, so calls still happen — they just
+  // open "Hello again" at somebody who has never been called.
+  const without = { ...speechify };
+  delete without['SPEECHIFY_FIRST_CALL_AGENT_ID'];
+  assert.deepEqual(fails(without), []);
+  assert.ok(preflight(without).some((c) => c.label.includes('no separate first-call agent')));
+});
+
+test('a caller id that is not E.164 is caught here rather than at 08:30', () => {
+  assert.ok(
+    fails({ ...speechify, SPEECHIFY_CALLER_ID_NUMBER: '90008800' }).some((l) => l.includes('not E.164')),
+  );
+});
+
+test('the one-number rule and the half-configured groups apply to Speechify too', () => {
+  assert.ok(
+    fails({ ...speechify, SPEECHIFY_CALLER_ID_NUMBER: '+4790000001', SMS_FROM_NUMBER: '+4790000002' }).some((l) =>
+      l.includes('different numbers'),
+    ),
+  );
+  assert.ok(fails({ ...speechify, RESEND_API_KEY: 're_x' }).some((l) => l.includes('half configured')));
 });

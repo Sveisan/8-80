@@ -35,6 +35,7 @@ export function preflight(env: NodeJS.ProcessEnv = process.env): Check[] {
   // Read the provider from the env we were handed, not from module-level
   // config — otherwise this function silently ignores its own argument.
   const provider = env['TELEPHONY_PROVIDER'] ?? config.telephonyProvider;
+  const voice = env['VOICE_PROVIDER'] ?? config.voiceProvider;
 
   const need = (key: string, why: string) => {
     const v = env[key];
@@ -42,6 +43,44 @@ export function preflight(env: NodeJS.ProcessEnv = process.env): Check[] {
     return v;
   };
 
+  // Two entirely different deployments share this file. The product runs on
+  // Speechify and a control plane; the self-hosted Grok path is what `stress`
+  // exercises. Checking both at once means every run reports half a dozen
+  // failures for a stack that is not in use, and a report that cries wolf is a
+  // report nobody reads — which is how a real misconfiguration hides.
+  if (voice === 'speechify') {
+    checks.push({ ok: true, label: 'voice: speechify' });
+    need('SPEECHIFY_API_KEY', 'Speechify console → API keys.');
+    need('SPEECHIFY_AGENT_ID', 'The returning-call agent. In its URL, or ⋯ → Copy ID.');
+    need(
+      'SPEECHIFY_WEBHOOK_SECRET',
+      "Channels → Webhook, per agent. Comma-separate one per agent, or every delivery is refused and the call is never written down.",
+    );
+    need('DATABASE_URL', 'Nothing runs without it — the scheduler, the calls, all of it.');
+    need('DATA_ENCRYPTION_KEY', 'No commitment is stored. Generate with: openssl rand -base64 32');
+    need('PUBLIC_URL', 'Where a reschedule link points. Without it no missed-call text is sent at all.');
+
+    const callerId = env['SPEECHIFY_CALLER_ID_NUMBER'];
+    if (callerId && !E164.test(callerId)) {
+      checks.push({
+        ok: false,
+        label: 'SPEECHIFY_CALLER_ID_NUMBER is not E.164',
+        detail: 'Must start with + and contain digits only — no spaces, dashes or brackets.',
+      });
+    }
+    if (!env['SPEECHIFY_FIRST_CALL_AGENT_ID']) {
+      checks.push({
+        ok: true,
+        label: 'no separate first-call agent',
+        detail: 'First calls will get the returning-call prompt, which opens "Hello again" at somebody who has never been called.',
+      });
+    }
+    checkFeatureGroups(env, checks);
+    checkOneNumber(env, checks);
+    return checks;
+  }
+
+  checks.push({ ok: true, label: `voice: ${voice}` });
   checks.push({ ok: true, label: `telephony: ${provider}`, detail: undefined });
 
   if (provider === 'twilio') {
@@ -89,12 +128,21 @@ export function preflight(env: NodeJS.ProcessEnv = process.env): Check[] {
     });
   }
 
-  // The caller sees ONE number or the product lies to them. sms.missed opens
-  // "Rang just now", and setup.save_number asks them to save the number "I'm
-  // on" so they know it is us on the Tuesday — both are false if the text
-  // arrives from somewhere else, and a link from an unknown number is the exact
-  // shape of a phishing message. One number that does voice and SMS, or no
-  // text at all.
+  checkOneNumber(env, checks);
+
+  checkFeatureGroups(env, checks);
+
+  return checks;
+}
+
+/**
+ * The caller sees ONE number or the product lies to them. sms.missed opens
+ * "Rang just now", and setup.save_number asks them to save the number "I'm on"
+ * so they know it is us on the Tuesday — both are false if the text arrives
+ * from somewhere else, and a link from an unfamiliar number is the exact shape
+ * of a phishing message. One number that does voice and SMS, or no text at all.
+ */
+function checkOneNumber(env: NodeJS.ProcessEnv, checks: Check[]): void {
   const voiceFrom = env['SPEECHIFY_CALLER_ID_NUMBER'];
   const smsFrom = env['SMS_FROM_NUMBER'];
   if (voiceFrom && smsFrom && voiceFrom !== smsFrom) {
@@ -113,15 +161,14 @@ export function preflight(env: NodeJS.ProcessEnv = process.env): Check[] {
       detail: 'Texts are written to disk, not sent. A missed call costs somebody their week with no way back in.',
     });
   }
+}
 
-  // Half a feature configured is the dangerous state: invisible in a
-  // per-variable list, since every name reads as present or absent on its own,
-  // and until recently it took down the tick that places the calls.
-  //
-  // Each group has a trigger — the variable whose presence means somebody meant
-  // to turn this on. Without one, the Twilio credentials shared with the
-  // telephony adapter would read as a half-configured SMS sender, which is an
-  // ordinary and correct state for somebody who uses Twilio for voice only.
+/**
+ * Half a feature configured is the dangerous state: invisible in a
+ * per-variable list, since every name reads as present or absent on its own,
+ * and until recently it took down the tick that places the calls.
+ */
+function checkFeatureGroups(env: NodeJS.ProcessEnv, checks: Check[]): void {
   for (const group of FEATURE_GROUPS) {
     if (!group.trigger.some((k) => env[k])) continue;
     const missing = group.needs.filter((k) => !env[k]);
@@ -133,8 +180,6 @@ export function preflight(env: NodeJS.ProcessEnv = process.env): Check[] {
       });
     }
   }
-
-  return checks;
 }
 
 export function report(checks: Check[]): boolean {
