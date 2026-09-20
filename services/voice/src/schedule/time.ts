@@ -132,3 +132,20 @@ export function parseLocalTime(text: string): number | undefined {
   if (h > 23 || min > 59) return undefined;
   return h * 60 + min;
 }
+
+/**
+ * A slot as somebody would say it: "Friday at 08:30".
+ *
+ * For the recap email, which promises when the next call is. It used to be
+ * handed the day the COMMITMENT landed on — so an email could say "I'll call
+ * you on Wednesday" about a call that happens on Friday, which is a worse
+ * failure than saying nothing, because they would believe it.
+ */
+export function describeSlot(slot: Slot, language = 'en'): string {
+  const weekday = new Intl.DateTimeFormat(language, { weekday: 'long', timeZone: 'UTC' })
+    // 2026-09-06 was a Sunday, so index 0 is Sunday as everywhere else here.
+    .format(new Date(Date.UTC(2026, 8, 6 + slot.weekday)));
+  const hh = String(Math.floor(slot.minute / 60)).padStart(2, '0');
+  const mm = String(slot.minute % 60).padStart(2, '0');
+  return `${weekday} at ${hh}:${mm}`;
+}

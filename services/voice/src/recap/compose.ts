@@ -25,20 +25,46 @@ export interface RecapContext {
  */
 export function composeRecap(outcome: CallOutcome, script: ScriptLines, ctx: RecapContext = {}): Recap {
   const minutes = Math.max(1, Math.round(outcome.durationMs / 60_000));
-  const fill = (text: string | undefined): string | undefined =>
-    text
-      ?.replace('{{commitment}}', outcome.commitment ?? '')
-      .replace('{{day}}', outcome.day ?? '')
-      .replace('{{minutes}}', String(minutes))
-      .replace('{{next_slot}}', ctx.nextSlot ?? '')
+  const values: Record<string, string> = {
+    commitment: outcome.commitment ?? '',
+    day: outcome.day ?? '',
+    minutes: String(minutes),
+    next_slot: ctx.nextSlot ?? '',
+  };
+
+  const fill = (text: string | undefined): string | undefined => {
+    if (text === undefined) return undefined;
+    // A sentence whose slot has no value is dropped whole, rather than sent
+    // with a hole in it. "I'll call you ." was going out to anybody whose next
+    // call could not be described, and half a sentence in the one email this
+    // product sends reads as a broken system, which is what it was.
+    const kept = text
+      .split(/(?<=\.)\s+/)
+      .filter((sentence) => {
+        const slots = [...sentence.matchAll(/\{\{([^}]+)\}\}/g)].map((m) => m[1] ?? '');
+        // A sentence with no slots in it is just a sentence. `every` on an
+        // empty list is true, so without this line every fixed sentence in the
+        // email was dropped — including the subject, which has none.
+        if (!slots.length) return true;
+        // A day may be absent from a sentence that also carries the commitment
+        // — "run three times, Wednesday." still works as "run three times." —
+        // so only a sentence left with NOTHING to say is dropped.
+        return slots.some((name) => values[name]);
+      })
+      .join(' ');
+
+    return kept
+      .replace(/\{\{([^}]+)\}\}/g, (_, name: string) => values[name] ?? '')
       // A commitment with no day leaves ", ." behind, and an em dash with
       // nothing after it. Tidying the punctuation here keeps the slots out of
       // SCRIPT.md's sentences, where a writer would have to think about them.
       .replace(/\s+,/g, ',')
       .replace(/,\s*\./g, '.')
       .replace(/,\s*$/, '')
+      .replace(/\s+\./g, '.')
       .replace(/\s{2,}/g, ' ')
       .trim();
+  };
 
   const paragraphs = (
     outcome.commitment

@@ -51,3 +51,31 @@ test('a very short call still reads as a number of minutes', () => {
   assert.ok(r.body.includes('a minute.'), r.body);
   assert.ok(!r.body.includes('1 minutes'), 'the product does not say "1 minutes"');
 });
+
+test('a sentence whose slot has no value is dropped, not sent hollow', () => {
+  // "We spoke for 10 minutes. I'll call you ." was going to anybody whose next
+  // call could not be described. Half a sentence in the only email this
+  // product sends reads as a broken system, because it is one.
+  const r = composeRecap({ at: '', durationMs: 600_000, commitment: 'run three times', day: 'Wednesday' }, script);
+  assert.ok(!r.body.includes(' .'), r.body);
+  assert.ok(!r.body.includes("I'll call you"), 'no next call to promise, so it does not promise one');
+  assert.match(r.body, /We spoke for 10 minutes\./);
+});
+
+test('sentences with no slots at all survive', () => {
+  // `every` on an empty list is true, which dropped every fixed sentence in
+  // the email the first time this filter was written — the subject included.
+  const r = composeRecap({ at: '', durationMs: 600_000, commitment: 'run three times', day: 'Wednesday' }, script);
+  assert.match(r.body, /That's the one I'll ask you about\./);
+  assert.equal(composeRecap({ at: '', durationMs: 600_000 }, script).subject, "This week's call");
+});
+
+test('the email promises the next call, not the commitment day', () => {
+  const r = composeRecap(
+    { at: '', durationMs: 620_000, commitment: 'run three times', day: 'Wednesday' },
+    script,
+    { nextSlot: 'Friday at 08:30' },
+  );
+  assert.match(r.body, /I'll call you Friday at 08:30\./);
+  assert.ok(!/I'll call you.*Wednesday/.test(r.body), 'the commitment lands on Wednesday; the call is on Friday');
+});

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { nextSlotAfter, parseLocalTime, parseWeekday, zonedTimeToUtc, type Slot } from '../src/schedule/time.ts';
+import { describeSlot, nextSlotAfter, parseLocalTime, parseWeekday, zonedTimeToUtc, type Slot } from '../src/schedule/time.ts';
 
 const OSLO: Slot = { weekday: 2, minute: 8 * 60, timezone: 'Europe/Oslo' };
 
@@ -72,4 +72,9 @@ test('an empty day is not Sunday', () => {
   for (const blank of ['', '   ', '\t']) assert.equal(parseWeekday(blank), undefined, JSON.stringify(blank));
   assert.equal(parseWeekday('sunday'), 0, 'a real Sunday still works');
   assert.equal(parseWeekday('0'), 0);
+});
+
+test('a slot reads the way somebody would say it', () => {
+  assert.equal(describeSlot({ weekday: 5, minute: 8 * 60 + 30, timezone: 'Europe/Oslo' }), 'Friday at 08:30');
+  assert.equal(describeSlot({ weekday: 0, minute: 9 * 60, timezone: 'Europe/Oslo' }), 'Sunday at 09:00');
 });

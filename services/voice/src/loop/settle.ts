@@ -6,6 +6,7 @@ import { Links } from '../link/token.ts';
 import { config } from '../config.ts';
 import { eventOf, toTranscript } from '../webhook/speechify.ts';
 import { resolveSpokenTime } from '../call/reschedule.ts';
+import { describeSlot } from '../schedule/time.ts';
 import type { LoopDeps } from './deps.ts';
 
 export interface Settled {
@@ -64,12 +65,17 @@ export async function settleConversation(
   }
 
   const outcome = settle(transcript, deps.script);
+  // Fetched once: the recap promises when the next call is, and a reschedule
+  // needs the same zone to resolve a spoken time into an instant.
+  const slot = await deps.scheduler.slotFor(phone);
 
   if (outcome.status === 'completed' && outcome.outcome) {
     await deps.store.record(phone, outcome.outcome);
     const caller = await deps.store.load(phone);
     const recap = composeRecap(outcome.outcome, deps.script, {
-      ...(caller.lastCommitmentDay ? { nextSlot: `on ${caller.lastCommitmentDay}` } : {}),
+      // The next CALL, not the day the commitment lands on. Those are different
+      // days, and this line is the one the caller would act on.
+      ...(slot ? { nextSlot: describeSlot(slot, caller.language) } : {}),
     });
     if (caller.email) {
       try {
@@ -93,7 +99,6 @@ export async function settleConversation(
   // "I'll ring you at half five", believed it, and the scheduler knew nothing
   // about it. A promise the product cannot keep is worse than a refusal.
   if (outcome.callAgain) {
-    const slot = await deps.scheduler.slotFor(phone);
     if (slot) {
       const at = resolveSpokenTime(outcome.callAgain, slot.timezone, new Date());
       await deps.scheduler.callAgainAt(phone, at);
