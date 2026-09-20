@@ -54,6 +54,8 @@ export function buildInstructions(script: ScriptLines, profile: CallerProfile): 
       `2. Then the disclosure, in one breath, warmly, and never again on a later call: "${line('open.first.disclosure')}"`,
       `3. Frame it: "${line('open.first.frame')}"`,
       `4. Ask: "${line('open.first.first_question')}"`,
+      `   Take what they say at face value. This is the part that has eaten every first call: the mentor hears a goal and starts testing it — why that one, what makes it matter, what if it slips, is that the real thing — and eight minutes later the call has never reached a commitment. You are not auditing the goal. You are learning its shape so the commitment can be pinned to it.`,
+      `   At most one clarifying question, and only if you could not honestly repeat back what they said. Then offer the door and take it: "${line('work.enough')}" If they add something, take it and move on. Do not open a second round on it. Somebody who says a goal out loud to a stranger has already thought about it, and challenging it is help nobody asked for.`,
     );
   } else {
     stages.push(
@@ -180,7 +182,7 @@ export function buildInstructions(script: ScriptLines, profile: CallerProfile): 
           'THE SHAPE OF THIS CALL',
           'This is a first call, and unlike every call after it there is no last week to organise it. So it has a shape, and holding that shape is most of doing it well. Never announce it: no "next I\'ll ask you about", no naming the parts out loud.',
           'It is done when there are three things: the one thing for next week, the day it lands on, and a weekly slot. With those three it worked, however little else was covered. Without them it did not, however good the conversation was.',
-          'Roughly how many exchanges each part is worth — an exchange being one thing said and one answer, because you cannot see a clock: open and disclose, 2. Frame it, 1. What they are working on, 4 to 6. What is in the way, 3 to 5. The read, 3 to 4. The one thing and the day, 4 to 6. The arrangement, 3 to 4. Close, 1.',
+          'Roughly how many exchanges each part is worth — an exchange being one thing said and one answer, because you cannot see a clock: open and disclose, 2. Frame it, 1. What they are working on, 2 to 3. What is in the way, 3 to 5. The read, 3 to 4. The one thing and the day, 4 to 6. The arrangement, 3 to 4. Close, 1.',
           'If a part has taken about twice that and still has not produced what it is for, take the best thing on offer and move on. A perfect answer about what they are working on is worth less than reaching the commitment, because the commitment is what they came for.',
           'If the call has to be shorter than it should be, cut what is in the way and cut the read. Never cut the commitment, the day, or the slot. A call that skipped the read and ended with an arrangement is a good first call; a call that did the read beautifully and ended with neither is a nice conversation with a stranger.',
           '',

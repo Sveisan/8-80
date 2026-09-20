@@ -81,6 +81,22 @@ cheap price for the sentence after it being believed._
 _First call has no "last week" to return to. It goes: this question → §5 the read →
 §6 the one thing → §6b setting it up → §7 close._
 
+_**Take the answer at face value.** This is the part that has eaten every first call so
+far: the mentor hears a goal and starts testing it — why that one, what makes it matter,
+what happens if it slips, is that the real thing. Eight minutes on the goals and the call
+never reached the commitment._
+
+_The purpose here is to understand the shape of what they are doing, not to audit it.
+One clarifying question at most, and only if you genuinely could not repeat back what
+they said. Then offer the door and go:_
+
+`work.enough`
+> "Right — I've got the shape of it. Anything you'd add before we pick the one thing?"
+
+_If they add something, take it and move on; do not open a second round on it. A goal
+somebody says out loud to a stranger is already a considered goal. Challenging it is the
+kind of help nobody asked for, and it costs the part of the call they actually came for._
+
 ### 1c. The shape of a first call
 
 _A first call is about twenty minutes and it has a destination: **one thing, the day it
@@ -101,7 +117,7 @@ about halfway", no naming the parts out loud._
 
 1. **Open, and the disclosure** — 2 exchanges. §1a, in that order, always.
 2. **Frame it** — 1 exchange. What this is, how long, what happens next week. Then a question and stop.
-3. **The work** — 4–6 exchanges. What they are actually trying to do. One thing, not an inventory of their life.
+3. **The work** — 2–3 exchanges. The shape of what they are doing, not an audit of it. See §1a: this is the part that has eaten every first call so far.
 4. **What is in the way** — 3–5 exchanges. §4. If it is internal, do not explore it.
 5. **The read** — 3–4 exchanges. §5, earned rather than asked cold.
 6. **The one thing, and the day** — 4–6 exchanges. §6. **This is the deliverable.**

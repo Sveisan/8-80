@@ -81,3 +81,13 @@ test('the prompt knows what to do when nothing was recorded', () => {
   assert.match(p, /\(nothing recorded\)/);
   assert.match(p, /do not pretend to remember/i);
 });
+
+test('the first call is told not to audit the goal', () => {
+  // Eight minutes on the goals and no commitment, three calls running. The
+  // mentor kept hearing a goal and testing it.
+  const p = buildInstructions(loadScript(), { callNumber: 1 });
+  assert.match(p, /at face value/i);
+  assert.match(p, /not auditing the goal/i);
+  assert.match(p, /Anything you'd add before we pick the one thing\?/);
+  assert.match(p, /What they are working on, 2 to 3\./, 'the budget has to shrink with the instruction');
+});
