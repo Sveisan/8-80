@@ -2,6 +2,7 @@ import { log } from './log.ts';
 import { openDeps } from './control.ts';
 import { tick } from './loop/tick.ts';
 import { sweep } from './loop/sweep.ts';
+import { beat } from './schedule/scheduler.ts';
 
 /**
  * One tick, then exit. Meant for cron:
@@ -24,6 +25,16 @@ try {
   // Cheap because the column is indexed and almost every run deletes nothing.
   const pruned = (await deps.deliveries?.prune()) ?? 0;
   if (result.claimed || closed || pruned) log('tick.summary', { ...result, swept: closed, pruned });
+
+  // Always, including the quiet runs. A tick logs only when it claims a call,
+  // so "running and nothing was due" and "stopped three hours ago" leave
+  // identical evidence in the journal — which cost an evening of guessing
+  // before this row existed.
+  await beat(
+    deps.store.raw,
+    'tick',
+    result.claimed ? `claimed ${result.claimed}, placed ${result.placed}, failed ${result.failed}` : undefined,
+  );
 } finally {
   await deps.store.close();
 }

@@ -3,6 +3,7 @@ import { PostgresStore } from './store/postgres.ts';
 import { Deliveries } from './webhook/deliveries.ts';
 import { hasKey } from './store/crypto.ts';
 import { FEATURE_GROUPS } from './preflight.ts';
+import { heartbeats } from './schedule/scheduler.ts';
 
 /**
  * npm run doctor — what the system knows about itself, on one screen.
@@ -99,6 +100,26 @@ try {
     console.log(`  call #${c.call_number}  ${slot}${c.paused ? '  (paused)' : ''}`);
     console.log(`      next: ${c.next_call_at?.toISOString() ?? 'never'}`);
   }
+  });
+
+  await section('BACKGROUND JOBS', async () => {
+    const beats = await heartbeats(store.raw);
+    if (!beats.length) {
+      console.log('  Nothing has reported yet. One tick after deploying is enough.');
+      return;
+    }
+    for (const b of beats) {
+      const mins = Math.round((Date.now() - b.at.getTime()) / 60_000);
+      // The tick runs every minute. Anything past a few means the scheduler has
+      // stopped — which is silent everywhere else you could think to look,
+      // because a tick with nothing to do logs nothing at all.
+      const ok = b.job !== 'tick' || mins < 5;
+      check(
+        ok,
+        `${b.job} last ran ${mins < 1 ? 'under a minute' : `${mins} minutes`} ago`,
+        ok ? (b.note ?? undefined) : 'It should run every minute. Check: systemctl status 8and80-tick.timer',
+      );
+    }
   });
 
   let attempts: { scheduled_for: Date; status: string; duration_ms: number | null; note: string | null; sms_sent_at: Date | null }[] = [];

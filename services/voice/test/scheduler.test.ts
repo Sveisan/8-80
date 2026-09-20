@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import postgres from 'postgres';
 import { PostgresStore, phoneKey } from '../src/store/postgres.ts';
 import { openTestDb } from './helpers/db.ts';
-import { Scheduler, UnknownCaller } from '../src/schedule/scheduler.ts';
+import { beat, heartbeats, Scheduler, UnknownCaller } from '../src/schedule/scheduler.ts';
 import type { Slot } from '../src/schedule/time.ts';
 
 
@@ -23,7 +23,7 @@ after(async () => {
 });
 
 beforeEach(async () => {
-  if (sql) await sql`truncate table callers, call_attempts`;
+  if (sql) await sql`truncate table callers, call_attempts, heartbeats`;
   process.env['DATA_ENCRYPTION_KEY'] = KEY;
 });
 
@@ -168,4 +168,26 @@ test('enrolling then setting a slot leaves somebody actually due', { skip: skip(
   await (sched as Scheduler).setSlot('+4790000098', OSLO, new Date('2026-09-07T10:00:00Z'));
   const claims = await (sched as Scheduler).claimDue(new Date('2026-09-08T06:00:00Z'));
   assert.equal(claims.length, 1, 'a slot that was set must produce a call');
+});
+
+test('the tick leaves a pulse even on a quiet run', { skip: skip() }, async () => {
+  // A tick logs only when it claims a call, so "running, nothing due" and
+  // "stopped three hours ago" left identical evidence. This is the difference.
+  await beat(sql as NonNullable<typeof sql>, 'tick');
+  const [first] = await heartbeats(sql as NonNullable<typeof sql>);
+  assert.equal(first?.job, 'tick');
+  assert.ok(Date.now() - (first?.at.getTime() ?? 0) < 5_000);
+
+  await beat(sql as NonNullable<typeof sql>, 'tick', 'claimed 1, placed 1, failed 0');
+  const all = await heartbeats(sql as NonNullable<typeof sql>);
+  assert.equal(all.length, 1, 'one row per job, overwritten');
+  assert.equal(all[0]?.note, 'claimed 1, placed 1, failed 0');
+});
+
+test('a heartbeat that cannot be written never fails the tick', { skip: skip() }, async () => {
+  // The thing it exists to reassure you about is the thing it would break.
+  const onFire = (() => {
+    throw new Error('database is on fire');
+  }) as unknown as typeof sql;
+  await beat(onFire as NonNullable<typeof sql>, 'tick');
 });

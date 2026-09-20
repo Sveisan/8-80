@@ -266,3 +266,27 @@ export class Scheduler {
     return rows.map((r) => ({ id: r.id, phoneHash: r.phone_hash, status: r.status }));
   }
 }
+
+/**
+ * Record that a background job just ran.
+ *
+ * Never throws: a heartbeat that can fail a tick is worse than no heartbeat,
+ * since the thing it exists to reassure you about is the thing it would break.
+ */
+export async function beat(sql: postgres.Sql, job: string, note?: string): Promise<void> {
+  try {
+    await sql`
+      insert into heartbeats (job, at, note) values (${job}, now(), ${note ?? null})
+      on conflict (job) do update set at = now(), note = ${note ?? null}
+    `;
+  } catch (e) {
+    log('heartbeat.not_written', { job, reason: (e as Error).message });
+  }
+}
+
+/** When each job last ran, most recent first. */
+export async function heartbeats(sql: postgres.Sql): Promise<{ job: string; at: Date; note: string | null }[]> {
+  return await sql<{ job: string; at: Date; note: string | null }[]>`
+    select job, at, note from heartbeats order by at desc
+  `;
+}

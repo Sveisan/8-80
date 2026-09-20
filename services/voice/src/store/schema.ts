@@ -187,3 +187,24 @@ export const webhookDeliveries = pgTable(
 );
 
 export type WebhookDeliveryRow = typeof webhookDeliveries.$inferSelect;
+
+/**
+ * When each background job last ran. One row per job, overwritten.
+ *
+ * Because "the scheduler is running and nothing was due" and "the scheduler
+ * stopped three hours ago" produced identical evidence: the tick logs only when
+ * it claims a call, so a quiet minute and a dead timer look the same in the
+ * journal. That ambiguity cost an evening of guessing, twice.
+ *
+ * A row rather than a log line, so the question "is it alive" has an answer
+ * that can be read at any time rather than inferred from an absence.
+ */
+export const heartbeats = pgTable('heartbeats', {
+  /** 'tick', and whatever else grows its own schedule. */
+  job: text('job').primaryKey(),
+  at: timestamp('at', { withTimezone: true }).notNull().defaultNow(),
+  /** What it did, for the run that did something. Never anything a caller said. */
+  note: text('note'),
+});
+
+export type HeartbeatRow = typeof heartbeats.$inferSelect;
