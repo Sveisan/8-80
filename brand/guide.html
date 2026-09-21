@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>8&amp;80 — brand guide</title>
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<style>
+@font-face { font-family:"Bricolage Grotesque"; src:url("fonts/BricolageGrotesque.woff2") format("woff2"); font-weight:200 800; font-display:swap; }
+:root { --gold:#E2B653; --green:#4A6656; --night:#16211B; --deep:#243A30; --chalk:#F4F1E8; --mist:#ECF0EA;
+  --bg:#16211B; --surface:#1E2C24; --ink:#F4F1E8; --soft:#AEB9B1; --accent:#E2B653; --rule:#2A3A31;
+  --font:"Bricolage Grotesque","Helvetica Neue",Arial,sans-serif; --gutter:clamp(20px,5vw,72px);
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px); }
+*,*::before,*::after { box-sizing:border-box; }
+html { background:var(--bg); }
+body { margin:0; background:var(--bg); color:var(--ink); font-family:var(--font); font-size:17px; line-height:1.55; -webkit-font-smoothing:antialiased; }
+.wrap { max-width:1180px; margin:0 auto; padding:0 var(--gutter); }
+section { padding:clamp(56px,8vw,112px) 0; border-top:1px solid var(--rule); }
+section.alt { background:var(--surface); }
+.num-label { color:var(--accent); font-weight:700; font-size:15px; margin:0 0 10px; }
+h1 { font-size:clamp(48px,8vw,112px); line-height:.95; letter-spacing:-.035em; margin:0; font-weight:800; font-variation-settings:"opsz" 96; }
+h2 { font-size:clamp(32px,4vw,52px); line-height:1.05; letter-spacing:-.02em; margin:0 0 16px; font-weight:700; font-variation-settings:"opsz" 72; }
+h3 { font-size:21px; margin:0 0 6px; }
+p.lede { color:var(--soft); max-width:44em; margin:0 0 40px; font-size:19px; }
+.soft { color:var(--soft); }
+.cover { border:0; padding-top:clamp(64px,10vw,140px); }
+.cover .row { display:grid; grid-template-columns:1fr auto; gap:40px; align-items:center; }
+.cover .m { width:clamp(180px,26vw,340px); height:auto; }
+.cover p { font-size:clamp(19px,2vw,24px); color:var(--soft); max-width:30em; margin:28px 0 0; }
+.m { width:120px; height:120px; }
+.cols { display:grid; grid-template-columns:repeat(3,1fr); gap:clamp(20px,3vw,40px); }
+.cols p { margin:0; color:var(--soft); }
+.big-pair { display:grid; grid-template-columns:1fr 1fr; gap:24px; }
+.tile { border-radius:18px; padding:40px; display:grid; place-items:center; min-height:280px; }
+.tile .m { width:200px; height:200px; }
+.spec { display:grid; grid-template-columns:repeat(3,1fr); gap:24px; margin-top:24px; }
+.spec div { border-top:1px solid var(--rule); padding-top:14px; } .spec b { display:block; font-size:21px; }
+.grounds { display:grid; grid-template-columns:repeat(5,1fr); gap:14px; }
+figure { margin:0; } figcaption { font-size:14px; color:var(--soft); margin-top:8px; }
+.g { border-radius:14px; aspect-ratio:1; display:grid; place-items:center; position:relative; }
+.g .m { width:56%; height:56%; }
+.g .tiny { position:absolute; bottom:10px; font-size:12px; color:var(--soft); }
+.rule-big { font-size:clamp(28px,3.4vw,44px); font-weight:700; letter-spacing:-.02em; margin:0 0 36px; color:var(--accent); }
+.bad .g::after { content:""; position:absolute; top:12px; right:12px; width:22px; height:22px; border-radius:50%;
+  background:#E8876A; -webkit-mask: linear-gradient(45deg,transparent 44%,#000 44% 56%,transparent 56%),linear-gradient(-45deg,transparent 44%,#000 44% 56%,transparent 56%); mask: linear-gradient(45deg,transparent 44%,#000 44% 56%,transparent 56%),linear-gradient(-45deg,transparent 44%,#000 44% 56%,transparent 56%); }
+.bad { display:grid; grid-template-columns:repeat(6,1fr); gap:14px; }
+.swatches { display:grid; grid-template-columns:repeat(6,1fr); gap:14px; }
+.chip { border-radius:14px; aspect-ratio:1/1.1; padding:16px; display:flex; flex-direction:column; justify-content:flex-end; border:1px solid var(--rule); }
+.chip b { font-size:19px; } .chip span { font-size:14px; opacity:.85; }
+.sw p { font-size:14px; color:var(--soft); margin:10px 0 0; }
+table { width:100%; border-collapse:collapse; margin-top:36px; font-size:16px; }
+th, td { text-align:left; padding:12px 14px 12px 0; border-bottom:1px solid var(--rule); vertical-align:middle; }
+th { font-size:14px; color:var(--soft); font-weight:600; }
+td.num { font-weight:700; white-space:nowrap; } td.ok { color:var(--accent); font-weight:700; } td.no { color:#E8876A; font-weight:700; }
+.demo { display:inline-grid; place-items:center; width:48px; height:36px; border-radius:8px; font-weight:700; font-size:18px; }
+.type-hero { font-size:clamp(64px,10vw,150px); line-height:.9; font-weight:800; letter-spacing:-.04em; font-variation-settings:"opsz" 96; margin:0 0 28px; }
+.scale { display:grid; gap:14px; margin-top:28px; }
+.scale div { display:grid; grid-template-columns:120px 1fr; align-items:baseline; gap:20px; border-bottom:1px solid var(--rule); padding-bottom:12px; }
+.scale span { color:var(--soft); font-size:14px; }
+.vp { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
+.vp > div { border-radius:14px; padding:18px 20px; font-size:18px; }
+.vp span { display:block; font-size:13px; font-weight:700; margin-bottom:4px; }
+.yes { background:var(--surface); border:1px solid var(--rule); } .yes span { color:var(--accent); }
+.nope { background:transparent; border:1px dashed var(--rule); color:var(--soft); text-decoration:line-through; text-decoration-color:rgba(232,135,106,.7); }
+.nope span { color:#E8876A; text-decoration:none; display:block; }
+ul.rules { margin:0; padding:0 0 0 20px; color:var(--soft); columns:2; column-gap:48px; } ul.rules li { margin:0 0 8px; break-inside:avoid; }
+.orb-stage { display:grid; grid-template-columns:auto 1fr; gap:48px; align-items:center; }
+#orb { color:var(--chalk); display:grid; place-items:center; }
+.states { display:flex; flex-wrap:wrap; gap:8px; margin:20px 0 26px; }
+.states button { font:inherit; font-size:15px; font-weight:600; background:var(--surface); color:var(--ink); border:1px solid var(--rule); padding:9px 16px; border-radius:999px; cursor:pointer; }
+.states button[aria-pressed="true"] { background:var(--gold); color:var(--night); border-color:transparent; }
+.states button:focus-visible { outline:3px solid var(--gold); outline-offset:3px; }
+.stt { display:grid; gap:0; } .stt div { display:grid; grid-template-columns:130px 1fr; gap:20px; padding:12px 0; border-bottom:1px solid var(--rule); }
+.stt b { color:var(--accent); } .stt span { color:var(--soft); }
+.shot { border-radius:14px; overflow:hidden; border:1px solid var(--rule); background:#fff; }
+.shot img { width:100%; height:auto; display:block; }
+.apps { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+.files { display:grid; grid-template-columns:repeat(2,1fr); gap:0 48px; }
+.files div { display:grid; grid-template-columns:220px 1fr; gap:16px; padding:10px 0; border-bottom:1px solid var(--rule); font-size:15px; }
+.files code { color:var(--accent); font-size:14px; }
+code { font-family:ui-monospace,Menlo,monospace; }
+@media (max-width:860px) {
+  .cover .row, .big-pair, .cols, .apps, .orb-stage, .files, .vp { grid-template-columns:1fr; }
+  .grounds, .swatches { grid-template-columns:repeat(3,1fr); } .bad { grid-template-columns:repeat(2,1fr); }
+  .spec { grid-template-columns:1fr; } ul.rules { columns:1; }
+}
+</style>
+</head>
+<body>
+
+<section class="cover"><div class="wrap row">
+  <div><h1>8&amp;80<br>brand guide</h1>
+  <p>A weekly phone call with the two people who know you best — who you were at eight, and who you'll be at eighty.</p></div>
+  <svg class="m" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="8&amp;80"><title>8&amp;80</title><circle cx="200" cy="200" r="190" fill="#E2B653"/><g transform="translate(200,200) scale(0.5342) translate(-111.0,-138.1)"><ellipse cx="0" cy="70" rx="62" ry="56" fill="none" stroke="#4A6656" stroke-width="34" transform="rotate(18 0 250)"/><ellipse cx="0" cy="184" rx="74" ry="66" fill="none" stroke="#4A6656" stroke-width="34" transform="rotate(18 0 250)"/><ellipse cx="222" cy="70" rx="62" ry="56" fill="none" stroke="#4A6656" stroke-width="34" transform="rotate(-18 222 250)"/><ellipse cx="222" cy="184" rx="74" ry="66" fill="none" stroke="#4A6656" stroke-width="34" transform="rotate(-18 222 250)"/></g></svg>
+</div></section>
+
+<section class="alt"><div class="wrap">
+  <p class="num-label">01 The idea</p>
+  <h2>One ball. Two eights. Joined.</h2>
+  <p class="lede">Everything in the identity comes from three small ideas.</p>
+  <div class="cols">
+    <div><h3>The 8-ball</h3><p>The object that belongs to both ages — a kid's first pool table, a pub game at eighty. Recognisable from across a room.</p></div>
+    <div><h3>Two 8s, fused</h3><p>The 8-year-old and the 80-year-old, leaning in until they become one shape. Two of you, joined into one.</p></div>
+    <div><h3>Gold and green</h3><p>Gold is the child — sunlight, play. Green is the elder — calm, durable. The gold ball carries the green 88.</p></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <p class="num-label">02 The mark</p>
+  <h2>The primary mark</h2>
+  <p class="lede">A gold ball with a green 88, drawn at the proportion of a real pool ball's numeral. It works alone; the lockup adds the name where people don't know it yet.</p>
+  <div class="big-pair">
+    <div class="tile" style="background:var(--night)"><svg class="m" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="8&amp;80"><title>8&amp;80</title><circle cx="200" cy="200" r="190" fill="#E2B653"/><g transform="translate(200,200) scale(0.5342) translate(-111.0,-138.1)"><ellipse cx="0" cy="70" rx="62" ry="56" fill="none" stroke="#4A6656" stroke-width="34" transform="rotate(18 0 250)"/><ellipse cx="0" cy="184" rx="74" ry="66" fill="none" stroke="#4A6656" stroke-width="34" transform="rotate(18 0 250)"/><ellipse cx="222" cy="70" rx="62" ry="56" fill="none" stroke="#4A6656" stroke-width="34" transform="rotate(-18 222 250)"/><ellipse cx="222" cy="184" rx="74" ry="66" fill="none" stroke="#4A6656" stroke-width="34" transform="rotate(-18 222 250)"/></g></svg></div>
+    <div class="tile" style="background:var(--mist)"><svg style="width:100%;max-width:420px;height:auto" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1123 400" role="img" aria-label="8&amp;80"><title>8&amp;80</title><circle cx="200" cy="200" r="190" fill="#E2B653"/><g transform="translate(200,200) scale(0.5342) translate(-111.0,-138.1)"><ellipse cx="0" cy="70" rx="62" ry="56" fill="none" stroke="#4A6656" stroke-width="34" transform="rotate(18 0 250)"/><ellipse cx="0" cy="184" rx="74" ry="66" fill="none" stroke="#4A6656" stroke-width="34" transform="rotate(18 0 250)"/><ellipse cx="222" cy="70" rx="62" ry="56" fill="none" stroke="#4A6656" stroke-width="34" transform="rotate(-18 222 250)"/><ellipse cx="222" cy="184" rx="74" ry="66" fill="none" stroke="#4A6656" stroke-width="34" transform="rotate(-18 222 250)"/></g><g fill="#243A30" transform="translate(464,288) scale(0.2550,-0.2550) translate(0,15)"><path transform="translate(0,0)" d="M316.82796631008387 -14.828520856797695Q233.4852887839079 -14.828520856797695 170.7996677942574 5.171479143202305Q108.11404680460691 25.171479143202305 73.28551112487912 66.22859322652221Q38.45697544515133 107.28570730984211 38.45697544515133 168.79993198812008Q38.45697544515133 215.25705566257238 57.88557913526893 249.15707920491695Q77.31418282538652 283.0571027472615 113.64284406229854 304.21428222581744Q149.97150529921055 325.37146170437336 200.54310651123524 330.8857753202319V338.5714407786727L316.82796631008387 360.0282941535115L433.3699358329177 338.8000191822648V331.00006452202797Q482.85578090697527 326.2000767290592 519.2844482474029 305.71433018147945Q555.7131155878305 285.2285836338997 575.5131809823215 250.84284231811762Q595.3132463768125 216.45710100233555 595.3132463768125 168.79993198812008Q595.3132463768125 107.19998430460691 560.4847106970847 66.18573172390461Q525.6561750173569 25.171479143202305 463.18484846130013 5.171479143202305Q400.7135219052434 -14.828520856797695 316.82796631008387 -14.828520856797695ZM318.17083217203617 101.99911760538816Q340.2280517593026 101.99911760538816 363.59961635246873 106.47055228054523Q386.97118094563484 110.9419869557023 407.2856175042689 120.9134521484375Q427.6000540629029 130.8849173411727 440.3430027589202 147.97073189914227Q453.08595145493746 165.05654645711184 453.08595145493746 190.97100481390953Q453.08595145493746 221.91409040242434 434.60008109360933 241.6428519114852Q416.1142107322812 261.37161342054605 385.2997297048569 270.7146022245288Q354.48524867743254 280.0575910285115 316.82796631008387 280.0575910285115Q279.4849853515625 280.0575910285115 248.84192068874836 270.8146083280444Q218.19885602593422 261.5716256275773 200.29869559034705 242.22857578843832Q182.39853515475988 222.88552594929934 182.39853515475988 191.82815115898848Q182.39853515475988 166.82796979695559 194.8557782843709 149.5135942734778Q207.31302141398191 132.19921875 227.57031337171793 121.62774745374918Q247.82760532945395 111.05627615749836 271.64202532172203 106.52769688144326Q295.4564453139901 101.99911760538816 318.17083217203617 101.99911760538816ZM316.6279541030526 384.51398053765297Q346.199546597898 384.51398053765297 371.38547276332974 393.15692748874426Q396.5713989287615 401.79987443983555 411.97155936434865 421.01432233303785Q427.3717197999358 440.22877022624016 427.3717197999358 471.2289794906974Q427.3717197999358 496.1148385182023 417.00019967556 512.9149309433997Q406.6286795511842 529.715023368597 389.91424909606576 539.7722124382854Q373.19981864094734 549.8294015079737 353.628225274384 554.1865644194186Q334.0566319078207 558.5437273308635 315.97078508883715 558.5437273308635Q290.68489990383387 558.5437273308635 265.55611833930016 550.5151175372303Q240.42733677476645 542.486507743597 223.67004481703043 523.7149806432426Q206.91275285929441 504.94345354288816 206.91275285929441 472.4575578942895Q206.91275285929441 441.20020577311516 221.9272016249597 421.6429077126086Q236.941650390625 402.085609652102 262.18472115695477 393.2997950948775Q287.42779192328453 384.51398053765297 316.6279541030526 384.51398053765297ZM316.82796631008387 299.057468958199 200.54310651123524 328.77148611843586V340.5142874568701Q155.00022844225168 348.25714460015297 123.84298356994987 366.9142918176949Q92.68573869764805 385.57143903523684 77.25705566257238 416.4571803510189Q61.82837262749672 447.342921666801 61.82837262749672 489.4859026223421Q61.82837262749672 552.2572038918734 94.35689086839557 593.4857177734375Q126.88540910929441 634.7142316550016 184.12817469984293 654.9856541231275Q241.37094029039145 675.2570765912533 316.5707972943783 675.2570765912533Q394.5992675796151 675.2570765912533 451.7706054709852 654.0142194479704Q508.94194336235523 632.7713623046875 540.241883199662 591.4571088515222Q571.5418230369687 550.1428553983569 571.5418230369687 489.11444440484047Q571.5418230369687 429.0857526510954 538.5844996906817 391.01429879292846Q505.6271763443947 352.9428449347615 433.3699358329177 340.5142874568701V329.4571864530444Z"/><path transform="translate(622,0)" d="M547.3422119021416 -13.942841447889805Q493.885091714561 -13.942841447889805 443.41373202577233 11.171489607542753Q392.9423723369837 36.28582066297531 347.7138994373381 79.08586426079273Q302.48542653769255 121.88590785861015 265.24267053976655 175.0859619192779Q227.99991454184055 228.28601597994566 200.32858537137508 285.1717564240098Q172.65725620090961 342.05749686807394 157.8001674041152 395.75746634975076Q142.94307860732079 449.4574358314276 142.94307860732079 492.4001935720444Q142.94307860732079 541.0000854507089 163.600138630718 582.2714651934803Q184.2571986541152 623.5428449362516 227.9284633025527 649.2999712266028Q271.5997279509902 675.057097516954 339.6566423624754 675.057097516954Q402.8278442323208 675.057097516954 444.85625522583723 653.3571166992188Q486.8846662193537 631.6571358814836 508.2845833860338 596.8286158964038Q529.6845005527139 562.000095911324 529.6845005527139 521.7144845128059Q529.6845005527139 485.3429042249918 510.4843505807221 452.3427472785115Q491.2842006087303 419.34259033203125 450.8125531822443 392.7567260749638Q410.3409057557583 366.17086181789637 345.1121529638767 347.85647670179605L332.91206577420235 378.371414616704Q366.1989292651415 406.02867256850004 384.0708356536925 435.4859444722533Q401.9427420422435 464.9432163760066 401.9427420422435 497.25776366889477Q401.9427420422435 524.8007882237434 387.9854073598981 544.6865103580058Q374.0280726775527 564.5722324922681 342.99944718927145 564.5722324922681Q321.4564174041152 564.5722324922681 308.156306669116 554.4721217565238Q294.85619593411684 544.3720110207796 288.9275913722813 528.1004342213273Q282.9989868104458 511.828857421875 282.9989868104458 492.45733119547367Q282.9989868104458 466.0858328714967 293.99897373095155 427.25715593993664Q304.9989606514573 388.4284790083766 324.1560982763767 344.428357809782Q343.31323590129614 300.42823661118746 368.5132359005511 257.67096034809947Q393.713235899806 214.91368408501148 422.6132454909384 179.8421543687582Q451.5132550820708 144.77062465250492 481.8133030384779 123.68484235554934Q512.113350994885 102.59906005859375 540.6848789677024 102.59906005859375Q562.542210161686 102.59906005859375 574.6994602680206 114.45636073499918Q586.8567103743553 126.31366141140461 586.8567103743553 144.34242989867926Q586.8567103743553 164.37117920070887 571.4423243887722 185.4856227338314Q556.0279384031892 206.60006626695395 524.956263076514 224.343017578125Q493.88458774983883 242.08596888929605 445.96984688937664 249.51452113687992V353.57086530327797H682.0271588936448V250.60007149726152L507.8272827118635 278.1142822280526V262.6573137566447Q607.1127441376448 244.48592529445887 655.8271022215486 208.25721174106002Q704.5414603054523 172.02849818766117 704.5414603054523 111.05696672946215Q704.5414603054523 73.14287807047367 688.0701825767756 48.528652518987656Q671.5989048480988 23.91442696750164 646.4419442228973 10.414396449923515Q621.2849835976958 -3.0856340676546097 594.6136465780437 -8.514237757772207Q567.9423095583916 -13.942841447889805 547.3422119021416 -13.942841447889805ZM190.11433279514313 -14.199951171875Q141.05719865858555 -14.199951171875 101.91439383104444 4.014391217380762Q62.77158900350332 22.228733606636524 40.44305593892932 56.9430585578084Q18.114522874355316 91.65738350898027 18.114522874355316 140.80020228773355Q18.114522874355316 186.37136579304934 36.52862722799182 218.8284737728536Q54.94273158162832 251.2855817526579 83.81397268921137 272.528564453125Q112.68521379679441 293.7715471535921 144.92803955078125 306.1860229484737Q177.17086530476809 318.6004987433553 204.57119838148355 323.8006626665592L215.9429268911481 290.1714285761118Q183.685391664505 267.8286603689194 166.8851109035313 238.77141549438238Q150.08483014255762 209.7141706198454 150.08483014255762 179.59960763156414Q150.08483014255762 148.77103096991777 165.37053309381008 125.65669555589557Q180.65623604506254 102.54236014187336 206.884842351079 90.14230172336102Q233.11344865709543 77.74224330484867 265.2850254550576 77.74224330484867Q289.71379045397043 77.74224330484867 308.7424107119441 86.29949253797531Q327.7710309699178 94.85674177110195 344.59956054389477 109.45683942735195L359.7424333766103 77.657142855227H343.8568969666958Q331.4284301698208 49.457249231636524 310.199927624315 28.81439470499754Q288.97142507880926 8.171540178358555 259.17145036533475 -3.0142054967582226Q229.37147565186024 -14.199951171875 190.11433279514313 -14.199951171875Z"/><path transform="translate(1337,0)" d="M316.82796631008387 -14.828520856797695Q233.4852887839079 -14.828520856797695 170.7996677942574 5.171479143202305Q108.11404680460691 25.171479143202305 73.28551112487912 66.22859322652221Q38.45697544515133 107.28570730984211 38.45697544515133 168.79993198812008Q38.45697544515133 215.25705566257238 57.88557913526893 249.15707920491695Q77.31418282538652 283.0571027472615 113.64284406229854 304.21428222581744Q149.97150529921055 325.37146170437336 200.54310651123524 330.8857753202319V338.5714407786727L316.82796631008387 360.0282941535115L433.3699358329177 338.8000191822648V331.00006452202797Q482.85578090697527 326.2000767290592 519.2844482474029 305.71433018147945Q555.7131155878305 285.2285836338997 575.5131809823215 250.84284231811762Q595.3132463768125 216.45710100233555 595.3132463768125 168.79993198812008Q595.3132463768125 107.19998430460691 560.4847106970847 66.18573172390461Q525.6561750173569 25.171479143202305 463.18484846130013 5.171479143202305Q400.7135219052434 -14.828520856797695 316.82796631008387 -14.828520856797695ZM318.17083217203617 101.99911760538816Q340.2280517593026 101.99911760538816 363.59961635246873 106.47055228054523Q386.97118094563484 110.9419869557023 407.2856175042689 120.9134521484375Q427.6000540629029 130.8849173411727 440.3430027589202 147.97073189914227Q453.08595145493746 165.05654645711184 453.08595145493746 190.97100481390953Q453.08595145493746 221.91409040242434 434.60008109360933 241.6428519114852Q416.1142107322812 261.37161342054605 385.2997297048569 270.7146022245288Q354.48524867743254 280.0575910285115 316.82796631008387 280.0575910285115Q279.4849853515625 280.0575910285115 248.84192068874836 270.8146083280444Q218.19885602593422 261.5716256275773 200.29869559034705 242.22857578843832Q182.39853515475988 222.88552594929934 182.39853515475988 191.82815115898848Q182.39853515475988 166.82796979695559 194.8557782843709 149.5135942734778Q207.31302141398191 132.19921875 227.57031337171793 121.62774745374918Q247.82760532945395 111.05627615749836 271.64202532172203 106.52769688144326Q295.4564453139901 101.99911760538816 318.17083217203617 101.99911760538816ZM316.6279541030526 384.51398053765297Q346.199546597898 384.51398053765297 371.38547276332974 393.15692748874426Q396.5713989287615 401.79987443983555 411.97155936434865 421.01432233303785Q427.3717197999358 440.22877022624016 427.3717197999358 471.2289794906974Q427.3717197999358 496.1148385182023 417.00019967556 512.9149309433997Q406.6286795511842 529.715023368597 389.91424909606576 539.7722124382854Q373.19981864094734 549.8294015079737 353.628225274384 554.1865644194186Q334.0566319078207 558.5437273308635 315.97078508883715 558.5437273308635Q290.68489990383387 558.5437273308635 265.55611833930016 550.5151175372303Q240.42733677476645 542.486507743597 223.67004481703043 523.7149806432426Q206.91275285929441 504.94345354288816 206.91275285929441 472.4575578942895Q206.91275285929441 441.20020577311516 221.9272016249597 421.6429077126086Q236.941650390625 402.085609652102 262.18472115695477 393.2997950948775Q287.42779192328453 384.51398053765297 316.6279541030526 384.51398053765297ZM316.82796631008387 299.057468958199 200.54310651123524 328.77148611843586V340.5142874568701Q155.00022844225168 348.25714460015297 123.84298356994987 366.9142918176949Q92.68573869764805 385.57143903523684 77.25705566257238 416.4571803510189Q61.82837262749672 447.342921666801 61.82837262749672 489.4859026223421Q61.82837262749672 552.2572038918734 94.35689086839557 593.4857177734375Q126.88540910929441 634.7142316550016 184.12817469984293 654.9856541231275Q241.37094029039145 675.2570765912533 316.5707972943783 675.2570765912533Q394.5992675796151 675.2570765912533 451.7706054709852 654.0142194479704Q508.94194336235523 632.7713623046875 540.241883199662 591.4571088515222Q571.5418230369687 550.1428553983569 571.5418230369687 489.11444440484047Q571.5418230369687 429.0857526510954 538.5844996906817 391.01429879292846Q505.6271763443947 352.9428449347615 433.3699358329177 340.5142874568701V329.4571864530444Z"/><path transform="translate(1959,0)" d="M315.6849870979786 -14Q251.59930071234703 -14 200.65655517578125 9.471480887383223Q149.71380963921547 32.942961774766445 114.29964163526893 76.91444266214967Q78.88547363132238 120.88592354953289 60.39984828233719 183.97160034254193Q41.914222933351994 247.05727713555098 41.914222933351994 325.9428362175822Q41.914222933351994 438.6569737046957 76.57121494784951 515.9284293055534Q111.22820696234703 593.1998849064112 173.88518415391445 633.2713753841817Q236.54216134548187 673.3428658619523 320.28496094048023 673.3428658619523Q405.3991873636842 673.3428658619523 466.5990260578692 632.6999337337911Q527.7988647520542 592.0570016056299 560.5701616629958 515.1712568029761Q593.3414585739374 438.28551200032234 593.3414585739374 329.28566720336676Q593.3414585739374 248.94302106648684 574.2987060621381 185.20021100714803Q555.2559535503387 121.45740094780922 518.9989528171718 77.20019792765379Q482.7419520840049 32.94299490749836 431.48490688204765 9.47149745374918Q380.2278616800904 -14 315.6849870979786 -14ZM319.084948733449 98.82773088663816Q347.3709926083684 98.82773088663816 371.3139822855592 111.81357247382402Q395.25697196274996 124.79941406100988 413.15699027478695 152.01387764886022Q431.05700858682394 179.22834123671055 440.91412092745304 221.8856288343668Q450.77123326808214 264.54291643202305 450.77123326808214 324.00006452202797Q450.77123326808214 400.22882428765297 434.999782897532 452.9432852603495Q419.22833252698183 505.65774623304605 389.6139282286167 533.2007132396102Q359.9995239302516 560.7436802461743 317.4564086943865 560.7436802461743Q281.2559692412615 560.7436802461743 250.97014770656824 537.172023229301Q220.684326171875 513.6003662124276 202.71294206753373 462.81443132832646Q184.74155796319246 412.0284964442253 184.74155796319246 328.7999564036727Q184.74155796319246 269.685642786324 194.5415422692895 226.51408952847123Q204.34152657538652 183.34253627061844 222.2701267786324 155.09952392429113Q240.19872698187828 126.85651157796383 264.81313302367926 112.842121232301Q289.42753906548023 98.82773088663816 319.084948733449 98.82773088663816Z"/></g></svg></div>
+  </div>
+  <div class="spec">
+    <div><b>38%</b><span class="soft">The 88 is 38% of the ball's diameter — like a pool ball's number.</span></div>
+    <div><b>Clear space</b><span class="soft">Keep a quarter of the ball's diameter empty on every side.</span></div>
+    <div><b>32px minimum</b><span class="soft">Below 32px, use <code>mark-small.svg</code> — the same drawing with a larger 88.</span></div>
+  </div>
+</div></section>
+
+<section class="alt"><div class="wrap">
+  <p class="num-label">03 Colourways</p>
+  <p class="rule-big">The ball never matches the ground.</p>
+  <div class="grounds"><figure><div class="g" style="background:#16211B"><svg class="m" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="8&amp;80"><title>8&amp;80</title><circle cx="200" cy="200" r="190" fill="#E2B653"/><g transform="translate(200,200) scale(0.5342) translate(-111.0,-138.1)"><ellipse cx="0" cy="70" rx="62" ry="56" fill="none" stroke="#4A6656" stroke-width="34" transform="rotate(18 0 250)"/><ellipse cx="0" cy="184" rx="74" ry="66" fill="none" stroke="#4A6656" stroke-width="34" transform="rotate(18 0 250)"/><ellipse cx="222" cy="70" rx="62" ry="56" fill="none" stroke="#4A6656" stroke-width="34" transform="rotate(-18 222 250)"/><ellipse cx="222" cy="184" rx="74" ry="66" fill="none" stroke="#4A6656" stroke-width="34" transform="rotate(-18 222 250)"/></g></svg></div><figcaption>Night</figcaption></figure><figure><div class="g" style="background:#4A6656"><svg class="m" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="8&amp;80"><title>8&amp;80</title><circle cx="200" cy="200" r="190" fill="#E2B653"/><g transform="translate(200,200) scale(0.5342) translate(-111.0,-138.1)"><ellipse cx="0" cy="70" rx="62" ry="56" fill="none" stroke="#4A6656" stroke-width="34" transform="rotate(18 0 250)"/><ellipse cx="0" cy="184" rx="74" ry="66" fill="none" stroke="#4A6656" stroke-width="34" transform="rotate(18 0 250)"/><ellipse cx="222" cy="70" rx="62" ry="56" fill="none" stroke="#4A6656" stroke-width="34" transform="rotate(-18 222 250)"/><ellipse cx="222" cy="184" rx="74" ry="66" fill="none" stroke="#4A6656" stroke-width="34" transform="rotate(-18 222 250)"/></g></svg></div><figcaption>Green</figcaption></figure><figure><div class="g" style="background:#ECF0EA"><svg class="m" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="8&amp;80"><title>8&amp;80</title><circle cx="200" cy="200" r="190" fill="#E2B653"/><g transform="translate(200,200) scale(0.5342) translate(-111.0,-138.1)"><ellipse cx="0" cy="70" rx="62" ry="56" fill="none" stroke="#4A6656" stroke-width="34" transform="rotate(18 0 250)"/><ellipse cx="0" cy="184" rx="74" ry="66" fill="none" stroke="#4A6656" stroke-width="34" transform="rotate(18 0 250)"/><ellipse cx="222" cy="70" rx="62" ry="56" fill="none" stroke="#4A6656" stroke-width="34" transform="rotate(-18 222 250)"/><ellipse cx="222" cy="184" rx="74" ry="66" fill="none" stroke="#4A6656" stroke-width="34" transform="rotate(-18 222 250)"/></g></svg></div><figcaption>Mist</figcaption></figure><figure><div class="g" style="background:#FFFFFF"><svg class="m" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="8&amp;80"><title>8&amp;80</title><circle cx="200" cy="200" r="190" fill="#E2B653"/><g transform="translate(200,200) scale(0.5342) translate(-111.0,-138.1)"><ellipse cx="0" cy="70" rx="62" ry="56" fill="none" stroke="#4A6656" stroke-width="34" transform="rotate(18 0 250)"/><ellipse cx="0" cy="184" rx="74" ry="66" fill="none" stroke="#4A6656" stroke-width="34" transform="rotate(18 0 250)"/><ellipse cx="222" cy="70" rx="62" ry="56" fill="none" stroke="#4A6656" stroke-width="34" transform="rotate(-18 222 250)"/><ellipse cx="222" cy="184" rx="74" ry="66" fill="none" stroke="#4A6656" stroke-width="34" transform="rotate(-18 222 250)"/></g></svg></div><figcaption>White</figcaption></figure><figure><div class="g" style="background:#E2B653"><svg class="m" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="8&amp;80"><title>8&amp;80</title><circle cx="200" cy="200" r="190" fill="#4A6656"/><g transform="translate(200,200) scale(0.5342) translate(-111.0,-138.1)"><ellipse cx="0" cy="70" rx="62" ry="56" fill="none" stroke="#E2B653" stroke-width="34" transform="rotate(18 0 250)"/><ellipse cx="0" cy="184" rx="74" ry="66" fill="none" stroke="#E2B653" stroke-width="34" transform="rotate(18 0 250)"/><ellipse cx="222" cy="70" rx="62" ry="56" fill="none" stroke="#E2B653" stroke-width="34" transform="rotate(-18 222 250)"/><ellipse cx="222" cy="184" rx="74" ry="66" fill="none" stroke="#E2B653" stroke-width="34" transform="rotate(-18 222 250)"/></g></svg></div><figcaption>Gold — ball flips to green</figcaption></figure></div>
+  <p class="soft" style="margin-top:28px;max-width:44em">On gold, the ball turns green and the 88 turns gold. When you want a quiet version — a watermark, an embossed card — let the ball match the ground on purpose, and only the 88 remains.</p>
+</div></section>
+
+<section><div class="wrap">
+  <p class="num-label">04 Don't</p>
+  <h2>Six ways to break it</h2>
+  <div class="bad" style="margin-top:32px"><figure><div class="g" style="background:#E2B653"><svg class="m" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="8&amp;80"><title>8&amp;80</title><circle cx="200" cy="200" r="190" fill="#E2B653"/><g transform="translate(200,200) scale(0.5342) translate(-111.0,-138.1)"><ellipse cx="0" cy="70" rx="62" ry="56" fill="none" stroke="#4A6656" stroke-width="34" transform="rotate(18 0 250)"/><ellipse cx="0" cy="184" rx="74" ry="66" fill="none" stroke="#4A6656" stroke-width="34" transform="rotate(18 0 250)"/><ellipse cx="222" cy="70" rx="62" ry="56" fill="none" stroke="#4A6656" stroke-width="34" transform="rotate(-18 222 250)"/><ellipse cx="222" cy="184" rx="74" ry="66" fill="none" stroke="#4A6656" stroke-width="34" transform="rotate(-18 222 250)"/></g></svg></div><figcaption>Gold ball on a gold ground</figcaption></figure><figure><div class="g" style="background:#16211B"><svg class="m" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="8&amp;80"><title>8&amp;80</title><circle cx="200" cy="200" r="190" fill="#E2B653"/><g transform="translate(200,200) scale(0.5342) translate(-111.0,-138.1)"><ellipse cx="0" cy="70" rx="62" ry="56" fill="none" stroke="#E2B653" stroke-width="34" transform="rotate(18 0 250)"/><ellipse cx="0" cy="184" rx="74" ry="66" fill="none" stroke="#E2B653" stroke-width="34" transform="rotate(18 0 250)"/><ellipse cx="222" cy="70" rx="62" ry="56" fill="none" stroke="#E2B653" stroke-width="34" transform="rotate(-18 222 250)"/><ellipse cx="222" cy="184" rx="74" ry="66" fill="none" stroke="#E2B653" stroke-width="34" transform="rotate(-18 222 250)"/></g></svg></div><figcaption>Recolouring the 88</figcaption></figure><figure><div class="g" style="background:#16211B"><svg class="m" style="transform:scaleX(1.35)" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="8&amp;80"><title>8&amp;80</title><circle cx="200" cy="200" r="190" fill="#E2B653"/><g transform="translate(200,200) scale(0.5342) translate(-111.0,-138.1)"><ellipse cx="0" cy="70" rx="62" ry="56" fill="none" stroke="#4A6656" stroke-width="34" transform="rotate(18 0 250)"/><ellipse cx="0" cy="184" rx="74" ry="66" fill="none" stroke="#4A6656" stroke-width="34" transform="rotate(18 0 250)"/><ellipse cx="222" cy="70" rx="62" ry="56" fill="none" stroke="#4A6656" stroke-width="34" transform="rotate(-18 222 250)"/><ellipse cx="222" cy="184" rx="74" ry="66" fill="none" stroke="#4A6656" stroke-width="34" transform="rotate(-18 222 250)"/></g></svg></div><figcaption>Stretching</figcaption></figure><figure><div class="g" style="background:#16211B"><svg class="m" style="transform:rotate(-24deg)" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="8&amp;80"><title>8&amp;80</title><circle cx="200" cy="200" r="190" fill="#E2B653"/><g transform="translate(200,200) scale(0.5342) translate(-111.0,-138.1)"><ellipse cx="0" cy="70" rx="62" ry="56" fill="none" stroke="#4A6656" stroke-width="34" transform="rotate(18 0 250)"/><ellipse cx="0" cy="184" rx="74" ry="66" fill="none" stroke="#4A6656" stroke-width="34" transform="rotate(18 0 250)"/><ellipse cx="222" cy="70" rx="62" ry="56" fill="none" stroke="#4A6656" stroke-width="34" transform="rotate(-18 222 250)"/><ellipse cx="222" cy="184" rx="74" ry="66" fill="none" stroke="#4A6656" stroke-width="34" transform="rotate(-18 222 250)"/></g></svg></div><figcaption>Rotating</figcaption></figure><figure><div class="g" style="background:#ECF0EA"><svg class="m" style="filter:drop-shadow(0 12px 14px rgba(0,0,0,.55))" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="8&amp;80"><title>8&amp;80</title><circle cx="200" cy="200" r="190" fill="#E2B653"/><g transform="translate(200,200) scale(0.5342) translate(-111.0,-138.1)"><ellipse cx="0" cy="70" rx="62" ry="56" fill="none" stroke="#4A6656" stroke-width="34" transform="rotate(18 0 250)"/><ellipse cx="0" cy="184" rx="74" ry="66" fill="none" stroke="#4A6656" stroke-width="34" transform="rotate(18 0 250)"/><ellipse cx="222" cy="70" rx="62" ry="56" fill="none" stroke="#4A6656" stroke-width="34" transform="rotate(-18 222 250)"/><ellipse cx="222" cy="184" rx="74" ry="66" fill="none" stroke="#4A6656" stroke-width="34" transform="rotate(-18 222 250)"/></g></svg></div><figcaption>Shadows or effects</figcaption></figure><figure><div class="g" style="background:#16211B"><svg class="m" style="width:22px;height:22px" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="8&amp;80"><title>8&amp;80</title><circle cx="200" cy="200" r="190" fill="#E2B653"/><g transform="translate(200,200) scale(0.7674) translate(-111.0,-138.1)"><ellipse cx="0" cy="70" rx="62" ry="56" fill="none" stroke="#4A6656" stroke-width="34" transform="rotate(18 0 250)"/><ellipse cx="0" cy="184" rx="74" ry="66" fill="none" stroke="#4A6656" stroke-width="34" transform="rotate(18 0 250)"/><ellipse cx="222" cy="70" rx="62" ry="56" fill="none" stroke="#4A6656" stroke-width="34" transform="rotate(-18 222 250)"/><ellipse cx="222" cy="184" rx="74" ry="66" fill="none" stroke="#4A6656" stroke-width="34" transform="rotate(-18 222 250)"/></g></svg><span class="tiny">mark.svg at 22px</span></div><figcaption>Primary below 32px — use mark-small</figcaption></figure></div>
+</div></section>
+
+<section class="alt"><div class="wrap">
+  <p class="num-label">05 Colour</p>
+  <h2>Six colours, two jobs each</h2>
+  <p class="lede">Dark is the default theme. Almost every habit app is pale and bright; 8&amp;80 is the quiet evening call.</p>
+  <div class="swatches">
+    <div class="sw"><div class="chip" style="background:#E2B653;color:#243A30"><b>Gold</b><span>#E2B653</span></div><p>The ball. Accent and buttons on dark.</p></div>
+    <div class="sw"><div class="chip" style="background:#4A6656;color:#F4F1E8"><b>Green</b><span>#4A6656</span></div><p>The 88. Accent and buttons on light.</p></div>
+    <div class="sw"><div class="chip" style="background:#16211B;color:#F4F1E8"><b>Night</b><span>#16211B</span></div><p>Dark ground — the default.</p></div>
+    <div class="sw"><div class="chip" style="background:#243A30;color:#F4F1E8"><b>Deep</b><span>#243A30</span></div><p>Body text on light.</p></div>
+    <div class="sw"><div class="chip" style="background:#F4F1E8;color:#243A30"><b>Chalk</b><span>#F4F1E8</span></div><p>Text on dark. Never a background.</p></div>
+    <div class="sw"><div class="chip" style="background:#ECF0EA;color:#243A30"><b>Mist</b><span>#ECF0EA</span></div><p>Light ground. Deliberately not cream.</p></div>
+  </div>
+  <table><thead><tr><th></th><th>Pair</th><th>Ratio</th><th>Use</th><th>AA</th></tr></thead><tbody><tr><td><span class="demo" style="background:#16211B;color:#F4F1E8">Aa</span></td><td>Chalk on night</td><td class="num">14.7 : 1</td><td>Body text, dark</td><td class="ok">Pass</td></tr><tr><td><span class="demo" style="background:#16211B;color:#E2B653">Aa</span></td><td>Gold on night</td><td class="num">8.7 : 1</td><td>Accents and buttons, dark</td><td class="ok">Pass</td></tr><tr><td><span class="demo" style="background:#16211B;color:#4A6656">Aa</span></td><td>Green on night</td><td class="num">2.6 : 1</td><td>Never text</td><td class="no">Fail</td></tr><tr><td><span class="demo" style="background:#ECF0EA;color:#243A30">Aa</span></td><td>Deep on mist</td><td class="num">10.6 : 1</td><td>Body text, light</td><td class="ok">Pass</td></tr><tr><td><span class="demo" style="background:#ECF0EA;color:#4A6656">Aa</span></td><td>Green on mist</td><td class="num">5.5 : 1</td><td>Headings, links, buttons, light</td><td class="ok">Pass</td></tr><tr><td><span class="demo" style="background:#ECF0EA;color:#E2B653">Aa</span></td><td>Gold on mist</td><td class="num">1.7 : 1</td><td>Never text</td><td class="no">Fail</td></tr><tr><td><span class="demo" style="background:#4A6656;color:#F4F1E8">Aa</span></td><td>Chalk on green</td><td class="num">5.6 : 1</td><td>Text on green panels</td><td class="ok">Pass</td></tr><tr><td><span class="demo" style="background:#E2B653;color:#243A30">Aa</span></td><td>Deep on gold</td><td class="num">6.4 : 1</td><td>Text on gold bands</td><td class="ok">Pass</td></tr><tr><td><span class="demo" style="background:#E2B653;color:#4A6656">Aa</span></td><td>Green 88 on gold ball</td><td class="num">3.3 : 1</td><td>Graphic — passes WCAG 3:1 for non-text</td><td class="ok">Pass</td></tr></tbody></table>
+</div></section>
+
+<section><div class="wrap">
+  <p class="num-label">06 Type</p>
+  <p class="type-hero">Bricolage Grotesque</p>
+  <p class="lede">One family for everything. Its optical-size axis does the work: heavy and tight for numbers, open and easy for reading. Self-hosted — never from Google Fonts.</p>
+  <div class="scale">
+    <div><span>72 · 700</span><b style="font-size:48px;line-height:1.05;letter-spacing:-.02em">The week you actually had.</b></div>
+    <div><span>36 · 700</span><b style="font-size:30px">What a call sounds like</b></div>
+    <div><span>21 · 700</span><b style="font-size:21px">Right after</b></div>
+    <div><span>18 · 400</span><span style="color:var(--ink);font-size:18px">A short recap lands in your inbox: what you talked about, and the one thing you said you'd do.</span></div>
+    <div><span>14 · 400</span><span>The first month is free, and we don't ask for a card.</span></div>
+  </div>
+</div></section>
+
+<section class="alt"><div class="wrap">
+  <p class="num-label">07 Voice</p>
+  <h2>A sharp friend who knows you well</h2>
+  <p class="lede">Not a coach, not a chatbot, not customer service. Understated, warm, occasionally funny — and serious the moment it needs to be.</p>
+  <div class="vp"><div class="yes"><span>Say</span>Last week you said you'd ring your dad. How did that go?</div><div class="nope"><span>Not</span>Great to hear from you again! Let's review your amazing progress!</div></div><div class="vp"><div class="yes"><span>Say</span>Mm.</div><div class="nope"><span>Not</span>I totally understand how you feel, that must be so hard for you.</div></div><div class="vp"><div class="yes"><span>Say</span>That's the hour. I'm not going anywhere if there's more.</div><div class="nope"><span>Not</span>Your session time has expired. Additional charges may apply.</div></div><div class="vp"><div class="yes"><span>Say</span>What's one thing you'd actually bet on yourself doing?</div><div class="nope"><span>Not</span>What are your top 3 goals for the upcoming week?</div></div>
+  <ul class="rules" style="margin-top:32px">
+    <li>Never an exclamation mark.</li><li>Never "amazing" or "great job".</li>
+    <li>Never congratulate someone for showing up.</li><li>Sentence case everywhere.</li>
+    <li>Buttons say exactly what happens.</li><li>Errors explain and fix. They don't apologise.</li>
+    <li>Honest about being an AI, always.</li><li>When someone goes quiet, wait.</li>
+  </ul>
+</div></section>
+
+<section><div class="wrap">
+  <p class="num-label">08 The talking orb</p>
+  <h2>The ball, alive</h2>
+  <p class="lede">Wherever 8&amp;80 speaks on a screen, the ball becomes the voice. Four states, one calm motion language — and waiting is a state in its own right.</p>
+  <div class="orb-stage">
+    <div id="orb"></div>
+    <div>
+      <div class="states" role="group" aria-label="Orb state">
+        <button data-s="idle" aria-pressed="true">Resting</button><button data-s="speaking" aria-pressed="false">Speaking</button>
+        <button data-s="listening" aria-pressed="false">Listening</button><button data-s="waiting" aria-pressed="false">Waiting</button>
+      </div>
+      <div class="stt">
+        <div><b>Resting</b><span>A slow breath every six seconds. Present, not busy.</span></div>
+        <div><b>Speaking</b><span>The ball swells gently with the voice, and the 88 turns toward you — a pool ball rolling to face the table.</span></div>
+        <div><b>Listening</b><span>A thin ring in the ink colour answers your voice. The ball itself stays still.</span></div>
+        <div><b>Waiting</b><span>A gold halo breathes once every five seconds. Still here, in no hurry. It never fills the silence.</span></div>
+      </div>
+      <p class="soft" style="margin-top:20px;font-size:15px">Everything eases; nothing snaps. With reduced motion, only the rings change.</p>
+    </div>
+  </div>
+</div></section>
+
+<section class="alt"><div class="wrap">
+  <p class="num-label">09 In use</p>
+  <h2>Web and email</h2>
+  <div class="apps" style="margin-top:28px">
+    <figure><div class="shot"><img src="previews/landing-dark.png" alt="Landing page, dark theme"></div><figcaption>Landing page — dark, the default</figcaption></figure>
+    <figure><div class="shot"><img src="previews/landing-light.png" alt="Landing page, light theme"></div><figcaption>Landing page — light</figcaption></figure>
+  </div>
+  <figure style="margin-top:20px"><div class="shot"><img src="previews/emails.png" alt="Welcome, recap and waitlist emails"></div><figcaption>Welcome, recap and waitlist emails. The wordmark is live text beside the ball, so the brand survives image blocking.</figcaption></figure>
+</div></section>
+
+<section><div class="wrap">
+  <p class="num-label">10 Files</p>
+  <h2>What's in the package</h2>
+  <div class="files" style="margin-top:28px">
+    <div><code>assets/mark.svg</code><span class="soft">Primary mark</span></div>
+    <div><code>assets/mark-small.svg</code><span class="soft">32px and below</span></div>
+    <div><code>assets/mark-on-gold.svg</code><span class="soft">For gold grounds</span></div>
+    <div><code>assets/mark-mono.svg</code><span class="soft">One colour, 88 knocked out</span></div>
+    <div><code>assets/lockup-*.svg</code><span class="soft">Mark and name, light and dark</span></div>
+    <div><code>assets/*.png</code><span class="soft">App icons, favicon, email</span></div>
+    <div><code>tokens/</code><span class="soft">JSON, CSS and Tailwind</span></div>
+    <div><code>orb/orb.js</code><span class="soft">The talking orb component</span></div>
+    <div><code>web/landing.html</code><span class="soft">Landing page, dark and light</span></div>
+    <div><code>email/*.html</code><span class="soft">Welcome, recap, waitlist</span></div>
+  </div>
+</div></section>
+
+<script src="orb/orb.js"></script>
+<script>
+  var orb = new EightOrb(document.getElementById("orb"), { size: Math.min(320, Math.round(innerWidth * 0.7)) });
+  var b = [].slice.call(document.querySelectorAll("[data-s]"));
+  b.forEach(function (x) { x.onclick = function () { orb.state = x.dataset.s; b.forEach(function (y) { y.setAttribute("aria-pressed", y === x); }); }; });
+</script>
+</body></html>

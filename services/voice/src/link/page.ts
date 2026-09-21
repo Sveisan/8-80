@@ -81,9 +81,31 @@ function shell(body: string, language = 'en'): string {
 <meta name="robots" content="noindex, nofollow" />
 <title>8&amp;80</title>
 <style>
-  :root { color-scheme: light dark; --ink: #1a1a1a; --bg: #faf9f7; --line: #dcd8d2; --quiet: #6b6560; }
+  /*
+   * BRAND.md §6. Light is the default here and only here: this page is opened in
+   * daylight, one-thumbed, usually within a minute of the text arriving, whereas
+   * the call itself is an evening thing. Gold fails on Mist at 1.7:1, so the
+   * buttons are green on light and gold on dark — the one place the two accents
+   * swap jobs.
+   */
+  :root {
+    color-scheme: light dark;
+    --ink: #243A30;        /* Deep on Mist, 10.6:1 */
+    --bg: #ECF0EA;         /* Mist */
+    --line: #C0C8C1;
+    --quiet: #5A6B62;      /* 4.9:1 on Mist */
+    --accent: #4A6656;     /* Green, 5.5:1 on Mist */
+    --on-accent: #F4F1E8;  /* Chalk on Green, 5.6:1 */
+  }
   @media (prefers-color-scheme: dark) {
-    :root { --ink: #ece9e4; --bg: #171614; --line: #3a3733; --quiet: #9a938c; }
+    :root {
+      --ink: #F4F1E8;      /* Chalk on Night, 14.7:1 */
+      --bg: #16211B;       /* Night */
+      --line: #424B44;
+      --quiet: #A0A29A;    /* 6.4:1 on Night */
+      --accent: #E2B653;   /* Gold, 8.7:1 on Night */
+      --on-accent: #16211B;/* Night on Gold, 8.7:1 */
+    }
   }
   * { box-sizing: border-box; }
   body {
@@ -105,7 +127,7 @@ function shell(body: string, language = 'en'): string {
     width: 100%; padding: .85rem 1rem; font: inherit; border-radius: .5rem; cursor: pointer;
     border: 1px solid var(--line); background: transparent; color: var(--ink);
   }
-  button.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  button.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
   button.quiet { border: 0; color: var(--quiet); }
   .always { display: flex; align-items: center; gap: .5rem; margin-top: .6rem; }
   .always input { width: auto; }

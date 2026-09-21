@@ -787,7 +787,7 @@ composer would have to be unwritten to translate it._
 _The first recap to arrive read as blank, and it was: a note with nothing at the end is a
 machine's output. Two characters and a dash are a letter. Nothing more than that — no
 name, no title, no "your accountability partner", which would undo in one line everything
-§11 protects. See BRAND.md §6._
+§11 protects. See BRAND.md §9._
 
 ---
 
