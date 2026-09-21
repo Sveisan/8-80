@@ -66,11 +66,16 @@ export function composeRecap(outcome: CallOutcome, script: ScriptLines, ctx: Rec
       .trim();
   };
 
-  const paragraphs = (
+  const paragraphs: (string | undefined)[] = (
     outcome.commitment
       ? [fill(script.get('email.body.commitment')), fill(script.get('email.body.ask'))]
       : [fill(script.get('email.body.none'))]
   ).concat(fill(script.get(minutes === 1 ? 'email.body.logistics.one' : 'email.body.logistics')));
+
+  // Last, always, and never dropped by the empty-slot rule above: it has no
+  // slots to be empty. An email that ends on "We spoke for eight minutes." is
+  // the one that arrived reading as blank.
+  paragraphs.push(fill(script.get('email.signoff')));
 
   const subjectKey = outcome.commitment ? 'email.subject' : 'email.subject.none';
   const subject = fill(script.get(subjectKey)) ?? fill(script.get('email.subject.none')) ?? '';

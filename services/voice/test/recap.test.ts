@@ -79,3 +79,21 @@ test('the email promises the next call, not the commitment day', () => {
   assert.match(r.body, /I'll call you Friday at 08:30\./);
   assert.ok(!/I'll call you.*Wednesday/.test(r.body), 'the commitment lands on Wednesday; the call is on Friday');
 });
+
+test('the email is signed, so it reads as a letter and not as output', () => {
+  // The first recap to arrive read as blank. It ended on "We spoke for eight
+  // minutes." — nothing at the end of a note is what a machine sounds like.
+  for (const outcome of [
+    { at: '', durationMs: 600_000, commitment: 'run three times', day: 'Wednesday' },
+    { at: '', durationMs: 600_000 },
+  ]) {
+    const r = composeRecap(outcome, script, { nextSlot: 'Friday at 08:30' });
+    assert.ok(r.body.endsWith('— 8&80'), r.body);
+  }
+});
+
+test('the sign-off survives the empty-slot rule', () => {
+  // It has no slots, so the rule that drops hollow sentences must not take it.
+  const r = composeRecap({ at: '', durationMs: 600_000 }, script);
+  assert.ok(r.body.endsWith('— 8&80'));
+});

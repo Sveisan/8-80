@@ -781,6 +781,14 @@ _A separate line rather than a plural rule in code, for the same reason as every
 line here: the grammar of the next language is not English's, and a rule written into the
 composer would have to be unwritten to translate it._
 
+`email.signoff`
+> "— 8&80"
+
+_The first recap to arrive read as blank, and it was: a note with nothing at the end is a
+machine's output. Two characters and a dash are a letter. Nothing more than that — no
+name, no title, no "your accountability partner", which would undo in one line everything
+§11 protects. See BRAND.md §6._
+
 ---
 
 ## 13. The text after a missed call
