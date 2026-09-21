@@ -32,8 +32,16 @@ const sched = sql ? new Scheduler(sql) : undefined;
 class FakeAgent {
   readonly placed: PlaceCallRequest[] = [];
   refuse = false;
+  /** Refuse this many times and then succeed, as a flaky carrier does. */
+  refuseTimes = 0;
+  tries = 0;
   n = 0;
   async placeCall(req: PlaceCallRequest): Promise<PlacedCall> {
+    this.tries++;
+    if (this.refuseTimes > 0) {
+      this.refuseTimes--;
+      throw new Error('the carrier refused the call (SIP status 403)');
+    }
     if (this.refuse) throw new Error('platform said no');
     this.placed.push(req);
     return { conversationId: `conv_${++this.n}`, status: 'pending' };
@@ -44,6 +52,8 @@ class FakeAgent {
   reset(): void {
     this.placed.length = 0;
     this.refuse = false;
+    this.refuseTimes = 0;
+    this.tries = 0;
     // Counting from one again per test, so conv_1 means this test's call and
     // not the fifth one the file happened to place.
     this.n = 0;
@@ -322,4 +332,29 @@ test('a caller with nothing recorded still gets every variable', { skip: skip() 
   }
   assert.equal(vars['last_commitment'], NOTHING_RECORDED);
   assert.equal(agent.placed[0]?.firstCall, true, 'their first call is the first-call agent');
+});
+
+test('a carrier that refuses once does not cost somebody their week', { skip: skip() }, async () => {
+  // Four attempts one evening, one connected. Their own error names transient
+  // causes — a trunk's calls-per-second limit, congestion. Treating the first
+  // refusal as final threw away a weekly call because a carrier was busy.
+  await enrol('+4790000090');
+  agent.refuseTimes = 1;
+
+  const result = await tick(deps(), NOW);
+  assert.deepEqual(result, { claimed: 1, placed: 1, failed: 0 });
+  assert.equal(agent.tries, 2, 'refused once, placed on the second try');
+});
+
+test('it gives up rather than retrying forever', { skip: skip() }, async () => {
+  await enrol('+4790000091');
+  agent.refuseTimes = 99;
+
+  const result = await tick(deps(), NOW);
+  assert.deepEqual(result, { claimed: 1, placed: 0, failed: 1 });
+  assert.equal(agent.tries, 3, 'three tries, then the week is given up on');
+
+  const [row] = await (sql as NonNullable<typeof sql>)<{ note: string }[]>`
+    select note from call_attempts order by claimed_at desc limit 1`;
+  assert.match(row?.note ?? '', /after 3 tries/, 'the note says it was tried, not that it was refused once');
 });
