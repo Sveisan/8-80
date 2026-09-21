@@ -6,7 +6,7 @@ import { Links } from '../link/token.ts';
 import { config } from '../config.ts';
 import { eventOf, toTranscript } from '../webhook/speechify.ts';
 import { resolveSpokenTime } from '../call/reschedule.ts';
-import { describeSlot } from '../schedule/time.ts';
+import { describeSlot, letterDate } from '../schedule/time.ts';
 import type { LoopDeps } from './deps.ts';
 
 export interface Settled {
@@ -76,6 +76,10 @@ export async function settleConversation(
       // The next CALL, not the day the commitment lands on. Those are different
       // days, and this line is the one the caller would act on.
       ...(slot ? { nextSlot: describeSlot(slot, caller.language) } : {}),
+      // The letterhead's date. In the caller's zone, because a call taken at
+      // half past eight in Oslo is the previous day in UTC often enough to
+      // matter, and a letter dated the day before the call reads as a mistake.
+      ...dated(slot ? letterDate(outcome.outcome.at, slot.timezone, caller.language) : undefined),
     });
     if (caller.email) {
       try {
@@ -123,3 +127,6 @@ export async function settleConversation(
   log('settle.done', { status: outcome.status, event });
   return { handled: true, status: outcome.status };
 }
+
+/** exactOptionalPropertyTypes: an absent date is an absent key, not `undefined`. */
+const dated = (date: string | undefined): { date?: string } => (date ? { date } : {});

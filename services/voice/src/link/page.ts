@@ -84,27 +84,27 @@ function shell(body: string, language = 'en'): string {
   /*
    * BRAND.md §6. Light is the default here and only here: this page is opened in
    * daylight, one-thumbed, usually within a minute of the text arriving, whereas
-   * the call itself is an evening thing. Gold fails on Mist at 1.7:1, so the
-   * buttons are green on light and gold on dark — the one place the two accents
-   * swap jobs.
+   * the call itself is an evening thing. Gold fails on Paper at 1.6:1, so the
+   * filled button is Pine on light and Gold on dark — the one place the two
+   * accents swap jobs.
    */
   :root {
     color-scheme: light dark;
-    --ink: #243A30;        /* Deep on Mist, 10.6:1 */
-    --bg: #ECF0EA;         /* Mist */
-    --line: #C0C8C1;
-    --quiet: #5A6B62;      /* 4.9:1 on Mist */
-    --accent: #4A6656;     /* Green, 5.5:1 on Mist */
-    --on-accent: #F4F1E8;  /* Chalk on Green, 5.6:1 */
+    --ink: #2F4A3A;        /* Pine on Paper, 8.4:1 */
+    --bg: #F4EDE1;         /* Paper */
+    --line: #D9D6C9;
+    --quiet: #5A695E;      /* 5.0:1 on Paper */
+    --accent: #2F4A3A;     /* Pine — the filled button */
+    --on-accent: #F4EDE1;  /* Paper on Pine, 8.4:1 */
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --ink: #F4F1E8;      /* Chalk on Night, 14.7:1 */
-      --bg: #16211B;       /* Night */
-      --line: #424B44;
-      --quiet: #A0A29A;    /* 6.4:1 on Night */
-      --accent: #E2B653;   /* Gold, 8.7:1 on Night */
-      --on-accent: #16211B;/* Night on Gold, 8.7:1 */
+      --ink: #F4F1E8;      /* Chalk on Night, 13.5:1 */
+      --bg: #1A2920;       /* Night */
+      --line: #414D44;
+      --quiet: #9DA198;    /* 5.8:1 on Night */
+      --accent: #E2B653;   /* Gold, 8.0:1 on Night */
+      --on-accent: #1A2920;/* Night on Gold, 8.0:1 */
     }
   }
   * { box-sizing: border-box; }

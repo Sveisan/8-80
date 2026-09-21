@@ -33,11 +33,45 @@ test('the mark is included only when there is somewhere to load it from', () => 
   assert.ok(html.includes('alt=""'), 'decorative — the wordmark beside it already says the name');
 });
 
-test('the one thing is set larger than the line about how long the call ran', () => {
+/** The px size of the cell a given sentence is set in. */
+const sizeOf = (html: string, text: string): number => {
+  const at = html.indexOf(esc(text));
+  assert.ok(at > 0, `${text} is not in the letter`);
+  const cell = html.lastIndexOf('<td', at);
+  const size = /font-size:(\d+)px/.exec(html.slice(cell, at));
+  assert.ok(size, `no font-size on the cell holding ${text}`);
+  return Number(size[1]);
+};
+
+test('the one thing is set far larger than the line about how long the call ran', () => {
+  // One focal point. The whole job of this email is to be findable on a
+  // Thursday by somebody scrolling, so the step down has to be a step, not a
+  // nudge — the first draft set them three pixels apart.
   const html = letterHtml(withCommitment);
-  const lead = html.indexOf('run three times, Wednesday.');
-  const size = html.lastIndexOf('font-size:22px', lead);
-  assert.ok(size > 0 && size > html.lastIndexOf('</p>', lead), 'the lead paragraph carries the lead style');
+  const lead = sizeOf(html, 'run three times, Wednesday.');
+  const quiet = sizeOf(html, 'We spoke for 12 minutes.');
+  assert.ok(lead >= quiet * 1.8, `lead ${lead}px vs quiet ${quiet}px`);
+});
+
+test('no style attribute is cut short by a quote inside it', () => {
+  // A font stack written with "Segoe UI" closes the style attribute early. The
+  // rest of the declaration is then parsed as stray attributes and the element
+  // loses its size, weight and colour along with its font — which is what
+  // happened to the first letter that went out, and it looked like plain text
+  // in every client. Single quotes are valid CSS and survive the attribute.
+  const html = letterHtml(withCommitment, { markUrl: 'https://example.test/m.png', date: '21 September' });
+  for (let at = html.indexOf('style="'); at >= 0; at = html.indexOf('style="', at + 1)) {
+    const end = html.indexOf('"', at + 7);
+    assert.ok(end > 0, 'an unterminated style attribute');
+    // What follows a properly closed attribute is a space, a > or a /.
+    assert.ok(' >/'.includes(html[end + 1] ?? ''), `style attribute ends mid-value: ${html.slice(at, end + 1)}`);
+  }
+});
+
+test('the letterhead carries the date, and survives not having one', () => {
+  assert.ok(letterHtml(withCommitment, { date: '21 September' }).includes('21 September'));
+  const undated = letterHtml(withCommitment);
+  assert.ok(!undated.includes('undefined'), 'an absent date leaves no trace');
 });
 
 test("a commitment cannot break the markup, because it is somebody else's words", () => {
@@ -70,7 +104,7 @@ test('nothing in the letter asks to be clicked', () => {
 
 test('both grounds are stated, rather than left to the client to guess', () => {
   const html = letterHtml(withCommitment);
-  assert.ok(html.includes('#ECF0EA'), 'Mist, the light ground');
-  assert.ok(html.includes('#16211B'), 'Night, under prefers-color-scheme: dark');
+  assert.ok(html.includes('#F4EDE1'), 'Paper, the light ground');
+  assert.ok(html.includes('#1A2920'), 'Night, under prefers-color-scheme: dark');
   assert.ok(html.includes('prefers-color-scheme: dark'));
 });

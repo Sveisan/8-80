@@ -81,9 +81,9 @@ It works alone. The lockup adds the name only where people do not yet know it.
 
 | Ground | Ball | 88 |
 | --- | --- | --- |
-| Night `#16211B` | gold | green |
+| Night `#1A2920` | gold | green |
 | Green `#4A6656` | gold | green |
-| Mist `#ECF0EA` | gold | green |
+| Paper `#F4EDE1` | gold | green |
 | White | gold | green |
 | Gold `#E2B653` | **green** | **gold** |
 
@@ -109,34 +109,39 @@ and bright, and 8&80 is the quiet evening call.
 
 | Name | Hex | Job |
 | --- | --- | --- |
-| Gold | `#E2B653` | The ball. Accent and buttons on dark. |
-| Green | `#4A6656` | The 88. Accent and buttons on light. |
-| Night | `#16211B` | Dark ground — the default. |
-| Deep | `#243A30` | Body text on light. |
+| Gold | `#E2B653` | The ball. Accent and buttons on dark. Never text on Paper. |
+| Green | `#4A6656` | The 88. The wordmark and headings on light. |
+| Pine | `#2F4A3A` | Body text on light, and the filled button. |
+| Night | `#1A2920` | Dark ground — the default. |
 | Chalk | `#F4F1E8` | Text on dark. Never a background. |
-| Mist | `#ECF0EA` | Light ground. Deliberately not cream. |
+| Paper | `#F4EDE1` | Light ground. Cream, on purpose. |
 
 ### Contrast — checked, not asserted
 
 | Pair | Ratio | Use | |
 | --- | --- | --- | --- |
-| Chalk on Night | 14.7 : 1 | Body text, dark | pass |
-| Gold on Night | 8.7 : 1 | Accents and buttons, dark | pass |
-| Green on Night | 2.6 : 1 | **Never text** | fail |
-| Deep on Mist | 10.6 : 1 | Body text, light | pass |
-| Green on Mist | 5.5 : 1 | Headings, links, buttons, light | pass |
-| Gold on Mist | 1.7 : 1 | **Never text** | fail |
+| Pine on Paper | 8.4 : 1 | Body text, light | pass |
+| Green on Paper | 5.4 : 1 | Wordmark, headings, links, light | pass |
+| Gold on Paper | 1.6 : 1 | **Never text** | fail |
+| Paper on Pine | 8.4 : 1 | Text on the filled button | pass |
+| Chalk on Night | 13.5 : 1 | Body text, dark | pass |
+| Gold on Night | 8.0 : 1 | Accents and buttons, dark | pass |
+| Green on Night | 2.4 : 1 | **Never text** | fail |
+| Pine on Night | 1.6 : 1 | **Never text** — it is the ground, darkened | fail |
 | Chalk on Green | 5.6 : 1 | Text on green panels | pass |
-| Deep on Gold | 6.4 : 1 | Text on gold bands | pass |
+| Night on Gold | 8.0 : 1 | Text on gold bands and buttons | pass |
 | Green 88 on Gold ball | 3.3 : 1 | Graphic — clears the 3:1 non-text bar | pass |
 
-Every ratio in that table was recomputed from the hexes and matches to a rounding place.
-It is the reason this palette is the one in the code and not the warmer alternative in §12:
-the numbers were done first, and the two failing pairs are named rather than hidden.
+Every ratio in that table was recomputed from the hexes. §12 records how this palette was
+arrived at — a bake-off on the real surfaces, not a swatch sheet — and what it replaced.
 
-The two failures are the important rows. Gold is loud enough to look like a heading colour
-on a light ground and is unreadable at 1.7:1; green looks like a sober body colour on dark
-and is unreadable at 2.6:1. Both belong to the mark, not to the text.
+The failures are the important rows. Gold is loud enough to look like a heading colour on a
+light ground and is unreadable at 1.6:1; green looks like a sober body colour on dark and is
+unreadable at 2.4:1. Both belong to the mark, not to the text.
+
+Pine and Green are one colour in two stops, and the stops do different work: Green is the
+accent you notice, Pine is what you read. Never set a link in Pine — it will be invisible
+against the body text beside it.
 
 ---
 
@@ -192,20 +197,36 @@ the opposite on the same screen.
 The call promises it out loud, so it is not a newsletter and it is not optional. It is the
 one piece of the product a person keeps.
 
-- **Headed, not bare.** The mark and the wordmark at the top; nothing else above the first
-  line of content. The wordmark is **live text beside the ball**, so the brand survives
-  image blocking — which is the default in Mail.app and Outlook.
-- The one thing they committed to comes first, alone, in their own words. Everything below
-  it can go unread.
+- **Headed, not bare.** The ball, the wordmark and the date on one line, over a 2px gold
+  rule — the one place gold appears on Paper, and the thing that makes it stationery
+  rather than a page. The wordmark is **live text beside the ball**, so the brand survives
+  image blocking, which is the default in Mail.app and Outlook.
+- **Dated.** In the caller's zone, day and month only. A letter is dated; a notification
+  is not. No weekday: the day their commitment lands on is already in the letter, and two
+  weekdays on one page is how the first recap managed to name the wrong one.
+- **One focal point.** Their own sentence at 30px, normal weight, everything else stepping
+  down hard from it. Normal weight and not bold, because this is a letter quoting them
+  back, not a headline announcing something at them. If the one thing and the line about
+  how long the call ran look like the same size, the email has failed at its only job.
 - No button, no banner, no social footer, no "view in browser".
-- Ends `— 8&80` and nothing else. No name, no title, no "your accountability partner",
-  which would undo in one line everything SCRIPT.md §11 protects.
+- Ends under a hairline with `— 8&80` and nothing else. A letter ends; it does not stop.
+  No name, no title, no "your accountability partner", which would undo in one line
+  everything SCRIPT.md §11 protects.
 - **Always send a plain-text alternative part** carrying the same words. A recap that only
   exists as HTML is a recap some people cannot read.
-- System font stack — §7's family cannot be self-hosted into a mail client.
+- System font stack — §7's family cannot be self-hosted into a mail client. **Quote the
+  family names with single quotes.** `"Segoe UI"` inside a double-quoted `style` attribute
+  closes the attribute, the rest of the declaration is parsed as stray attributes, and the
+  element loses its size, weight and colour along with its font. The first letter that went
+  out did exactly that and arrived looking like unstyled text in every client. There is a
+  test that walks every `style` attribute in the output and fails if one ends mid-value.
 - **Light is the default here**, and only here. Night arrives through
   `prefers-color-scheme`, but a client that strips the style block has to be left with a
-  complete letter rather than a guess, and the complete letter is the one on Mist.
+  complete letter rather than a guess, and the complete letter is the one on Paper.
+- **`mark-small.png` at 40px**, not `mark.svg`. §4's 32px threshold assumes a screen at a
+  known scale; a mail client renders at whatever DPI it likes and Gmail downscales. At 40px
+  in an inbox the primary mark's 88 is a smudge and the small one's is legible — checked
+  side by side, not assumed.
 - The ball is optional and configured, not compiled in (`RECAP_MARK_URL`). A remote image
   in an email tells a server the moment somebody opens their recap, which is a tracking
   pixel whatever we call it. It is left unset until it points somewhere we are content to
@@ -255,12 +276,12 @@ In `brand/assets/`:
 | `mark-small.svg` | 32px and below — same drawing, 88 at 54% |
 | `mark-on-gold.svg` | Gold grounds — ball green, 88 gold |
 | `mark-mono.svg` | One colour via `currentColor`, 88 knocked out |
-| `mark-192.png` | Email. Transparent, so it sits on either ground |
+| `mark-email.png` | Email, shown at 40px. `mark-small` at 160px, transparent |
 
 `mark-mono.svg` resolves `currentColor` from its parent only when inlined; referenced
 through `<img>` it falls back to black. Inline it, or set `fill` at the use site.
 
-`mark-192.png` is produced by `brand/render-mark.py`, which reads the geometry out of
+`mark-email.png` is produced by `brand/render-mark.py`, which reads the geometry out of
 `mark.svg` rather than restating it, so the export cannot quietly disagree with the
 drawing. Its output was checked pixel-for-pixel against a browser's rendering of the same
 SVG: everything that differs is antialiasing on an edge, bar nine pixels in thirty-seven
@@ -278,20 +299,28 @@ thousand. Regenerate at any size with `python3 brand/render-mark.py 512 > out.pn
 
 ---
 
-## 12. Open, and deliberately not settled here
+## 12. How the palette was settled
 
-**A warmer palette was proposed alongside this one** — Marigold `#E8A33D` for the 8, Pine
-`#2F4A3A` for the 80, over Paper `#F4EDE1` ("pure white kills nostalgia"). It is a real
-alternative with a real argument, and it is not what the code uses, for two reasons worth
-stating rather than assuming:
+Two grounds were specified, each deliberately: Mist `#ECF0EA`, "deliberately not cream",
+and Paper `#F4EDE1`, "pure white kills nostalgia". That is not a swatch disagreement, it is
+a question about whether 8&80 reads as nostalgic or as clear-eyed, and it was settled the
+only way that question can be — by rendering the actual recap and the actual reschedule
+page in each and looking at them side by side.
 
-- The mark is drawn in `#E2B653` and `#4A6656`. Changing the palette means redrawing every
-  asset above and redoing the contrast table; Marigold on Paper is 1.85:1 and Pine on Paper
-  8.35:1, so the shape of the rules survives but none of the numbers do.
-- The two grounds disagree on purpose. Mist `#ECF0EA` is specified as "deliberately not
-  cream"; Paper `#F4EDE1` is specified as cream, deliberately. That is a decision about
-  whether 8&80 reads as nostalgic or as clear-eyed, and it is not a decision a colour
-  token should make quietly.
+What came out of it:
 
-Until that is settled, everything ships in the six colours of §6. Switching later is a
-palette change, not a rebuild, provided nothing hard-codes a hex outside the token table.
+- **Paper won the ground**, light and dark alike. Mist is the cooler, cleaner one and it
+  reads as a product; Paper reads as something that was written to you.
+- **Night went with it**, from `#16211B` to `#1A2920`, which is Pine darkened rather than a
+  near-black. The dark theme is the ground the mark sits on, not the absence of one.
+- **Gold and Green survived** the alternative Marigold and Pine at the top of the palette.
+  Marigold is the more orange of the two and the ball is drawn in Gold; nothing was gained
+  worth redrawing every asset for.
+- **Pine came in below them**, as the ink on Paper and the filled button. It was the one
+  thing the alternative palette had that this one did not: a green heavy enough to carry a
+  button without looking soft.
+
+The alternative's own weakness is worth recording, because it is the failure mode to watch
+for in any future proposal. As proposed it had two colours and a ground, so the accent and
+the body text were the same colour — meaning a link and the sentence around it would have
+been indistinguishable. Two colours are a mood. A palette needs the stops.

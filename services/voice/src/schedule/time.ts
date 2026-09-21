@@ -149,3 +149,20 @@ export function describeSlot(slot: Slot, language = 'en'): string {
   const mm = String(slot.minute % 60).padStart(2, '0');
   return `${weekday} at ${hh}:${mm}`;
 }
+
+/**
+ * The date at the top of the recap, in the caller's zone and language.
+ *
+ * Day and month, no year and no weekday: the weekday is already in the letter
+ * as the day their commitment lands on, and two different weekdays on one page
+ * is how the first recap managed to name the wrong one.
+ *
+ * Returns undefined rather than a fallback if the instant is unusable. A letter
+ * with no date is a letter; a letter dated "Invalid Date" is a bug somebody
+ * receives.
+ */
+export function letterDate(at: string, timezone: string, language = 'en'): string | undefined {
+  const when = new Date(at);
+  if (Number.isNaN(when.getTime())) return undefined;
+  return new Intl.DateTimeFormat(language, { day: 'numeric', month: 'long', timeZone: timezone }).format(when);
+}

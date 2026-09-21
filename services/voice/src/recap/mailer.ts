@@ -58,7 +58,7 @@ export class FileMailer implements Mailer {
     // Both parts, the same two a send would carry. The letter is the half that
     // is hard to check by reading the source, so it has to be openable.
     const markUrl = process.env['RECAP_MARK_URL'];
-    writeFileSync(`${stem}.html`, letterHtml(recap, markUrl ? { markUrl } : {}));
+    writeFileSync(`${stem}.html`, letterHtml(recap, { ...(markUrl ? { markUrl } : {}), ...(recap.date ? { date: recap.date } : {}) }));
     // The address and the subject both carry the caller. Neither goes in a log.
     log('recap.written', { path: `${stem}.{txt,html}` });
   }

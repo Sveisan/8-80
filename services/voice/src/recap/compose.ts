@@ -23,11 +23,22 @@ export interface Recap {
   body: string;
   /** The same paragraphs, in order, each tagged with what it is doing. */
   parts: RecapPart[];
+  /** The letterhead's date, carried through so the renderer needs only a Recap. */
+  date?: string;
 }
 
 export interface RecapContext {
   /** How the next call was referred to out loud, e.g. "Tuesday at nine". */
   nextSlot?: string;
+  /**
+   * The day of the call, in the caller's own zone and language.
+   *
+   * Formatted by the caller of this function rather than here, because the
+   * zone lives with the slot and a date formatted in the server's zone is the
+   * same class of bug as a weekday formatted in the server's zone — which has
+   * already cost somebody a call once.
+   */
+  date?: string;
 }
 
 /**
@@ -109,6 +120,7 @@ export function composeRecap(outcome: CallOutcome, script: ScriptLines, ctx: Rec
     subject: subject.replace(/[—–-]\s*$/, '').trim(),
     body: parts.map((p) => p.text).join('\n\n'),
     parts,
+    ...(ctx.date ? { date: ctx.date } : {}),
   };
 }
 

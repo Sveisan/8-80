@@ -2,6 +2,7 @@
 """Rasterise brand/assets/mark.svg to a transparent PNG.
 
     python3 brand/render-mark.py 192 > brand/assets/mark-192.png
+    python3 brand/render-mark.py 192 assets/mark-on-gold.svg > on-gold.png
 
 Email needs a PNG — an inline SVG does not render in Gmail or Outlook — and it
 needs a transparent one, because the same file sits on Mist in a light client
@@ -23,7 +24,7 @@ import sys
 import zlib
 from pathlib import Path
 
-SVG = Path(__file__).parent / 'assets' / 'mark.svg'
+DEFAULT_SVG = Path(__file__).parent / 'assets' / 'mark.svg'
 SS = 4  # samples per pixel per axis
 
 
@@ -32,12 +33,12 @@ def hexrgb(s: str) -> tuple[int, int, int]:
     return tuple(int(s[i : i + 2], 16) for i in (0, 2, 4))  # type: ignore[return-value]
 
 
-def geometry(svg: str):
+def geometry(svg: str, source: Path):
     box = re.search(r'viewBox="0 0 (\d+) \1"', svg)
     ball = re.search(r'<circle cx="(\d+)" cy="(\d+)" r="(\d+)" fill="(#\w+)"', svg)
     group = re.search(r'translate\(([\d.]+),([\d.]+)\) scale\(([\d.]+)\) translate\(-([\d.]+),-([\d.]+)\)', svg)
     if not (box and ball and group):
-        raise SystemExit(f'{SVG} is not the drawing this script knows how to read')
+        raise SystemExit(f'{source} is not the drawing this script knows how to read')
     ellipses = []
     for m in re.finditer(
         r'<ellipse cx="(-?[\d.]+)" cy="(-?[\d.]+)" rx="([\d.]+)" ry="([\d.]+)"[^>]*?'
@@ -57,8 +58,8 @@ def geometry(svg: str):
     )
 
 
-def render(size: int) -> bytes:
-    view, (bx, by, br, ballrgb), (tx, ty, scale, ux, uy), ellipses = geometry(SVG.read_text())
+def render(size: int, source: Path = DEFAULT_SVG) -> bytes:
+    view, (bx, by, br, ballrgb), (tx, ty, scale, ux, uy), ellipses = geometry(source.read_text(), source)
     ink = ellipses[0][8]
     step = view / (size * SS)
     rows = []
@@ -112,4 +113,6 @@ def render(size: int) -> bytes:
 
 
 if __name__ == '__main__':
-    sys.stdout.buffer.write(render(int(sys.argv[1]) if len(sys.argv) > 1 else 192))
+    size = int(sys.argv[1]) if len(sys.argv) > 1 else 192
+    source = Path(sys.argv[2]) if len(sys.argv) > 2 else DEFAULT_SVG
+    sys.stdout.buffer.write(render(size, source))
