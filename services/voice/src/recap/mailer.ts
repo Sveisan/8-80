@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { repoRoot } from '../config.ts';
 import { log } from '../log.ts';
 import type { Recap } from './compose.ts';
+import { letterHtml } from './letter.ts';
 import { ResendMailer } from './resend.ts';
 
 export interface Mailer {
@@ -52,9 +53,13 @@ export class FileMailer implements Mailer {
 
   async send(to: string, recap: Recap): Promise<void> {
     mkdirSync(this.dir, { recursive: true });
-    const path = resolve(this.dir, `${new Date().toISOString().replace(/[:.]/g, '-')}.txt`);
-    writeFileSync(path, `To: ${to}\nSubject: ${recap.subject}\n\n${recap.body}\n`);
+    const stem = resolve(this.dir, new Date().toISOString().replace(/[:.]/g, '-'));
+    writeFileSync(`${stem}.txt`, `To: ${to}\nSubject: ${recap.subject}\n\n${recap.body}\n`);
+    // Both parts, the same two a send would carry. The letter is the half that
+    // is hard to check by reading the source, so it has to be openable.
+    const markUrl = process.env['RECAP_MARK_URL'];
+    writeFileSync(`${stem}.html`, letterHtml(recap, markUrl ? { markUrl } : {}));
     // The address and the subject both carry the caller. Neither goes in a log.
-    log('recap.written', { path });
+    log('recap.written', { path: `${stem}.{txt,html}` });
   }
 }

@@ -48,6 +48,7 @@ const NEEDED: [string, string][] = [
   ['PUBLIC_URL', 'The missed-call text has no link, so no text is sent at all.'],
   ['RESEND_API_KEY', 'Recaps are written to disk instead of sent.'],
   ['RECAP_FROM_ADDRESS', 'Goes with RESEND_API_KEY. One without the other sends nothing.'],
+  ['RECAP_MARK_URL', 'The recap is headed by the wordmark alone, with no ball. Optional.'],
   ['SMS_FROM_NUMBER', 'Missed-call texts are written to disk instead of sent.'],
   ['TWILIO_ACCOUNT_SID', 'Goes with SMS_FROM_NUMBER and the auth token.'],
   ['TWILIO_AUTH_TOKEN', 'Goes with SMS_FROM_NUMBER and the account SID.'],

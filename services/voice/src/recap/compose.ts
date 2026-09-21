@@ -1,9 +1,28 @@
 import type { ScriptLines } from '../script.ts';
 import type { CallOutcome } from '../store/types.ts';
 
+/**
+ * What a paragraph is for, so a renderer can style it without reading English.
+ *
+ * `letter.ts` needs to set the one thing larger than the line about how long
+ * the call ran. It could find it by position — first paragraph, last paragraph
+ * — but position is an accident of which keys SCRIPT.md happens to define, and
+ * the first email to go out wrong went out wrong for exactly that kind of
+ * reason. A role survives a writer adding a sentence.
+ */
+export type RecapRole = 'lead' | 'body' | 'quiet' | 'signoff';
+
+export interface RecapPart {
+  role: RecapRole;
+  text: string;
+}
+
 export interface Recap {
   subject: string;
+  /** The whole letter as text, paragraphs joined by a blank line. */
   body: string;
+  /** The same paragraphs, in order, each tagged with what it is doing. */
+  parts: RecapPart[];
 }
 
 export interface RecapContext {
@@ -66,23 +85,32 @@ export function composeRecap(outcome: CallOutcome, script: ScriptLines, ctx: Rec
       .trim();
   };
 
-  const paragraphs: (string | undefined)[] = (
+  const paragraphs: (RecapPart | undefined)[] = (
     outcome.commitment
-      ? [fill(script.get('email.body.commitment')), fill(script.get('email.body.ask'))]
-      : [fill(script.get('email.body.none'))]
-  ).concat(fill(script.get(minutes === 1 ? 'email.body.logistics.one' : 'email.body.logistics')));
+      ? [
+          part('lead', fill(script.get('email.body.commitment'))),
+          part('body', fill(script.get('email.body.ask'))),
+        ]
+      : [part('lead', fill(script.get('email.body.none')))]
+  ).concat(part('quiet', fill(script.get(minutes === 1 ? 'email.body.logistics.one' : 'email.body.logistics'))));
 
   // Last, always, and never dropped by the empty-slot rule above: it has no
   // slots to be empty. An email that ends on "We spoke for eight minutes." is
   // the one that arrived reading as blank.
-  paragraphs.push(fill(script.get('email.signoff')));
+  paragraphs.push(part('signoff', fill(script.get('email.signoff'))));
 
   const subjectKey = outcome.commitment ? 'email.subject' : 'email.subject.none';
   const subject = fill(script.get(subjectKey)) ?? fill(script.get('email.subject.none')) ?? '';
 
+  const parts = paragraphs.filter((p): p is RecapPart => p !== undefined);
+
   return {
     // A commitment with no day reads "run three times, ." without the trim.
     subject: subject.replace(/[—–-]\s*$/, '').trim(),
-    body: paragraphs.filter((p): p is string => Boolean(p)).join('\n\n'),
+    body: parts.map((p) => p.text).join('\n\n'),
+    parts,
   };
 }
+
+const part = (role: RecapRole, text: string | undefined): RecapPart | undefined =>
+  text ? { role, text } : undefined;
