@@ -1,8 +1,13 @@
 import { config } from './config.ts';
 import { Scheduler } from './schedule/scheduler.ts';
 import { parseLocalTime, parseWeekday } from './schedule/time.ts';
-import { PostgresStore } from './store/postgres.ts';
+import { PostgresStore, phoneKey } from './store/postgres.ts';
 import { hasKey } from './store/crypto.ts';
+import { Links } from './link/token.ts';
+import { loadScript } from './script.ts';
+import { openSms } from './sms/index.ts';
+import { textBeforeFirstCall } from './sms/welcome.ts';
+import { OptedOut } from './sms/types.ts';
 
 /**
  * Put somebody on the list, or move them.
@@ -12,6 +17,10 @@ import { hasKey } from './store/crypto.ts';
  *
  *   npm run enrol -- --phone +4790033575 --in 3     # ring me in three minutes
  *   npm run enrol -- --list
+ *
+ * Giving somebody a slot for the first time texts them to say when the first
+ * call is, with a link to move or refuse it before it happens. `--quiet` skips
+ * that, for enrolling yourself or re-running a command.
  *
  * Deliberately a command and not a web form. The first caller is the person
  * building this, the second is a friend, and by the time there is a tenth there
@@ -66,6 +75,9 @@ try {
   // UPDATE against a caller who does not exist succeeds while doing nothing —
   // which is how "Slot set" was printed for somebody the scheduler had never
   // heard of.
+  // Read before the upsert creates the row, so a first enrolment can be told
+  // from a change to an existing one.
+  const hadSlot = Boolean(await scheduler.slotFor(phone));
   await store.upsertProfile(phone, profile);
 
   const day = flag('day');
@@ -74,8 +86,29 @@ try {
     const weekday = parseWeekday(day ?? '') ?? fail(`--day ${day} is not a weekday`);
     const minute = parseLocalTime(time ?? '') ?? fail(`--time ${time} is not a time like 08:00`);
     const timezone = flag('tz') ?? 'Europe/Oslo';
-    const next = await scheduler.setSlot(phone, { weekday, minute, timezone }, new Date());
+    const slot = { weekday, minute, timezone };
+    // Before the slot is set, because after it there is no way to tell a first
+    // slot from a moved one, and this text must go out exactly once ever.
+    const first = !hadSlot && (await store.load(phone)).callNumber === 0;
+    const next = await scheduler.setSlot(phone, slot, new Date());
     console.log(`Slot set. Next call ${next.toISOString()}`);
+
+    if (first && !has('quiet')) {
+      // An unknown number ringing on a Tuesday morning is a cold call. One
+      // text first, with the link on it, so the first call can be moved or
+      // refused before it ever happens. SCRIPT.md §13.
+      const link = `${config.link.publicUrl()}/r/${await new Links(store.raw).mint(phoneKey(phone))}`;
+      try {
+        const sent = await textBeforeFirstCall(phone, next, slot, { sms: openSms(), script: loadScript() }, link);
+        console.log(sent ? 'Texted them when the first call is.' : 'No text sent — see the log.');
+      } catch (e) {
+        if (!(e instanceof OptedOut)) throw e;
+        // They said no before they were ever asked. Honour it now rather than
+        // ring them and find out.
+        await scheduler.setPaused(phone, true);
+        console.log('That number has opted out of messages. Paused rather than called.');
+      }
+    }
   }
 
   const inMinutes = flag('in');

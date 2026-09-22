@@ -836,6 +836,22 @@ parser stays, and quietly handles anyone who tries it._
 
 _Short on purpose. This arrives while somebody is in a meeting._
 
+`sms.welcome`
+> "8&80 here. Your first call is {{when}}. If that's wrong, or you'd rather not: {{link}}"
+
+_Sent once, when somebody is first given a slot, and never again. Until it existed the
+first contact anybody had with this product was an unknown number ringing them on a
+Tuesday morning — which is indistinguishable from a cold call, and is a poor start for a
+thing whose entire proposition is that it turns up when it said it would._
+
+_It says when, offers the way out in the same breath, and stops. Not a welcome, not an
+explanation of the framework, not what to expect from the call: the call explains itself,
+and a text that sells it before it happens is the marketing this product does not do._
+
+_"If that's wrong, or you'd rather not" rather than "reply STOP to unsubscribe". Same
+outcome, one fewer sentence that sounds like a mailing list — and the link works whether
+or not their carrier would have handled the word._
+
 `sms.stopped`
 > "Done. I won't ring again. Text START if you want it back."
 

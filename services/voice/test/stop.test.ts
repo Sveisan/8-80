@@ -168,3 +168,38 @@ test('every line the stop path says is in SCRIPT.md', () => {
     assert.ok(script.get(key), `${key} is missing`);
   }
 });
+
+test('nobody is rung by an unknown number with no warning', async () => {
+  // The first contact used to be the phone ringing on a Tuesday morning, which
+  // is indistinguishable from a cold call. SCRIPT.md §13.
+  const { textBeforeFirstCall } = await import('../src/sms/welcome.ts');
+  const sms = new Outbox();
+  const sent = await textBeforeFirstCall(
+    '+4790000000',
+    new Date('2026-09-15T06:00:00Z'),
+    OSLO,
+    { sms, script },
+    'https://8and80.test/r/abcd',
+  );
+  assert.equal(sent, true);
+  const body = sms.sent[0] ?? '';
+  assert.ok(body.includes('Tuesday'), body);
+  assert.ok(body.includes('08:00'), 'in their own zone, not the server\'s');
+  assert.ok(body.includes('https://8and80.test/r/abcd'), 'the way out ships with the welcome');
+  assert.ok(!body.includes('{{'), 'no slot may reach a reader');
+});
+
+test('somebody who opted out before being enrolled is not enrolled quietly', async () => {
+  // Saying no in advance is still saying no. The caller has to be told, rather
+  // than finding out when the phone rings.
+  const { textBeforeFirstCall } = await import('../src/sms/welcome.ts');
+  const refusing: Sms = {
+    async send() {
+      throw new OptedOut(21610);
+    },
+  };
+  await assert.rejects(
+    () => textBeforeFirstCall('+4790000000', NOW, OSLO, { sms: refusing, script }, 'https://x.test/r/t'),
+    (e: Error) => e instanceof OptedOut,
+  );
+});
