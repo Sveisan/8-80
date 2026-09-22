@@ -1,5 +1,8 @@
 import { config } from '../config.ts';
 import { log } from '../log.ts';
+import { CallNotPlaced } from '../agent/speechify.ts';
+import { Links } from '../link/token.ts';
+import { textAfterMissedCall } from '../sms/missed.ts';
 import type { LoopDeps } from './deps.ts';
 
 export interface TickResult {
@@ -43,6 +46,12 @@ async function withRetries<T>(place: () => Promise<T>): Promise<T> {
     try {
       return await place();
     } catch (e) {
+      // A phone that rang and was not answered is not a failure to retry, it
+      // is the answer. Retrying it rings somebody three times in seventy
+      // seconds from an unknown number, which is the opposite of this product
+      // — and is what this did until the adapter started saying which of the
+      // two had happened.
+      if (e instanceof CallNotPlaced && e.rang) throw e;
       if (attempt >= ATTEMPTS) throw e;
       const wait = BACKOFF_MS[attempt - 1] ?? 6_000;
       // The message, not the number: log() scrubs, and which caller it was for
@@ -50,6 +59,26 @@ async function withRetries<T>(place: () => Promise<T>): Promise<T> {
       log('agent.retrying', { attempt, of: ATTEMPTS, inMs: wait, why: (e as Error).message });
       await new Promise((r) => setTimeout(r, wait));
     }
+  }
+}
+
+/**
+ * The one text, for a call that never connected.
+ *
+ * Mints the link and sends it exactly as `settle` does for a call that rang
+ * through and was not answered. Never throws: the attempt is already closed,
+ * and a text that will not send must not stop the tick reaching the next
+ * caller on a Friday morning.
+ */
+async function textForMissedCall(claim: { attemptId: string; phoneHash: string }, deps: LoopDeps): Promise<void> {
+  try {
+    const phone = await deps.store.phoneFor(claim.phoneHash);
+    if (!phone) return;
+    const base = config.link.publicUrl();
+    const link = base ? `${base.replace(/\/$/, '')}/r/${await new Links(deps.store.raw).mint(claim.phoneHash)}` : undefined;
+    await textAfterMissedCall(claim.attemptId, phone, deps, link);
+  } catch (e) {
+    log('tick.missed_text_failed', { reason: (e as Error).message });
   }
 }
 
@@ -83,6 +112,17 @@ export async function tick(deps: LoopDeps, now = new Date()): Promise<TickResult
       await deps.scheduler.markPlaced(claim.attemptId, placed.conversationId);
       result.placed++;
     } catch (e) {
+      if (e instanceof CallNotPlaced && e.rang) {
+        // Their phone rang and they did not pick up. That is a missed call and
+        // it gets the one text — the same path a call that connects and then
+        // goes unanswered takes, so the two cannot drift apart. Before this,
+        // an unanswered ring was filed as "could not place" and the person got
+        // nothing at all: no call, no text, no way to move it.
+        await deps.scheduler.finish(claim.attemptId, 'missed', { note: e.reason || 'no answer' });
+        await textForMissedCall(claim, deps);
+        result.failed++;
+        continue;
+      }
       // A refusal here means nobody was rung, which is not a missed call: no
       // text goes out, because there is nothing for them to have missed.
       await deps.scheduler.finish(claim.attemptId, 'failed', {

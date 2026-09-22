@@ -108,8 +108,57 @@ export class SpeechifyAgent {
         sent: Object.keys(body as Record<string, unknown>),
         detail: detail.slice(0, 600),
       });
-      throw new Error(`Speechify refused ${path} (HTTP ${res.status})`);
+      throw new CallNotPlaced(res.status, detail, path);
     }
     return await res.json();
+  }
+}
+
+/**
+ * Two very different things arrive here as the same HTTP failure.
+ *
+ * "The carrier refused the call" means nobody was rung: the request never
+ * became a ringing telephone, and trying again in two seconds is the right
+ * response. "The destination did not answer" means somebody's phone rang and
+ * they did not pick it up — which is not an error at all, it is the answer,
+ * and the correct response is the one missed-call text.
+ *
+ * Retrying the second one rings a person three times in seventy seconds from
+ * an unknown number, which is the precise opposite of what this product is.
+ * It did exactly that until this class existed, and the two cases were
+ * indistinguishable because the only thing on the error was a status code.
+ */
+export class CallNotPlaced extends Error {
+  readonly code: string;
+  readonly reason: string;
+  /** True when the telephone actually rang and nobody answered it. */
+  readonly rang: boolean;
+
+  constructor(
+    readonly status: number,
+    detail: string,
+    path: string,
+  ) {
+    const parsed = safeError(detail);
+    super(`Speechify refused ${path} (HTTP ${status})${parsed.message ? `: ${parsed.message}` : ''}`);
+    this.name = 'CallNotPlaced';
+    this.code = parsed.code;
+    this.reason = parsed.message;
+    this.rang = NO_ANSWER.test(parsed.message);
+  }
+}
+
+/** Their words for a phone that rang and was not picked up. */
+const NO_ANSWER = /did not answer|no answer|not answered|busy|declined|rejected|unavailable|timed out/i;
+
+function safeError(detail: string): { code: string; message: string } {
+  try {
+    const body = JSON.parse(detail) as { error?: { code?: unknown; message?: unknown } };
+    return {
+      code: typeof body.error?.code === 'string' ? body.error.code : '',
+      message: typeof body.error?.message === 'string' ? body.error.message : '',
+    };
+  } catch {
+    return { code: '', message: '' };
   }
 }
