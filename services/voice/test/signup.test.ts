@@ -148,3 +148,17 @@ test('the form will not open without a way to send the code', async () => {
     }
   }
 });
+
+test('a messaging service silently overrides the number it owns', async () => {
+  // The number page goes on showing its own webhook, so this is invisible from
+  // the console: set correctly, displayed correctly, and every STOP swallowed.
+  const { effectiveInbound } = await import('../src/outside.ts');
+  const ours = 'https://8and80.me/webhooks/sms';
+  assert.equal(effectiveInbound({ onNumber: false, serviceUrl: ours, numberUrl: 'https://else.where' }), ours);
+  assert.equal(
+    effectiveInbound({ onNumber: false, serviceUrl: '', numberUrl: ours }),
+    '',
+    'a service with no inbound URL means inbound texts go nowhere, whatever the number says',
+  );
+  assert.equal(effectiveInbound({ onNumber: true, serviceUrl: 'https://else.where', numberUrl: ours }), ours);
+});
