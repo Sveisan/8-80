@@ -1,4 +1,5 @@
 import { config as loadEnv } from 'dotenv';
+import { smsConfigured } from './sms/index.ts';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -179,7 +180,7 @@ export const config = {
      * quietly opens it is a deploy that can be expensive and unkind at once.
      * One variable, set on purpose, on a box that is otherwise ready.
      */
-    open: (): boolean => process.env['SIGNUP_OPEN'] === '1',
+    open: (): boolean => process.env['SIGNUP_OPEN'] === '1' && smsConfigured(),
   },
   recap: {
     /**

@@ -9,6 +9,18 @@ export { TwilioSms } from './twilio.ts';
 export { parseReply, moveTo, type Reply } from './reply.ts';
 
 /**
+ * Whether a text would actually leave the building.
+ *
+ * The sign-up page asks this before it will open. Without it, `/start` takes
+ * somebody's number, writes the code to a file on a server they will never
+ * see, and tells them to check their texts — a dead end that looks exactly
+ * like success, which is the worst failure a sign-up page has available.
+ */
+export function smsConfigured(env: NodeJS.ProcessEnv = process.env): boolean {
+  return Boolean(env['TWILIO_ACCOUNT_SID'] && env['TWILIO_AUTH_TOKEN'] && env['SMS_FROM_NUMBER']);
+}
+
+/**
  * Twilio when it is configured, a file when it is not.
  *
  * All three variables or none — but a half-configured pair is reported rather

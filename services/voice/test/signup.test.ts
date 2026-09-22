@@ -110,3 +110,41 @@ test('the code text is shaped so a phone will autofill it', () => {
   assert.match(line, /^\d{6}\b/);
   assert.ok(line.length < 60, line);
 });
+
+test('the form will not open without a way to send the code', async () => {
+  // Without Twilio, /start takes somebody's number, writes the code to a file
+  // on a server they will never see, and says "check your texts". A dead end
+  // that looks like success is the worst failure this page has available.
+  const { config } = await import('../src/config.ts');
+  const before = {
+    open: process.env['SIGNUP_OPEN'],
+    sid: process.env['TWILIO_ACCOUNT_SID'],
+    token: process.env['TWILIO_AUTH_TOKEN'],
+    from: process.env['SMS_FROM_NUMBER'],
+  };
+  try {
+    process.env['SIGNUP_OPEN'] = '1';
+    for (const k of ['TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN', 'SMS_FROM_NUMBER']) delete process.env[k];
+    assert.equal(config.signup.open(), false, 'no SMS at all');
+
+    process.env['TWILIO_ACCOUNT_SID'] = 'AC1';
+    process.env['TWILIO_AUTH_TOKEN'] = 'tok';
+    assert.equal(config.signup.open(), false, 'half configured is still closed');
+
+    process.env['SMS_FROM_NUMBER'] = '+15074805619';
+    assert.equal(config.signup.open(), true);
+
+    process.env['SIGNUP_OPEN'] = '';
+    assert.equal(config.signup.open(), false, 'and the switch still has to be on');
+  } finally {
+    for (const [k, v] of Object.entries({
+      SIGNUP_OPEN: before.open,
+      TWILIO_ACCOUNT_SID: before.sid,
+      TWILIO_AUTH_TOKEN: before.token,
+      SMS_FROM_NUMBER: before.from,
+    })) {
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
+  }
+});

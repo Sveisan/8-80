@@ -48,7 +48,7 @@ const NEEDED: [string, string][] = [
   ['PUBLIC_URL', 'The missed-call text has no link, so no text is sent at all — and the recap loses its letterhead image.'],
   ['RESEND_API_KEY', 'Recaps are written to disk instead of sent.'],
   ['RECAP_FROM_ADDRESS', 'Goes with RESEND_API_KEY. One without the other sends nothing.'],
-  ['SIGNUP_OPEN', 'The public sign-up page is closed. Nobody can join without the CLI.'],
+  ['SIGNUP_OPEN', 'The public sign-up page is closed. Nobody can join without the CLI. Needs the Twilio block too.'],
   ['LEMONSQUEEZY_CHECKOUT_URL', 'The trial-ended email has nowhere to point.'],
   ['LEMONSQUEEZY_WEBHOOK_SECRET', 'Every payment webhook is refused with a 401. Nobody ever becomes active.'],
   ['SMS_FROM_NUMBER', 'Missed-call texts are written to disk instead of sent.'],
