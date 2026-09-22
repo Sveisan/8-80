@@ -140,6 +140,59 @@ export class PostgresStore implements Store {
     return rows.length > 0;
   }
 
+  /**
+   * Record what the payments vendor says about somebody.
+   *
+   * Found by our own key first and by their subscription id second. The first
+   * webhook for a new subscription is the only one that carries the phone hash
+   * — it rides along in the checkout's custom data — so it is also the one
+   * that writes the id every later webhook is found by.
+   *
+   * It never touches `paused`. See `claimDue`: that column is the caller's own
+   * decision and billing is a different question asked in the same `where`.
+   */
+  async applyBilling(change: {
+    phoneHash?: string;
+    subscriptionId?: string;
+    customerId?: string;
+    standing?: 'active' | 'past_due' | 'ended';
+  }): Promise<boolean> {
+    if (!change.standing) return false;
+    const status = change.standing === 'ended' ? 'ended' : change.standing;
+    const rows = change.phoneHash
+      ? await this.raw<{ phone_hash: string }[]>`
+          update callers set billing_status = ${status},
+            ls_subscription_id = coalesce(${change.subscriptionId ?? null}, ls_subscription_id),
+            ls_customer_id = coalesce(${change.customerId ?? null}, ls_customer_id),
+            updated_at = now()
+          where phone_hash = ${change.phoneHash}
+          returning phone_hash`
+      : change.subscriptionId
+        ? await this.raw<{ phone_hash: string }[]>`
+            update callers set billing_status = ${status}, updated_at = now()
+            where ls_subscription_id = ${change.subscriptionId}
+            returning phone_hash`
+        : [];
+    return rows.length > 0;
+  }
+
+  /**
+   * Trials that have run out, turned into a state that stops the calls.
+   *
+   * One transition and one email, ever, per caller: `billing_status` moves
+   * from 'trialing' to 'ended' in the same statement that selects them, so two
+   * sweeps running at once cannot both claim the same person and send two
+   * emails about their trial.
+   */
+  async expireTrials(now = new Date()): Promise<{ phoneHash: string }[]> {
+    const rows = await this.raw<{ phone_hash: string }[]>`
+      update callers set billing_status = 'ended', updated_at = now()
+      where billing_status = 'trialing' and trial_ends_at is not null and trial_ends_at <= ${now}
+      returning phone_hash
+    `;
+    return rows.map((r) => ({ phoneHash: r.phone_hash }));
+  }
+
   async phoneFor(phoneHash: string): Promise<string | undefined> {
     const rows = await this.db
       .select({ enc: callers.phoneEnc })

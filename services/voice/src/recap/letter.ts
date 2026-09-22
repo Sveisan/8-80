@@ -43,6 +43,16 @@ export interface LetterOptions {
   markUrl?: string;
   /** The day of the call, already in the caller's zone and language. */
   date?: string;
+  /**
+   * One link, for the one letter that cannot do its job without one.
+   *
+   * The recap has none and will never have one — BRAND.md §1, a promise kept
+   * turning into a campaign. A letter that says the free month is over and
+   * does not say where to continue is not restraint, it is a dead end. Set as
+   * text rather than a button for the same reason the rest of this is: it is
+   * correspondence, and correspondence does not have buttons.
+   */
+  action?: { label: string; url: string };
 }
 
 /** Sizes, not colours: the dark theme changes what these are set in, never how big. */
@@ -102,6 +112,15 @@ export function letterHtml(recap: Recap, options: LetterOptions = {}): string {
     ? `<td align="right" style="font:400 12px/40px ${FONT};letter-spacing:0.06em;color:${C.quiet};" class="quiet">${esc(options.date)}</td>`
     : '';
 
+  // From the options or from the letter itself. Carrying it on the Recap means
+  // every sender does not have to remember to forward it, and forgetting would
+  // produce a letter that says "if you want them to keep going:" and then
+  // nothing at all.
+  const act = options.action ?? recap.action;
+  const action = act
+    ? `\n            <tr><td style="padding:0 0 26px;font-size:16px;line-height:1.65;"><a href="${esc(act.url)}" style="color:${C.accent};text-decoration:underline;" class="wordmark">${esc(act.label)}</a></td></tr>`
+    : '';
+
   const letter = recap.parts
     .map((p) => {
       // The sign-off sits under a hairline. A letter ends; it does not just stop.
@@ -109,7 +128,10 @@ export function letterHtml(recap: Recap, options: LetterOptions = {}): string {
         p.role === 'signoff'
           ? `<tr><td style="padding:34px 0 0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td class="rule" style="border-top:1px solid ${C.line};font-size:0;line-height:0;">&nbsp;</td></tr></table></td></tr>\n            `
           : '';
-      return `${rule}<tr><td class="${p.role}" style="${STYLE[p.role]}color:${INK[p.role]};">${esc(p.text)}</td></tr>`;
+      // The action sits after the body and before the sign-off, where a
+      // postscript would go in a letter that had one.
+      const before = p.role === 'signoff' ? action : '';
+      return `${before}${rule}<tr><td class="${p.role}" style="${STYLE[p.role]}color:${INK[p.role]};">${esc(p.text)}</td></tr>`;
     })
     .join('\n            ');
 

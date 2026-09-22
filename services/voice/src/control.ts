@@ -15,6 +15,7 @@ import { verifySignature } from './webhook/signature.ts';
 import { Links } from './link/token.ts';
 import { confirmStopPage, donePage, gonePage, reschedulePage, stoppedPage } from './link/page.ts';
 import { signupRoutes } from './signup/routes.ts';
+import { readLemonWebhook, verifyLemonSignature } from './billing/lemonsqueezy.ts';
 import { parseLocalTime } from './schedule/time.ts';
 import { settleConversation } from './loop/settle.ts';
 import { UnreadablePayload, shapeOf } from './webhook/speechify.ts';
@@ -189,6 +190,38 @@ export function controlPlane(deps: LoopDeps, secret: string | readonly string[] 
           }
           throw e;
         }
+      }
+
+      if (req.method === 'POST' && url.pathname === '/webhooks/lemonsqueezy') {
+        const raw = await rawBody(req);
+        const verdict = verifyLemonSignature(req.headers, raw, config.billing.webhookSecret());
+        if (!verdict.ok) {
+          log('billing.rejected', { why: verdict.why });
+          return send(res, 401, { error: 'unauthorized' });
+        }
+        let payload: unknown;
+        try {
+          payload = JSON.parse(raw.toString('utf8'));
+        } catch {
+          return send(res, 400, { error: 'not json' });
+        }
+        const read = readLemonWebhook(req.headers, payload);
+        if (!read.ok) {
+          // The shape, not the contents. This file was written without access
+          // to Lemon Squeezy's documentation, so the first real delivery is
+          // the documentation — and a 200 keeps them from retrying something
+          // we already have.
+          log('billing.unreadable', { why: read.why, shape: read.shape });
+          return send(res, 200, { handled: false });
+        }
+        const applied = await (deps.store as PostgresStore).applyBilling(read.change);
+        log('billing.event', {
+          event: read.change.event,
+          status: read.change.status ?? 'none',
+          standing: read.change.standing ?? 'none',
+          matched: applied,
+        });
+        return send(res, 200, { handled: applied });
       }
 
       if (req.method === 'POST' && url.pathname === '/webhooks/sms') {

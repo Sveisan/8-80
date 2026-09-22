@@ -62,6 +62,15 @@ export class Scheduler {
         select phone_hash, next_call_at, slot_weekday, slot_minute, timezone
         from callers
         where paused = false
+          -- Billing is a separate question from paused, and conflating them
+          -- was the first design: paused is the caller's own decision to stop,
+          -- and a subscription lapsing must not overwrite it, nor must a
+          -- payment landing undo it. Somebody who texted STOP and then paid is
+          -- still somebody who texted STOP.
+          and (
+            billing_status in ('comped', 'active', 'past_due')
+            or (billing_status = 'trialing' and (trial_ends_at is null or trial_ends_at > ${now}))
+          )
           and next_call_at is not null
           and next_call_at <= ${now}
           and slot_weekday is not null

@@ -25,6 +25,8 @@ export interface Recap {
   parts: RecapPart[];
   /** The letterhead's date, carried through so the renderer needs only a Recap. */
   date?: string;
+  /** One link, for the one letter that carries one. The recap never does. */
+  action?: { label: string; url: string };
 }
 
 export interface RecapContext {

@@ -1095,3 +1095,38 @@ stops the first miss from being the last call._
 _Format matters more than voice here: the code first, the product named, nothing else.
 Phones autofill a code out of a message that looks like this one and do not out of a
 message that reads like a sentence._
+
+---
+
+## 16. When the free month is up
+
+_One email, once, on the day the trial ends. Not three, not a countdown, not a "your trial
+expires in 3 days!" — the call spends fifteen minutes a week refusing to manufacture
+urgency and the billing cannot spend one email inventing some._
+
+_It is the only letter in this product that carries a link, and it carries one because a
+letter saying the free month is over without saying where to continue is not restraint,
+it is a dead end. Text, not a button. See BRAND.md §9._
+
+_No price here. The price is on the page that takes the money, and a number in two places
+is a number that will eventually disagree with itself._
+
+`email.trial.subject`
+> "That's the free month"
+
+`email.trial.lead`
+> "The month's up, so the calls stop here."
+
+`email.trial.body`
+> "If you want them to keep going:"
+
+`email.trial.link`
+> "Pick it up here"
+
+`email.trial.quiet`
+> "And if not, that's genuinely fine. Nothing is deleted, and the same link starts the
+> calls again whenever you want them."
+
+_"Genuinely fine" is doing work. Every other product says something like it while making
+leaving difficult, so the sentence only survives because everything around it — the stop
+button, the one email, the absent countdown — is consistent with it._

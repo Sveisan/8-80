@@ -33,7 +33,7 @@ export class ResendMailer implements Mailer {
         from: this.from,
         to: [to],
         subject: recap.subject,
-        html: letterHtml(recap, { ...(this.markUrl ? { markUrl: this.markUrl } : {}), ...(recap.date ? { date: recap.date } : {}) }),
+        html: letterHtml(recap, { ...(this.markUrl ? { markUrl: this.markUrl } : {}), ...(recap.date ? { date: recap.date } : {}), ...(recap.action ? { action: recap.action } : {}) }),
         text: recap.body,
       }),
     });

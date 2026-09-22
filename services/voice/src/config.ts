@@ -157,6 +157,19 @@ export const config = {
      */
     publicUrl: (): string => process.env['PUBLIC_URL'] ?? '',
   },
+  billing: {
+    /**
+     * The hosted checkout, e.g. https://8and80.lemonsqueezy.com/buy/<variant>
+     *
+     * Their page rather than ours, and their price rather than a number in
+     * this repository: a price in two places is a price that will disagree
+     * with itself, and the one that takes the money should win.
+     */
+    checkoutUrl: (): string => process.env['LEMONSQUEEZY_CHECKOUT_URL'] ?? '',
+    webhookSecret: (): string => process.env['LEMONSQUEEZY_WEBHOOK_SECRET'] ?? '',
+    /** How long the free month is, in days. */
+    trialDays: (): number => num('TRIAL_DAYS', 30),
+  },
   signup: {
     /**
      * Whether the public form is open.

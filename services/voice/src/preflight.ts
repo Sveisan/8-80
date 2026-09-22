@@ -21,6 +21,18 @@ export const FEATURE_GROUPS: { label: string; trigger: string[]; needs: string[]
     needs: ['RESEND_API_KEY', 'RECAP_FROM_ADDRESS'],
   },
   {
+    label: 'payments',
+    trigger: ['LEMONSQUEEZY_CHECKOUT_URL', 'LEMONSQUEEZY_WEBHOOK_SECRET'],
+    needs: ['LEMONSQUEEZY_CHECKOUT_URL', 'LEMONSQUEEZY_WEBHOOK_SECRET'],
+  },
+  {
+    // The form texts a code to prove a number, and without the texts it is a
+    // way to schedule weekly calls to any number typed into it.
+    label: 'the public sign-up page',
+    trigger: ['SIGNUP_OPEN'],
+    needs: ['SIGNUP_OPEN', 'DATABASE_URL', 'DATA_ENCRYPTION_KEY', 'PUBLIC_URL', 'SMS_FROM_NUMBER'],
+  },
+  {
     // Only SMS_FROM_NUMBER triggers it: the account SID and auth token are
     // shared with the telephony adapter, and holding those without an SMS
     // number is what using Twilio for voice alone looks like.
