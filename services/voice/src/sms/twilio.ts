@@ -34,16 +34,21 @@ export class TwilioSms implements Sms {
       // code. It gets its own type so the caller can honour it rather than
       // retry it. The response body echoes the number back, so only the code
       // is read out of it and only the status is logged.
-      const code = await res
-        .json()
-        .then((b: unknown) => (b as { code?: unknown } | null)?.code)
-        .catch(() => undefined);
+      const body = (await res.json().catch(() => null)) as { code?: unknown; message?: unknown } | null;
+      const code = body?.code;
       if (isOptOutCode(code)) {
         log('sms.opted_out', { status: res.status });
         throw new OptedOut(code as number);
       }
-      log('sms.send_failed', { status: res.status });
-      throw new Error(`Twilio refused the message (HTTP ${res.status})`);
+      // The code and their sentence, not the body. Twilio's message names the
+      // actual problem — an unenabled country, an unregistered sender, a
+      // number that cannot receive texts — and a status code names none of
+      // them. Four days went into learning that lesson on the voice side; it
+      // should not have to be learned twice. log() scrubs numbers, so their
+      // sentence is safe to keep even though it quotes the destination.
+      const why = typeof body?.message === 'string' ? body.message : '';
+      log('sms.send_failed', { status: res.status, code: typeof code === 'number' ? code : 0, why });
+      throw new Error(`Twilio refused the message (HTTP ${res.status}${code ? `, code ${String(code)}` : ''})${why ? `: ${why}` : ''}`);
     }
     log('sms.sent', { via: 'twilio' });
   }
