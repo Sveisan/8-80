@@ -157,6 +157,27 @@ export const config = {
      */
     publicUrl: (): string => process.env['PUBLIC_URL'] ?? '',
   },
+  recap: {
+    /**
+     * Where the recap's letterhead image lives.
+     *
+     * Defaults to our own control plane, which serves it at /mark.png, rather
+     * than to an image CDN. A remote image in an email tells whoever serves it
+     * the moment somebody opened their recap, along with their IP and rough
+     * location. Served from here that is a line in our own log that we choose
+     * not to write; served from a third party it is a record on somebody
+     * else's account of when private accountability emails were read.
+     *
+     * RECAP_MARK_URL still overrides it, and an empty PUBLIC_URL means no
+     * image at all — the letter is built to be whole without one.
+     */
+    markUrl: (): string => {
+      const explicit = process.env['RECAP_MARK_URL'];
+      if (explicit) return explicit;
+      const base = process.env['PUBLIC_URL'];
+      return base ? `${base.replace(/\/+$/, '')}/mark.png` : '';
+    },
+  },
   speechify: {
     apiKey: () => req('SPEECHIFY_API_KEY'),
     agentId: () => req('SPEECHIFY_AGENT_ID'),

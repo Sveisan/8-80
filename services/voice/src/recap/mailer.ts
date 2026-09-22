@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { repoRoot } from '../config.ts';
+import { config, repoRoot } from '../config.ts';
 import { log } from '../log.ts';
 import type { Recap } from './compose.ts';
 import { letterHtml } from './letter.ts';
@@ -57,7 +57,7 @@ export class FileMailer implements Mailer {
     writeFileSync(`${stem}.txt`, `To: ${to}\nSubject: ${recap.subject}\n\n${recap.body}\n`);
     // Both parts, the same two a send would carry. The letter is the half that
     // is hard to check by reading the source, so it has to be openable.
-    const markUrl = process.env['RECAP_MARK_URL'];
+    const markUrl = config.recap.markUrl();
     writeFileSync(`${stem}.html`, letterHtml(recap, { ...(markUrl ? { markUrl } : {}), ...(recap.date ? { date: recap.date } : {}) }));
     // The address and the subject both carry the caller. Neither goes in a log.
     log('recap.written', { path: `${stem}.{txt,html}` });

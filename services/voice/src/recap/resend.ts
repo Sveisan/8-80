@@ -1,4 +1,5 @@
 import { log } from '../log.ts';
+import { config } from '../config.ts';
 import type { Mailer } from './mailer.ts';
 import type { Recap } from './compose.ts';
 import { letterHtml } from './letter.ts';
@@ -21,7 +22,7 @@ export class ResendMailer implements Mailer {
     private readonly apiKey: string,
     private readonly from: string,
     private readonly endpoint = 'https://api.resend.com/emails',
-    private readonly markUrl = process.env['RECAP_MARK_URL'],
+    private readonly markUrl = config.recap.markUrl(),
   ) {}
 
   async send(to: string, recap: Recap): Promise<void> {

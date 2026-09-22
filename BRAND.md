@@ -227,10 +227,12 @@ one piece of the product a person keeps.
   known scale; a mail client renders at whatever DPI it likes and Gmail downscales. At 40px
   in an inbox the primary mark's 88 is a smudge and the small one's is legible — checked
   side by side, not assumed.
-- The ball is optional and configured, not compiled in (`RECAP_MARK_URL`). A remote image
-  in an email tells a server the moment somebody opens their recap, which is a tracking
-  pixel whatever we call it. It is left unset until it points somewhere we are content to
-  have that. Nothing in the letter depends on it loading.
+- **We serve the ball ourselves**, from the control plane at `PUBLIC_URL/mark.png`, and
+  not from an image CDN. A remote image in an email tells whoever serves it the moment
+  somebody opened their recap, along with their IP. On our own host that is a line in our
+  own log that we choose not to write; on a third party's it is a record, on an account we
+  may not even own, of when private accountability emails were read. `RECAP_MARK_URL`
+  overrides it; no `PUBLIC_URL` means no image, and nothing in the letter depends on one.
 
 The words themselves are in SCRIPT.md §12 and are not restated here.
 

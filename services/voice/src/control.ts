@@ -1,5 +1,7 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
-import { config } from './config.ts';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { config, repoRoot } from './config.ts';
 import { log } from './log.ts';
 import { loadScript } from './script.ts';
 import { openStore } from './store/index.ts';
@@ -43,6 +45,27 @@ async function rawBody(req: IncomingMessage): Promise<Buffer> {
 const send = (res: ServerResponse, status: number, body: unknown): void => {
   res.writeHead(status, { 'content-type': 'application/json' });
   res.end(JSON.stringify(body));
+};
+
+/**
+ * The letterhead image, read once and held.
+ *
+ * Small, immutable, and requested by every mail client that renders a recap.
+ * Reading it from disk per request would be the only filesystem hit in the
+ * hot path of a server whose other job is answering a telephony webhook
+ * inside its timeout.
+ */
+let markPng: Buffer | undefined;
+const mark = (res: ServerResponse): void => {
+  markPng ??= readFileSync(resolve(repoRoot, 'brand', 'assets', 'mark-email.png'));
+  res.writeHead(200, {
+    'content-type': 'image/png',
+    // A year, immutable: the mark does not change, and every fetch of it that
+    // does not happen is one fewer record of when somebody opened their email.
+    'cache-control': 'public, max-age=31536000, immutable',
+    'referrer-policy': 'no-referrer',
+  });
+  res.end(markPng);
 };
 
 const html = (res: ServerResponse, status: number, body: string): void => {
@@ -89,6 +112,10 @@ export function controlPlane(deps: LoopDeps, secret: string | readonly string[] 
       const url = new URL(req.url ?? '/', 'http://x');
 
       if (req.method === 'GET' && url.pathname === '/health') return send(res, 200, { ok: true });
+
+      // The recap's letterhead. Deliberately not logged: a request for it is
+      // somebody opening their email, and that is not ours to keep.
+      if (req.method === 'GET' && url.pathname === '/mark.png') return mark(res);
 
       if (req.method === 'POST' && url.pathname === '/webhooks/speechify') {
         const body = await rawBody(req);

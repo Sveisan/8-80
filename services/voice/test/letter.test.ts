@@ -108,3 +108,37 @@ test('both grounds are stated, rather than left to the client to guess', () => {
   assert.ok(html.includes('#1A2920'), 'Night, under prefers-color-scheme: dark');
   assert.ok(html.includes('prefers-color-scheme: dark'));
 });
+
+test('the letterhead image is served by us, not by an image CDN', async () => {
+  // A remote image in an email tells whoever serves it the moment somebody
+  // opened their recap. On our own host that is a line we choose not to write.
+  // On a third party's it is a record, on an account we may not even own, of
+  // when private accountability emails were read.
+  const { config } = await import('../src/config.ts');
+  const before = { public: process.env['PUBLIC_URL'], mark: process.env['RECAP_MARK_URL'] };
+  try {
+    delete process.env['RECAP_MARK_URL'];
+    process.env['PUBLIC_URL'] = 'https://8and80.me/';
+    assert.equal(config.recap.markUrl(), 'https://8and80.me/mark.png', 'trailing slash and all');
+    process.env['RECAP_MARK_URL'] = 'https://elsewhere.test/m.png';
+    assert.equal(config.recap.markUrl(), 'https://elsewhere.test/m.png', 'still overridable');
+    delete process.env['RECAP_MARK_URL'];
+    delete process.env['PUBLIC_URL'];
+    assert.equal(config.recap.markUrl(), '', 'no host means no image, not a broken one');
+  } finally {
+    if (before.public === undefined) delete process.env['PUBLIC_URL'];
+    else process.env['PUBLIC_URL'] = before.public;
+    if (before.mark === undefined) delete process.env['RECAP_MARK_URL'];
+    else process.env['RECAP_MARK_URL'] = before.mark;
+  }
+});
+
+test('the file that route serves is on disk and is a PNG', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { resolve } = await import('node:path');
+  const { repoRoot } = await import('../src/config.ts');
+  const png = readFileSync(resolve(repoRoot, 'brand', 'assets', 'mark-email.png'));
+  assert.deepEqual([...png.subarray(0, 8)], [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  // Shown at 40px. Anything smaller than 2x is a smudge on a retina screen.
+  assert.ok(png.readUInt32BE(16) >= 80, `${png.readUInt32BE(16)}px wide`);
+});
