@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { repoRoot } from './config.ts';
 /**
  * Everything that can be checked without touching the network, checked before
  * a call is attempted. A failed dial tells you almost nothing; this tells you
@@ -42,8 +45,44 @@ export const FEATURE_GROUPS: { label: string; trigger: string[]; needs: string[]
   },
 ];
 
+/**
+ * Keys that appear more than once in .env.
+ *
+ * dotenv takes the LAST value for a repeated key, so a second, empty
+ * declaration further down the file silently erases the one somebody filled
+ * in — and nothing anywhere says so. The file simply behaves as though the
+ * value was never set, which is indistinguishable from forgetting to set it.
+ *
+ * Found in .env.example itself: three keys listed twice, left over from a
+ * section written before the features were real.
+ */
+export function duplicateKeys(text: string): string[] {
+  const seen = new Map<string, number>();
+  for (const line of text.split('\n')) {
+    const key = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=/.exec(line)?.[1];
+    if (key) seen.set(key, (seen.get(key) ?? 0) + 1);
+  }
+  return [...seen].filter(([, n]) => n > 1).map(([k]) => k);
+}
+
 export function preflight(env: NodeJS.ProcessEnv = process.env): Check[] {
   const checks: Check[] = [];
+
+  // Read the file rather than the environment: by the time it is an env var,
+  // the duplicate has already won and left no trace.
+  try {
+    const dupes = duplicateKeys(readFileSync(resolve(repoRoot, '.env'), 'utf8'));
+    if (dupes.length) {
+      checks.push({
+        ok: false,
+        label: `.env declares ${dupes.length === 1 ? 'a key' : 'keys'} twice: ${dupes.join(', ')}`,
+        detail:
+          'The last one wins, so an empty line further down erases the value above it. Delete the duplicates.',
+      });
+    }
+  } catch {
+    // No .env is normal in development and in CI. Nothing to check.
+  }
   // Read the provider from the env we were handed, not from module-level
   // config — otherwise this function silently ignores its own argument.
   const provider = env['TELEPHONY_PROVIDER'] ?? config.telephonyProvider;

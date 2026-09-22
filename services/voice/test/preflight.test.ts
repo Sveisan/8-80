@@ -170,3 +170,29 @@ test('a non-Norwegian SMS sender is noted, not failed', () => {
   assert.ok(preflight(usNumber).some((c) => c.label.includes('to Norwegian numbers')));
   assert.deepEqual(fails(usNumber), [], 'a note, not a failure — it is a real setup, just not the final one');
 });
+
+test('a key declared twice in .env is found, because the last one wins', async () => {
+  // dotenv takes the last value, so an empty line further down silently
+  // erases the one somebody filled in — and the file then behaves exactly as
+  // though they had never set it. Three keys in .env.example were like this.
+  const { duplicateKeys } = await import('../src/preflight.ts');
+  assert.deepEqual(
+    duplicateKeys(['A=1', '# a comment', 'B=2', '', 'A=', 'C=3'].join('\n')),
+    ['A'],
+  );
+  assert.deepEqual(duplicateKeys('A=1\nB=2\n'), []);
+  // Whitespace and export-style lines are still declarations.
+  assert.deepEqual(duplicateKeys('  A=1\nA =2\n'), ['A']);
+  // A value containing an = is not a second key.
+  assert.deepEqual(duplicateKeys('A=b=c\nB=1\n'), []);
+});
+
+test('.env.example does not declare anything twice', async () => {
+  // It is the file everybody copies. A duplicate here is a duplicate in
+  // every deployment made from it.
+  const { duplicateKeys } = await import('../src/preflight.ts');
+  const { readFileSync } = await import('node:fs');
+  const { resolve } = await import('node:path');
+  const { repoRoot } = await import('../src/config.ts');
+  assert.deepEqual(duplicateKeys(readFileSync(resolve(repoRoot, '.env.example'), 'utf8')), []);
+});
