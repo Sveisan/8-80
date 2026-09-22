@@ -57,6 +57,25 @@ export const callers = pgTable(
     nextCallAt: timestamp('next_call_at', { withTimezone: true }),
     /** Their choice to stop, which is not the same as having no slot. */
     paused: boolean('paused').notNull().default(false),
+
+    /*
+     * Billing. Four columns, and the product works without any of them set —
+     * a caller enrolled from the command line has no trial and no
+     * subscription and is rung anyway, which is how the first callers were
+     * added and how anybody comped will be added later.
+     */
+    /** When the free month runs out. Null means it never does. */
+    trialEndsAt: timestamp('trial_ends_at', { withTimezone: true }),
+    /** 'trialing' | 'active' | 'past_due' | 'cancelled' | 'comped'. */
+    billingStatus: text('billing_status').notNull().default('comped'),
+    /**
+     * Lemon Squeezy's ids, in the clear, because they are opaque integers that
+     * identify a row in somebody else's database rather than a person in ours
+     * — and because a webhook arriving with one has to be able to find this
+     * row by it, which an encrypted column cannot do.
+     */
+    lsSubscriptionId: text('ls_subscription_id'),
+    lsCustomerId: text('ls_customer_id'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -64,8 +83,55 @@ export const callers = pgTable(
     uniqueIndex('callers_phone_hash_key').on(t.phoneHash),
     index('callers_last_call_at_idx').on(t.lastCallAt),
     index('callers_due_idx').on(t.nextCallAt),
+    uniqueIndex('callers_ls_subscription_key').on(t.lsSubscriptionId),
+    index('callers_trial_idx').on(t.trialEndsAt),
   ],
 );
+
+/**
+ * Somebody who has filled in the form and not yet proved they own the number.
+ *
+ * A separate table, and this is the whole security argument for the sign-up
+ * page: a public form that writes to `callers` is a public form that places
+ * weekly phone calls to any number typed into it. That is not a sign-up, it is
+ * a harassment tool with a scheduler. Nothing reaches `callers` until a code
+ * sent to the number comes back.
+ *
+ * The number and address are encrypted here exactly as they are there — a row
+ * that has not been verified is still somebody's phone number, and the table
+ * that holds the unverified ones is the one nobody thinks to protect.
+ *
+ * Rows are short-lived and pruned. An abandoned sign-up is a person who
+ * changed their mind, and keeping their number for a week because they typed
+ * it once is the behaviour this product exists to be the opposite of.
+ */
+export const signups = pgTable(
+  'signups',
+  {
+    id: text('id').primaryKey(),
+    /** Deterministic, so a second attempt from the same number replaces the first. */
+    phoneHash: text('phone_hash').notNull(),
+    phoneEnc: text('phone_enc').notNull(),
+    emailEnc: text('email_enc'),
+    name: text('name'),
+    timezone: text('timezone').notNull(),
+    slotWeekday: integer('slot_weekday').notNull(),
+    slotMinute: integer('slot_minute').notNull(),
+    /**
+     * SHA-256 of the six digits. Never the digits: this table is readable by
+     * anything that can read the others, and a plaintext code turns one
+     * over-broad query into the ability to verify any pending number.
+     */
+    codeHash: text('code_hash').notNull(),
+    /** Five wrong guesses and the code is dead. A six-digit code is 1e6 wide. */
+    attempts: integer('attempts').notNull().default(0),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex('signups_phone_key').on(t.phoneHash), index('signups_expiry_idx').on(t.expiresAt)],
+);
+
+export type SignupRow = typeof signups.$inferSelect;
 
 /**
  * One row per call the scheduler decided to make.

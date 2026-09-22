@@ -122,6 +122,24 @@ export class PostgresStore implements Store {
   }
 
   /** The number we can actually ring, for a caller the scheduler found by key. */
+  /**
+   * Start somebody's free month.
+   *
+   * Separate from `upsertProfile` because a profile can be written a hundred
+   * times and a trial exactly once: re-running it on an existing caller would
+   * hand a second free month to anybody who signed up twice. The `where`
+   * clause is the whole guard, and it lives in the statement rather than in a
+   * read-then-write that two requests could interleave.
+   */
+  async startTrial(phone: string, endsAt: Date): Promise<boolean> {
+    const rows = await this.raw<{ phone_hash: string }[]>`
+      update callers set billing_status = 'trialing', trial_ends_at = ${endsAt}, updated_at = now()
+      where phone_hash = ${phoneKey(phone)} and trial_ends_at is null and ls_subscription_id is null
+      returning phone_hash
+    `;
+    return rows.length > 0;
+  }
+
   async phoneFor(phoneHash: string): Promise<string | undefined> {
     const rows = await this.db
       .select({ enc: callers.phoneEnc })

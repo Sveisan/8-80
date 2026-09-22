@@ -157,6 +157,17 @@ export const config = {
      */
     publicUrl: (): string => process.env['PUBLIC_URL'] ?? '',
   },
+  signup: {
+    /**
+     * Whether the public form is open.
+     *
+     * Off unless it is switched on, and that is not timidity: the form spends
+     * money on every submission and texts a stranger's phone, so a deploy that
+     * quietly opens it is a deploy that can be expensive and unkind at once.
+     * One variable, set on purpose, on a box that is otherwise ready.
+     */
+    open: (): boolean => process.env['SIGNUP_OPEN'] === '1',
+  },
   recap: {
     /**
      * Where the recap's letterhead image lives.

@@ -50,6 +50,13 @@
       "when": 1789935783694,
       "tag": "0006_heartbeats",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790079558287,
+      "tag": "0007_signups_and_billing",
+      "breakpoints": true
     }
   ]
 }

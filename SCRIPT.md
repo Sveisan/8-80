@@ -965,3 +965,133 @@ and no way to send START, so the way back cannot live only in a message._
 
 `page.expired.detail`
 > "They only last a week. The next call comes as usual, and you can move it then."
+
+---
+
+## 15. Signing up
+
+_The only page a stranger sees, and the only place this product is allowed to describe
+itself. Everything else in this file is spoken to somebody who already said yes._
+
+_The lines come from the brand guide rather than from a copywriting session, because the
+guide already decided what this is and a second description would be a second product._
+
+_**No card.** The first month is free and nothing asks for payment details, which is
+stated on the page because a person reading it has been trained by everything else to
+assume otherwise._
+
+_**A code, always.** The form does not create a caller. It sends six digits to the number
+and waits. A page that scheduled a weekly phone call to whatever number was typed into it
+would be a way to have somebody rung every Tuesday morning by a warm, patient voice they
+never asked for — see `signup/pending.ts`. This is the one rule on this page that is not
+about tone._
+
+`signup.title`
+> "A weekly phone call with the two people who know you best"
+
+`signup.what`
+> "Who you were at eight, and who you'll be at eighty. One call a week: what you said
+> you'd do, what happened, and the one thing for next week."
+
+`signup.after`
+> "A short recap lands in your inbox afterwards: what you talked about, and the one thing
+> you said you'd do."
+
+`signup.free`
+> "The first month is free, and we don't ask for a card."
+
+_Said once, near the button, and never again. A free trial repeated three times on one
+page is a page that does not believe its own offer._
+
+`signup.honest`
+> "The voice on the call is an AI. It remembers what you said last week, and nothing you
+> say goes anywhere else."
+
+_Non-negotiable and above the fold, not in a footer. §11 spends an entire call refusing to
+pretend to be a person; a sign-up page that lets somebody find out later would undo it
+before the first call._
+
+`signup.name`
+> "What should I call you?"
+
+`signup.phone`
+> "Your number"
+
+`signup.email`
+> "Where the recap goes"
+
+`signup.when`
+> "When suits you?"
+
+`signup.when.detail`
+> "Same time every week. You can move any call, or stop the whole thing, from a link in
+> every text I send."
+
+`signup.submit`
+> "Send me a code"
+
+`signup.error.name`
+> "I need something to call you."
+
+`signup.error.number`
+> "That doesn't look like a phone number. With the country code, like +47 900 33 575."
+
+`signup.error.email`
+> "That address doesn't look right."
+
+`signup.error.weekday`
+> "Pick a day."
+
+`signup.error.time`
+> "Pick a time."
+
+`signup.error.timezone`
+> "I couldn't work out your timezone. Pick one."
+
+_Each one says what to do next. None of them apologises, and none says "invalid" — a
+person who mistyped a digit is not in error, they are in a hurry._
+
+`signup.code.title`
+> "Check your texts"
+
+`signup.code.detail`
+> "Six digits, just sent to {{phone}}. It's good for ten minutes."
+
+`signup.code.label`
+> "The code"
+
+`signup.code.submit`
+> "That's it"
+
+`signup.code.again`
+> "Start again"
+
+`signup.code.wrong`
+> "That's not the code. Have another look."
+
+`signup.code.expired`
+> "That code has gone off. Start again and I'll send a new one."
+
+`signup.code.toomany`
+> "Too many tries. Start again and I'll send a new one."
+
+`signup.code.unknown`
+> "I don't have a sign-up waiting for that number. Start again."
+
+`signup.done.title`
+> "Done. First call {{when}}."
+
+`signup.done.detail`
+> "I'll ring from the number that just texted you. If it's a bad moment, don't answer —
+> you'll get a text with a link to move it."
+
+_The last line is the most useful sentence on the page. The most common first experience
+of a weekly call is missing one, and knowing in advance that missing it is handled is what
+stops the first miss from being the last call._
+
+`sms.code`
+> "{{code}} is your 8&80 code."
+
+_Format matters more than voice here: the code first, the product named, nothing else.
+Phones autofill a code out of a message that looks like this one and do not out of a
+message that reads like a sentence._

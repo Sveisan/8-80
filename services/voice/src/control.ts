@@ -14,6 +14,7 @@ import { handleReply } from './sms/missed.ts';
 import { verifySignature } from './webhook/signature.ts';
 import { Links } from './link/token.ts';
 import { confirmStopPage, donePage, gonePage, reschedulePage, stoppedPage } from './link/page.ts';
+import { signupRoutes } from './signup/routes.ts';
 import { parseLocalTime } from './schedule/time.ts';
 import { settleConversation } from './loop/settle.ts';
 import { UnreadablePayload, shapeOf } from './webhook/speechify.ts';
@@ -41,6 +42,20 @@ async function rawBody(req: IncomingMessage): Promise<Buffer> {
   }
   return Buffer.concat(chunks);
 }
+
+/**
+ * Who is asking, for rate limiting only.
+ *
+ * Behind a reverse proxy the socket address is the proxy, so the forwarded
+ * header is read first — and only the first hop of it, because everything
+ * after that was written by the client and a limiter keyed on a value the
+ * client controls is not a limiter.
+ */
+const clientOf = (req: IncomingMessage): string => {
+  const forwarded = req.headers['x-forwarded-for'];
+  const first = (Array.isArray(forwarded) ? forwarded[0] : forwarded)?.split(',')[0]?.trim();
+  return first || req.socket.remoteAddress || 'unknown';
+};
 
 const send = (res: ServerResponse, status: number, body: unknown): void => {
   res.writeHead(status, { 'content-type': 'application/json' });
@@ -117,6 +132,12 @@ export function controlPlane(deps: LoopDeps, secret: string | readonly string[] 
       const url = new URL(req.url ?? '/', 'http://x');
 
       if (req.method === 'GET' && url.pathname === '/health') return send(res, 200, { ok: true });
+
+      if (url.pathname === '/' || url.pathname.startsWith('/start')) {
+        const answer = await signupRoutes(req, url, deps, clientOf(req));
+        if (answer) return html(res, answer.status, answer.body);
+        return send(res, 404, { error: 'not found' });
+      }
 
       // The recap's letterhead. Deliberately not logged: a request for it is
       // somebody opening their email, and that is not ours to keep.
