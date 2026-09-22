@@ -1,5 +1,5 @@
 import { log } from '../log.ts';
-import type { Sms } from './types.ts';
+import { OptedOut, isOptOutCode, type Sms } from './types.ts';
 
 /**
  * Texts through Twilio's REST API, over fetch.
@@ -29,7 +29,19 @@ export class TwilioSms implements Sms {
     });
 
     if (!res.ok) {
-      // The response echoes the number back. The status is all that is loggable.
+      // One refusal is not a refusal: 21610 means this number has opted out,
+      // which is the person's decision reaching us as somebody else's error
+      // code. It gets its own type so the caller can honour it rather than
+      // retry it. The response body echoes the number back, so only the code
+      // is read out of it and only the status is logged.
+      const code = await res
+        .json()
+        .then((b: unknown) => (b as { code?: unknown } | null)?.code)
+        .catch(() => undefined);
+      if (isOptOutCode(code)) {
+        log('sms.opted_out', { status: res.status });
+        throw new OptedOut(code as number);
+      }
       log('sms.send_failed', { status: res.status });
       throw new Error(`Twilio refused the message (HTTP ${res.status})`);
     }

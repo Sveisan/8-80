@@ -1,6 +1,10 @@
 import { localDate, nextSlotAfter, parseLocalTime, parseWeekday, type Slot } from '../schedule/time.ts';
 
 export type Reply =
+  /** Stop entirely. The most important thing this parser can recognise. */
+  | { kind: 'stop' }
+  /** Undo a stop. */
+  | { kind: 'start' }
   /** Try again later today, without touching the slot. */
   | { kind: 'later' }
   /** Leave this week entirely. */
@@ -10,8 +14,36 @@ export type Reply =
   /** Not understood, and not guessed at. */
   | { kind: 'unparsed' };
 
+/**
+ * The carrier's own opt-out words, as a whole message and nothing else.
+ *
+ * A lone word is unambiguous; the same word inside a sentence is not. "Cancel
+ * this week" means skip, and reading it as an opt-out would end the
+ * arrangement of somebody who asked for one week off — so bare CANCEL stops
+ * and "cancel this week" does not. Norwegian included because the callers are.
+ */
+const STOP_ALONE = new Set([
+  'stop', 'stopp', 'stoppp', 'end', 'quit', 'cancel', 'unsubscribe', 'optout', 'opt-out',
+  'slutt', 'avslutt', 'stopp!', 'no more',
+]);
+/** Unambiguous even in a sentence: each one says what it wants done. */
+const STOP_PHRASES = [
+  'stop calling', 'stop ringing', 'stop the call', 'opt out', 'unsubscribe',
+  'remove me', 'delete me', 'take me off', 'no longer want',
+  'call me again', // only reached via the negation guard below
+  // 'cancel' on its own is an opt-out and 'cancel this week' is a week off, so
+  // the sentence has to say which. These say the whole thing.
+  'cancel everything', 'cancel the whole', 'cancel it all', 'cancel the calls',
+  'cancel my subscription', 'cancel the subscription',
+  'slutt å ringe', 'ikke ring meg', 'meld meg av', 'fjern meg',
+];
+/** The way back, and the carrier's word for it. */
+const START_ALONE = new Set(['start', 'unstop', 'yes', 'start again', 'start igjen', 'begynn igjen']);
+
 const LATER = ['later', 'tonight', 'this evening', 'in a bit', 'try again', 'call me later'];
-const SKIP = ['skip', 'pause', 'not this week', 'no thanks'];
+// 'cancel' reaches here only inside a sentence: bare CANCEL is a carrier
+// opt-out and was answered above. Inside a sentence it means this week.
+const SKIP = ['skip', 'pause', 'not this week', 'no thanks', 'cancel this week', 'cancel it'];
 /**
  * Skip, but only when nothing more specific is in the message.
  *
@@ -59,6 +91,19 @@ const CLOCK = /\b(\d{1,2})(?:[:.](\d{2}))?\s*(am|pm)?\b/;
 export function parseReply(text: string, now = new Date(), timezone = 'UTC'): Reply {
   const said = text.toLowerCase().trim();
   if (!said) return { kind: 'unparsed' };
+
+  // Before everything, including the day-and-time check. "Stop calling me on
+  // Tuesdays" contains a weekday, and reading it as a reschedule is the one
+  // mistake this parser is never allowed to make: not ringing somebody is
+  // always the safer error, and never ringing them again is what they asked
+  // for. See SCRIPT.md §13 for why this is the most important rule in the file.
+  const bare = said.replace(/[.!?,\s]+$/, '');
+  if (STOP_ALONE.has(bare)) return { kind: 'stop' };
+  if (START_ALONE.has(bare)) return { kind: 'start' };
+  // "don't call me again" is a stop; "call me again on Friday" is not, and the
+  // phrase alone cannot tell them apart. Only the negated form counts.
+  const negated = /\b(?:don'?t|do not|never|stop|no|not|please don'?t|ikke)\b[^.!?]{0,20}\bcall me again\b/.test(said);
+  if (STOP_PHRASES.some((p) => (p === 'call me again' ? negated : said.includes(p)))) return { kind: 'stop' };
 
   const weekday = findWeekday(said, now, timezone);
   const minute = findMinute(said);

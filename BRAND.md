@@ -241,9 +241,20 @@ The words themselves are in SCRIPT.md §12 and are not restated here.
 Opened one-thumbed, often in a shop, usually within a minute of a text arriving. It has one
 job and should be finished in two taps.
 
-Light ground, because it is opened in daylight far more often than the call is taken. Green
-buttons — gold fails on Mist. No account, no login, no explanation of the product to
+Light ground, because it is opened in daylight far more often than the call is taken. Pine
+buttons — gold fails on Paper. No account, no login, no explanation of the product to
 someone who is already a customer.
+
+**The exit is on it, named plainly.** "Stop calling me", quiet, under the things somebody
+came here to do. Not "manage preferences", which is how a system hides a door. One confirm
+step, because the page is opened one-thumbed and often walking, and then the calls end —
+no survey, no second ask, no "sorry to see you go". A product that makes leaving feel like
+an argument has decided its own retention matters more than the person, which is the one
+thing this call claims not to be.
+
+The page after it carries the way back, and that is not a courtesy. Somebody who stopped by
+texting STOP has a number the carrier will no longer deliver to, so START can never reach
+them; this link is all they have.
 
 ### The missed-call text
 

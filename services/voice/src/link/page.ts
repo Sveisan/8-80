@@ -55,7 +55,55 @@ export function reschedulePage(slot: Slot, script: ScriptLines, language = 'en')
     <form method="post" class="skip">
       <button name="action" value="skip" class="quiet">${say('page.skip')}</button>
     </form>
+
+    <form method="post" class="stop">
+      <button name="action" value="stop" class="quiet">${say('page.stop')}</button>
+    </form>
   `,
+    language,
+  );
+}
+
+/**
+ * Asked before the calls end, and only here.
+ *
+ * The one control on this page a mis-tap must not be able to finish the
+ * arrangement with — it is opened one-thumbed, often walking. Everything else
+ * here is undoable next Tuesday; this is not, without coming back.
+ *
+ * It is still one tap away and says plainly what it does. A confirm step is a
+ * courtesy; three of them, a survey and a "we're sorry to see you go" are a
+ * product arguing with somebody who has already decided.
+ */
+export function confirmStopPage(script: ScriptLines, language = 'en'): string {
+  const say = (id: string): string => esc(script.get(id) ?? '');
+  return shell(
+    `<h1>${say('page.stop.confirm')}</h1>
+     <p class="now">${say('page.stop.detail')}</p>
+     <form method="post">
+       <button name="action" value="stop-confirm" class="primary">${say('page.stop.yes')}</button>
+     </form>
+     <form method="post">
+       <button name="action" value="stop-cancel">${say('page.stop.no')}</button>
+     </form>`,
+    language,
+  );
+}
+
+/**
+ * After the calls have stopped, with the way back on it.
+ *
+ * Somebody who stopped by texting STOP has a number the carrier will not
+ * deliver to, so START can never reach them and the way back cannot live only
+ * in a message. This link still works.
+ */
+export function stoppedPage(script: ScriptLines, language = 'en'): string {
+  const say = (id: string): string => esc(script.get(id) ?? '');
+  return shell(
+    `<h1>${say('page.stopped')}</h1>
+     <form method="post" class="skip">
+       <button name="action" value="start" class="quiet">${say('page.stopped.back')}</button>
+     </form>`,
     language,
   );
 }
@@ -133,6 +181,8 @@ function shell(body: string, language = 'en'): string {
   .always input { width: auto; }
   .move { border-top: 1px solid var(--line); padding-top: 1.25rem; }
   .skip { margin-top: 1.5rem; }
+  /* Below the things somebody came here to do, and still plainly named. */
+  .stop { margin-top: .25rem; }
 </style>
 </head>
 <body><main>${body}</main></body>

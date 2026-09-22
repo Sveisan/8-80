@@ -812,9 +812,18 @@ never a joke that needs them to be in a good mood to read it. One light touch pe
 at most, and none at all in §12's email or anywhere after §10: nobody wants wit from the
 thing that just heard them say they are not sleeping._
 
-_`SKIP` rather than `STOP`: STOP is a reserved carrier keyword that permanently
-unsubscribes the number from all messages, silently, before our code sees it. Somebody
-meaning "not this week" must not lose the service._
+_`SKIP` rather than `STOP` for leaving one week: STOP is a reserved carrier keyword that
+unsubscribes the number from all messages, and somebody meaning "not this week" must not
+lose the service._
+
+_But STOP must still work, and it is the most important message in this file. The carrier
+handles it before our code sees it, which used to mean the texts stopped and **the weekly
+phone call did not** — a person left unable to receive the one message that offers a way
+out, and still being rung every week. That is the worst state this product can put
+somebody in, and it was the state it shipped in. Three paths close it now: the word is
+parsed here if the inbound reaches us; a send rejected for opt-out pauses the calls
+whether or not it ever did; and the page has a button, because the page works when the
+texts do not._
 
 `sms.missed`
 > "Rang just now. Didn't leave a message — nobody wants that. Move it or skip this week: {{link}}"
@@ -826,6 +835,21 @@ A link works from any sender, in any country, with no number bought anywhere. Th
 parser stays, and quietly handles anyone who tries it._
 
 _Short on purpose. This arrives while somebody is in a meeting._
+
+`sms.stopped`
+> "Done. I won't ring again. Text START if you want it back."
+
+_No "are you sure", no "sorry to see you go", no reason asked for. A product that makes
+leaving feel like an argument is a product that has decided its own retention matters more
+than the person, which is the whole thing this call claims not to be. The way back is one
+word and it is named once._
+
+_This text may never arrive. If the carrier handled the STOP, messages to that number are
+already blocked — which is why the calls stop first and the confirmation is attempted
+second, and why a confirmation that fails to send is not allowed to undo anything._
+
+`sms.started`
+> "Back on. Next call {{when}}."
 
 `sms.moved`
 > "{{when}}, then. Your usual slot stays as it is — say ALWAYS if you'd rather move it for good."
@@ -881,6 +905,38 @@ whoever is holding the phone, so the page is built for a stranger to find boring
 
 `page.always`
 > "Every week from now on"
+
+`page.stop`
+> "Stop calling me"
+
+_Quiet, at the bottom, under the things somebody came here to do — but present, and named
+plainly. "Manage preferences" is how a system hides an exit; this is the exit._
+
+`page.stop.confirm`
+> "Stop the weekly call?"
+
+`page.stop.detail`
+> "No more calls and no more texts. You can start again from this same link whenever you
+> like."
+
+_A confirm step, because this is the one control on the page that a mis-tap should not be
+able to end the arrangement with — and because the page is opened one-thumbed, often
+walking._
+
+`page.stop.yes`
+> "Yes, stop calling"
+
+`page.stop.no`
+> "No, keep them"
+
+`page.stopped`
+> "Stopped. I won't ring again."
+
+`page.stopped.back`
+> "Start the calls again"
+
+_The same link brings them back. Somebody who stopped by text may have a blocked number
+and no way to send START, so the way back cannot live only in a message._
 
 `page.skip`
 > "Leave this week"

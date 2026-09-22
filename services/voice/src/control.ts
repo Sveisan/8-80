@@ -13,7 +13,7 @@ import { openSms } from './sms/index.ts';
 import { handleReply } from './sms/missed.ts';
 import { verifySignature } from './webhook/signature.ts';
 import { Links } from './link/token.ts';
-import { donePage, gonePage, reschedulePage } from './link/page.ts';
+import { confirmStopPage, donePage, gonePage, reschedulePage, stoppedPage } from './link/page.ts';
 import { parseLocalTime } from './schedule/time.ts';
 import { settleConversation } from './loop/settle.ts';
 import { UnreadablePayload, shapeOf } from './webhook/speechify.ts';
@@ -89,6 +89,11 @@ function phraseFor(form: URLSearchParams): string | undefined {
   const action = form.get('action');
   if (action === 'later') return 'later';
   if (action === 'skip') return 'skip';
+  // Through the parser like everything else, so the button and the text word
+  // cannot come to mean different things. 'stop' alone only asks the question
+  // — see the handler.
+  if (action === 'stop-confirm') return 'stop';
+  if (action === 'start') return 'start';
   if (action !== 'move') return undefined;
 
   const weekday = Number(form.get('weekday'));
@@ -200,11 +205,23 @@ export function controlPlane(deps: LoopDeps, secret: string | readonly string[] 
 
         if (req.method === 'POST') {
           const form = new URLSearchParams((await rawBody(req)).toString('utf8'));
+          const action = form.get('action');
+          // Asked, not done. The only control here that a mis-tap should not
+          // be able to end the arrangement with.
+          if (action === 'stop') return html(res, 200, confirmStopPage(deps.script, caller.language));
+          if (action === 'stop-cancel') return html(res, 200, reschedulePage(slot, deps.script, caller.language));
+
           const said = phraseFor(form);
           if (!said) return html(res, 200, reschedulePage(slot, deps.script, caller.language));
           // Straight through the same path a text would take, so the two ways
           // of moving a call cannot drift apart.
           const out = await handleReply(phone, said, slot, { ...deps, sms: silent }, new Date());
+          // Stopping gets its own page because it is the one outcome that has
+          // to carry the way back: somebody who stopped by texting STOP has a
+          // number the carrier will not deliver to, so START cannot reach them
+          // and this link is all they have left.
+          if (out.action === 'stopped') return html(res, 200, stoppedPage(deps.script, caller.language));
+          if (out.action === 'started') return html(res, 200, reschedulePage(slot, deps.script, caller.language));
           return html(res, 200, donePage(out.said, deps.script, caller.language));
         }
       }
