@@ -87,6 +87,7 @@ export function signupPage(script: ScriptLines, state: SignupFormState = {}, lan
       <button class="primary">${say('signup.submit')}</button>
       <p class="quiet small centre">${say('signup.free')}</p>
     </form>
+    <p class="quiet small centre legal"><a href="/terms">Terms</a> · <a href="/privacy">Privacy</a></p>
     <script>
       // The only script on the page, and it fills one hidden field. Everything
       // else works with it blocked, which on a page like this is the point.
@@ -190,6 +191,10 @@ function shell(body: string, language = 'en'): string {
   }
   button.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
   button.quiet { border: 0; color: var(--quiet); margin-top: .4rem; }
+  /* Named, not hidden. A sign-up page that does not say where its terms are is
+     a sign-up page hoping nobody looks. */
+  .legal { margin-top: 2.5rem; }
+  .legal a { color: var(--quiet); }
 </style>
 </head>
 <body><main>${body}</main></body>

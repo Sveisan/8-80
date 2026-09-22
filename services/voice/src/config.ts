@@ -158,6 +158,19 @@ export const config = {
      */
     publicUrl: (): string => process.env['PUBLIC_URL'] ?? '',
   },
+  company: {
+    /**
+     * Who the terms and the privacy page name as the controller.
+     *
+     * Empty until somebody sets it, and the pages say they are unset rather
+     * than inventing a company. A privacy policy naming a data controller that
+     * does not exist is worse than one admitting it is a draft.
+     */
+    name: (): string => process.env['COMPANY_NAME'] ?? '',
+    orgnr: (): string => process.env['COMPANY_ORGNR'] ?? '',
+    address: (): string => process.env['COMPANY_ADDRESS'] ?? '',
+    supportEmail: (): string => process.env['SUPPORT_EMAIL'] ?? '',
+  },
   billing: {
     /**
      * The hosted checkout, e.g. https://8and80.lemonsqueezy.com/buy/<variant>

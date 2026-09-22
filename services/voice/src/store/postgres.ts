@@ -193,6 +193,33 @@ export class PostgresStore implements Store {
     return rows.map((r) => ({ phoneHash: r.phone_hash }));
   }
 
+  /**
+   * Erase somebody, completely.
+   *
+   * Every table that knows their hash, in one transaction, including the
+   * webhook deliveries whose encrypted bodies are their transcripts. Not a
+   * flag, not a tombstone, not a row with the columns blanked: privacy.md says
+   * "it cannot be undone and it is not a deactivation", and a soft delete
+   * would make that sentence a lie in a document that exists to be true.
+   *
+   * The attempt history goes too. It is keyed on the hash, so keeping it would
+   * leave a record of when a named person was rung, which is exactly the thing
+   * they asked to be rid of.
+   */
+  async forget(phone: string): Promise<boolean> {
+    const hash = phoneKey(phone);
+    return await this.raw.begin(async (tx) => {
+      await tx`delete from links where phone_hash = ${hash}`;
+      await tx`delete from signups where phone_hash = ${hash}`;
+      await tx`delete from webhook_deliveries where conversation_id in (
+        select provider_call_id from call_attempts where phone_hash = ${hash} and provider_call_id is not null
+      )`;
+      await tx`delete from call_attempts where phone_hash = ${hash}`;
+      const gone = await tx<{ phone_hash: string }[]>`delete from callers where phone_hash = ${hash} returning phone_hash`;
+      return gone.length > 0;
+    });
+  }
+
   async phoneFor(phoneHash: string): Promise<string | undefined> {
     const rows = await this.db
       .select({ enc: callers.phoneEnc })

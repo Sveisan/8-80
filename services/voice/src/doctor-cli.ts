@@ -54,7 +54,10 @@ const NEEDED: [string, string][] = [
   ['SMS_FROM_NUMBER', 'Missed-call texts are written to disk instead of sent.'],
   ['TWILIO_ACCOUNT_SID', 'Goes with SMS_FROM_NUMBER and the auth token.'],
   ['TWILIO_AUTH_TOKEN', 'Goes with SMS_FROM_NUMBER and the account SID.'],
-  ['SPEECHIFY_CALLER_ID_NUMBER', 'Calls arrive from whatever number the platform picks.'],
+  [
+    'SPEECHIFY_CALLER_ID_NUMBER',
+    'Calls arrive from whatever number the platform picks — and a number that is not authorised on the trunk is refused with SIP 403, intermittently, which reads as a flaky carrier for days.',
+  ],
 ];
 
 console.log('\n8&80 — what is actually true right now\n');

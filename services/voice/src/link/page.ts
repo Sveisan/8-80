@@ -59,6 +59,10 @@ export function reschedulePage(slot: Slot, script: ScriptLines, language = 'en')
     <form method="post" class="stop">
       <button name="action" value="stop" class="quiet">${say('page.stop')}</button>
     </form>
+
+    <form method="post" class="stop">
+      <button name="action" value="forget" class="quiet">${say('page.forget')}</button>
+    </form>
   `,
     language,
   );
@@ -103,9 +107,44 @@ export function stoppedPage(script: ScriptLines, language = 'en'): string {
     `<h1>${say('page.stopped')}</h1>
      <form method="post" class="skip">
        <button name="action" value="start" class="quiet">${say('page.stopped.back')}</button>
+     </form>
+     <form method="post" class="stop">
+       <button name="action" value="forget" class="quiet">${say('page.forget')}</button>
      </form>`,
     language,
   );
+}
+
+/**
+ * Asked before everything is deleted.
+ *
+ * Stopping and deleting are different and the page has to say which is which:
+ * stopping keeps the record so starting again is one tap, and this does not
+ * keep anything. The detail line says so in the words somebody would use.
+ */
+export function confirmForgetPage(script: ScriptLines, language = 'en'): string {
+  const say = (id: string): string => esc(script.get(id) ?? '');
+  return shell(
+    `<h1>${say('page.forget.confirm')}</h1>
+     <p class="now">${say('page.forget.detail')}</p>
+     <form method="post">
+       <button name="action" value="forget-confirm" class="primary">${say('page.forget.yes')}</button>
+     </form>
+     <form method="post">
+       <button name="action" value="stop-cancel">${say('page.forget.no')}</button>
+     </form>`,
+    language,
+  );
+}
+
+/**
+ * After. There is no link back on this page because there is nothing to go
+ * back to — the token it was reached by has been deleted along with everything
+ * else, so this is the last page that link will ever render.
+ */
+export function forgottenPage(script: ScriptLines, language = 'en'): string {
+  const say = (id: string): string => esc(script.get(id) ?? '');
+  return shell(`<h1>${say('page.forgotten')}</h1>`, language);
 }
 
 export function donePage(message: string, script: ScriptLines, language = 'en'): string {

@@ -1130,3 +1130,38 @@ is a number that will eventually disagree with itself._
 _"Genuinely fine" is doing work. Every other product says something like it while making
 leaving difficult, so the sentence only survives because everything around it — the stop
 button, the one email, the absent countdown — is consistent with it._
+
+---
+
+## 17. Deleting everything
+
+_On the same page as everything else, because the privacy page promises that the fastest
+way to be forgotten is the link in every text — and a promise that resolves to "email us
+and we'll get to it" is the thing every other company does._
+
+_Stopping and deleting are different, and the page has to say which is which. Stopping
+keeps the record so starting again is one tap. Deleting is total and cannot be undone._
+
+`page.forget`
+> "Delete everything"
+
+`page.forget.confirm`
+> "Delete everything I have on you?"
+
+`page.forget.detail`
+> "Your number, your email, your slot, and the one thing from last week. All of it, now,
+> for good. This can't be undone and there's nothing to restore afterwards — if you came
+> back you'd start from scratch."
+
+`page.forget.yes`
+> "Yes, delete it all"
+
+`page.forget.no`
+> "No, keep it"
+
+`page.forgotten`
+> "Gone. Nothing of yours is left here."
+
+_No "we're sorry to see you go", no offer to stay, no survey. Somebody on this page has
+already decided, and the last thing they see from us should be the thing they asked for
+happening._

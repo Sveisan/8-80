@@ -94,6 +94,11 @@ const speechify = {
   DATABASE_URL: 'postgres://x',
   DATA_ENCRYPTION_KEY: 'k',
   PUBLIC_URL: 'https://8and80.me',
+  // Part of a working deployment, not an extra. Unset, the platform picks a
+  // caller ID per call and one not authorised on the trunk comes back as SIP
+  // 403 on some calls and not others — which read as a flaky carrier for four
+  // days. See the check in preflight.ts.
+  SPEECHIFY_CALLER_ID_NUMBER: '+15074805619',
 } as NodeJS.ProcessEnv;
 
 test('the Speechify deployment is checked on its own terms', () => {
@@ -105,6 +110,12 @@ test('the Speechify deployment is checked on its own terms', () => {
   for (const key of grokOnly) {
     assert.ok(!fails(speechify).some((l) => l.includes(key)), `${key} is not part of this deployment`);
   }
+});
+
+test('an unpinned caller ID is a failure, because it is how calls die', () => {
+  const without = { ...speechify };
+  delete without['SPEECHIFY_CALLER_ID_NUMBER'];
+  assert.ok(fails(without).some((l) => l.includes('SPEECHIFY_CALLER_ID_NUMBER')));
 });
 
 test('the variables that silently lose a call are required', () => {
@@ -142,11 +153,9 @@ test('the one-number rule and the half-configured groups apply to Speechify too'
 test('a text number with no caller id is still two numbers to the caller', () => {
   // The mismatch is as real when one side is the platform's default: they get
   // a call from one number and a text from another.
-  assert.ok(
-    fails({ ...speechify, SMS_FROM_NUMBER: '+4790000001' }).some((l) =>
-      l.includes('the text has a number and the call does not'),
-    ),
-  );
+  const unpinned: NodeJS.ProcessEnv = { ...speechify, SMS_FROM_NUMBER: '+4790000001' };
+  delete unpinned['SPEECHIFY_CALLER_ID_NUMBER'];
+  assert.ok(fails(unpinned).some((l) => l.includes('the text has a number and the call does not')));
 });
 
 test('a non-Norwegian SMS sender is noted, not failed', () => {

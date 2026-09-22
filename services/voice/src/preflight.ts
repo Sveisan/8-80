@@ -73,6 +73,20 @@ export function preflight(env: NodeJS.ProcessEnv = process.env): Check[] {
     need('PUBLIC_URL', 'Where a reschedule link points. Without it no missed-call text is sent at all.');
 
     const callerId = env['SPEECHIFY_CALLER_ID_NUMBER'];
+    if (!callerId) {
+      // Not a nicety. Left unset, the platform picks a caller ID per call, and
+      // a number that is not authorised on the carrier's trunk comes back as
+      // SIP 403 — reported to us as a 400 with a validation_failed code. It
+      // fails on some calls and not others, so it reads as a flaky carrier,
+      // and it cost four days of exactly that before the error body was
+      // finally logged and said so. Pin it to the number on the trunk.
+      checks.push({
+        ok: false,
+        label: 'SPEECHIFY_CALLER_ID_NUMBER is unset',
+        detail:
+          'The platform then picks a number per call, and one not authorised on the trunk is refused with SIP 403 — intermittently, which looks like a flaky carrier for days. Pin it to the number attached to the agent.',
+      });
+    }
     if (callerId && !E164.test(callerId)) {
       checks.push({
         ok: false,

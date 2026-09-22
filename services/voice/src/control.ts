@@ -13,8 +13,17 @@ import { openSms } from './sms/index.ts';
 import { handleReply } from './sms/missed.ts';
 import { verifySignature } from './webhook/signature.ts';
 import { Links } from './link/token.ts';
-import { confirmStopPage, donePage, gonePage, reschedulePage, stoppedPage } from './link/page.ts';
+import {
+  confirmForgetPage,
+  confirmStopPage,
+  donePage,
+  forgottenPage,
+  gonePage,
+  reschedulePage,
+  stoppedPage,
+} from './link/page.ts';
 import { signupRoutes } from './signup/routes.ts';
+import { legalPage } from './legal/page.ts';
 import { readLemonWebhook, verifyLemonSignature } from './billing/lemonsqueezy.ts';
 import { parseLocalTime } from './schedule/time.ts';
 import { settleConversation } from './loop/settle.ts';
@@ -133,6 +142,10 @@ export function controlPlane(deps: LoopDeps, secret: string | readonly string[] 
       const url = new URL(req.url ?? '/', 'http://x');
 
       if (req.method === 'GET' && url.pathname === '/health') return send(res, 200, { ok: true });
+
+      if (req.method === 'GET' && (url.pathname === '/terms' || url.pathname === '/privacy')) {
+        return html(res, 200, legalPage(url.pathname.slice(1) as 'terms' | 'privacy'));
+      }
 
       if (url.pathname === '/' || url.pathname.startsWith('/start')) {
         const answer = await signupRoutes(req, url, deps, clientOf(req));
@@ -263,7 +276,16 @@ export function controlPlane(deps: LoopDeps, secret: string | readonly string[] 
           // Asked, not done. The only control here that a mis-tap should not
           // be able to end the arrangement with.
           if (action === 'stop') return html(res, 200, confirmStopPage(deps.script, caller.language));
+          if (action === 'forget') return html(res, 200, confirmForgetPage(deps.script, caller.language));
           if (action === 'stop-cancel') return html(res, 200, reschedulePage(slot, deps.script, caller.language));
+          if (action === 'forget-confirm') {
+            // The language is read before the delete, because after it there
+            // is no caller to read it from.
+            const language = caller.language;
+            await (deps.store as PostgresStore).forget(phone);
+            log('caller.forgotten', {});
+            return html(res, 200, forgottenPage(deps.script, language));
+          }
 
           const said = phraseFor(form);
           if (!said) return html(res, 200, reschedulePage(slot, deps.script, caller.language));
