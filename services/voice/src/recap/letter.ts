@@ -81,6 +81,11 @@ const INK: Record<RecapRole, string> = {
  * only the dark-mode swap, so a client that strips it still gets a complete,
  * legible letter on Paper rather than a guess.
  *
+ * The `[if mso]` pair around the column is not optional decoration. Outlook on
+ * Windows renders with Word, which ignores `max-width` entirely — without the
+ * ghost table the 500px column runs the full width of a maximised window and
+ * the one thing arrives as a single 1600px line.
+ *
  * Every caller-supplied string goes through `esc`. A commitment is somebody
  * else's words, spoken down a phone and transcribed, and it lands in an HTML
  * document — that is exactly the shape of thing that is one apostrophe away
@@ -88,7 +93,10 @@ const INK: Record<RecapRole, string> = {
  */
 export function letterHtml(recap: Recap, options: LetterOptions = {}): string {
   const ball = options.markUrl
-    ? `<td style="width:40px;padding:0 13px 0 0;line-height:0;"><img src="${esc(options.markUrl)}" width="40" height="40" alt="" style="display:block;border:0;border-radius:50%;" /></td>`
+    // No border-radius: the PNG is already a circle on transparency, and
+    // Outlook ignores the property anyway — so it can only ever hide a mistake
+    // in the image from us while showing it to half the recipients.
+    ? `<td style="width:40px;padding:0 13px 0 0;line-height:0;"><img src="${esc(options.markUrl)}" width="40" height="40" alt="" style="display:block;border:0;" /></td>`
     : '';
   const date = options.date
     ? `<td align="right" style="font:400 12px/40px ${FONT};letter-spacing:0.06em;color:${C.quiet};" class="quiet">${esc(options.date)}</td>`
@@ -128,6 +136,7 @@ export function letterHtml(recap: Recap, options: LetterOptions = {}): string {
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${C.bg};" class="ground">
     <tr>
       <td align="center" style="padding:48px 24px 60px;">
+        <!--[if mso]><table role="presentation" width="500" align="center" cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:500px;">
           <tr><td style="padding:0 0 14px;">
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
@@ -143,6 +152,7 @@ export function letterHtml(recap: Recap, options: LetterOptions = {}): string {
             </table>
           </td></tr>
         </table>
+        <!--[if mso]></td></tr></table><![endif]-->
       </td>
     </tr>
   </table>

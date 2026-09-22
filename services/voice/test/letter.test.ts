@@ -142,3 +142,16 @@ test('the file that route serves is on disk and is a PNG', async () => {
   // Shown at 40px. Anything smaller than 2x is a smudge on a retina screen.
   assert.ok(png.readUInt32BE(16) >= 80, `${png.readUInt32BE(16)}px wide`);
 });
+
+test('the column is held to 500px in Outlook too', () => {
+  // Outlook on Windows renders with Word, which ignores max-width. Without the
+  // ghost table the letter runs the full width of a maximised window and the
+  // one thing arrives as one very long line.
+  const html = letterHtml(withCommitment);
+  const open = html.indexOf('<!--[if mso]>');
+  const close = html.indexOf('<![endif]-->', open);
+  assert.ok(open > 0 && close > open, 'the ghost table is opened');
+  assert.ok(html.slice(open, close).includes('width="500"'), 'and it fixes the width');
+  assert.ok(html.includes('<!--[if mso]></td></tr></table><![endif]-->'), 'and it is closed');
+  assert.ok(html.indexOf('max-width:500px') > open, 'the real table is still inside it');
+});
