@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
 import { loadScript } from '../src/script.ts';
 import { readLemonWebhook, verifyLemonSignature, STANDING } from '../src/billing/lemonsqueezy.ts';
-import { composeTrialEnded, checkoutLink } from '../src/billing/notice.ts';
+import { composeTrialEnded, composePaymentFailed, checkoutLink } from '../src/billing/notice.ts';
 import { letterHtml } from '../src/recap/letter.ts';
 import { composeRecap } from '../src/recap/compose.ts';
 
@@ -121,4 +121,36 @@ test('an unconfigured checkout still produces a letter', () => {
   assert.ok(letter);
   assert.ok(letter.subject.length);
   assert.equal(letter.action, undefined);
+});
+
+test('dunning exhausted is the end, not another grace period', () => {
+  // `unpaid` used to map to past_due, which meant calling somebody weekly,
+  // forever, for free, while nothing ever said so.
+  assert.equal(STANDING['unpaid'], 'ended');
+});
+
+test('a failed card does not stop this week\'s call', () => {
+  // The call is what they are owed, and a bank declining a transaction is not
+  // a decision they made.
+  assert.equal(STANDING['past_due'], 'past_due');
+  const letter = composePaymentFailed(script, 'https://pay.example/card');
+  assert.ok(letter);
+  assert.ok(/carry on/i.test(letter.body), letter.body);
+});
+
+test('the card letter is the same letter as every other', () => {
+  const letter = composePaymentFailed(script, 'https://pay.example/card');
+  assert.ok(letter);
+  const html = letterHtml(letter);
+  assert.ok(html.includes('href="https://pay.example/card"'));
+  assert.ok(html.includes('8&amp;80'), 'on the same headed paper');
+  assert.ok(letter.parts.at(-1)?.text.includes('8&80'), 'and signed');
+});
+
+test('both money letters survive an unconfigured checkout', () => {
+  for (const compose of [composePaymentFailed, composeTrialEnded]) {
+    const letter = compose(script, '');
+    assert.ok(letter, 'somebody must be told even with no link to give them');
+    assert.equal(letter.action, undefined);
+  }
 });

@@ -25,6 +25,7 @@ import {
 import { signupRoutes } from './signup/routes.ts';
 import { legalPage } from './legal/page.ts';
 import { readLemonWebhook, verifyLemonSignature } from './billing/lemonsqueezy.ts';
+import { checkoutLink, composePaymentFailed } from './billing/notice.ts';
 import { parseLocalTime } from './schedule/time.ts';
 import { settleConversation } from './loop/settle.ts';
 import { UnreadablePayload, shapeOf } from './webhook/speechify.ts';
@@ -232,9 +233,16 @@ export function controlPlane(deps: LoopDeps, secret: string | readonly string[] 
           event: read.change.event,
           status: read.change.status ?? 'none',
           standing: read.change.standing ?? 'none',
-          matched: applied,
+          matched: applied.matched,
+          from: applied.from ?? 'none',
         });
-        return send(res, 200, { handled: applied });
+        // On the transition only. Their dunning re-sends this for days, and a
+        // second voice chasing the same card is what makes somebody cancel out
+        // of irritation rather than intent.
+        if (applied.matched && read.change.standing === 'past_due' && applied.from !== 'past_due') {
+          await tellThemTheCardFailed(deps, applied.phoneHash as string);
+        }
+        return send(res, 200, { handled: applied.matched });
       }
 
       if (req.method === 'POST' && url.pathname === '/webhooks/sms') {
@@ -308,6 +316,28 @@ export function controlPlane(deps: LoopDeps, secret: string | readonly string[] 
       if (!res.headersSent) send(res, 500, { error: 'internal' });
     });
   });
+}
+
+/**
+ * The one email about a failed card.
+ *
+ * Never throws. The billing state is already written, and a webhook that
+ * returns 500 because an email bounced is a webhook Lemon Squeezy will resend
+ * — which is how one failed payment becomes four identical letters.
+ */
+async function tellThemTheCardFailed(deps: LoopDeps, phoneHash: string): Promise<void> {
+  try {
+    const phone = await deps.store.phoneFor(phoneHash);
+    if (!phone) return;
+    const caller = await deps.store.load(phone);
+    if (!caller.email) return;
+    const letter = composePaymentFailed(deps.script, checkoutLink(phoneHash, caller.email));
+    if (!letter) return;
+    await deps.mailer.send(caller.email, letter);
+    log('billing.told_them', {});
+  } catch (e) {
+    log('billing.notice_failed', { reason: (e as Error).message });
+  }
 }
 
 /** Everything the loop needs, from the environment. */

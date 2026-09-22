@@ -1263,3 +1263,28 @@ keeps the record so starting again is one tap. Deleting is total and cannot be u
 _No "we're sorry to see you go", no offer to stay, no survey. Somebody on this page has
 already decided, and the last thing they see from us should be the thing they asked for
 happening._
+
+`email.payment.subject`
+> "Your card didn't go through"
+
+`email.payment.lead`
+> "The payment for this month didn't clear."
+
+`email.payment.body`
+> "The calls carry on for now. If it isn't sorted by the time the retries run out, they'll
+> stop — so it's worth a minute:"
+
+`email.payment.link`
+> "Update the card"
+
+`email.payment.quiet`
+> "It's usually an expired card or a bank asking for confirmation. Nothing has changed on
+> your side and nothing is lost."
+
+_Sent once, on the day a payment first fails, and never again — the payments vendor is
+already doing its own dunning and a second voice chasing the same card is the thing that
+makes somebody cancel out of irritation._
+
+_"The calls carry on for now" is the important line, and it has to be true: a failed card
+does not stop the weekly call, because the call is the thing they are owed and a bank
+declining a transaction is not a decision they made._

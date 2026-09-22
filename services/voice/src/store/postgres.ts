@@ -156,24 +156,45 @@ export class PostgresStore implements Store {
     subscriptionId?: string;
     customerId?: string;
     standing?: 'active' | 'past_due' | 'ended';
-  }): Promise<boolean> {
-    if (!change.standing) return false;
-    const status = change.standing === 'ended' ? 'ended' : change.standing;
+  }): Promise<{ matched: boolean; from?: string; phoneHash?: string }> {
+    if (!change.standing) return { matched: false };
+    const status = change.standing;
+
+    // A CTE rather than a subquery in RETURNING, because the old value is the
+    // whole point and RETURNING's visibility rules are exactly the kind of
+    // subtlety that works in testing and is wrong under load. `before` reads
+    // and locks the row; `upd` writes it; the select joins them. There is no
+    // version of this where the two disagree.
+    //
+    // The old status matters because Lemon Squeezy re-sends webhooks and
+    // retries dunning: "is past_due" arrives many times, "has just become
+    // past_due" once, and only the second is worth emailing somebody about.
     const rows = change.phoneHash
-      ? await this.raw<{ phone_hash: string }[]>`
-          update callers set billing_status = ${status},
-            ls_subscription_id = coalesce(${change.subscriptionId ?? null}, ls_subscription_id),
-            ls_customer_id = coalesce(${change.customerId ?? null}, ls_customer_id),
-            updated_at = now()
-          where phone_hash = ${change.phoneHash}
-          returning phone_hash`
+      ? await this.raw<{ phone_hash: string; was: string }[]>`
+          with before as (
+            select phone_hash, billing_status from callers where phone_hash = ${change.phoneHash} for update
+          ), upd as (
+            update callers set billing_status = ${status},
+              ls_subscription_id = coalesce(${change.subscriptionId ?? null}, ls_subscription_id),
+              ls_customer_id = coalesce(${change.customerId ?? null}, ls_customer_id),
+              updated_at = now()
+            where phone_hash = ${change.phoneHash}
+            returning phone_hash
+          )
+          select upd.phone_hash, before.billing_status as was from upd join before on before.phone_hash = upd.phone_hash`
       : change.subscriptionId
-        ? await this.raw<{ phone_hash: string }[]>`
-            update callers set billing_status = ${status}, updated_at = now()
-            where ls_subscription_id = ${change.subscriptionId}
-            returning phone_hash`
+        ? await this.raw<{ phone_hash: string; was: string }[]>`
+            with before as (
+              select phone_hash, billing_status from callers where ls_subscription_id = ${change.subscriptionId} for update
+            ), upd as (
+              update callers set billing_status = ${status}, updated_at = now()
+              where ls_subscription_id = ${change.subscriptionId}
+              returning phone_hash
+            )
+            select upd.phone_hash, before.billing_status as was from upd join before on before.phone_hash = upd.phone_hash`
         : [];
-    return rows.length > 0;
+    const row = rows[0];
+    return row ? { matched: true, from: row.was, phoneHash: row.phone_hash } : { matched: false };
   }
 
   /**

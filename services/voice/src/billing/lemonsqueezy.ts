@@ -61,7 +61,11 @@ const STANDING: Record<string, Standing> = {
   on_trial: 'active',
   paused: 'ended',
   past_due: 'past_due',
-  unpaid: 'past_due',
+  // Dunning exhausted. Their retries are finished and the card never worked,
+  // so this is the end rather than another grace period — leaving it as
+  // past_due meant calling somebody weekly, forever, for free, while nothing
+  // ever said so.
+  unpaid: 'ended',
   cancelled: 'active',
   expired: 'ended',
 };
