@@ -136,6 +136,28 @@ try {
     for (const p of [...(await probePublicUrl()), ...(await probeTwilio())]) check(p.ok, p.label, p.detail);
   });
 
+  // A sign-up that stalls at the code step leaves no caller, no attempt and no
+  // call — so every other section on this page says, correctly, that nothing
+  // happened. The only trace is here, and without it "I signed up and it never
+  // rang" is unanswerable.
+  await section('SIGN-UPS WAITING FOR A CODE', async () => {
+    const rows = await store.raw<{ created_at: Date; expires_at: Date; attempts: number }[]>`
+      select created_at, expires_at, attempts from signups order by created_at desc limit 5
+    `;
+    if (!rows.length) {
+      console.log('  None. Either nobody has started one, or they all finished.');
+      return;
+    }
+    for (const r of rows) {
+      const dead = r.expires_at.getTime() <= Date.now();
+      console.log(
+        `  ${r.created_at.toISOString().slice(0, 16).replace('T', ' ')}  ` +
+          `${dead ? 'expired' : 'waiting'}  ${r.attempts} attempt(s) at the code`,
+      );
+    }
+    console.log('  A row here is somebody who filled the form and never got the text.');
+  });
+
   await section('LAST FIVE ATTEMPTS', async () => {
   attempts = await store.raw<
     { scheduled_for: Date; status: string; duration_ms: number | null; note: string | null; sms_sent_at: Date | null }[]
