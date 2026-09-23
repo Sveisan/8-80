@@ -101,9 +101,14 @@ export async function signupRoutes(
       await openSms().send(signup.phone, template.replace('{{code}}', code));
     } catch (e) {
       // Including an opt-out: somebody who told the carrier to stop messaging
-      // us is somebody we do not text, and they find out on the next page
-      // rather than in a silence.
+      // us is somebody we do not text.
       log('signup.code_not_sent', { reason: e instanceof OptedOut ? 'opted out' : (e as Error).message });
+      // And they are told, on this page, now. The page used to say "check your
+      // texts" whether or not a text had left the building — so the first real
+      // sign-up sat waiting for a message that was never coming and believed
+      // it had worked. A silence that looks like success is the worst thing
+      // this page can do.
+      return { status: 200, body: codePage(signup.phone, script, 'signup.code.notsent') };
     }
     return { status: 200, body: codePage(signup.phone, script) };
   }

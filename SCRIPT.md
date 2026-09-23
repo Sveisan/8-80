@@ -1176,6 +1176,20 @@ person who mistyped a digit is not in error, they are in a hurry._
 `signup.code.unknown`
 > "I don't have a sign-up waiting for that number. Start again."
 
+`signup.code.notsent`
+> "I couldn't get a text to that number. Check it's right and try again — and if it keeps
+> failing, mail hei@8and80.me and I'll sort it by hand."
+
+_Shown when the send actually failed, and only then. Until this existed, the page said
+"check your texts" whether or not a text had left the building, so somebody whose number
+we cannot reach sat waiting for a message that was never coming — and, as far as they
+knew, had signed up._
+
+_Deliberately not shown when the request was merely rate limited. Telling a script which
+numbers are rate limited tells it which numbers it has reached; telling a person their
+text failed is the only honest thing to do. The two look the same from outside and must
+not read the same to the one person who deserves the truth._
+
 `signup.done.title`
 > "Done. First call {{when}}."
 

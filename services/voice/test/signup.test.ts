@@ -162,3 +162,15 @@ test('a messaging service silently overrides the number it owns', async () => {
   );
   assert.equal(effectiveInbound({ onNumber: true, serviceUrl: 'https://else.where', numberUrl: ours }), ours);
 });
+
+test('a text that failed to send is said so, not left as a silence', () => {
+  // The page used to say "check your texts" whether or not a text had left the
+  // building, so the first real sign-up sat waiting for a message that was
+  // never coming — and, as far as they knew, had worked.
+  const told = codePage('+4790033575', script, 'signup.code.notsent');
+  assert.ok(told.includes('couldn') && told.includes('text'), told.slice(0, 400));
+  assert.ok(told.includes('hei@8and80.me'), 'and a human to write to when it keeps failing');
+  // The rate-limited case renders the plain page on purpose: telling a script
+  // which numbers are limited tells it which numbers it has reached.
+  assert.ok(!codePage('+4790033575', script).includes('hei@8and80.me'));
+});
