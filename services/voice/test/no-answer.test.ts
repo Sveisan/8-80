@@ -47,3 +47,17 @@ test('an unparseable body is never mistaken for an answered phone', () => {
     assert.ok(e.message.includes('HTTP 502'));
   }
 });
+
+test('a call that never left the building still gets a text, and not a lie', async () => {
+  // From where they are sitting the weekly call simply did not happen, and a
+  // silence is how somebody decides a thing is broken and stops expecting it.
+  const { loadScript } = await import('../src/script.ts');
+  const script = loadScript();
+  const missed = script.get('sms.missed') ?? '';
+  const failed = script.get('sms.failed') ?? '';
+  assert.ok(failed, 'sms.failed is in SCRIPT.md');
+  assert.ok(/rang/i.test(missed), 'the missed-call text says their phone rang');
+  assert.ok(!/rang just now/i.test(failed), 'and this one must not, because it did not');
+  assert.ok(failed.includes('{{link}}'), 'it carries a way to move the call');
+  assert.ok(/my end/i.test(failed), 'and says whose fault it was');
+});

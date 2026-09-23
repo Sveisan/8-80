@@ -965,6 +965,22 @@ second, and why a confirmation that fails to send is not allowed to undo anythin
 `sms.started`
 > "Back on. Next call {{when}}."
 
+`sms.failed`
+> "Couldn't get a call through to you just now — my end, not yours. Back to the usual time
+> next week, or pick another: {{link}}"
+
+_When the call never left the building: a carrier refusing it, a platform outage, anything
+that means their phone never rang. Distinct from `sms.missed`, which says "rang just now"
+and would be a lie._
+
+_"My end, not yours" because it is, and because the alternative is somebody spending their
+afternoon wondering whether they did something wrong with a phone number they have had for
+twenty years._
+
+_Sent once, on the same claim as the missed-call text, so a retry or a second worker cannot
+turn it into two. A person whose weekly call silently did not arrive is the exact failure
+this product cannot have: it has one promise, and the promise is that it turns up._
+
 `sms.moved`
 > "{{when}}, then. Your usual slot stays as it is — say ALWAYS if you'd rather move it for good."
 

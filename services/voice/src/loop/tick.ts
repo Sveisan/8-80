@@ -2,7 +2,7 @@ import { config } from '../config.ts';
 import { log } from '../log.ts';
 import { CallNotPlaced } from '../agent/speechify.ts';
 import { Links } from '../link/token.ts';
-import { textAfterMissedCall } from '../sms/missed.ts';
+import { textAfterFailedCall, textAfterMissedCall } from '../sms/missed.ts';
 import type { LoopDeps } from './deps.ts';
 
 export interface TickResult {
@@ -70,13 +70,22 @@ async function withRetries<T>(place: () => Promise<T>): Promise<T> {
  * and a text that will not send must not stop the tick reaching the next
  * caller on a Friday morning.
  */
-async function textForMissedCall(claim: { attemptId: string; phoneHash: string }, deps: LoopDeps): Promise<void> {
+async function textForMissedCall(
+  claim: { attemptId: string; phoneHash: string },
+  deps: LoopDeps,
+  rang: boolean,
+): Promise<void> {
   try {
     const phone = await deps.store.phoneFor(claim.phoneHash);
     if (!phone) return;
     const base = config.link.publicUrl();
     const link = base ? `${base.replace(/\/$/, '')}/r/${await new Links(deps.store.raw).mint(claim.phoneHash)}` : undefined;
-    await textAfterMissedCall(claim.attemptId, phone, deps, link);
+    // Two sentences, because they are two different things to the person
+    // reading them. "Rang just now" is a lie when their phone never made a
+    // sound, and a product whose one promise is that it turns up cannot
+    // explain an absence with a fiction.
+    const send = rang ? textAfterMissedCall : textAfterFailedCall;
+    await send(claim.attemptId, phone, deps, link);
   } catch (e) {
     log('tick.missed_text_failed', { reason: (e as Error).message });
   }
@@ -119,15 +128,18 @@ export async function tick(deps: LoopDeps, now = new Date()): Promise<TickResult
         // an unanswered ring was filed as "could not place" and the person got
         // nothing at all: no call, no text, no way to move it.
         await deps.scheduler.finish(claim.attemptId, 'missed', { note: e.reason || 'no answer' });
-        await textForMissedCall(claim, deps);
+        await textForMissedCall(claim, deps, true);
         result.failed++;
         continue;
       }
-      // A refusal here means nobody was rung, which is not a missed call: no
-      // text goes out, because there is nothing for them to have missed.
+      // Nobody was rung. That is not a missed call and it does not get the
+      // missed-call text — but it does get a text, because from where they are
+      // sitting the weekly call simply did not happen, and a silence is how
+      // somebody decides a thing is broken and stops expecting it.
       await deps.scheduler.finish(claim.attemptId, 'failed', {
         note: `could not place after ${ATTEMPTS} tries: ${(e as Error).message}`,
       });
+      await textForMissedCall(claim, deps, false);
       result.failed++;
     }
   }

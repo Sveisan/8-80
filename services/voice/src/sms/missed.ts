@@ -44,6 +44,40 @@ export async function textAfterMissedCall(
   return true;
 }
 
+/**
+ * The text for a call that never left the building.
+ *
+ * `textAfterMissedCall` says "rang just now", which is a lie when the carrier
+ * refused it and their phone never made a sound. Same claim, same once-only
+ * guarantee, different sentence — because the difference matters to the person
+ * reading it, and because "my end, not yours" is true and worth saying.
+ *
+ * A weekly call that silently does not arrive is the one failure this product
+ * cannot have. It makes a single promise and the promise is that it turns up.
+ */
+export async function textAfterFailedCall(
+  attemptId: string,
+  phone: string,
+  deps: { sms: Sms; scheduler: Scheduler; script: ScriptLines },
+  link?: string,
+): Promise<boolean> {
+  if (!(await deps.scheduler.claimNudge(attemptId))) return false;
+  const template = deps.script.get('sms.failed');
+  if (!template || !link) return false;
+  try {
+    await deps.sms.send(phone, template.replace('{{link}}', link));
+  } catch (e) {
+    if (e instanceof OptedOut) {
+      await deps.scheduler.setPaused(phone, true);
+      log('sms.stopped_by_carrier', { note: 'opted out at the carrier — calls paused' });
+      return false;
+    }
+    log('sms.failed_notice_not_sent', { reason: (e as Error).message });
+    return false;
+  }
+  return true;
+}
+
 export interface ReplyOutcome {
   action: 'moved' | 'moved_always' | 'later' | 'skipped' | 'stopped' | 'started' | 'unread';
   /** What we said back, so a caller always gets an answer from a person's system. */
