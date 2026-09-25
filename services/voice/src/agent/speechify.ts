@@ -131,6 +131,15 @@ export class SpeechifyAgent {
 export class CallNotPlaced extends Error {
   readonly code: string;
   readonly reason: string;
+  /**
+   * Their request id, which is the only thing their support can look up.
+   *
+   * It was in the journal and nowhere else, so handing it over meant grepping
+   * for it — and the attempt row, the thing anybody actually reads when a call
+   * did not happen, did not have it. A failure nobody can escalate is a
+   * failure that waits for somebody to guess.
+   */
+  readonly requestId: string;
   /** True when the telephone actually rang and nobody answered it. */
   readonly rang: boolean;
 
@@ -140,10 +149,14 @@ export class CallNotPlaced extends Error {
     path: string,
   ) {
     const parsed = safeError(detail);
-    super(`Speechify refused ${path} (HTTP ${status})${parsed.message ? `: ${parsed.message}` : ''}`);
+    super(
+      `Speechify refused ${path} (HTTP ${status})${parsed.message ? `: ${parsed.message}` : ''}` +
+        `${parsed.requestId ? ` [request ${parsed.requestId}]` : ''}`,
+    );
     this.name = 'CallNotPlaced';
     this.code = parsed.code;
     this.reason = parsed.message;
+    this.requestId = parsed.requestId;
     this.rang = NO_ANSWER.test(parsed.message);
   }
 }
@@ -151,14 +164,15 @@ export class CallNotPlaced extends Error {
 /** Their words for a phone that rang and was not picked up. */
 const NO_ANSWER = /did not answer|no answer|not answered|busy|declined|rejected|unavailable|timed out/i;
 
-function safeError(detail: string): { code: string; message: string } {
+function safeError(detail: string): { code: string; message: string; requestId: string } {
   try {
-    const body = JSON.parse(detail) as { error?: { code?: unknown; message?: unknown } };
+    const body = JSON.parse(detail) as { error?: { code?: unknown; message?: unknown }; request_id?: unknown };
     return {
       code: typeof body.error?.code === 'string' ? body.error.code : '',
       message: typeof body.error?.message === 'string' ? body.error.message : '',
+      requestId: typeof body.request_id === 'string' ? body.request_id : '',
     };
   } catch {
-    return { code: '', message: '' };
+    return { code: '', message: '', requestId: '' };
   }
 }

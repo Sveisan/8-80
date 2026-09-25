@@ -61,3 +61,15 @@ test('a call that never left the building still gets a text, and not a lie', asy
   assert.ok(failed.includes('{{link}}'), 'it carries a way to move the call');
   assert.ok(/my end/i.test(failed), 'and says whose fault it was');
 });
+
+test('their request id reaches the attempt row, not just the journal', () => {
+  // It is the only thing Speechify's support can look up, and it was in the
+  // journal and nowhere else — so escalating a failure meant grepping for it.
+  const e = new CallNotPlaced(
+    400,
+    JSON.stringify({ error: { code: 'validation_failed', message: 'SIP status 403' }, request_id: 'fa47e118d45c' }),
+    '/v1/agents/outbound-calls',
+  );
+  assert.equal(e.requestId, 'fa47e118d45c');
+  assert.ok(e.message.includes('fa47e118d45c'), 'and it is in the note the attempt keeps');
+});
