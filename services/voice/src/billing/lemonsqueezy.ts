@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { shapeOf } from '../webhook/speechify.ts';
+import { num, obj, pick, str, type Change, type Payments, type Read, type Standing, type Verdict } from './types.ts';
 
 /**
  * Lemon Squeezy's webhook, read defensively.
@@ -25,8 +26,6 @@ import { shapeOf } from '../webhook/speechify.ts';
 const SIGNATURE_HEADERS = ['x-signature', 'x-lemonsqueezy-signature', 'signature'];
 const EVENT_HEADERS = ['x-event-name', 'x-lemonsqueezy-event', 'x-event'];
 
-export type Verdict = { ok: true } | { ok: false; why: string };
-
 export function verifyLemonSignature(
   headers: Record<string, string | string[] | undefined>,
   rawBody: Buffer,
@@ -42,9 +41,6 @@ export function verifyLemonSignature(
   if (want.length !== got.length || !timingSafeEqual(want, got)) return { ok: false, why: 'signature mismatch' };
   return { ok: true };
 }
-
-/** What a caller's subscription is doing, in our words rather than theirs. */
-export type Standing = 'active' | 'past_due' | 'ended';
 
 /**
  * Their status string to ours.
@@ -70,24 +66,7 @@ const STANDING: Record<string, Standing> = {
   expired: 'ended',
 };
 
-export interface Change {
-  event: string;
-  /** Lemon Squeezy's subscription id, as a string. */
-  subscriptionId?: string;
-  customerId?: string;
-  /** Their raw status, kept so a log says what they actually sent. */
-  status?: string;
-  standing?: Standing;
-  /** Our own key, round-tripped through the checkout's custom data. */
-  phoneHash?: string;
-  /** When a cancelled subscription actually runs out. */
-  endsAt?: string;
-}
-
-export function readLemonWebhook(
-  headers: Record<string, string | string[] | undefined>,
-  payload: unknown,
-): { ok: true; change: Change } | { ok: false; why: string; shape: string } {
+export function readLemonWebhook(headers: Record<string, string | string[] | undefined>, payload: unknown): Read {
   const p = payload as Record<string, unknown> | null;
   const meta = obj(p?.['meta']);
   const event = pick(headers, EVENT_HEADERS) ?? str(meta?.['event_name']) ?? str(meta?.['eventName']);
@@ -118,18 +97,16 @@ export function readLemonWebhook(
   return { ok: true, change };
 }
 
-const obj = (v: unknown): Record<string, unknown> | undefined =>
-  v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : undefined;
-const str = (v: unknown): string | undefined => (typeof v === 'string' && v ? v : undefined);
-const num = (v: unknown): string | undefined => (typeof v === 'number' ? String(v) : undefined);
-
-function pick(headers: Record<string, string | string[] | undefined>, names: readonly string[]): string | undefined {
-  for (const name of names) {
-    const v = headers[name];
-    const first = Array.isArray(v) ? v[0] : v;
-    if (first) return first;
-  }
-  return undefined;
-}
+export const lemonPayments: Payments = {
+  name: 'lemonsqueezy',
+  verify: (headers, rawBody, secret) => verifyLemonSignature(headers, rawBody, secret),
+  read: readLemonWebhook,
+  checkout(base, phoneHash, email) {
+    const url = new URL(base);
+    url.searchParams.set('checkout[custom][phone_hash]', phoneHash);
+    if (email) url.searchParams.set('checkout[email]', email);
+    return url.toString();
+  },
+};
 
 export { SIGNATURE_HEADERS, EVENT_HEADERS, STANDING };

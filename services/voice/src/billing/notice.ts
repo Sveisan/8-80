@@ -1,4 +1,7 @@
 import { config } from '../config.ts';
+import { lemonPayments } from './lemonsqueezy.ts';
+import { stripePayments } from './stripe.ts';
+import type { Payments } from './types.ts';
 import type { Recap } from '../recap/compose.ts';
 import type { ScriptLines } from '../script.ts';
 
@@ -15,11 +18,12 @@ import type { ScriptLines } from '../script.ts';
 export function checkoutLink(phoneHash: string, email?: string): string {
   const base = config.billing.checkoutUrl();
   if (!base) return '';
-  const url = new URL(base);
-  url.searchParams.set('checkout[custom][phone_hash]', phoneHash);
-  if (email) url.searchParams.set('checkout[email]', email);
-  return url.toString();
+  return payments().checkout(base, phoneHash, email);
 }
+
+/** Whichever vendor is configured. See config.billing.provider. */
+export const payments = (): Payments =>
+  config.billing.provider() === 'stripe' ? stripePayments : lemonPayments;
 
 /**
  * The one email about money.

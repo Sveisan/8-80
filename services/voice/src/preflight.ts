@@ -25,8 +25,8 @@ export const FEATURE_GROUPS: { label: string; trigger: string[]; needs: string[]
   },
   {
     label: 'payments',
-    trigger: ['LEMONSQUEEZY_CHECKOUT_URL', 'LEMONSQUEEZY_WEBHOOK_SECRET'],
-    needs: ['LEMONSQUEEZY_CHECKOUT_URL', 'LEMONSQUEEZY_WEBHOOK_SECRET'],
+    trigger: ['STRIPE_CHECKOUT_URL', 'STRIPE_WEBHOOK_SECRET'],
+    needs: ['STRIPE_CHECKOUT_URL', 'STRIPE_WEBHOOK_SECRET'],
   },
   {
     // The form texts a code to prove a number, and without the texts it is a

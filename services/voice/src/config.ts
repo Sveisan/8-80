@@ -173,14 +173,30 @@ export const config = {
   },
   billing: {
     /**
-     * The hosted checkout, e.g. https://8and80.lemonsqueezy.com/buy/<variant>
+     * Which payments vendor is live, decided by which secret is set.
+     *
+     * Two exist because the vendor changed under us mid-build: Lemon Squeezy
+     * was acquired by Stripe and its successor is Stripe Managed Payments.
+     * Rather than rip one out, both are kept behind one interface — if the
+     * Stripe eligibility review had gone the other way, this would have been a
+     * variable rather than a week.
+     *
+     * Stripe wins when both are set. Nobody configures two payment vendors on
+     * purpose, and taking money twice is the worse error.
+     */
+    provider: (): 'stripe' | 'lemonsqueezy' =>
+      process.env['STRIPE_WEBHOOK_SECRET'] ? 'stripe' : 'lemonsqueezy',
+    /**
+     * The hosted checkout, e.g. https://buy.stripe.com/<link>
      *
      * Their page rather than ours, and their price rather than a number in
      * this repository: a price in two places is a price that will disagree
      * with itself, and the one that takes the money should win.
      */
-    checkoutUrl: (): string => process.env['LEMONSQUEEZY_CHECKOUT_URL'] ?? '',
-    webhookSecret: (): string => process.env['LEMONSQUEEZY_WEBHOOK_SECRET'] ?? '',
+    checkoutUrl: (): string =>
+      process.env['STRIPE_CHECKOUT_URL'] ?? process.env['LEMONSQUEEZY_CHECKOUT_URL'] ?? '',
+    webhookSecret: (): string =>
+      process.env['STRIPE_WEBHOOK_SECRET'] ?? process.env['LEMONSQUEEZY_WEBHOOK_SECRET'] ?? '',
     /** How long the free month is, in days. */
     trialDays: (): number => num('TRIAL_DAYS', 30),
   },
