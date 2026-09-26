@@ -385,6 +385,30 @@ If one of the two was genuinely served:
 
 _"The one that happened to you" is the phrase that does the work. Keep it._
 
+### On a first call — their own eight and eighty
+
+_A first call has no week behind it, so the two questions above have nothing to read.
+Instead they are asked once, about the person's own version, and the answers are kept
+in their words: every later read is held up against what they said here, not against a
+generic child and a generic old man._
+
+`read.first.eight`
+> "What did you love doing at eight — something you'd do for no reason at all?"
+
+_Wait. This one often gets a laugh, and then the real answer._
+
+`read.first.eighty`
+> "And at eighty — what would you be sorry you never tried?"
+
+_The Alchemist's idea, never named: failing costs less than never setting out. It asks
+for a regret they can still avoid, which is something a weekly commitment can be pinned
+to._
+
+_Take both answers as given. One follow-up at most, and only to understand what they
+meant, never to test it. No `read.neither` on a first call — there is no week to have
+served neither. And never quote a book, an author or a principle out loud: the idea
+shapes the question, it is not said._
+
 ---
 
 ## 6. The one thing for next week
