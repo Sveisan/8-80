@@ -142,7 +142,18 @@ export function controlPlane(deps: LoopDeps, secret: string | readonly string[] 
     void (async () => {
       const url = new URL(req.url ?? '/', 'http://x');
 
-      if (req.method === 'GET' && url.pathname === '/health') return send(res, 200, { ok: true });
+      // HEAD as well as GET, because every uptime monitor ever written asks
+      // with HEAD and ours answered all of them with a 404. It went unnoticed
+      // because `curl -I` is also how a person checks by hand — so the one
+      // command somebody reaches for to ask "is it up" was the one command
+      // guaranteed to say no.
+      if ((req.method === 'GET' || req.method === 'HEAD') && url.pathname === '/health') {
+        if (req.method === 'HEAD') {
+          res.writeHead(200, { 'content-type': 'application/json' });
+          return res.end();
+        }
+        return send(res, 200, { ok: true });
+      }
 
       if (req.method === 'GET' && (url.pathname === '/terms' || url.pathname === '/privacy')) {
         return html(res, 200, legalPage(url.pathname.slice(1) as 'terms' | 'privacy'));

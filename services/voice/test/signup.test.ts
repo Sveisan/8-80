@@ -188,3 +188,28 @@ test('config imports nothing of ours, because a cycle through it took the site d
   const ours = [...source.matchAll(/^import .* from '(\.[^']+)'/gm)].map((m) => m[1]);
   assert.deepEqual(ours, [], `config.ts must stay a leaf; it imports ${ours.join(', ')}`);
 });
+
+test('/health answers HEAD, because that is what asks', async () => {
+  // Every uptime monitor uses HEAD, and `curl -I` is how a person checks by
+  // hand — so the one command somebody reaches for to ask "is it up" was the
+  // one command guaranteed to answer 404.
+  const { readFileSync } = await import('node:fs');
+  const { resolve } = await import('node:path');
+  const { repoRoot } = await import('../src/config.ts');
+  const control = readFileSync(resolve(repoRoot, 'services/voice/src/control.ts'), 'utf8');
+  const health = /url\.pathname === '\/health'[\s\S]{0,400}/.exec(control)?.[0] ?? '';
+  assert.ok(health.includes("'HEAD'"), '/health must accept HEAD as well as GET');
+});
+
+test('the reachability probe retries a 5xx, because a deploy makes one', async () => {
+  // systemctl restart returns before the process is listening, so the
+  // documented deploy lands the probe inside a window where Caddy is right to
+  // say 502. A diagnostic that cries during a normal deploy is one somebody
+  // learns to ignore.
+  const { readFileSync } = await import('node:fs');
+  const { resolve } = await import('node:path');
+  const { repoRoot } = await import('../src/config.ts');
+  const outside = readFileSync(resolve(repoRoot, 'services/voice/src/outside.ts'), 'utf8');
+  assert.match(outside, /res\.status < 500/, 'a sub-500 answer is returned immediately');
+  assert.match(outside, /ATTEMPTS = [2-9]/, 'and a 5xx is tried again');
+});

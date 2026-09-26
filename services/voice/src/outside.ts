@@ -35,13 +35,37 @@ export interface Probe {
 }
 
 const TIMEOUT_MS = 4_000;
+/**
+ * Three tries, because a restart takes about three seconds.
+ *
+ * `systemctl restart` returns when systemd has started the unit, not when the
+ * process is listening — and tsx compiles for two or three seconds first. The
+ * documented deploy is `restart && npm run doctor`, so this probe was landing
+ * inside that window and reporting a 502 that Caddy was entirely right to
+ * give. An evening went into chasing a crash loop that never existed.
+ *
+ * A diagnostic that cries during a normal deploy is a diagnostic somebody
+ * learns to ignore, which is worse than not having one.
+ */
+const ATTEMPTS = 3;
+const GAP_MS = 1_500;
 
 async function get(url: string, init: RequestInit = {}): Promise<Response | Error> {
-  try {
-    return await fetch(url, { ...init, signal: AbortSignal.timeout(TIMEOUT_MS) });
-  } catch (e) {
-    return e as Error;
+  let last: Response | Error = new Error('never attempted');
+  for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
+    try {
+      const res = await fetch(url, { ...init, signal: AbortSignal.timeout(TIMEOUT_MS) });
+      // A 5xx from a reverse proxy is the shape a booting upstream makes.
+      // Anything else is an answer, right or wrong, and retrying it is just
+      // three times the wait for the same news.
+      if (res.status < 500) return res;
+      last = res;
+    } catch (e) {
+      last = e as Error;
+    }
+    if (attempt < ATTEMPTS) await new Promise((r) => setTimeout(r, GAP_MS));
   }
+  return last;
 }
 
 /** The public URL, as the internet sees it rather than as the config claims. */
