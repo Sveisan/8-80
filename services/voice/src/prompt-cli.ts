@@ -32,7 +32,14 @@ const profile =
     : arg === 'third'
       ? { callNumber: 4, lastCommitment: 'run three times', consecutiveUndone: 3 }
       : forConsole
-        ? { callNumber: 2, lastCommitment: '{{last_commitment}}', callDay: '{{last_day}}' }
+        ? {
+            callNumber: 2,
+            lastCommitment: '{{last_commitment}}',
+            callDay: '{{last_day}}',
+            eight: '{{own_eight}}',
+            eighty: '{{own_eighty}}',
+            belief: '{{last_belief}}',
+          }
         : { callNumber: 2, lastCommitment: 'run three times' };
 
 if (console_) {

@@ -86,6 +86,18 @@ function words(text: string): string[] {
 export function carries(said: string, line: string): boolean {
   const want = words(line);
   if (!want.length) return false;
+  // A short line with slots ("Right. {{commitment}}, {{day}}. Will you?") is
+  // its fixed words in order, with anything at all where the slots were.
+  if (want.length < 5 && line.includes('{{')) {
+    const have = ` ${normalise(said)} `;
+    let at = 0;
+    for (const piece of line.split(/\{\{[^}]*\}\}/).map(normalise).filter(Boolean)) {
+      const found = have.indexOf(` ${piece} `, at);
+      if (found < 0) return false;
+      at = found + piece.length + 1;
+    }
+    return true;
+  }
   if (want.length < 5) return ` ${normalise(said)} `.includes(` ${want.join(' ')} `);
   const have = new Set(words(said));
   return want.filter((w) => have.has(w)).length / want.length >= 0.8;

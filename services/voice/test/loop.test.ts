@@ -160,8 +160,8 @@ test('no unfilled slot is ever left where the mentor could read it aloud', async
   const { voice } = await drive([{ buf: QUIET, count: 5 }], false);
   const spoken = voice.instructions.split('\nSLOTS\n')[1]?.split('\n').slice(1).join('\n') ?? '';
   const left = [...spoken.matchAll(/\{\{[^}]+\}\}/g)].map((m) => m[0]);
-  // The model fills these three from what was actually said; anything else is a bug.
-  const allowed = new Set(['{{commitment}}', '{{day}}', '{{eight|eighty}}']);
+  // The model fills these from what was actually said; anything else is a bug.
+  const allowed = new Set(['{{commitment}}', '{{day}}', '{{eight|eighty}}', '{{belief}}', '{{eight}}', '{{eighty}}']);
   assert.deepEqual(left.filter((s) => !allowed.has(s)), [], 'unfilled slot in the instructions');
 });
 

@@ -16,7 +16,7 @@ const store = read('services/voice/src/store/postgres.ts');
 test('everything privacy.md calls encrypted really is', () => {
   // The claim that makes this document worth anything is that it describes the
   // database rather than an intention. These are the columns it names.
-  for (const column of ['phone_enc', 'email_enc', 'last_commitment_enc', 'body_enc']) {
+  for (const column of ['phone_enc', 'email_enc', 'last_commitment_enc', 'eight_enc', 'eighty_enc', 'belief_enc', 'body_enc']) {
     assert.ok(schema.includes(`'${column}'`), `${column} is not in the schema`);
   }
   assert.ok(privacy.includes('AES-256-GCM'));

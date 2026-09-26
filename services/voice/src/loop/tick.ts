@@ -152,10 +152,18 @@ export async function tick(deps: LoopDeps, now = new Date()): Promise<TickResult
  * Last week, in their own words, as the agent will hear it.
  *
  * This is the whole of what the platform learns about a person, and it is
- * deliberately three fields. Their Memory feature would accumulate the rest;
- * it stays off, and this is what replaces it.
+ * deliberately a handful of fields, each in their own words. Their Memory
+ * feature would accumulate the rest; it stays off, and this is what replaces it.
  */
-function variablesFor(caller: { name?: string; lastCommitment?: string; lastCommitmentDay?: string; callNumber: number }): Record<string, string> {
+function variablesFor(caller: {
+  name?: string;
+  lastCommitment?: string;
+  lastCommitmentDay?: string;
+  callNumber: number;
+  eight?: string;
+  eighty?: string;
+  belief?: string;
+}): Record<string, string> {
   return {
     call_number: String(caller.callNumber),
     caller_name: caller.name ?? '',
@@ -165,6 +173,13 @@ function variablesFor(caller: { name?: string; lastCommitment?: string; lastComm
     // omission is a hole nothing can act on.
     last_commitment: caller.lastCommitment ?? NOTHING_RECORDED,
     last_day: caller.lastCommitmentDay ?? '',
+    // Their own eight and eighty, and an assumption they are testing. The same
+    // marker as above, for the same reason. Not named eight, eighty or belief:
+    // those are slots the MODEL fills with what was just said, and a console
+    // variable of the same name would fill them with last month's words.
+    own_eight: caller.eight ?? NOTHING_RECORDED,
+    own_eighty: caller.eighty ?? NOTHING_RECORDED,
+    last_belief: caller.belief ?? NOTHING_RECORDED,
   };
 }
 

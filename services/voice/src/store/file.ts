@@ -43,6 +43,9 @@ export class FileStore implements Store {
         lastCommitmentDay: raw['lastCommitmentDay'] as string | undefined,
         consecutiveUndone: Number(raw['consecutiveUndone'] ?? 0),
         patienceOffsetMs: raw['patienceOffsetMs'] as number | undefined,
+        eight: open(raw['eight']),
+        eighty: open(raw['eighty']),
+        belief: open(raw['belief']),
       };
     } catch {
       // No record is not an error: it is the first call.
@@ -55,7 +58,10 @@ export class FileStore implements Store {
     // A call that reached no commitment does not overwrite the last one: they
     // are still on the hook for what they said the week before.
     const commitment = outcome.commitment ?? before.lastCommitment;
-    if (commitment && !hasKey()) {
+    const eight = outcome.eight ?? before.eight;
+    const eighty = outcome.eighty ?? before.eighty;
+    const belief = outcome.belief ?? before.belief;
+    if ((commitment || eight || eighty || belief) && !hasKey()) {
       log('store.not_written', { reason: 'DATA_ENCRYPTION_KEY is unset, and what they said is not going to disk in the clear' });
       return;
     }
@@ -73,6 +79,9 @@ export class FileStore implements Store {
           lastCommitmentDay: outcome.day ?? before.lastCommitmentDay,
           consecutiveUndone: before.consecutiveUndone,
           patienceOffsetMs: before.patienceOffsetMs,
+          eight: eight ? encrypt(eight) : undefined,
+          eighty: eighty ? encrypt(eighty) : undefined,
+          belief: belief ? encrypt(belief) : undefined,
           lastCallAt: outcome.at,
         },
         null,
@@ -81,4 +90,9 @@ export class FileStore implements Store {
     );
     log('store.recorded', { callNumber: before.callNumber + 1, commitment: commitment ? 'set' : 'none' });
   }
+}
+
+/** A sealed field, or nothing. */
+function open(sealed: unknown): string | undefined {
+  return typeof sealed === 'string' && sealed ? decrypt(sealed) : undefined;
 }

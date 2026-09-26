@@ -39,6 +39,11 @@ export const callers = pgTable(
     lastCommitmentDay: text('last_commitment_day'),
     consecutiveUndone: integer('consecutive_undone').notNull().default(0),
     patienceOffsetMs: integer('patience_offset_ms'),
+    /** Their own eight and eighty, in their words. Encrypted. */
+    eightEnc: text('eight_enc'),
+    eightyEnc: text('eighty_enc'),
+    /** An assumption they named and chose to test, in their words. Encrypted. */
+    beliefEnc: text('belief_enc'),
     lastCallAt: timestamp('last_call_at', { withTimezone: true }),
 
     /*

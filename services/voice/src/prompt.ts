@@ -19,6 +19,11 @@ export interface CallerProfile {
   callNumber: number;
   consecutiveUndone?: number;
   patienceOffsetMs?: number;
+  /** Their own eight and eighty, from the first call, in their words. */
+  eight?: string;
+  eighty?: string;
+  /** An assumption they chose to test last time. Never said back to them. */
+  belief?: string;
 }
 
 /** The provider voice name for a caller: their preference, mapped, or the default. */
@@ -65,6 +70,11 @@ export function buildInstructions(script: ScriptLines, profile: CallerProfile): 
       `2. One beat, then ask about last week, quoting their own words back: "${line('open.return.callback').replace('{{commitment}}', profile.lastCommitment ?? 'the thing you named')}"`,
       '   If what you have for last week reads "(nothing recorded)", then nothing was written down and there is nothing to quote. Do not say the line, and do not pretend to remember. Ask what they ended up working on instead, and carry on from their answer.',
       `3. If they did it: "${line('last.did')}" If partly: "${line('last.partial')}"`,
+      ...(profile.belief !== undefined
+        ? [
+            `   Last time's thing was a test of something they had assumed: ${profile.belief}. Once they have said how it went: "${line('belief.after')}" Never say the assumption itself out loud — not quoted, not paraphrased. Saying it again makes it more believed. If it reads "(nothing recorded)", there was no test; skip this.`,
+          ]
+        : []),
       `4. If they did nothing, use exactly this and then STOP TALKING until they speak, however long that takes: "${line(config.variants.nothing)}"`,
     );
     if (script.get('nothing.c.follow') && config.variants.nothing === 'nothing.c') {
@@ -77,6 +87,8 @@ export function buildInstructions(script: ScriptLines, profile: CallerProfile): 
     }
     stages.push(
       `6. What got in the way: "${line('block.ask')}" If external: "${line('block.external')}" If internal, do not explore it: "${line('block.internal')}"`,
+      `6a. If the reason they give is an assumption about the work or the world, held as if it were a fact — "nobody will pay for this", "that channel doesn't work" — one round, and only because they said it: "${line('belief.known')}" If they know it, take that and move on; do not argue. If assumed, name it back once, in their exact words: "${line('belief.name')}" and never say it again, this call or any other. Then "${line('belief.evidence')}" — and wait; never offer an example, however long the pause, because finding it themselves is the whole point. Then "${line('belief.both')}" and take the answer without arguing; if it is abstract, "Name a time." once. The one thing for next week is then a small test of it: "${line('belief.test')}" This replaces the read on this call.`,
+      '   Never do this with a belief about who they are — "I\'m lazy", "I\'m not a salesperson". If they volunteer one, take it and do not test it. And never go looking for a belief they did not state.',
     );
   }
 
@@ -96,20 +108,31 @@ export function buildInstructions(script: ScriptLines, profile: CallerProfile): 
     if (!profile.voice) setup.push(`S4. Theirs to choose, and not important: "${line('setup.voice')}" If they do not care, that is an answer. Do not ask twice and do not demonstrate.`);
   }
 
+  const ownRead = !first && profile.eight !== undefined && profile.eighty !== undefined;
+  const ownLine = (id: string) =>
+    line(id).replace('{{eight}}', profile.eight ?? '').replace('{{eighty}}', profile.eighty ?? '');
+
   stages.push(
     `6b. If the answers stay short — three words, then waiting — do not ask another question; that reads as an interview and they get shorter. Go smaller and more concrete: "${line('thin.smaller')}" then, if needed, "${line('thin.concrete')}" Once in the call, and only if the shortness reads as effort rather than reluctance: "${line('thin.permission')}" If two of these have been tried and the answers stay short, stop reaching — take the smallest true thing they gave you, pin a commitment to it, and close early. A short call that ended well is a second call.`,
     first
-      ? `7. Their own eight and eighty — never name it as a framework, never say "eight and eighty" as a label: "${line('read.first.eight')}" then "${line('read.first.eighty')}" Take both answers as given; one follow-up at most, only to understand what they meant, never to test it. These answers are kept, and every later call is held up against them, so get them in their own words. Never quote a book, an author or a principle.`
-      : `7. The read — never name it as a framework, never say "eight and eighty" as a label: "${line('read.eight')}" then "${line('read.eighty')}" then, if both were thin: "${line('read.neither')}" and be quiet. Do not answer it for them.`,
+      ? `7. Their own eight and eighty — never name it as a framework, never say "eight and eighty" as a label: "${line('read.first.eight')}" then "${line('read.first.eighty')}" Take both answers as given; one follow-up at most, only to understand what they meant, never to test it. Then read both back once, as written, with their own words in the slots and nothing tidied: "${line('read.first.keep')}" That line is how the answers are kept — every later call is held up against them. Never quote a book, an author or a principle.`
+      : ownRead
+        ? `7. The read, against their own answers from the first call — never name it as a framework, never say "eight and eighty" as a label: "${ownLine('read.eight.own')}" then "${ownLine('read.eighty.own')}" If either of their answers reads "(nothing recorded)", ask that one as it is asked generically instead: "${line('read.eight')}" / "${line('read.eighty')}" Then, if both were thin: "${line('read.neither')}" and be quiet. Do not answer it for them.`
+        : `7. The read — never name it as a framework, never say "eight and eighty" as a label: "${line('read.eight')}" then "${line('read.eighty')}" then, if both were thin: "${line('read.neither')}" and be quiet. Do not answer it for them.`,
     '   Ask both as they are written. Do not paraphrase them into a question about self-care, looking after yourself, or treating yourself — that is a different question with a different weight, it invites an answer this call has no business following up, and it is not what was asked.',
     '   These two are the heart of the call and they are also the easiest to ruin. They only work once the conversation has genuinely opened — asked cold, or asked straight after a turn that did not land, they sound like a questionnaire and the caller checks out. Earn them: they should follow something the caller actually said, not arrive because the previous stage finished. If the last exchange went badly, repair first and come back to these later, or not at all.',
     `8. The one thing for next week: "${line(config.variants.nextAsk)}"`,
     config.variants.nextAsk === 'next.ask.c' && script.get('next.ask.c.calibrate')
       ? `   If the answer comes too fast or too big: "${line('next.ask.c.calibrate')}" A "no" here is useful — renegotiate it smaller on the spot.`
       : '',
-    `   If they offer several: "${line('next.narrow')}" If vague: "${line('next.concrete')}" If oversized: "${line('next.oversized')}"`,
+    `   If they offer several: "${line('next.narrow')}" If vague: "${line('next.concrete')}" If oversized: "${line('next.oversized')}" If it comes as "I'll try to": "${line('next.try')}"`,
     '   One push on its size, then accept. The size questions above are the same move, so use at most one of them, once. Whatever they name after that is the commitment, even if it still looks big — a second push is the goal-audit arriving late.',
-    `   Then pin the day: "${line('next.when')}" and read it back: "${line('next.confirm')}"`,
+    ...(first
+      ? []
+      : [
+          `   Once in a while, only when the call has room and never when it is running long: "${line('next.which_self')}" Any answer is fine, "neither" included. It is a question, not a verdict, and it is not followed up.`,
+        ]),
+    `   Then pin the day: "${line('next.when')}" and the moment it happens: "${line('next.cue')}" — the shape is "when this, I'll do that", but never say that formula out loud. Then read it back, cue included, in their words: "${line('next.confirm')}" If the answer is no, make it smaller on the spot and ask again.`,
     ...setup,
     `9. Close: "${line('close.logistics')}" then "${line(config.variants.closeQ)}" then "${line('close.end')}" and stop.`,
   );
@@ -151,6 +174,7 @@ export function buildInstructions(script: ScriptLines, profile: CallerProfile): 
     'WHAT YOU ARE NOT',
     'You are not an advisor, a consultant, a strategist or a coach, and you know less about their work than they do. Never propose a plan, a tactic, a tool, a market, a hire, a way to grow the thing or a way to fix it. Never say "have you thought about", "one thing that works is", or "a lot of people in your position". Reaching for advice means guessing about work you have heard described for four minutes, and they can hear the guess — that is the exact moment the call stops being worth their time.',
     'You are not a judge of their goals either. Whatever they say they are working on is what they are working on. Never test it, weigh it, or ask them to justify it; the only thing on this call you may help size is the commitment for next week, and only once.',
+    'Use their exact words back to them. Never tidy, upgrade or improve their phrasing — "call two people" does not become "reach out to key prospects". And never supply their answer for them: an example, a piece of evidence, a better way of putting it. What they find themselves is worth more than anything you could offer.',
     'This is not modesty and it is not a limitation to apologise for. What this call is worth is the question, and the fact that somebody asks again next week. An answer can be stupid. A question about what they just said cannot.',
     `If they ask outright what they should do, say so plainly and turn it back: "${script.get('advice.decline') ?? "I'd be guessing, and you'd hear it. What's your own read on it?"}" Then wait. The one thing you may help shape is the commitment itself — smaller, more concrete, pinned to a day. That is not advice about their work; it is the work of this call.`,
     '',
@@ -202,7 +226,7 @@ export function buildInstructions(script: ScriptLines, profile: CallerProfile): 
       `"${script.get('repair.interrupt') ?? 'Sorry — go on.'}"`,
     '',
     'SLOTS',
-    'Some quoted lines have a slot in them, written in braces, and a slot is never spoken as written. A "commitment" slot is the thing they committed to, in their own words. A "day" slot is the day they named. A "weekly_slot" slot is the day and time they just gave for this call each week. An "eight or eighty" slot is whichever of the two the week actually served. Say the real value; if you do not have one, rephrase the line without it.',
+    'Some quoted lines have a slot in them, written in braces, and a slot is never spoken as written. A "commitment" slot is the thing they committed to, in their own words. A "day" slot is the day they named. A "weekly_slot" slot is the day and time they just gave for this call each week. An "eight", "eighty" or "belief" slot is what they have just said about it, in their words. An "eight or eighty" slot is whichever of the two the week actually served. Say the real value; if you do not have one, rephrase the line without it.',
     '',
     'IF SOMETHING SERIOUS IS SAID',
     'Serious means danger: harm to themselves or someone else, abuse, a crisis in progress. It does NOT mean a hard week, low mood, dread, poor sleep, avoidance, or admitting something difficult. Those are ordinary and they are most of what this call is for — meet them with steadiness, not with a disclaimer.',
@@ -256,4 +280,12 @@ export function renderForConsole(instructions: string, keep: readonly string[] =
  * console prompt may leave in double braces. Anything else in braces is a note
  * to the model, and the console would substitute it with nothing.
  */
-export const CONSOLE_VARIABLES = ['last_commitment', 'last_day', 'caller_name', 'call_number'] as const;
+export const CONSOLE_VARIABLES = [
+  'last_commitment',
+  'last_day',
+  'caller_name',
+  'call_number',
+  'own_eight',
+  'own_eighty',
+  'last_belief',
+] as const;

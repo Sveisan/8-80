@@ -93,3 +93,27 @@ test('the number is not the filename, and the words are not in the file', async 
     assert.ok(!raw.includes('phone my brother'), 'what they said must not be readable in the file');
   });
 });
+
+test('their own eight and eighty, and an assumption under test, are kept until replaced', async () => {
+  await withKey(async () => {
+    const dir = mkdtempSync(resolve(tmpdir(), '8and80-'));
+    const store = new FileStore(dir);
+    const phone = '+4790000002';
+    await store.record(phone, {
+      at: new Date().toISOString(),
+      durationMs: 1000,
+      eight: 'building dens in the woods',
+      eighty: 'a stand up set',
+    });
+    await store.record(phone, { at: new Date().toISOString(), durationMs: 1000, belief: 'nobody will pay for this' });
+    const after = await store.load(phone);
+    assert.equal(after.eight, 'building dens in the woods', 'a later call with no read-back leaves them standing');
+    assert.equal(after.eighty, 'a stand up set');
+    assert.equal(after.belief, 'nobody will pay for this');
+
+    const raw = readFileSync(resolve(dir, readdirSync(dir)[0] as string), 'utf8');
+    for (const words of ['dens', 'stand up', 'nobody will pay']) {
+      assert.ok(!raw.includes(words), `"${words}" is on disk in the clear`);
+    }
+  });
+});

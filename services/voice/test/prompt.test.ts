@@ -91,3 +91,43 @@ test('the first call is told not to audit the goal', () => {
   assert.match(p, /Anything you'd add before we pick the one thing\?/);
   assert.match(p, /What they are working on, 2 to 3\./, 'the budget has to shrink with the instruction');
 });
+
+test('a stored value can never be substituted into a slot the model fills', () => {
+  // belief.name is "So the assumption is: {{belief}}." — filled by the model
+  // with what was just said. A console variable called "belief" would fill it
+  // with last month's assumption instead, and say it aloud.
+  const modelSlots = new Set(
+    [...loadScript().values()].flatMap((line) => [...line.matchAll(/\{\{([^}]+)\}\}/g)].map((m) => m[1])),
+  );
+  for (const name of CONSOLE_VARIABLES) {
+    assert.ok(!modelSlots.has(name), `console variable ${name} collides with a SCRIPT.md slot`);
+  }
+});
+
+test('the first call reads their eight and eighty back, which is how they are kept', () => {
+  const p = buildInstructions(loadScript(), { callNumber: 1 });
+  assert.match(p, /at eight, \{\{eight\}\}/);
+  assert.match(p, /sorry you never tried \{\{eighty\}\}/);
+});
+
+test('a returning call reads against their own answers, and never repeats an assumption', () => {
+  const p = buildInstructions(loadScript(), {
+    callNumber: 3,
+    lastCommitment: 'call two members',
+    eight: 'building dens',
+    eighty: 'a stand up set',
+    belief: 'nobody will pay for this',
+  });
+  assert.match(p, /At eight it was building dens\./);
+  assert.match(p, /a stand up set/);
+  assert.match(p, /Never say the assumption itself out loud/);
+  assert.match(p, /Will you\?/, 'the read-back ends on a question');
+  assert.match(p, /never offer an example/i, 'their evidence, not the mentor\'s');
+  assert.match(p, /belief about who they are/i);
+});
+
+test('a returning caller with no answers on file gets the read as it always was', () => {
+  const p = buildInstructions(loadScript(), { callNumber: 3, lastCommitment: 'call two members' });
+  assert.ok(!p.includes('At eight it was'), 'no own-answer read without their answers');
+  assert.ok(!p.includes('Never say the assumption itself'), 'no test to ask about');
+});

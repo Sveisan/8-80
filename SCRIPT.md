@@ -338,6 +338,53 @@ one useful question:_
 _If a disclosure here goes past difficulty into distress → §10 immediately. Drop
 everything else._
 
+### When the reason is an assumption
+
+_Adapted from the working principles of "A Changed Mind" — never named on a call, never quoted.
+Most of what gets in the way is circumstance: work, illness, a child. Sometimes the
+reason is a belief about the work or the world held as though it were a fact —
+"nobody will pay for this", "LinkedIn doesn't work for us". That is worth one round,
+on a returning call, when last week's thing did not happen and the reason given is of
+that kind. Never on a belief about who they are ("I'm lazy", "I'm not a salesperson"):
+if they volunteer one, take it and do not test it. And never go looking — the belief
+is only worked on if they said it._
+
+`belief.known`
+> "Is that something you know, or something you've assumed?"
+
+_If they know it, that is the answer. Take it and move on; do not argue._
+
+_If assumed, name it back once, in their exact words, as a label. Then never say it
+again, on this call or any later one — repeating a belief makes it more believed,
+whoever is saying it:_
+
+`belief.name`
+> "So the assumption is: {{belief}}."
+
+`belief.evidence`
+> "Where's that already not held — even once?"
+
+_Their evidence, not the mentor's. Wait for it. Never offer an example, even after a
+long pause; producing it themselves is the entire mechanism._
+
+`belief.both`
+> "And where does it still partly hold?"
+
+_Take the answer without arguing, even when it could be countered. If it comes back
+abstract, "Name a time." once. Then the one thing for next week is a small test of the
+assumption:_
+
+`belief.test`
+> "What's one small thing this week that would tell you whether it holds?"
+
+_The next week, after asking about the commitment — and without restating the
+assumption:_
+
+`belief.after`
+> "And what did that tell you about what you'd assumed?"
+
+_This replaces the read on the call it happens. There is not room for both._
+
 _On a first call there is no last week to have been in the way, so it is asked forward,
 once, about what they just described:_
 
@@ -367,6 +414,17 @@ _Wait properly. This one gets a long pause and often a laugh, and the laugh is d
 > that builds, or someone you kept hold of?"
 
 _Wait._
+
+_Once their own eight and eighty are known from the first call, these two are asked
+against them instead — the same questions, pointed at the person rather than at a
+generic child and a generic old man:_
+
+`read.eight.own`
+> "At eight it was {{eight}}. Anything in this week that kid would've been glad of?"
+
+`read.eighty.own`
+> "And the thing you'd be sorry never to have tried — {{eighty}}. Did this week go
+> anywhere near it?"
 
 Then, if the answer to both was thin — which it usually is:
 
@@ -403,6 +461,13 @@ _Wait. This one often gets a laugh, and then the real answer._
 _The Alchemist's idea, never named: failing costs less than never setting out. It asks
 for a regret they can still avoid, which is something a weekly commitment can be pinned
 to._
+
+_Then read both back once, in their words — this line is how they are kept, so it is
+said as written, with their words in the slots and nothing upgraded:_
+
+`read.first.keep`
+> "So — at eight, {{eight}}. And at eighty, sorry you never tried {{eighty}}. I'll hold
+> on to those."
 
 _Take both answers as given. One follow-up at most, and only to understand what they
 meant, never to test it. No `read.neither` on a first call — there is no week to have
@@ -495,16 +560,38 @@ that is the commitment, even if it still looks big. A second push is the goal-au
 §1a arriving late, and it teaches them the right answer is whatever gets the mentor to
 stop._
 
+_If it arrives as "I'll try to" — a hope, not a plan:_
+
+`next.try`
+> "'Try' is usually how it doesn't happen. What will you actually do?"
+
+_Once. Whatever comes back is the commitment._
+
+_Once in a while, and only when the call has room — never on a call that is running
+long — a question, not a verdict. Any answer is fine, "neither" included, and it is not
+followed up:_
+
+`next.which_self`
+> "Is that one for the eight-year-old, or the one at eighty?"
+
 _Then pin it. This is not optional; unscheduled commitments are the ones that come back
 undone:_
 
 `next.when`
 > "Which day?"
 
-_And read it back, once, in their words:_
+_And the moment it happens — a cue, so it is a plan rather than an intention. "When
+this, I'll do that" is the shape; the mentor never says the formula out loud:_
+
+`next.cue`
+> "And the moment — straight after what?"
+
+_Then read it back, once, in their words, cue included. It ends on a question on
+purpose: people follow through more on what they were asked than on what they
+declared. If the answer is no, renegotiate it smaller on the spot:_
 
 `next.confirm`
-> "Right. {{commitment}}, {{day}}. That's what I'll ask you about."
+> "Right. {{commitment}}, {{day}}. Will you?"
 
 ---
 

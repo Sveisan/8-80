@@ -24,6 +24,14 @@ encrypted: it is what the mentor calls you and it identifies nobody on its own.
 words, encrypted, and only the most recent one. The day you named is kept in
 the clear, because a weekday on its own says nothing.
 
+**Your own eight and eighty** — on the first call you are asked what you loved
+doing at eight, and what at eighty you would be sorry you never tried. Your two
+answers, in your own words, encrypted, so later calls can ask about them. And,
+only if you named one and chose to test it, **an assumption about your work**
+("nobody will pay for this"), in your own words, encrypted, and only the most
+recent one. These are your answers to questions, never a conclusion drawn about
+you.
+
 **Your weekly slot**: a weekday, a time, and your timezone. **A counter** of
 which call number you are on, and how many weeks in a row a commitment went
 undone.
@@ -36,8 +44,9 @@ Squeezy's subscription and customer ids. No card details ever reach us — they
 never touch our servers at all.
 
 **Recordings and transcripts of the call are not stored by us.** Our voice
-supplier sends us a transcript when a call ends, we take the one commitment out
-of it, and the raw delivery is kept encrypted for fourteen days so a broken
+supplier sends us a transcript when a call ends, we take the one commitment
+(and the answers above, when they were read back to you) out of it, and the raw
+delivery is kept encrypted for fourteen days so a broken
 call can be debugged, then deleted automatically. Fourteen days is long enough
 to fix last week's call and short enough not to be a record of you.
 
@@ -59,8 +68,9 @@ profile you, we do not advertise, and we do not sell or share any of it.
 Four suppliers, each doing one job:
 
 - **Speechify** place the calls and produce the transcript. They receive your
-  number, your name and your last commitment, because the mentor has to be able
-  to say them.
+  number, your name, your last commitment, your eight and eighty answers and any
+  assumption you are testing, because the mentor has to be able to ask about
+  them.
 - **Twilio** send the texts. They receive your number.
 - **Resend** send the email. They receive your address.
 - **Lemon Squeezy** take the payment. They receive whatever you give them at

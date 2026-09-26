@@ -5,7 +5,7 @@ import type { ScriptLines } from '../script.ts';
  * What they committed to, taken from the line where the mentor reads it back.
  *
  * SCRIPT.md pins the commitment on purpose — `next.confirm` is "Right.
- * {{commitment}}, {{day}}. That's what I'll ask you about." — and that read-back
+ * {{commitment}}, {{day}}. Will you?" — and that read-back
  * is the one moment in the call where the thing is stated plainly, by us, in
  * their words. So we take it from there rather than guessing at the caller's
  * transcript, where the commitment is buried in the reasoning around it.

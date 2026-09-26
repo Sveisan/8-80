@@ -3,6 +3,7 @@ import type { AttemptStatus } from '../schedule/scheduler.ts';
 import type { CallOutcome } from '../store/types.ts';
 import { extractCommitment } from './commitment.ts';
 import { extractReschedule, type SpokenTime } from './reschedule.ts';
+import { readBack } from './readback.ts';
 
 /** One line of a call, from whichever platform ran it. */
 export interface Turn {
@@ -93,10 +94,19 @@ export function settle(transcript: CallTranscript, script: ScriptLines): Settlem
     };
   }
 
+  // Their own eight and eighty, and an assumption they chose to test — each
+  // taken from the line where the mentor read it back, like the commitment.
+  const said = agentTurns.map((t) => t.text);
+  const selves = readBack(said, script.get('read.first.keep'));
+  const belief = readBack(said, script.get('belief.name'))?.['belief'];
+
   const outcome: CallOutcome = {
     at: new Date().toISOString(),
     durationMs: transcript.durationMs,
     ...(commitment ? { commitment: commitment.text, ...(commitment.day ? { day: commitment.day } : {}) } : {}),
+    ...(selves?.['eight'] ? { eight: selves['eight'] } : {}),
+    ...(selves?.['eighty'] ? { eighty: selves['eighty'] } : {}),
+    ...(belief ? { belief } : {}),
   };
 
   return {

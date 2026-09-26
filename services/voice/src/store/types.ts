@@ -2,8 +2,9 @@
  * What we remember about a caller between calls.
  *
  * Deliberately small. This is an accountability call, not a file on someone:
- * the commitment in their own words, how many calls there have been, and how
- * many weeks in a row it came back undone. Nothing here is a conclusion about
+ * the commitment in their own words, their answers to the eight and eighty
+ * questions, an assumption they chose to test, how many calls there have
+ * been, and how many weeks in a row it came back undone. Nothing here is a conclusion about
  * the person — see the precedent in DECISIONS.md.
  */
 export interface CallerRecord {
@@ -29,6 +30,19 @@ export interface CallerRecord {
   consecutiveUndone: number;
   /** Learned from their own pause distribution. */
   patienceOffsetMs?: number;
+  /**
+   * Their own eight and eighty, from the first call, in their words: what they
+   * loved doing at eight, and what at eighty they would be sorry never to have
+   * tried. Their answers to a question, not a conclusion about them.
+   */
+  eight?: string;
+  eighty?: string;
+  /**
+   * An assumption about the work they named and chose to test, in their words.
+   * Kept so next week can ask what the test showed — never so it can be said
+   * back to them again.
+   */
+  belief?: string;
 }
 
 /** What one call produced. */
@@ -38,6 +52,10 @@ export interface CallOutcome {
   /** The commitment for next week, if one was reached. */
   commitment?: string;
   day?: string;
+  /** Read back on the call, so kept; see CallerRecord. */
+  eight?: string;
+  eighty?: string;
+  belief?: string;
 }
 
 export interface Store {

@@ -62,13 +62,16 @@ export class PostgresStore implements Store {
       lastCommitmentDay: row.lastCommitmentDay ?? undefined,
       consecutiveUndone: row.consecutiveUndone,
       patienceOffsetMs: row.patienceOffsetMs ?? undefined,
+      eight: row.eightEnc ? decrypt(row.eightEnc) : undefined,
+      eighty: row.eightyEnc ? decrypt(row.eightyEnc) : undefined,
+      belief: row.beliefEnc ? decrypt(row.beliefEnc) : undefined,
     };
   }
 
   async record(phone: string, outcome: CallOutcome): Promise<void> {
     // Refusing to write is the failure mode we want: it costs us a feature,
     // where writing in the clear would cost them a confidence.
-    if (outcome.commitment && !hasKey()) {
+    if ((outcome.commitment || outcome.eight || outcome.eighty || outcome.belief) && !hasKey()) {
       log('store.not_written', {
         reason: 'DATA_ENCRYPTION_KEY is unset, and what they said is not going to disk in the clear',
       });
@@ -77,6 +80,9 @@ export class PostgresStore implements Store {
 
     const key = phoneKey(phone);
     const commitment = outcome.commitment ? encrypt(outcome.commitment) : null;
+    const eight = outcome.eight ? encrypt(outcome.eight) : null;
+    const eighty = outcome.eighty ? encrypt(outcome.eighty) : null;
+    const belief = outcome.belief ? encrypt(outcome.belief) : null;
     const at = new Date(outcome.at);
 
     await this.db
@@ -87,6 +93,9 @@ export class PostgresStore implements Store {
         callNumber: 2,
         lastCommitmentEnc: commitment,
         lastCommitmentDay: outcome.day ?? null,
+        eightEnc: eight,
+        eightyEnc: eighty,
+        beliefEnc: belief,
         lastCallAt: at,
       })
       .onConflictDoUpdate({
@@ -96,6 +105,10 @@ export class PostgresStore implements Store {
           // A call that reached no commitment leaves the last one standing.
           lastCommitmentEnc: sql`coalesce(${commitment}, ${callers.lastCommitmentEnc})`,
           lastCommitmentDay: sql`coalesce(${outcome.day ?? null}, ${callers.lastCommitmentDay})`,
+          // Each kept until a later call reads a new one back.
+          eightEnc: sql`coalesce(${eight}, ${callers.eightEnc})`,
+          eightyEnc: sql`coalesce(${eighty}, ${callers.eightyEnc})`,
+          beliefEnc: sql`coalesce(${belief}, ${callers.beliefEnc})`,
           lastCallAt: at,
           updatedAt: sql`now()`,
         },
