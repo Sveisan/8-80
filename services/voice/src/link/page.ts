@@ -61,6 +61,10 @@ export function reschedulePage(slot: Slot, script: ScriptLines, language = 'en')
     </form>
 
     <form method="post" class="stop">
+      <button name="action" value="export" class="quiet">${say('page.export')}</button>
+    </form>
+
+    <form method="post" class="stop">
       <button name="action" value="forget" class="quiet">${say('page.forget')}</button>
     </form>
   `,

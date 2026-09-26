@@ -86,3 +86,42 @@ test('the terms name Lemon Squeezy as merchant of record', () => {
   assert.ok(/merchant of record/i.test(terms));
   assert.ok(/fourteen-day right of withdrawal/i.test(terms));
 });
+
+test('the page offers the copy the privacy page promises', async () => {
+  // privacy.md: "The fastest way is the page linked in every text we send."
+  // A page that only offered deletion made that sentence false.
+  const { loadScript } = await import('../src/script.ts');
+  const { reschedulePage } = await import('../src/link/page.ts');
+  const script = loadScript();
+  const page = reschedulePage({ weekday: 5, minute: 510, timezone: 'Europe/Oslo' }, script);
+  assert.ok(page.includes('value="export"'), 'the right of access has a button');
+  assert.ok(page.includes('value="forget"'), 'and so does erasure');
+  for (const key of ['page.export', 'page.export.sent', 'email.export.subject', 'email.export.lead', 'email.export.quiet']) {
+    assert.ok(script.get(key), `${key} is missing`);
+  }
+});
+
+test('the export names its fields in words somebody chose', async () => {
+  // A person reading their own record should find labels, not column names.
+  const { loadScript } = await import('../src/script.ts');
+  const script = loadScript();
+  for (const key of [
+    'export.name', 'export.phone', 'export.email', 'export.slot',
+    'export.calls', 'export.commitment', 'export.since', 'export.billing', 'export.history',
+  ]) {
+    const label = script.get(key);
+    assert.ok(label, `${key} is missing`);
+    assert.ok(!/_/.test(label as string), `${key} reads like a column: ${label}`);
+  }
+});
+
+test('the export is sent to the address on file and nowhere else', () => {
+  // The page is reachable by whoever is holding the phone. A form that could
+  // send somebody's record to an address typed into it would not be a data
+  // export, it would be a way to read a stranger's week.
+  const control = read('services/voice/src/control.ts');
+  const handler = /if \(action === 'export'\)[\s\S]*?\n {10}}/.exec(control)?.[0] ?? '';
+  assert.ok(handler, 'export handler not found');
+  assert.ok(handler.includes('caller.email'), 'it uses the stored address');
+  assert.ok(!/form\.get\(\s*'email'/.test(handler), 'and never one from the form');
+});

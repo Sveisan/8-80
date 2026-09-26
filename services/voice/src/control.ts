@@ -24,6 +24,7 @@ import {
 } from './link/page.ts';
 import { signupRoutes } from './signup/routes.ts';
 import { legalPage } from './legal/page.ts';
+import { composeExport } from './legal/export.ts';
 import { checkoutLink, composePaymentFailed, payments } from './billing/notice.ts';
 import { parseLocalTime } from './schedule/time.ts';
 import { settleConversation } from './loop/settle.ts';
@@ -289,6 +290,14 @@ export function controlPlane(deps: LoopDeps, secret: string | readonly string[] 
           // be able to end the arrangement with.
           if (action === 'stop') return html(res, 200, confirmStopPage(deps.script, caller.language));
           if (action === 'forget') return html(res, 200, confirmForgetPage(deps.script, caller.language));
+          if (action === 'export') {
+            // To the address the recaps go to, and nowhere else. This page is
+            // reachable by whoever is holding the phone, so a form that could
+            // send somebody's record to an address typed into it would not be
+            // a data export, it would be a way to read a stranger's week.
+            await emailEverything(deps, phone, caller.email);
+            return html(res, 200, donePage(deps.script.get('page.export.sent') ?? '', deps.script, caller.language));
+          }
           if (action === 'stop-cancel') return html(res, 200, reschedulePage(slot, deps.script, caller.language));
           if (action === 'forget-confirm') {
             // The language is read before the delete, because after it there
@@ -320,6 +329,27 @@ export function controlPlane(deps: LoopDeps, secret: string | readonly string[] 
       if (!res.headersSent) send(res, 500, { error: 'internal' });
     });
   });
+}
+
+/**
+ * A copy of everything, to the address already on file.
+ *
+ * Never throws: privacy.md promises this works from the link in every text,
+ * and a 500 on that promise is worse than the silence it replaces. A caller
+ * with no address on file gets the same page — there is nowhere to send it,
+ * and saying so would tell whoever is holding the phone whether an address
+ * exists.
+ */
+async function emailEverything(deps: LoopDeps, phone: string, email: string | undefined): Promise<void> {
+  try {
+    if (!email) return;
+    const letter = await composeExport(deps.store, phone, deps.script);
+    if (!letter) return;
+    await deps.mailer.send(email, letter);
+    log('export.sent', {});
+  } catch (e) {
+    log('export.failed', { reason: (e as Error).message });
+  }
 }
 
 /**
