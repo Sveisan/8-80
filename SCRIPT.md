@@ -1270,6 +1270,20 @@ and we'll get to it" is the thing every other company does._
 _Stopping and deleting are different, and the page has to say which is which. Stopping
 keeps the record so starting again is one tap. Deleting is total and cannot be undone._
 
+`page.export`
+> "Email me everything you have"
+
+_The other half of §17, and the half a privacy policy usually promises and never builds.
+Ours says the fastest way to get a copy is the link in every text; a page that only offers
+deletion makes that sentence false._
+
+_It goes to the address the recaps go to, and nowhere else. A page reachable by whoever is
+holding the phone must not be able to send somebody's record to a new address typed into
+it — that is not a data export, it is a way to read a stranger's week._
+
+`page.export.sent`
+> "On its way to the address your recaps go to."
+
 `page.forget`
 > "Delete everything"
 
@@ -1318,3 +1332,55 @@ makes somebody cancel out of irritation._
 _"The calls carry on for now" is the important line, and it has to be true: a failed card
 does not stop the weekly call, because the call is the thing they are owed and a bank
 declining a transaction is not a decision they made._
+
+---
+
+## 18. The copy of everything
+
+_What the export email says. The data itself is labelled here rather than in code, like
+every other sentence in this product — a person reading their own record should find
+words somebody chose, not field names._
+
+`email.export.subject`
+> "Everything 8&80 has about you"
+
+`email.export.lead`
+> "This is all of it."
+
+_Not "please find attached", not "as requested". The point of the letter is that the list
+is short, and the first line should let somebody see that before they read a word of it._
+
+`email.export.quiet`
+> "If anything here is wrong, tell me and I'll fix it. If you'd rather none of it existed,
+> the link at the bottom of any text from me deletes the lot, immediately."
+
+`export.name`
+> "Name"
+
+`export.phone`
+> "Number"
+
+`export.email`
+> "Email"
+
+`export.slot`
+> "Weekly call"
+
+`export.calls`
+> "Calls so far"
+
+`export.commitment`
+> "Last thing you said you'd do"
+
+`export.since`
+> "Signed up"
+
+`export.billing`
+> "Billing"
+
+`export.history`
+> "Every call"
+
+_Dates and outcomes, no transcripts — there are none older than a fortnight and none of
+them are kept as a record of anybody. §12 of privacy.md says so; this is what makes that
+checkable by the person it is about._

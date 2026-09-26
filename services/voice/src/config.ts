@@ -1,5 +1,4 @@
 import { config as loadEnv } from 'dotenv';
-import { smsConfigured } from './sms/index.ts';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -12,6 +11,24 @@ import { fileURLToPath } from 'node:url';
  * read as a missing key rather than a missing lookup.
  */
 export const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
+
+/**
+ * Whether a text would actually leave the building.
+ *
+ * It lives here rather than beside the Twilio client, and that is not tidiness
+ * — it is the fix for an outage. `config.ts` imported it from `sms/index.ts`,
+ * which imports `sms/file.ts`, which imports `repoRoot` from `config.ts`. A
+ * cycle, and with ESM a cycle through a `const` is a live grenade: whichever
+ * module the process happens to evaluate first wins, and the other one reads
+ * an uninitialised binding and throws before anything has started listening.
+ *
+ * It ran in development and killed the control plane on deploy, which is the
+ * signature of exactly this class of bug. `config.ts` imports nothing of ours
+ * now, and nothing here may ever import from the rest of the tree again.
+ */
+export function smsConfigured(env: NodeJS.ProcessEnv = process.env): boolean {
+  return Boolean(env['TWILIO_ACCOUNT_SID'] && env['TWILIO_AUTH_TOKEN'] && env['SMS_FROM_NUMBER']);
+}
 
 loadEnv({ path: resolve(repoRoot, '.env') });
 

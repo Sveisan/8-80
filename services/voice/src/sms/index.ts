@@ -15,10 +15,11 @@ export { parseReply, moveTo, type Reply } from './reply.ts';
  * somebody's number, writes the code to a file on a server they will never
  * see, and tells them to check their texts — a dead end that looks exactly
  * like success, which is the worst failure a sign-up page has available.
+ *
+ * Defined in config.ts and re-exported here, because config importing this
+ * file was a circular import that took the control plane down on deploy.
  */
-export function smsConfigured(env: NodeJS.ProcessEnv = process.env): boolean {
-  return Boolean(env['TWILIO_ACCOUNT_SID'] && env['TWILIO_AUTH_TOKEN'] && env['SMS_FROM_NUMBER']);
-}
+export { smsConfigured } from '../config.ts';
 
 /**
  * Twilio when it is configured, a file when it is not.

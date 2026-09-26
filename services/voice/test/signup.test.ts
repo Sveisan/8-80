@@ -174,3 +174,17 @@ test('a text that failed to send is said so, not left as a silence', () => {
   // which numbers are limited tells it which numbers it has reached.
   assert.ok(!codePage('+4790033575', script).includes('hei@8and80.me'));
 });
+
+test('config imports nothing of ours, because a cycle through it took the site down', async () => {
+  // config.ts imported smsConfigured from sms/index.ts, which imports
+  // sms/file.ts, which imports repoRoot from config.ts. With ESM a cycle
+  // through a `const` is a live grenade: whichever module the process
+  // evaluates first wins and the other reads an uninitialised binding. It ran
+  // in development and killed the control plane on deploy.
+  const { readFileSync } = await import('node:fs');
+  const { resolve } = await import('node:path');
+  const { repoRoot } = await import('../src/config.ts');
+  const source = readFileSync(resolve(repoRoot, 'services/voice/src/config.ts'), 'utf8');
+  const ours = [...source.matchAll(/^import .* from '(\.[^']+)'/gm)].map((m) => m[1]);
+  assert.deepEqual(ours, [], `config.ts must stay a leaf; it imports ${ours.join(', ')}`);
+});
