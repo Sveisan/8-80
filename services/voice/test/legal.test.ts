@@ -125,3 +125,45 @@ test('the export is sent to the address on file and nowhere else', () => {
   assert.ok(handler.includes('caller.email'), 'it uses the stored address');
   assert.ok(!/form\.get\(\s*'email'/.test(handler), 'and never one from the form');
 });
+
+/**
+ * Everything we hand to the voice platform, and the words in privacy.md that
+ * cover it.
+ *
+ * A variable name is not prose, so this cannot match them directly — the
+ * document says "your last commitment" where the code says `last_commitment`.
+ * What it can do is fail when a NEW field appears with nothing claiming to
+ * describe it, which is the failure that matters: a field starts going to a
+ * processor and the page that lists what they receive stays as it was.
+ */
+const COVERED: Record<string, RegExp> = {
+  call_number: /how many calls|which call|call number/i,
+  caller_name: /your name/i,
+  last_commitment: /last commitment/i,
+  last_day: /the day you named|last commitment/i,
+  own_eight: /eight/i,
+  own_eighty: /eighty/i,
+  last_belief: /assumption/i,
+  weeks_undone_running: /weeks in a row|in a row/i,
+};
+
+test('nothing reaches the voice platform that privacy.md does not admit to', () => {
+  const tick = read('services/voice/src/loop/tick.ts');
+  const body = /function variablesFor\([\s\S]*?\n {2}};\n}/.exec(tick)?.[0] ?? '';
+  assert.ok(body, 'variablesFor not found — this test is checking nothing');
+
+  const sent = [...body.matchAll(/^\s{4}(\w+):/gm)].map((m) => m[1] as string);
+  assert.ok(sent.length >= 4, `only found ${sent.length} variables; the parse is wrong`);
+
+  // The bullet that lists what Speechify receives, and only that bullet. Read
+  // from the file rather than the unwrapped copy, because the line breaks are
+  // what separate one supplier's bullet from the next.
+  const bullet = /- \*\*Speechify\*\*[\s\S]*?(?=\n- \*\*)/.exec(read('legal/privacy.md'))?.[0] ?? '';
+  assert.ok(bullet, 'the Speechify paragraph is not in privacy.md');
+
+  for (const name of sent) {
+    const covered = COVERED[name];
+    assert.ok(covered, `${name} is sent to Speechify and nothing in this test claims to describe it`);
+    assert.match(bullet, covered, `privacy.md does not say Speechify receives ${name}`);
+  }
+});

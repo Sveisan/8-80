@@ -69,9 +69,12 @@ profile you, we do not advertise, and we do not sell or share any of it.
 Four suppliers, each doing one job:
 
 - **Speechify** place the calls and produce the transcript. They receive your
-  number, your name, your last commitment, your eight and eighty answers and any
-  assumption you are testing, because the mentor has to be able to ask about
-  them.
+  number, your name, which call number this is, your last commitment and the day
+  you named for it, your eight and eighty answers, any assumption you are
+  testing, and how many weeks in a row a commitment has gone undone — because
+  the mentor has to be able to ask about them. That is the whole list, and a
+  test fails the build if a new field starts going to them without appearing
+  here.
 - **Twilio** send the texts. They receive your number.
 - **Resend** send the email. They receive your address.
 - **Lemon Squeezy** take the payment. They receive whatever you give them at
