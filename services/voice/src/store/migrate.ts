@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { migrate } from 'drizzle-orm/postgres-js/migrator';
@@ -31,6 +32,43 @@ export async function applyMigrations(
       migrationsFolder: folder,
       ...(migrationsSchema ? { migrationsSchema } : {}),
     });
+  } finally {
+    await client.end({ timeout: 5 });
+  }
+}
+
+/**
+ * Migrations in the repository that the database has not been given.
+ *
+ * Twice now, code has been deployed ahead of its schema: a pull brings a new
+ * migration and a column the running code reads, the service restarts, and
+ * every settle throws `column does not exist` on the first caller of the
+ * morning. Both times the evidence arrived a day later, from a person
+ * wondering why their call had not happened.
+ *
+ * Drizzle stores the journal's `when` for each applied migration, so the
+ * comparison is exact rather than a count — a database that skipped one in the
+ * middle is caught as surely as one that is simply behind.
+ *
+ * Returns the tags, newest last. An unreachable database throws; the caller
+ * decides whether that is fatal, because at startup it is and in a diagnostic
+ * it is one line of a report.
+ */
+export async function pendingMigrations(
+  url: string,
+  folder = resolve(import.meta.dirname, '../../drizzle'),
+  options: postgres.Options<Record<string, never>> = {},
+): Promise<string[]> {
+  const journal = JSON.parse(readFileSync(resolve(folder, 'meta', '_journal.json'), 'utf8')) as {
+    entries: { when: number; tag: string }[];
+  };
+  const client = postgres(url, { max: 1, ...options });
+  try {
+    const rows = await client<{ created_at: string }[]>`
+      select created_at from drizzle.__drizzle_migrations
+    `.catch(() => []);
+    const applied = new Set(rows.map((r) => Number(r.created_at)));
+    return journal.entries.filter((e) => !applied.has(e.when)).map((e) => e.tag);
   } finally {
     await client.end({ timeout: 5 });
   }

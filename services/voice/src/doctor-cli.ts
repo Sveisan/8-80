@@ -5,6 +5,7 @@ import { hasKey } from './store/crypto.ts';
 import { FEATURE_GROUPS } from './preflight.ts';
 import { heartbeats } from './schedule/scheduler.ts';
 import { probePublicUrl, probeTwilio } from './outside.ts';
+import { pendingMigrations } from './store/migrate.ts';
 
 /**
  * npm run doctor — what the system knows about itself, on one screen.
@@ -132,6 +133,17 @@ try {
   let attempts: { scheduled_for: Date; status: string; duration_ms: number | null; note: string | null; sms_sent_at: Date | null }[] = [];
   // Last of the configuration sections and first of the ones that touch a
   // network, so a slow DNS lookup cannot delay the local answers above it.
+  // Before anything that queries a table, because "relation does not exist"
+  // in four sections below is the same fact stated badly four times.
+  await section('SCHEMA', async () => {
+    const behind = await pendingMigrations(config.database.url);
+    check(
+      behind.length === 0,
+      behind.length ? `${behind.length} migration(s) not applied` : 'up to date',
+      behind.length ? `${behind.join(', ')}. The control plane will refuse to start. Run: npm run db:migrate` : undefined,
+    );
+  });
+
   await section('THE OUTSIDE WORLD', async () => {
     for (const p of [...(await probePublicUrl()), ...(await probeTwilio())]) check(p.ok, p.label, p.detail);
   });

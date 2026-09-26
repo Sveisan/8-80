@@ -117,3 +117,24 @@ test('their own eight and eighty, and an assumption under test, are kept until r
     }
   });
 });
+
+test('the journal is the list the startup check compares against', async () => {
+  // pendingMigrations joins on the journal's `when`, which is what drizzle
+  // records for each applied migration. If the journal ever stopped carrying
+  // one per SQL file, the check would silently pass on a database that is
+  // behind — which is the exact failure it exists to prevent.
+  const { readFileSync, readdirSync } = await import('node:fs');
+  const { resolve } = await import('node:path');
+  const { repoRoot } = await import('../src/config.ts');
+  const dir = resolve(repoRoot, 'services/voice/drizzle');
+  const journal = JSON.parse(readFileSync(resolve(dir, 'meta/_journal.json'), 'utf8')) as {
+    entries: { when: number; tag: string }[];
+  };
+  const files = readdirSync(dir).filter((f) => f.endsWith('.sql')).sort();
+  assert.equal(journal.entries.length, files.length, 'one journal entry per migration file');
+  for (const entry of journal.entries) {
+    assert.ok(files.includes(`${entry.tag}.sql`), `${entry.tag} is in the journal with no file`);
+  }
+  // And each `when` is distinct, because it is the join key.
+  assert.equal(new Set(journal.entries.map((e) => e.when)).size, journal.entries.length);
+});
