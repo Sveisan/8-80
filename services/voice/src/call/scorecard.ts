@@ -35,6 +35,7 @@ const MOVE_ON = [
   'work.enough',
   'block.first',
   'read.eight',
+  'read.first.eight',
   'next.ask.a',
   'next.ask.b',
   'next.ask.c',
