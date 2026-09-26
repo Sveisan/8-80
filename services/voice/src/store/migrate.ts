@@ -64,9 +64,22 @@ export async function pendingMigrations(
   };
   const client = postgres(url, { max: 1, ...options });
   try {
+    // Prove the connection separately, because the next query has a failure
+    // that must be swallowed and one that must not. Written the other way
+    // round, a single catch turned "Postgres is not accepting connections
+    // yet" into "every migration is pending" — and the startup guard then
+    // refused to serve, in a crash loop, for a database that was merely slow.
+    // The comment above it said an unreachable database should not stop the
+    // service. The code did the opposite.
+    await client`select 1`;
     const rows = await client<{ created_at: string }[]>`
       select created_at from drizzle.__drizzle_migrations
-    `.catch(() => []);
+    `.catch((e: { code?: string }) => {
+      // 42P01: no such table. A database nobody has ever migrated, which is
+      // behind by all of them — the one case where an empty set is the truth.
+      if (e?.code === '42P01') return [] as { created_at: string }[];
+      throw e;
+    });
     const applied = new Set(rows.map((r) => Number(r.created_at)));
     return journal.entries.filter((e) => !applied.has(e.when)).map((e) => e.tag);
   } finally {

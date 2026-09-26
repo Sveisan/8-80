@@ -22,7 +22,13 @@ import { pendingMigrations } from './store/migrate.ts';
  * that gives up because Postgres was slow to accept one connection is a worse
  * failure than the one being prevented.
  */
-const behind = await pendingMigrations(config.database.url).catch(() => []);
+const behind = await pendingMigrations(config.database.url).catch((e: Error) => {
+  // Unreachable, not behind. The store retries, and a control plane that gives
+  // up because Postgres was slow to accept one connection is a worse failure
+  // than the one this guard prevents.
+  log('control.schema_unknown', { reason: e.message, note: 'could not read the migration state; starting anyway' });
+  return [] as string[];
+});
 if (behind.length) {
   log('control.schema_behind', {
     pending: behind.join(', '),

@@ -138,3 +138,16 @@ test('the journal is the list the startup check compares against', async () => {
   // And each `when` is distinct, because it is the join key.
   assert.equal(new Set(journal.entries.map((e) => e.when)).size, journal.entries.length);
 });
+
+test('an unreachable database is not reported as a database that is behind', async () => {
+  // Written with one catch around both queries, "Postgres is not accepting
+  // connections yet" came back as "every migration is pending" — and the
+  // startup guard then refused to serve, in a crash loop, for a database that
+  // was merely slow. The comment above that guard said an unreachable
+  // database must not stop the service; the code did the opposite.
+  const { pendingMigrations } = await import('../src/store/migrate.ts');
+  await assert.rejects(
+    () => pendingMigrations('postgres://nobody@127.0.0.1:1/none', undefined, { connect_timeout: 1 }),
+    (e: Error) => /ECONNREFUSED|timeout|connect/i.test(e.message),
+  );
+});
