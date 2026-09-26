@@ -42,6 +42,9 @@ export class FileStore implements Store {
         lastCommitment: typeof sealed === 'string' && sealed ? decrypt(sealed) : undefined,
         lastCommitmentDay: raw['lastCommitmentDay'] as string | undefined,
         consecutiveUndone: Number(raw['consecutiveUndone'] ?? 0),
+        weeksDone: Number(raw['weeksDone'] ?? 0),
+        weeksPartly: Number(raw['weeksPartly'] ?? 0),
+        weeksUndone: Number(raw['weeksUndone'] ?? 0),
         patienceOffsetMs: raw['patienceOffsetMs'] as number | undefined,
         eight: open(raw['eight']),
         eighty: open(raw['eighty']),
@@ -77,7 +80,12 @@ export class FileStore implements Store {
           voice: before.voice,
           lastCommitment: commitment ? encrypt(commitment) : undefined,
           lastCommitmentDay: outcome.day ?? before.lastCommitmentDay,
-          consecutiveUndone: before.consecutiveUndone,
+          // A week not established leaves every count where it was.
+          consecutiveUndone:
+            outcome.lastWeek === 'undone' ? before.consecutiveUndone + 1 : outcome.lastWeek ? 0 : before.consecutiveUndone,
+          weeksDone: (before.weeksDone ?? 0) + (outcome.lastWeek === 'done' ? 1 : 0),
+          weeksPartly: (before.weeksPartly ?? 0) + (outcome.lastWeek === 'partly' ? 1 : 0),
+          weeksUndone: (before.weeksUndone ?? 0) + (outcome.lastWeek === 'undone' ? 1 : 0),
           patienceOffsetMs: before.patienceOffsetMs,
           eight: eight ? encrypt(eight) : undefined,
           eighty: eighty ? encrypt(eighty) : undefined,

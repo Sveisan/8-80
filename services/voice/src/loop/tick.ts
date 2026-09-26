@@ -163,6 +163,7 @@ function variablesFor(caller: {
   eight?: string;
   eighty?: string;
   belief?: string;
+  consecutiveUndone?: number;
 }): Record<string, string> {
   return {
     call_number: String(caller.callNumber),
@@ -180,6 +181,8 @@ function variablesFor(caller: {
     own_eight: caller.eight ?? NOTHING_RECORDED,
     own_eighty: caller.eighty ?? NOTHING_RECORDED,
     last_belief: caller.belief ?? NOTHING_RECORDED,
+    // Weeks before this one; the prompt counts this week in if it went undone too.
+    weeks_undone_running: String(caller.consecutiveUndone ?? 0),
   };
 }
 

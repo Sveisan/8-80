@@ -61,6 +61,9 @@ export class PostgresStore implements Store {
       lastCommitment: row.lastCommitmentEnc ? decrypt(row.lastCommitmentEnc) : undefined,
       lastCommitmentDay: row.lastCommitmentDay ?? undefined,
       consecutiveUndone: row.consecutiveUndone,
+      weeksDone: row.weeksDone,
+      weeksPartly: row.weeksPartly,
+      weeksUndone: row.weeksUndone,
       patienceOffsetMs: row.patienceOffsetMs ?? undefined,
       eight: row.eightEnc ? decrypt(row.eightEnc) : undefined,
       eighty: row.eightyEnc ? decrypt(row.eightyEnc) : undefined,
@@ -109,12 +112,39 @@ export class PostgresStore implements Store {
           eightEnc: sql`coalesce(${eight}, ${callers.eightEnc})`,
           eightyEnc: sql`coalesce(${eighty}, ${callers.eightyEnc})`,
           beliefEnc: sql`coalesce(${belief}, ${callers.beliefEnc})`,
+          // A week not established leaves every count where it was.
+          ...(outcome.lastWeek === 'done' ? { weeksDone: sql`${callers.weeksDone} + 1`, consecutiveUndone: 0 } : {}),
+          ...(outcome.lastWeek === 'partly' ? { weeksPartly: sql`${callers.weeksPartly} + 1`, consecutiveUndone: 0 } : {}),
+          ...(outcome.lastWeek === 'undone'
+            ? { weeksUndone: sql`${callers.weeksUndone} + 1`, consecutiveUndone: sql`${callers.consecutiveUndone} + 1` }
+            : {}),
           lastCallAt: at,
           updatedAt: sql`now()`,
         },
       });
 
-    log('store.recorded', { commitment: outcome.commitment ? 'set' : 'none' });
+    log('store.recorded', { commitment: outcome.commitment ? 'set' : 'none', lastWeek: outcome.lastWeek ?? 'unknown' });
+  }
+
+  /**
+   * Whether this works: across everybody, how many weeks came back done,
+   * partly done, or not. Totals only.
+   */
+  async followThrough(): Promise<{ callers: number; done: number; partly: number; undone: number }> {
+    const [row] = await this.db
+      .select({
+        callers: sql<number>`count(*) filter (where ${callers.weeksDone} + ${callers.weeksPartly} + ${callers.weeksUndone} > 0)`,
+        done: sql<number>`coalesce(sum(${callers.weeksDone}), 0)`,
+        partly: sql<number>`coalesce(sum(${callers.weeksPartly}), 0)`,
+        undone: sql<number>`coalesce(sum(${callers.weeksUndone}), 0)`,
+      })
+      .from(callers);
+    return {
+      callers: Number(row?.callers ?? 0),
+      done: Number(row?.done ?? 0),
+      partly: Number(row?.partly ?? 0),
+      undone: Number(row?.undone ?? 0),
+    };
   }
 
   /** Only the caller's own fields — never anything the call produced. */

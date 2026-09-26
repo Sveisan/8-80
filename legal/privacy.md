@@ -33,8 +33,9 @@ recent one. These are your answers to questions, never a conclusion drawn about
 you.
 
 **Your weekly slot**: a weekday, a time, and your timezone. **A counter** of
-which call number you are on, and how many weeks in a row a commitment went
-undone.
+which call number you are on, how many weeks in a row a commitment went
+undone, and how many weeks in all it was done, partly done, or not — counts,
+not a record of which week was which.
 
 **A row per call attempt**: when it was scheduled, whether it connected, how
 long it ran, and a short note if it failed. Never anything you said.

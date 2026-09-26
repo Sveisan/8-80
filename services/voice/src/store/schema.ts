@@ -38,6 +38,10 @@ export const callers = pgTable(
     /** The day they named. A weekday name on its own tells nobody anything. */
     lastCommitmentDay: text('last_commitment_day'),
     consecutiveUndone: integer('consecutive_undone').notNull().default(0),
+    /** Weeks the commitment came back done, partly done, or not. Counts only. */
+    weeksDone: integer('weeks_done').notNull().default(0),
+    weeksPartly: integer('weeks_partly').notNull().default(0),
+    weeksUndone: integer('weeks_undone').notNull().default(0),
     patienceOffsetMs: integer('patience_offset_ms'),
     /** Their own eight and eighty, in their words. Encrypted. */
     eightEnc: text('eight_enc'),

@@ -28,6 +28,14 @@ export interface CallerRecord {
    * never what it concludes out loud without a human in the loop.
    */
   consecutiveUndone: number;
+  /**
+   * How the weeks went, counted: the commitment done, partly done, or not.
+   * Counts only, never which week was which — enough to say whether the call
+   * works, and nothing more about a person than that.
+   */
+  weeksDone?: number;
+  weeksPartly?: number;
+  weeksUndone?: number;
   /** Learned from their own pause distribution. */
   patienceOffsetMs?: number;
   /**
@@ -52,6 +60,8 @@ export interface CallOutcome {
   /** The commitment for next week, if one was reached. */
   commitment?: string;
   day?: string;
+  /** Whether last week's commitment happened, when the call established it. */
+  lastWeek?: 'done' | 'partly' | 'undone';
   /** Read back on the call, so kept; see CallerRecord. */
   eight?: string;
   eighty?: string;

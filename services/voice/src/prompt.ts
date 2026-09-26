@@ -17,7 +17,11 @@ export interface CallerProfile {
   callDay?: string;
   nextSlot?: string;
   callNumber: number;
-  consecutiveUndone?: number;
+  /**
+   * Weeks running the commitment came back undone. A string when the prompt
+   * is rendered for the console, where it is a variable filled per call.
+   */
+  consecutiveUndone?: number | string;
   patienceOffsetMs?: number;
   /** Their own eight and eighty, from the first call, in their words. */
   eight?: string;
@@ -69,7 +73,7 @@ export function buildInstructions(script: ScriptLines, profile: CallerProfile): 
       `1. Open: "${line('open.return.greet')}"`,
       `2. One beat, then ask about last week, quoting their own words back: "${line('open.return.callback').replace('{{commitment}}', profile.lastCommitment ?? 'the thing you named')}"`,
       '   If what you have for last week reads "(nothing recorded)", then nothing was written down and there is nothing to quote. Do not say the line, and do not pretend to remember. Ask what they ended up working on instead, and carry on from their answer.',
-      `3. If they did it: "${line('last.did')}" If partly: "${line('last.partial')}"`,
+      `3. If they did it: "${line('last.did')}" If partly: "${line('last.partial')}" Say whichever it is as written: which one you say is how the week is recorded, done or partly or not, and a paraphrase records nothing.`,
       ...(profile.belief !== undefined
         ? [
             `   Last time's thing was a test of something they had assumed: ${profile.belief}. Once they have said how it went: "${line('belief.after')}" Never say the assumption itself out loud — not quoted, not paraphrased. Saying it again makes it more believed. If it reads "(nothing recorded)", there was no test; skip this.`,
@@ -80,7 +84,12 @@ export function buildInstructions(script: ScriptLines, profile: CallerProfile): 
     if (script.get('nothing.c.follow') && config.variants.nothing === 'nothing.c') {
       stages.push(`   Only if nothing at all comes after a long wait: "${line('nothing.c.follow')}"`);
     }
-    if ((profile.consecutiveUndone ?? 0) >= 3 && script.get('nothing.pattern')) {
+    const undone = profile.consecutiveUndone;
+    if (typeof undone === 'string' && script.get('nothing.pattern')) {
+      stages.push(
+        `5. Before this call, the commitment had come back undone ${undone} weeks running. Only if they did nothing again this week AND that number is 2 or more — so this is the third week running or later — ask, once: "${line('nothing.pattern')}" Then wait. Do NOT conclude anything about why. Take their answer at face value. If they say the goal is wrong, renegotiate it smaller. If they say something else is going on, drop the accountability conversation for the rest of the call and do not return to it. Otherwise never ask it.`,
+      );
+    } else if (typeof undone === 'number' && undone >= 3 && script.get('nothing.pattern')) {
       stages.push(
         `5. This is at least the third week running that the commitment came back undone. Ask, once: "${line('nothing.pattern')}" Then wait. Do NOT conclude anything about why. Take their answer at face value. If they say the goal is wrong, renegotiate it smaller. If they say something else is going on, drop the accountability conversation for the rest of the call and do not return to it.`,
       );
@@ -288,4 +297,5 @@ export const CONSOLE_VARIABLES = [
   'own_eight',
   'own_eighty',
   'last_belief',
+  'weeks_undone_running',
 ] as const;

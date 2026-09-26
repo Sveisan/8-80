@@ -4,6 +4,7 @@ import type { CallOutcome } from '../store/types.ts';
 import { extractCommitment } from './commitment.ts';
 import { extractReschedule, type SpokenTime } from './reschedule.ts';
 import { readBack } from './readback.ts';
+import { lastWeek } from './lastweek.ts';
 
 /** One line of a call, from whichever platform ran it. */
 export interface Turn {
@@ -99,6 +100,7 @@ export function settle(transcript: CallTranscript, script: ScriptLines): Settlem
   const said = agentTurns.map((t) => t.text);
   const selves = readBack(said, script.get('read.first.keep'));
   const belief = readBack(said, script.get('belief.name'))?.['belief'];
+  const week = lastWeek(said, script);
 
   const outcome: CallOutcome = {
     at: new Date().toISOString(),
@@ -107,6 +109,7 @@ export function settle(transcript: CallTranscript, script: ScriptLines): Settlem
     ...(selves?.['eight'] ? { eight: selves['eight'] } : {}),
     ...(selves?.['eighty'] ? { eighty: selves['eighty'] } : {}),
     ...(belief ? { belief } : {}),
+    ...(week ? { lastWeek: week } : {}),
   };
 
   return {

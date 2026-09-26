@@ -39,6 +39,7 @@ const profile =
             eight: '{{own_eight}}',
             eighty: '{{own_eighty}}',
             belief: '{{last_belief}}',
+            consecutiveUndone: '{{weeks_undone_running}}',
           }
         : { callNumber: 2, lastCommitment: 'run three times' };
 

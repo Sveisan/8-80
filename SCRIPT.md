@@ -227,6 +227,10 @@ not paraphrased into cleaner language. Their phrasing is the point._
 
 _Ask once. Then stop talking. Most of the real answers arrive after a pause — see §9._
 
+_The three answers below are said as written for a second reason: which one the mentor
+says is how the week is recorded — done, partly, or not — and those counts are the only
+evidence there is that this call works. A paraphrase records nothing._
+
 If they did it:
 
 `last.did`
