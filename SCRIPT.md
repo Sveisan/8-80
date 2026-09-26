@@ -662,7 +662,7 @@ _Fires only when the answer has a day but no time, or a time but no day. Never t
 > "{{call_day}}, then. I'll ring you — and if you miss one I'll text, so you can move it."
 
 `setup.save_number`
-> "Worth saving the number I'm on, so you know it's me on the Tuesday."
+> "Worth saving the number I'm on, so you know it's me when it rings."
 
 _Said once, on the first call, and never again. It is a small thing that does real work:
 a scheduled call from a saved contact is answered, and an unknown number ringing at eight

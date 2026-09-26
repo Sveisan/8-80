@@ -73,4 +73,6 @@ for (const [id, spoken] of script) {
     if (new RegExp(`\\b${w}\\b`, 'i').test(spoken)) problems.push(`${id} contains "${w}"`);
   }
 }
-console.log(problems.length ? `\n  ✕ ${problems.join('; ')}\n` : '\n  · voice rules hold\n');
+// To stderr when the prompt is for pasting: this line landed at the foot of
+// the console prompt, where the model reads it as an instruction.
+(console_ ? console.error : console.log)(problems.length ? `\n  ✕ ${problems.join('; ')}\n` : '\n  · voice rules hold\n');
