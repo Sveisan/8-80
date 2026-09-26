@@ -327,7 +327,7 @@ test('a caller with nothing recorded still gets every variable', { skip: skip() 
   await tick(deps(), NOW);
 
   const vars = agent.placed[0]?.variables ?? {};
-  for (const key of ['call_number', 'caller_name', 'last_commitment', 'last_day', 'own_eight', 'own_eighty', 'last_belief', 'weeks_undone_running']) {
+  for (const key of ['call_number', 'last_commitment', 'last_day', 'own_eight', 'own_eighty', 'last_belief', 'weeks_undone_running']) {
     assert.ok(key in vars, `${key} was omitted, and the console would substitute nothing`);
   }
   assert.equal(vars['last_commitment'], NOTHING_RECORDED);

@@ -76,6 +76,23 @@ test('only the names the loop actually sends survive as console variables', () =
   assert.ok(left.length > 0, 'a returning prompt with no variables cannot remember anything');
 });
 
+test('the console prompt does not tell every caller which call this is', () => {
+  // One prompt serves every returning caller, so anything true of only one of
+  // them has to be a variable. This was baked in as the literal "2", which told
+  // somebody on their twelfth call that it was their second — and told them so
+  // in the same breath as "you have spoken before", which is why it read as
+  // plausible and survived.
+  const rendered = renderForConsole(
+    buildInstructions(loadScript(), { callNumber: '{{call_number}}' }),
+    CONSOLE_VARIABLES,
+  );
+  assert.ok(rendered.includes('{{call_number}}'), 'the call number is not a variable');
+  assert.doesNotMatch(rendered, /call number \d/, 'a literal call number reached the console prompt');
+  // And it is still the returning prompt, not the first-call one: the guard
+  // that decides which is a numeric comparison, and a string must not pass it.
+  assert.match(rendered, /THIS IS NOT THE FIRST CALL/);
+});
+
 test('the prompt knows what to do when nothing was recorded', () => {
   const p = buildInstructions(loadScript(), { callNumber: 2, lastCommitment: '{{last_commitment}}' });
   assert.match(p, /\(nothing recorded\)/);

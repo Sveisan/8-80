@@ -155,8 +155,7 @@ export async function tick(deps: LoopDeps, now = new Date()): Promise<TickResult
  * deliberately a handful of fields, each in their own words. Their Memory
  * feature would accumulate the rest; it stays off, and this is what replaces it.
  */
-function variablesFor(caller: {
-  name?: string;
+export function variablesFor(caller: {
   lastCommitment?: string;
   lastCommitmentDay?: string;
   callNumber: number;
@@ -167,7 +166,11 @@ function variablesFor(caller: {
 }): Record<string, string> {
   return {
     call_number: String(caller.callNumber),
-    caller_name: caller.name ?? '',
+    // Their name is deliberately NOT here. The mentor never says it — the
+    // returning greeting is "Hello again." on purpose — so sending it would
+    // hand a name to a voice platform for nothing, and a model that has one
+    // in context will find a use for it that the script forbids.
+
     // Always sent, even empty — a platform that substitutes a prompt does it
     // blindly, and a missing variable becomes "Last week you said you'd . What
     // happened?" The marker is a value the prompt has an instruction for; an

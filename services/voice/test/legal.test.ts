@@ -4,6 +4,8 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { repoRoot } from '../src/config.ts';
 import { legalPage, render } from '../src/legal/page.ts';
+import { variablesFor } from '../src/loop/tick.ts';
+import { CONSOLE_VARIABLES } from '../src/prompt.ts';
 
 const read = (p: string) => readFileSync(resolve(repoRoot, p), 'utf8');
 /** Unwrapped, because these are prose files and a claim can straddle a line. */
@@ -138,7 +140,6 @@ test('the export is sent to the address on file and nowhere else', () => {
  */
 const COVERED: Record<string, RegExp> = {
   call_number: /how many calls|which call|call number/i,
-  caller_name: /your name/i,
   last_commitment: /last commitment/i,
   last_day: /the day you named|last commitment/i,
   own_eight: /eight/i,
@@ -147,13 +148,11 @@ const COVERED: Record<string, RegExp> = {
   weeks_undone_running: /weeks in a row|in a row/i,
 };
 
-test('nothing reaches the voice platform that privacy.md does not admit to', () => {
-  const tick = read('services/voice/src/loop/tick.ts');
-  const body = /function variablesFor\([\s\S]*?\n {2}};\n}/.exec(tick)?.[0] ?? '';
-  assert.ok(body, 'variablesFor not found — this test is checking nothing');
+/** What actually goes out, asked of the function that builds it. */
+const SENT = Object.keys(variablesFor({ callNumber: 2 }));
 
-  const sent = [...body.matchAll(/^\s{4}(\w+):/gm)].map((m) => m[1] as string);
-  assert.ok(sent.length >= 4, `only found ${sent.length} variables; the parse is wrong`);
+test('nothing reaches the voice platform that privacy.md does not admit to', () => {
+  assert.ok(SENT.length >= 4, `only ${SENT.length} variables; something is wrong upstream`);
 
   // The bullet that lists what Speechify receives, and only that bullet. Read
   // from the file rather than the unwrapped copy, because the line breaks are
@@ -161,9 +160,25 @@ test('nothing reaches the voice platform that privacy.md does not admit to', () 
   const bullet = /- \*\*Speechify\*\*[\s\S]*?(?=\n- \*\*)/.exec(read('legal/privacy.md'))?.[0] ?? '';
   assert.ok(bullet, 'the Speechify paragraph is not in privacy.md');
 
-  for (const name of sent) {
+  for (const name of SENT) {
     const covered = COVERED[name];
     assert.ok(covered, `${name} is sent to Speechify and nothing in this test claims to describe it`);
     assert.match(bullet, covered, `privacy.md does not say Speechify receives ${name}`);
   }
+});
+
+/**
+ * The console declares variables by hand; the loop fills them from code. Those
+ * two lists drifted apart unnoticed in both directions at once: `caller_name`
+ * was being shipped to a processor and referenced by no prompt, and
+ * `call_number` was baked into the console prompt as the literal "2", so a
+ * twelfth call was told it was the second. Neither is visible from either side
+ * alone.
+ */
+test('the variables we send are exactly the ones a console prompt may use', () => {
+  assert.deepEqual(
+    [...CONSOLE_VARIABLES].sort(),
+    [...SENT].sort(),
+    'CONSOLE_VARIABLES and variablesFor disagree — one of them is lying to the console',
+  );
 });

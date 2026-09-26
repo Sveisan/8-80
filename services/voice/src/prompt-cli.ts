@@ -33,7 +33,7 @@ const profile =
       ? { callNumber: 4, lastCommitment: 'run three times', consecutiveUndone: 3 }
       : forConsole
         ? {
-            callNumber: 2,
+            callNumber: '{{call_number}}',
             lastCommitment: '{{last_commitment}}',
             callDay: '{{last_day}}',
             eight: '{{own_eight}}',

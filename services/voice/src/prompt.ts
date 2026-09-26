@@ -16,7 +16,12 @@ export interface CallerProfile {
   /** How the next call is referred to out loud, e.g. "Tuesday" and "Tuesday at nine". */
   callDay?: string;
   nextSlot?: string;
-  callNumber: number;
+  /**
+   * Which call this is. A string when the prompt is rendered for the console,
+   * where one prompt serves every returning caller and the number has to be a
+   * variable — baking it in told a twelfth call it was the second.
+   */
+  callNumber: number | string;
   /**
    * Weeks running the commitment came back undone. A string when the prompt
    * is rendered for the console, where it is a variable filled per call.
@@ -51,7 +56,10 @@ export function buildInstructions(script: ScriptLines, profile: CallerProfile): 
       .replace('{{call_day}}', profile.callDay ?? 'week')
       .replace('{{next_slot}}', profile.nextSlot ?? 'at the same time next week');
   const line = (id: string) => fill(script.get(id) ?? '');
-  const first = profile.callNumber <= 1;
+  // Explicit about the type: a console render carries "{{call_number}}" here,
+  // and a string compared against 1 is never less than it by accident — it is
+  // NaN, which happens to be right and would be a trap to rely on.
+  const first = typeof profile.callNumber === 'number' && profile.callNumber <= 1;
 
   const stages: string[] = [];
   /** First-call-only turns that leave the system able to ring them again. */
@@ -290,10 +298,9 @@ export function renderForConsole(instructions: string, keep: readonly string[] =
  * to the model, and the console would substitute it with nothing.
  */
 export const CONSOLE_VARIABLES = [
+  'call_number',
   'last_commitment',
   'last_day',
-  'caller_name',
-  'call_number',
   'own_eight',
   'own_eighty',
   'last_belief',
