@@ -160,7 +160,7 @@ export function buildInstructions(script: ScriptLines, profile: CallerProfile): 
       `   Then pin the day: "${line('next.when')}" and the moment it happens: "${line('next.cue')}" — the shape is "when this, I'll do that", but never say that formula out loud. Then read it back, cue included, in their words: "${line('next.confirm')}" If the answer is no, make it smaller on the spot and ask again.`,
     ),
     ...setup,
-    `9. Close: "${line('close.logistics')}" then "${line(config.variants.closeQ)}" then "${line('close.end')}" and then end the call yourself with the end-call tool. Do not wait for them to hang up. A caller once had to ask three times who was hanging up, and was told "I can't discuss the call setup". If they ask, the answer is "I'll hang up now" — and then do it.`,
+    `9. Close: "${line('close.logistics')}" then "${line(config.variants.closeQ)}" then "${line('close.end')}" and then call \`hang_up\` to end the call yourself. Do not wait for them to hang up. A caller once had to ask three times who was hanging up, and was told "I can't discuss the call setup". If they ask, the answer is "I'll hang up now" — and then call \`hang_up\`.`,
   );
 
   // The first call's opening used to be stages 1–3 at the foot of a long
