@@ -49,6 +49,7 @@ export class FileStore implements Store {
         eight: open(raw['eight']),
         eighty: open(raw['eighty']),
         belief: open(raw['belief']),
+        goals: open(raw['goals']),
       };
     } catch {
       // No record is not an error: it is the first call.
@@ -64,7 +65,8 @@ export class FileStore implements Store {
     const eight = outcome.eight ?? before.eight;
     const eighty = outcome.eighty ?? before.eighty;
     const belief = outcome.belief ?? before.belief;
-    if ((commitment || eight || eighty || belief) && !hasKey()) {
+    const goals = outcome.goals ?? before.goals;
+    if ((commitment || eight || eighty || belief || goals) && !hasKey()) {
       log('store.not_written', { reason: 'DATA_ENCRYPTION_KEY is unset, and what they said is not going to disk in the clear' });
       return;
     }
@@ -96,6 +98,7 @@ export class FileStore implements Store {
           eight: eight ? encrypt(eight) : undefined,
           eighty: eighty ? encrypt(eighty) : undefined,
           belief: belief ? encrypt(belief) : undefined,
+          goals: goals ? encrypt(goals) : undefined,
           lastCallAt: outcome.at,
         },
         null,

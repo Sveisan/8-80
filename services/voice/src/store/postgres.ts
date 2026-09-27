@@ -69,13 +69,14 @@ export class PostgresStore implements Store {
       eight: row.eightEnc ? decrypt(row.eightEnc) : undefined,
       eighty: row.eightyEnc ? decrypt(row.eightyEnc) : undefined,
       belief: row.beliefEnc ? decrypt(row.beliefEnc) : undefined,
+      goals: row.goalsEnc ? decrypt(row.goalsEnc) : undefined,
     };
   }
 
   async record(phone: string, outcome: CallOutcome): Promise<void> {
     // Refusing to write is the failure mode we want: it costs us a feature,
     // where writing in the clear would cost them a confidence.
-    if ((outcome.commitment || outcome.eight || outcome.eighty || outcome.belief) && !hasKey()) {
+    if ((outcome.commitment || outcome.eight || outcome.eighty || outcome.belief || outcome.goals) && !hasKey()) {
       log('store.not_written', {
         reason: 'DATA_ENCRYPTION_KEY is unset, and what they said is not going to disk in the clear',
       });
@@ -87,6 +88,7 @@ export class PostgresStore implements Store {
     const eight = outcome.eight ? encrypt(outcome.eight) : null;
     const eighty = outcome.eighty ? encrypt(outcome.eighty) : null;
     const belief = outcome.belief ? encrypt(outcome.belief) : null;
+    const goals = outcome.goals ? encrypt(outcome.goals) : null;
     const at = new Date(outcome.at);
 
     await this.db
@@ -100,6 +102,7 @@ export class PostgresStore implements Store {
         eightEnc: eight,
         eightyEnc: eighty,
         beliefEnc: belief,
+        goalsEnc: goals,
         lastCallAt: at,
       })
       .onConflictDoUpdate({
@@ -113,6 +116,7 @@ export class PostgresStore implements Store {
           eightEnc: sql`coalesce(${eight}, ${callers.eightEnc})`,
           eightyEnc: sql`coalesce(${eighty}, ${callers.eightyEnc})`,
           beliefEnc: sql`coalesce(${belief}, ${callers.beliefEnc})`,
+          goalsEnc: sql`coalesce(${goals}, ${callers.goalsEnc})`,
           // A week not established leaves every count where it was.
           //
           // And a first call cannot establish one, whatever the transcript

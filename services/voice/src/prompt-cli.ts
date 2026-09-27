@@ -25,10 +25,14 @@ const script = loadScript();
 // Speechify variables rather than as one caller's baked-in answers — that
 // prompt is served to everybody. So the "profile" here is the variable syntax
 // itself, which renderForConsole then leaves alone.
-const forConsole = console_ && arg !== 'first';
+// Both prompts, now: the first-call prompt confirms the slot they chose at
+// sign-up, which arrives as a variable like everything else.
+const forConsole = console_;
 const profile =
   arg === 'first'
-    ? { callNumber: 1 }
+    ? forConsole
+      ? { callNumber: 1, bookedSlot: '{{booked_slot}}' }
+      : { callNumber: 1 }
     : arg === 'third'
       ? { callNumber: 4, lastCommitment: 'run three times', consecutiveUndone: 3 }
       : forConsole
@@ -40,6 +44,7 @@ const profile =
             eighty: '{{own_eighty}}',
             belief: '{{last_belief}}',
             consecutiveUndone: '{{weeks_undone_running}}',
+            goals: '{{own_goals}}',
           }
         : { callNumber: 2, lastCommitment: 'run three times' };
 

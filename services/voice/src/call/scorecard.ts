@@ -30,18 +30,15 @@ export interface Scorecard {
   findings: Finding[];
 }
 
-/** Lines that mean the goal is done with and the call has moved on. */
-const MOVE_ON = [
-  'work.enough',
-  'block.first',
-  'read.eight',
-  'read.first.eight',
-  'next.ask.a',
-  'next.ask.b',
-  'next.ask.c',
-  'next.when',
-  'setup.when',
-];
+/** Lines that mean getting to know them is over and the one thing has begun. */
+const MOVE_ON = ['work.start', 'next.ask.first', 'next.ask.a', 'next.ask.b', 'next.ask.c', 'next.when'];
+
+/**
+ * Fewer answers than this before the one thing, and the call did not get to
+ * know them. The second real call moved on after three words about an
+ * apartment, and the caller said it never made him comfortable opening up.
+ */
+const MIN_ANSWERS_BEFORE_ONE_THING = 5;
 
 /**
  * Questions that test a goal rather than learn its shape. Each is a thing the
@@ -56,7 +53,10 @@ const PROBES: RegExp[] = [
   /\bspecifically\b/,
   /\bwhat happened with\b/,
   /\bgot further\b|\bhow far\b/,
-  /\bunderneath\b|\bmatter to you\b/,
+  /\bunderneath\b/,
+  // Logistics asked about a goal rather than the one thing: when they will
+  // look at listings is a schedule, and a goal is not one.
+  /\bwhen will you\b|\bhow often\b|\bby when\b|\bwhat time\b/,
 ];
 
 /** Roughly how fast anyone speaks on a call, for estimating when a turn ended. */
@@ -116,7 +116,7 @@ function quote(text: string, max = 70): string {
 }
 
 /** The question in a turn, which is the part worth quoting. */
-function asked(text: string): string {
+function questionIn(text: string): string {
   return sentences(text).filter((s) => s.includes('?')).pop() ?? text;
 }
 
@@ -132,7 +132,13 @@ function indexOfLine(turns: TimedTurn[], line: string | undefined, from = 0): nu
 export function scoreCall(script: ScriptLines, turns: TimedTurn[], opts: { first?: boolean } = {}): Scorecard {
   const agentTurns = turns.filter((t) => t.speaker === 'agent');
   const greet = script.get('open.first.greet');
-  const first = opts.first ?? (!!greet && !!agentTurns[0] && carries(agentTurns[0].text, greet));
+  // The greeting has been reworded; the disclosure is said on a first call and
+  // never again, so it identifies one whatever the greeting was that week.
+  const disclosure = sentences(script.get('open.first.disclosure') ?? '')[0];
+  const first =
+    opts.first ??
+    ((!!greet && !!agentTurns[0] && carries(agentTurns[0].text, greet)) ||
+      (!!disclosure && agentTurns.some((t) => carries(t.text, disclosure))));
   const findings: Finding[] = [];
   const add = (check: string, severity: Severity, detail: string) => findings.push({ check, severity, detail });
 
@@ -211,7 +217,7 @@ function scoreOpening(script: ScriptLines, turns: TimedTurn[]): Finding[] {
     check: 'disclosure.first',
     severity: askedFirst.length ? 'fail' : 'ok',
     detail: askedFirst.length
-      ? `asked before the disclosure: ${askedFirst.map((t) => quote(asked(t.text))).join('; ')}`
+      ? `asked before the disclosure: ${askedFirst.map((t) => quote(questionIn(t.text))).join('; ')}`
       : 'nothing was asked before the disclosure',
   });
 
@@ -247,12 +253,24 @@ function scoreGoal(script: ScriptLines, turns: TimedTurn[]): Finding[] {
   // An exchange is the mentor answering them. Abandoned half-turns are talk-
   // over, not exchanges, and are counted on their own.
   const replies = window.filter((t) => t.speaker === 'agent' && /[.?!…]\s*$/.test(t.text.trim()));
-  const reachedBy = next.find((m) => m.at === end)?.id;
+  // Consecutive caller turns are one answer said in pieces.
+  const answers = window.filter((t, i) => t.speaker === 'caller' && window[i - 1]?.speaker !== 'caller').length;
+
+  const asked = (id: string) => indexOfLine(window, script.get(id)) >= 0;
+  for (const [check, id, what] of [
+    ['map.eighty', 'read.first.eighty', 'asked what they want to have done by eighty'],
+    ['map.year', 'work.year', "asked for this year's goals"],
+    ['map.readback', 'read.first.keep', 'said the map back'],
+  ] as const) {
+    out.push({ check, severity: asked(id) ? 'ok' : 'fail', detail: asked(id) ? what : `never ${what}` });
+  }
 
   out.push({
-    check: 'goal.exchanges',
-    severity: replies.length > 3 ? 'fail' : 'ok',
-    detail: `${replies.length} exchange${replies.length === 1 ? '' : 's'} between the first question and ${reachedBy ? `the next scripted step (${reachedBy})` : 'the end of the call, which never reached a scripted next step'} — the ceiling is 3`,
+    check: 'map.rushed',
+    severity: next.length && answers < MIN_ANSWERS_BEFORE_ONE_THING ? 'fail' : 'ok',
+    detail: next.length
+      ? `${answers} answer${answers === 1 ? '' : 's'} before the one thing (at least ${MIN_ANSWERS_BEFORE_ONE_THING} to have got to know them)`
+      : 'never reached the one thing',
   });
 
   const probes = replies.filter((t) => t.text.includes('?') && PROBES.some((p) => p.test(normalise(t.text))));
@@ -260,25 +278,35 @@ function scoreGoal(script: ScriptLines, turns: TimedTurn[]): Finding[] {
     check: 'goal.probes',
     severity: probes.length ? 'fail' : 'ok',
     detail: probes.length
-      ? `tested the goal instead of accepting it: ${probes.map((t) => quote(asked(t.text))).join('; ')}`
-      : 'the goal was taken as given',
+      ? `audited a goal instead of getting curious about it: ${probes.map((t) => quote(questionIn(t.text))).join('; ')}`
+      : 'the goals were taken as given',
   });
   return out;
 }
 
 function scoreDeliverables(script: ScriptLines, turns: TimedTurn[]): Finding[] {
   const said = (id: string) => indexOfLine(turns, script.get(id)) >= 0;
-  const need: [string, string, string[]][] = [
-    ['deliverable.day', 'asked which day the one thing lands on', ['next.when']],
-    ['deliverable.readback', 'read the commitment and its day back', ['next.confirm']],
-    ['deliverable.slot', 'asked for the weekly slot', ['setup.when']],
-    ['deliverable.close', 'closed the call', ['close.end', 'close.logistics']],
+  const need: [string, string, string[], Severity][] = [
+    ['deliverable.day', 'asked which day the one thing lands on', ['next.when'], 'fail'],
+    ['deliverable.readback', 'read the commitment and its day back', ['next.confirm'], 'fail'],
+    // Skipped, correctly, when no slot was on record, so only worth a look.
+    ['deliverable.slot', 'confirmed the weekly slot', ['setup.confirm_slot'], 'warn'],
+    ['deliverable.close', 'closed the call', ['close.end', 'close.logistics'], 'fail'],
   ];
-  return need.map(([check, what, ids]) => ({
+  const out: Finding[] = need.map(([check, what, ids, missing]) => ({
     check,
-    severity: ids.some(said) ? ('ok' as const) : ('fail' as const),
+    severity: ids.some(said) ? ('ok' as const) : missing,
     detail: ids.some(said) ? what : `never ${what}`,
   }));
+  // Sign-up has it. Taking one letter by letter down a phone line failed on a
+  // real call and is never to be tried again.
+  const askedEmail = turns.some((t) => t.speaker === 'agent' && t.text.includes('?') && /\b(email|e-mail|address)\b/i.test(t.text));
+  out.push({
+    check: 'no_email_asked',
+    severity: askedEmail ? 'fail' : 'ok',
+    detail: askedEmail ? 'asked for an email address on the call' : 'never asked for an email address',
+  });
+  return out;
 }
 
 function scoreReturn(script: ScriptLines, turns: TimedTurn[]): Finding[] {

@@ -64,6 +64,8 @@ export const callers = pgTable(
     eightyEnc: text('eighty_enc'),
     /** An assumption they named and chose to test, in their words. Encrypted. */
     beliefEnc: text('belief_enc'),
+    /** Their goals for this year, in their words. Encrypted. */
+    goalsEnc: text('goals_enc'),
     lastCallAt: timestamp('last_call_at', { withTimezone: true }),
 
     /*

@@ -43,7 +43,7 @@ test('a first call is given a shape and a returning call is not', () => {
   // returning call already has one and would only be made stiffer by this.
   const firstCall = buildInstructions(loadScript(), { callNumber: 1 });
   assert.match(firstCall, /THE SHAPE OF THIS CALL/);
-  assert.match(firstCall, /never cut the commitment, the day, or the slot/i);
+  assert.match(firstCall, /never cut the map, the one thing, or the day/i);
 
   for (const n of [2, 4]) {
     assert.ok(
@@ -99,14 +99,36 @@ test('the prompt knows what to do when nothing was recorded', () => {
   assert.match(p, /do not pretend to remember/i);
 });
 
-test('the first call is told not to audit the goal', () => {
-  // Eight minutes on the goals and no commitment, three calls running. The
-  // mentor kept hearing a goal and testing it.
+test('the first call is curious about goals and never audits or schedules them', () => {
+  // Two failures, one each way: eight minutes auditing a goal, then a call so
+  // careful not to that it went from three words to "which day".
   const p = buildInstructions(loadScript(), { callNumber: 1 });
-  assert.match(p, /at face value/i);
-  assert.match(p, /not auditing the goal/i);
-  assert.match(p, /Anything you'd add before we pick the one thing\?/);
-  assert.match(p, /What they are working on, 2 to 3\./, 'the budget has to shrink with the instruction');
+  assert.match(p, /CURIOUS, NOT AUDITING/);
+  assert.match(p, /whether it is realistic, why that one/);
+  assert.match(p, /A goal is not a schedule/);
+  assert.match(p, /line of genuine reaction/);
+});
+
+test('the first call runs from easy to real: eight, eighty, this year, then the one thing', () => {
+  const p = buildInstructions(loadScript(), { callNumber: 1 });
+  const at = (s: string) => p.indexOf(s);
+  const order = [
+    "What did you love doing at eight",
+    "You're eighty, looking back",
+    'this year. What would you like to move?',
+    'Let me say it back.',
+    'Which one do you want to start with?',
+    "What's one thing you'll do on it",
+  ].map(at);
+  assert.ok(order.every((n) => n >= 0), 'a stage is missing');
+  assert.deepEqual([...order].sort((a, b) => a - b), order, 'the stages are out of order');
+});
+
+test('the first call never asks for an email, and confirms the slot rather than asking', () => {
+  const p = buildInstructions(loadScript(), { callNumber: 1, bookedSlot: 'Sunday at 13:00' });
+  assert.match(p, /You picked Sunday at 13:00 for these/);
+  assert.match(p, /Never ask for an email address/);
+  assert.ok(!/which address\?/i.test(p), 'the email question is still in the prompt');
 });
 
 test('a stored value can never be substituted into a slot the model fills', () => {
@@ -123,8 +145,9 @@ test('a stored value can never be substituted into a slot the model fills', () =
 
 test('the first call reads their eight and eighty back, which is how they are kept', () => {
   const p = buildInstructions(loadScript(), { callNumber: 1 });
-  assert.match(p, /at eight, \{\{eight\}\}/);
-  assert.match(p, /sorry you never tried \{\{eighty\}\}/);
+  assert.match(p, /At eight, \{\{eight\}\}/);
+  assert.match(p, /By eighty, \{\{eighty\}\}/);
+  assert.match(p, /this year, \{\{goals\}\}/);
 });
 
 test('a returning call reads against their own answers, and never repeats an assumption', () => {

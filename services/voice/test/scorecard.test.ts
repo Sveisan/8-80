@@ -14,25 +14,39 @@ const caller = (text: string): TimedTurn => ({ speaker: 'caller', text });
 const severity = (turns: TimedTurn[], check: string) =>
   scoreCall(script, turns).findings.find((f) => f.check === check)?.severity;
 
-/** A first call that did everything it was meant to, in as few turns as it can. */
+/** A first call that did everything it was meant to: warm-up, the map, then the one thing. */
 function goodFirstCall(): TimedTurn[] {
   return [
     agent(say('open.first.greet')),
     caller('Yes, fine.'),
     agent(say('open.first.disclosure')),
-    caller('Okay.'),
+    caller('Fine by me.'),
     agent(`${say('open.first.frame')} ${say('open.first.first_question')}`),
-    caller('The business, mostly.'),
-    agent(say('work.enough')),
+    caller('Football, mostly. And video games.'),
+    agent('Football and games — so, competitive. Which position?'),
+    caller('Striker.'),
+    agent(say('read.first.eighty')),
+    caller('A family. Kids.'),
+    agent(say('work.more')),
+    caller('Somewhere with room for them, and time to be around.'),
+    agent(say('work.year')),
+    caller('The apartment, a stand-up set, and the business.'),
+    agent(say('work.matters')),
+    caller('The stand-up would be for me, nobody else.'),
+    agent(say('work.else')),
     caller('No, that is it.'),
-    agent(say('next.ask.c')),
-    caller('Two more conversations with members.'),
+    agent(say('read.first.keep')),
+    caller('Yes.'),
+    agent(say('work.start')),
+    caller('The stand-up set.'),
+    agent(say('next.ask.first')),
+    caller('Write five minutes of material.'),
     agent(say('next.when')),
     caller('Thursday.'),
     agent(say('next.confirm')),
     caller('Yes.'),
-    agent(say('setup.when')),
-    caller('Tuesdays at nine.'),
+    agent(say('setup.confirm_slot')),
+    caller('It does.'),
     agent(say('close.end')),
   ];
 }
@@ -75,31 +89,49 @@ test('a frame that was skipped is a failure', () => {
   assert.equal(severity(turns, 'frame.complete'), 'fail');
 });
 
-test('drilling into the goal is counted and quoted', () => {
+test('auditing a goal, or scheduling it, is counted and quoted', () => {
   const turns = goodFirstCall();
   turns.splice(
-    6,
+    14,
     0,
-    agent('Which one has had your attention?'),
-    caller('The company.'),
-    agent('So the company. What happened with it this week?'),
-    caller('New products.'),
-    agent('You moved them forward. What, specifically, got further?'),
-    caller('Validation.'),
-    agent('Validation from users. Why that group?'),
-    caller('They pay.'),
+    agent('So the apartment. What happened with it this week?'),
+    caller('Looked at some.'),
+    agent('Right. When will you view the next listings?'),
+    caller('Soon.'),
+    agent('Soon. Why that area?'),
+    caller('Near work.'),
   );
-  const card = scoreCall(script, turns);
-  assert.equal(card.findings.find((f) => f.check === 'goal.exchanges')?.severity, 'fail');
-  const probes = card.findings.find((f) => f.check === 'goal.probes');
+  const probes = scoreCall(script, turns).findings.find((f) => f.check === 'goal.probes');
   assert.equal(probes?.severity, 'fail');
   assert.match(probes?.detail ?? '', /What happened with it this week\?/);
-  assert.match(probes?.detail ?? '', /Why that group\?/);
+  assert.match(probes?.detail ?? '', /When will you view the next listings\?/);
+  assert.match(probes?.detail ?? '', /Why that area\?/);
 });
 
-test('a call that never reached the slot or the close says so', () => {
-  const turns = goodFirstCall().slice(0, 12);
-  assert.equal(severity(turns, 'deliverable.slot'), 'fail');
+test('going straight from the first answer to the one thing is rushed, and says so', () => {
+  // The second real call: three words about an apartment and on to the task.
+  const turns = [
+    ...goodFirstCall().slice(0, 6),
+    agent(say('work.start')),
+    caller('The apartment.'),
+    ...goodFirstCall().slice(22),
+  ];
+  const card = scoreCall(script, turns);
+  assert.equal(card.findings.find((f) => f.check === 'map.rushed')?.severity, 'fail');
+  assert.equal(card.findings.find((f) => f.check === 'map.eighty')?.severity, 'fail');
+  assert.equal(card.findings.find((f) => f.check === 'map.readback')?.severity, 'fail');
+});
+
+test('asking for an email address on the call is a failure', () => {
+  const turns = goodFirstCall();
+  turns.splice(28, 0, agent('And where should the recap go — which address?'), caller('E at P-I.'));
+  assert.equal(severity(turns, 'no_email_asked'), 'fail');
+  assert.equal(severity(goodFirstCall(), 'no_email_asked'), 'ok');
+});
+
+test('a call that never confirmed the slot or closed says so', () => {
+  const turns = goodFirstCall().slice(0, 28);
+  assert.equal(severity(turns, 'deliverable.slot'), 'warn', 'skipped correctly when none was on record');
   assert.equal(severity(turns, 'deliverable.close'), 'fail');
   assert.equal(severity(turns, 'deliverable.day'), 'ok');
 });
@@ -153,7 +185,7 @@ test('a short line has to be said whole; a long one survives a changed word', ()
   assert.equal(carries('Which one of those?', 'Which day?'), false);
   assert.equal(carries('Right. Which day?', 'Which day?'), true);
   assert.equal(
-    carries("What are you working on right now — the thing you'd be annoyed with yourself about in a year if it stayed exactly as it is?", say('open.first.first_question')),
+    carries("Let's start somewhere easy. What did you love doing when you were eight — something you'd do for no reason at all?", say('open.first.first_question')),
     true,
   );
 });

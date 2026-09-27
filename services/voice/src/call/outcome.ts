@@ -79,7 +79,11 @@ export function settle(transcript: CallTranscript, script: ScriptLines): Settlem
   // see commitment.ts for why. Joined across turns because the read-back can
   // be split by a backchannel.
   const spoken = agentTurns.map((t) => t.text).join(' ');
-  const commitment = extractCommitment(spoken, script);
+  // The turn that carries the whole read-back first; the whole call only when
+  // a backchannel split it.
+  const commitment =
+    agentTurns.map((t) => extractCommitment(t.text, script)).filter((c) => c !== undefined).pop() ??
+    extractCommitment(spoken, script);
   const callAgain = extractReschedule(spoken, script);
 
   // A call moved before it got anywhere is not a failed call and not a week
@@ -108,6 +112,7 @@ export function settle(transcript: CallTranscript, script: ScriptLines): Settlem
     ...(commitment ? { commitment: commitment.text, ...(commitment.day ? { day: commitment.day } : {}) } : {}),
     ...(selves?.['eight'] ? { eight: selves['eight'] } : {}),
     ...(selves?.['eighty'] ? { eighty: selves['eighty'] } : {}),
+    ...(selves?.['goals'] ? { goals: selves['goals'] } : {}),
     ...(belief ? { belief } : {}),
     ...(week ? { lastWeek: week } : {}),
   };

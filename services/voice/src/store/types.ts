@@ -57,6 +57,8 @@ export interface CallerRecord {
    * back to them again.
    */
   belief?: string;
+  /** Their goals for this year, from the first call, in their words. */
+  goals?: string;
 }
 
 /** What one call produced. */
@@ -72,6 +74,7 @@ export interface CallOutcome {
   eight?: string;
   eighty?: string;
   belief?: string;
+  goals?: string;
 }
 
 export interface Store {

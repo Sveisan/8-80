@@ -9,15 +9,15 @@ const script = loadScript();
 
 test('their eight and eighty come out of the read-back, in their words', () => {
   const found = readBack(
-    ['Mm.', "So — at eight, building dens in the woods. And at eighty, sorry you never tried a stand-up set. I'll hold on to those.", 'Which day?'],
+    ['Mm.', 'Let me say it back. At eight, building dens in the woods. By eighty, a family. And this year, the apartment and a stand-up set. Have I got that right?', 'Which one?'],
     script.get('read.first.keep'),
   );
-  assert.deepEqual(found, { eight: 'building dens in the woods', eighty: 'a stand up set' });
+  assert.deepEqual(found, { eight: 'building dens in the woods', eighty: 'a family', goals: 'the apartment and a stand up set' });
 });
 
 test('a read-back that dropped its closing words still counts, inside its own turn', () => {
-  const found = readBack(['So — at eight, building dens. And at eighty, sorry you never tried stand-up.', 'Anyway.'], script.get('read.first.keep'));
-  assert.deepEqual(found, { eight: 'building dens', eighty: 'stand up' });
+  const found = readBack(['Let me say it back. At eight, building dens. By eighty, a family. And this year, stand-up.', 'Anyway.'], script.get('read.first.keep'));
+  assert.deepEqual(found, { eight: 'building dens', eighty: 'a family', goals: 'stand up' });
 });
 
 test('across a whole call a read-back must be complete, or the last slot is everything said after it', () => {

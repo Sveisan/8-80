@@ -4,6 +4,7 @@ import { CallNotPlaced } from '../agent/speechify.ts';
 import { Links } from '../link/token.ts';
 import { textAfterFailedCall, textAfterMissedCall } from '../sms/missed.ts';
 import type { LoopDeps } from './deps.ts';
+import { describeSlot } from '../schedule/time.ts';
 
 export interface TickResult {
   claimed: number;
@@ -106,6 +107,7 @@ export async function tick(deps: LoopDeps, now = new Date()): Promise<TickResult
       }
 
       const caller = await deps.store.load(phone);
+      const slotSaid = await bookedSlot(deps, phone, caller.language);
       const placed = await withRetries(() => deps.agent.placeCall({
         to: phone,
         // Which kind of call it is, not which agent serves it: the mapping from
@@ -114,7 +116,7 @@ export async function tick(deps: LoopDeps, now = new Date()): Promise<TickResult
         // else in the record moves, so the returning call still has a last week
         // to ask about once the rehearsal is over.
         firstCall: caller.callNumber <= 1 || caller.rehearseFirstCall === true,
-        variables: variablesFor(caller),
+        variables: variablesFor({ ...caller, ...(slotSaid ? { bookedSlot: slotSaid } : {}) }),
         ...(config.speechify.callerIdNumber ? { callerIdNumber: config.speechify.callerIdNumber } : {}),
         ...(caller.language ? { language: caller.language } : {}),
         ringingTimeoutMs: config.speechify.ringingTimeoutMs,
@@ -170,6 +172,9 @@ export function variablesFor(caller: {
   eighty?: string;
   belief?: string;
   consecutiveUndone?: number;
+  goals?: string;
+  /** The weekly slot as it is said, "Sunday at 13:00". From the scheduler, not the record. */
+  bookedSlot?: string;
 }): Record<string, string> {
   return {
     call_number: String(caller.callNumber),
@@ -193,8 +198,18 @@ export function variablesFor(caller: {
     last_belief: caller.belief ?? NOTHING_RECORDED,
     // Weeks before this one; the prompt counts this week in if it went undone too.
     weeks_undone_running: String(caller.consecutiveUndone ?? 0),
+    // This year's goals from the first call, and the slot they chose at sign-up
+    // so the first call confirms it instead of asking for it again.
+    own_goals: caller.goals ?? NOTHING_RECORDED,
+    booked_slot: caller.bookedSlot ?? NOTHING_RECORDED,
   };
 }
 
 /** What the prompt is told to look for when nothing was written down. */
 export const NOTHING_RECORDED = '(nothing recorded)';
+
+/** The slot as the first call says it back, or nothing if the scheduler has none. */
+async function bookedSlot(deps: LoopDeps, phone: string, language?: string): Promise<string | undefined> {
+  const slot = await deps.scheduler.slotFor(phone).catch(() => undefined);
+  return slot ? describeSlot(slot, language) : undefined;
+}

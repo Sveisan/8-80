@@ -1,0 +1,1 @@
+ALTER TABLE "callers" ADD COLUMN "goals_enc" text;

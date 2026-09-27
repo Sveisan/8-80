@@ -33,15 +33,14 @@ export function extractCommitment(spoken: string, script: ScriptLines): Commitme
   const head = anchor(before);
   const tail = anchor(after ?? '');
 
-  let rest = said;
-  if (head && rest.startsWith(head)) rest = rest.slice(head.length).trim();
-  else if (head && !rest.includes(head)) return undefined;
-  else if (head) rest = rest.slice(rest.indexOf(head) + head.length).trim();
-
-  if (tail) {
-    const cut = rest.indexOf(tail);
-    if (cut > 0) rest = rest.slice(0, cut).trim();
-  }
+  // Anchor on the head NEAREST the tail, not the first one in the text. The
+  // head is "Right", which the mentor says all through a call; taking the
+  // first one sent a recap containing everything from "Right — I've got the
+  // shape of it" onwards, as the commitment.
+  const end = tail ? said.lastIndexOf(tail) : -1;
+  const upTo = end > 0 ? said.slice(0, end) : said;
+  if (head && !upTo.includes(head)) return undefined;
+  const rest = (head ? upTo.slice(upTo.lastIndexOf(head) + head.length) : upTo).trim();
   if (!rest) return undefined;
 
   // The template separates the two slots with a comma, and punctuation does not
