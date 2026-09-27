@@ -67,12 +67,19 @@ test('one number cannot be texted over and over by a form', () => {
   assert.equal(l.take('n', t + 3600_001), true);
 });
 
-test('the sign-up page says it is an AI before it asks for anything', () => {
-  // SCRIPT.md §11 spends a whole call refusing to pretend to be a person.
+test('the sign-up page says it is an AI, first among its questions', () => {
+  // SCRIPT.md §11 spends a whole call refusing to pretend to be a person, and
+  // §15 requires that nobody can reach the end of this page without having been
+  // able to read that. The line used to sit above the form; the owner moved it
+  // into the questions under the button on 2026-09-27, on the condition that it
+  // comes first there. So the requirement is unchanged and this test is how it
+  // is held: a page that buries it fourth fails, as does one that drops it.
   const page = signupPage(script);
-  const honest = page.indexOf('is an AI');
-  const firstInput = page.indexOf('<input');
-  assert.ok(honest > 0 && honest < firstInput, 'above the form, not in a footer');
+  assert.ok(page.includes('is an AI'), 'the page no longer says what is on the other end');
+
+  const first = /<summary[^>]*>([\s\S]*?)<\/summary>/.exec(page)?.[1] ?? '';
+  assert.ok(first, 'no questions on the page — this test is checking nothing');
+  assert.match(first, /Who is on the other end\?/, `the first question is "${first.trim()}"`);
   assert.ok(page.includes("ask for a card"), "the free month is stated near the button");
 });
 
@@ -98,6 +105,10 @@ test('every line the sign-up flow says is in SCRIPT.md', () => {
     'signup.code.title', 'signup.code.detail', 'signup.code.label', 'signup.code.submit',
     'signup.code.again', 'signup.code.wrong', 'signup.code.expired', 'signup.code.toomany',
     'signup.code.unknown', 'signup.done.title', 'signup.done.detail', 'sms.code',
+    // The shortened page: one headline, a label inside the email field, and the
+    // five questions under the button that carry what the page used to say.
+    'signup.headline', 'signup.email.short',
+    'signup.faq.ai', 'signup.faq.what', 'signup.faq.recap', 'signup.faq.move', 'signup.faq.cost',
   ]) {
     assert.ok(script.get(key), `${key} is missing`);
   }

@@ -1261,6 +1261,12 @@ _Non-negotiable and above the fold, not in a footer. §11 spends an entire call 
 pretend to be a person; a sign-up page that lets somebody find out later would undo it
 before the first call._
 
+_2026-09-27, owner's decision: the line moves off the top of the page and into the
+questions under the button, where it is first — `signup.faq.ai`, "Who is on the other
+end?". The reasoning above is unchanged and is why it is first rather than fourth: the
+requirement was always that nobody can reach the end of this page without having been able
+to read it, not that it sit in any particular place._
+
 `signup.name`
 > "What should I call you?"
 
@@ -1359,6 +1365,49 @@ stops the first miss from being the last call._
 _Format matters more than voice here: the code first, the product named, nothing else.
 Phones autofill a code out of a message that looks like this one and do not out of a
 message that reads like a sentence._
+
+### The page, shortened
+
+_The sign-up page says one sentence above the form. Everything else it used to say is a
+question under the button, answered with the lines above, so nothing is said twice._
+
+`signup.headline`
+> "A weekly call with the people who want you to succeed most"
+
+_Replaces `signup.title` as the one line at the top. `signup.title` stays for anything
+else that quotes it._
+
+`signup.email.short`
+> "Email"
+
+_Shown inside the email field. "Where the recap goes" was a description, not a label._
+
+`signup.faq.ai`
+> "Who is on the other end?"
+
+_Answered by `signup.honest`. It is first in the list on purpose: with the honesty line no
+longer above the form, it is the first thing anyone who opens the questions reads._
+
+`signup.faq.what`
+> "What is this?"
+
+_Answered by `signup.what`._
+
+`signup.faq.recap`
+> "What do I get after a call?"
+
+_Answered by `signup.after`._
+
+`signup.faq.move`
+> "What if the time stops working?"
+
+_Answered by `signup.when.detail`._
+
+`signup.faq.cost`
+> "What does it cost?"
+
+_Answered by `signup.free`. Once this exists, the free-month line leaves the button and
+lives here._
 
 ---
 
