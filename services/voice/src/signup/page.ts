@@ -212,12 +212,21 @@ export function welcomePage(signup: Signup, first: Date, script: ScriptLines, la
  * The Forever mark, brand/assets/mark.svg, inlined so the page makes no second
  * request. The line is `currentColor` so it follows the theme — Pine on Paper,
  * Chalk on Night, where Pine would vanish at 1.6:1 — and the dot stays Gold on
- * both. Decorative: the wordmark beside it is the text.
+ * both. It is the only mark of the name on this page now, so the header
+ * carries the name for screen readers beside it.
  */
 const MARK = `<svg class="mark" viewBox="12 31 96 58" aria-hidden="true" focusable="false"><path d="M51 60C46 50 37 46 31 46C23 46 17 52 17 60C17 68 23 74 31 74C37 74 46 70 51 60C57 46 69 36 81 36C95 36 103 47 103 60C103 73 95 84 81 84C69 84 57 74 51 60Z" fill="none" stroke="currentColor" stroke-width="7" stroke-linejoin="round"/><circle cx="31" cy="60" r="5" fill="#E2B653"/></svg>`;
 
-/** Mark and name together: this is the page where people do not know the name yet. BRAND.md §4. */
-const LOCKUP = `<header class="lockup">${MARK}<span class="wordmark">8&amp;80</span></header>`;
+/**
+ * The mark alone, centred.
+ *
+ * It carried the name beside it, on the reasoning that this is the page where
+ * nobody knows it yet. The owner's call on 2026-09-27 is that the headline
+ * directly underneath already says what this is, and the name set twice within
+ * an inch reads as a letterhead rather than a product. The mark keeps the
+ * accessible name, so a screen reader still announces it.
+ */
+const LOCKUP = `<header class="lockup"><span class="visually-hidden">8&amp;80</span>${MARK}</header>`;
 
 export { clock };
 
@@ -273,7 +282,8 @@ function shell(body: string, language = 'en'): string {
     display: flex; justify-content: center;
   }
   main { width: 100%; max-width: 26rem; }
-  .lockup { display: flex; align-items: center; gap: .6rem; margin: 0 0 2.25rem; color: var(--ink); }
+  .lockup { display: flex; align-items: center; justify-content: center; margin: 0 0 2.25rem; color: var(--ink); }
+  .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .mark { width: 3.1rem; height: auto; display: block; }
   .wordmark { font: 600 1.25rem/1 var(--serif); letter-spacing: -0.01em; }
   h1 { font: 500 2.15rem/1.08 var(--serif); letter-spacing: -0.025em; margin: 0 0 .6rem; }

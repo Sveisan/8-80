@@ -1317,7 +1317,12 @@ to read it, not that it sit in any particular place._
 > every text I send."
 
 `signup.submit`
-> "Send me a code"
+> "Book my first call"
+
+_Names what happens, not the mechanism that gets there. "Send me a code" described our
+verification step, which is our problem rather than theirs — nobody arrives at this page
+wanting a code. The code page immediately after says what the text is for, so this is a
+promise kept one screen later rather than a bait._
 
 `signup.error.name`
 > "I need something to call you."
