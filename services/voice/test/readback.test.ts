@@ -54,3 +54,24 @@ test('a finished call keeps what was read back, and nothing that was not', () =>
   assert.equal(settled.outcome?.commitment, 'ask two members for money after standup');
   assert.equal(settled.outcome?.eight, undefined, 'never asked, so never kept');
 });
+
+test('"all right with that?" is not a commitment, and a call that reached none keeps none', () => {
+  const settled = settle(
+    {
+      providerCallId: 'c3',
+      durationMs: 300_000,
+      turns: [
+        { speaker: 'agent', text: "Two quick things. That's everything — all right with that?" },
+        { speaker: 'caller', text: 'Sure.' },
+        { speaker: 'agent', text: 'Let me say it back. Have I got that right?' },
+        { speaker: 'caller', text: 'Yes.' },
+      ],
+    },
+    script,
+  );
+  assert.equal(settled.outcome?.commitment, undefined);
+});
+
+test('the read-back found without its closing words, when the turn opens on it', () => {
+  assert.equal(extractCommitment('Right — write five minutes of material, Thursday.', script)?.text, 'write five minutes of material');
+});

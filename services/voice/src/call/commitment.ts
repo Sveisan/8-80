@@ -38,6 +38,10 @@ export function extractCommitment(spoken: string, script: ScriptLines): Commitme
   // first one sent a recap containing everything from "Right — I've got the
   // shape of it" onwards, as the commitment.
   const end = tail ? said.lastIndexOf(tail) : -1;
+  // Without its closing words a read-back is only trusted when the turn opens
+  // on it. "All right with that?" contains the head and is not a commitment,
+  // and a call that reached none once had "with that" saved as one.
+  if (tail && end < 0 && head && !said.startsWith(head)) return undefined;
   const upTo = end > 0 ? said.slice(0, end) : said;
   if (head && !upTo.includes(head)) return undefined;
   const rest = (head ? upTo.slice(upTo.lastIndexOf(head) + head.length) : upTo).trim();

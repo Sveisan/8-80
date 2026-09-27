@@ -161,7 +161,7 @@ test('a returning call reads against their own answers, and never repeats an ass
   assert.match(p, /At eight it was building dens\./);
   assert.match(p, /a stand up set/);
   assert.match(p, /Never say the assumption itself out loud/);
-  assert.match(p, /Will you\?/, 'the read-back ends on a question');
+  assert.ok(!/Will you\?/.test(p), 'the read-back is not a compliance test');
   assert.match(p, /never offer an example/i, 'their evidence, not the mentor\'s');
   assert.match(p, /belief about who they are/i);
 });
@@ -194,4 +194,16 @@ test('the prompt names the tool the console actually has', () => {
       `call ${callNumber} is never told to call \`${END_CALL_TOOL}\`, so it cannot end itself`,
     );
   }
+});
+
+test('the first call may notice one connection, repairs on a ladder, and never says a name it heard once', () => {
+  // From the third real first call: jokes at eight and comedy at eighty went
+  // unremarked; one question was rephrased four times; a misheard "parents'
+  // project" was said back three times.
+  const p = buildInstructions(loadScript(), { callNumber: 1 });
+  assert.match(p, /The one thing you may notice — once/);
+  assert.match(p, /Never ask a fourth version/);
+  assert.match(p, /never say one back the first time you hear it/);
+  assert.match(p, /You get ONE push/);
+  assert.ok(!/"Which games\?"\)/.test(p), 'the example that got "Can\'t remember" is gone as a model');
 });
