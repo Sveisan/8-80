@@ -300,7 +300,13 @@ function scoreDeliverables(script: ScriptLines, turns: TimedTurn[]): Finding[] {
   }));
   // Sign-up has it. Taking one letter by letter down a phone line failed on a
   // real call and is never to be tried again.
-  const askedEmail = turns.some((t) => t.speaker === 'agent' && t.text.includes('?') && /\b(email|e-mail|address)\b/i.test(t.text));
+  // The question itself, not the turn: the close says "there's an email
+  // coming" and then asks something else, which is not asking for one.
+  const askedEmail = turns.some(
+    (t) =>
+      t.speaker === 'agent' &&
+      sentences(t.text).some((q) => q.includes('?') && /\b(email|e-mail|address)\b/i.test(q)),
+  );
   out.push({
     check: 'no_email_asked',
     severity: askedEmail ? 'fail' : 'ok',
