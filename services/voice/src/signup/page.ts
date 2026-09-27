@@ -16,8 +16,25 @@ const dayNames = (language: string, weekday: 'long' | 'short' = 'long'): string[
 /** Monday first, the way a week is written down here. Values stay Sunday-is-0. */
 const WEEK = [1, 2, 3, 4, 5, 6, 0];
 
-/** One tap each. Numbers, so there is no English to put in SCRIPT.md. */
-const TIMES = ['07:30', '12:00', '17:00', '20:00'];
+/**
+ * Every half hour from six in the morning to ten at night, as one row of
+ * radio buttons you swipe along. Numbers only, so there is no English here,
+ * and radios, so it works with scripts off. A call outside these hours can be
+ * moved to from the link in any text.
+ */
+const TIMES = Array.from({ length: 33 }, (_, i) => clock(360 + i * 30));
+
+/**
+ * Questions under the form, for anything the page used to say above it.
+ * Each pairs a question key with an answer already in SCRIPT.md §15; a pair
+ * renders only once its question exists, so nothing here is English of its own.
+ */
+const FAQ: Array<[question: string, answer: string]> = [
+  ['signup.faq.what', 'signup.what'],
+  ['signup.faq.recap', 'signup.after'],
+  ['signup.faq.move', 'signup.when.detail'],
+  ['signup.faq.cost', 'signup.free'],
+];
 
 /** Which error message belongs to which field. SCRIPT.md §15. */
 const ERROR_KEY: Record<Invalid['why'], string> = {
@@ -37,15 +54,15 @@ export interface SignupFormState {
 /**
  * The only page a stranger sees.
  *
- * Mobile first and short on purpose: a headline, the honesty line, and a form
- * that fits a phone screen. Everything the product could say about itself is
- * said on the first call instead. The day is one tap on a chip rather than a
- * dropdown, and the common times are one tap too, with the native picker for
- * anything else.
+ * One sentence, three fields, a day and a time. The fields carry their names
+ * inside them rather than above, the day is one tap, and the time is a row you
+ * swipe and tap — nothing opens a picker. Everything else the page could say
+ * waits in the questions at the bottom for whoever wants it.
  *
- * The honesty line is above the form rather than in a footer. SCRIPT.md §11
- * spends an entire call refusing to pretend to be a person; a sign-up page that
- * let somebody find that out later would undo it before the first call.
+ * The honesty line stays above the form, small, and is the one exception to
+ * "one sentence". SCRIPT.md §11 spends an entire call refusing to pretend to
+ * be a person; a sign-up page that let somebody find that out later would undo
+ * it before the first call.
  *
  * Errors sit under the field they belong to, so somebody who mistyped their
  * number on a small screen does not have to scroll to find out which one.
@@ -61,11 +78,14 @@ export function signupPage(script: ScriptLines, state: SignupFormState = {}, lan
     return key ? `<p class="wrong" id="${field}-wrong">${say(key)}</p>` : '';
   };
   const weekday = v.weekday || '2';
-  const time = v.time || '08:00';
+  const time = TIMES.includes(v.time ?? '') ? (v.time as string) : '08:00';
+  const faq = FAQ.filter(([q, a]) => script.get(q) && script.get(a));
+  const freeInFaq = faq.some(([, a]) => a === 'signup.free');
 
   const field = (name: string, label: string, type: string, extra = ''): string => `
-      <label for="${name}">${say(label)}</label>
+      <label for="${name}" class="sr">${label}</label>
       <input id="${name}" name="${name}" type="${type}" value="${esc(v[name as keyof typeof v] ?? '')}"
+             placeholder="${label}"
              ${wrong.has(name) ? `class="bad" aria-invalid="true" aria-describedby="${name}-wrong"` : ''} ${extra} />
       ${note(name)}`;
 
@@ -78,49 +98,57 @@ export function signupPage(script: ScriptLines, state: SignupFormState = {}, lan
     ${note('timezone')}
 
     <form method="post" action="/start" novalidate>
-      ${field('name', 'signup.name', 'text', 'autocomplete="given-name" autocapitalize="words" enterkeyhint="next" required')}
-      ${field('phone', 'signup.phone', 'tel', 'autocomplete="tel" inputmode="tel" placeholder="+47 900 33 575" enterkeyhint="next" required')}
-      ${field('email', 'signup.email', 'email', 'autocomplete="email" autocapitalize="off" spellcheck="false" enterkeyhint="done" required')}
+      <div class="fields">
+        ${field('name', say('signup.name'), 'text', 'autocomplete="given-name" autocapitalize="words" enterkeyhint="next" required')}
+        ${field('phone', say('signup.phone'), 'tel', 'autocomplete="tel" inputmode="tel" enterkeyhint="next" required')}
+        ${field('email', say(script.get('signup.email.short') ? 'signup.email.short' : 'signup.email'), 'email', 'autocomplete="email" autocapitalize="off" spellcheck="false" enterkeyhint="done" required')}
+      </div>
 
       <fieldset>
         <legend>${say('signup.when')}</legend>
         <div class="days">
           ${WEEK.map(
-            (i) => `<label class="chip" title="${esc(long[i] as string)}">
+            (i) => `<label class="pick">
             <input type="radio" name="weekday" value="${i}"${String(i) === weekday ? ' checked' : ''} />
             <span aria-hidden="true">${esc(short[i] as string)}</span><span class="sr">${esc(long[i] as string)}</span>
           </label>`,
           ).join('')}
         </div>
         ${note('weekday')}
-        <div class="times" id="times" hidden>
-          ${TIMES.map((t) => `<button type="button" class="chip${t === time ? ' on' : ''}" data-time="${t}">${t}</button>`).join('')}
+        <div class="times" id="times">
+          ${TIMES.map(
+            (t) => `<label class="pick"><input type="radio" name="time" value="${t}"${t === time ? ' checked' : ''} /><span>${t}</span></label>`,
+          ).join('')}
         </div>
-        <input type="time" id="time" name="time" value="${esc(time)}" aria-label="${say('signup.when')}" required
-               ${wrong.has('minute') ? 'class="bad" aria-invalid="true" aria-describedby="minute-wrong"' : ''} />
         ${note('minute')}
       </fieldset>
 
       <input type="hidden" name="timezone" id="tz" value="Europe/Oslo" />
       <button class="primary">${say('signup.submit')}</button>
-      <p class="quiet small centre">${say('signup.free')}</p>
+      ${freeInFaq ? '' : `<p class="quiet small centre">${say('signup.free')}</p>`}
     </form>
+
+    ${
+      faq.length
+        ? `<section class="faq">${faq
+            .map(([q, a]) => `<details><summary>${say(q)}</summary><p>${say(a)}</p></details>`)
+            .join('')}</section>`
+        : ''
+    }
     <p class="quiet small centre legal"><a href="/terms">Terms</a> · <a href="/privacy">Privacy</a></p>
     <script>
-      // Fills the timezone and wires the time chips. The form works without it:
-      // the zone falls back to Oslo and the native time picker is always there.
+      // Fills the timezone and brings the chosen time to the middle of its row.
+      // The form works without either: the zone falls back to Oslo, and the
+      // row scrolls by hand.
       try { document.getElementById('tz').value = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch (e) {}
       try {
-        var times = document.getElementById('times'), input = document.getElementById('time');
-        var mark = function () {
-          times.querySelectorAll('button').forEach(function (b) { b.classList.toggle('on', b.dataset.time === input.value); });
+        var row = document.getElementById('times');
+        var centre = function (el, smooth) {
+          row.scrollTo({ left: el.offsetLeft - (row.clientWidth - el.offsetWidth) / 2, behavior: smooth ? 'smooth' : 'auto' });
         };
-        times.hidden = false;
-        times.addEventListener('click', function (e) {
-          var b = e.target.closest('button[data-time]');
-          if (b) { input.value = b.dataset.time; mark(); }
-        });
-        input.addEventListener('input', mark);
+        var on = row.querySelector('input:checked');
+        if (on) centre(on.parentNode, false);
+        row.addEventListener('change', function (e) { centre(e.target.parentNode, true); });
       } catch (e) {}
     </script>
   `,
@@ -208,7 +236,7 @@ function shell(body: string, language = 'en'): string {
     --bg: #F4EDE1;         /* Paper */
     --line: #CFCBBC;
     --quiet: #5A695E;      /* 5.0:1 on Paper */
-    --accent: #2F4A3A;     /* Pine — the filled button and the chosen chip */
+    --accent: #2F4A3A;     /* Pine — the filled button and the chosen day and time */
     --on-accent: #F4EDE1;  /* Paper on Pine, 8.4:1 */
     --gold: #E2B653;       /* a rule, never text on Paper */
     --bad: #8C3A2B;
@@ -240,41 +268,69 @@ function shell(body: string, language = 'en'): string {
   .quiet { color: var(--quiet); margin: 0 0 1rem; }
   .small { font-size: .9rem; }
   .centre { text-align: center; }
-  .honest {
-    color: var(--quiet); font-size: .95rem; margin: 0 0 1.5rem;
-    border-left: 2px solid var(--gold); padding-left: .75rem;
-  }
+  .honest { color: var(--quiet); font-size: .9rem; margin: 0 0 1.75rem; }
   .wrong { color: var(--bad); font-size: .95rem; margin: .35rem 0 0; }
   .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   form { margin: 0 0 1rem; }
-  fieldset { border: 0; padding: 0; margin: 1rem 0 0; min-width: 0; }
+  fieldset { border: 0; padding: 0; min-width: 0; }
   fieldset legend { margin-top: 0; }
   label, legend { display: block; font-size: .95rem; color: var(--quiet); margin: 1rem 0 .35rem; padding: 0; }
   input, select {
     width: 100%; min-height: 3rem; padding: .7rem .75rem; font: inherit; color: var(--ink);
     background: transparent; border: 1px solid var(--line); border-radius: .6rem;
   }
-  input:focus-visible, button:focus-visible, .chip:has(input:focus-visible) {
+  input:focus-visible, button:focus-visible {
     outline: 2px solid var(--accent); outline-offset: 2px;
   }
   input.bad { border-color: var(--bad); }
   input.code { font-size: 1.75rem; letter-spacing: .35em; text-align: center; font-variant-numeric: tabular-nums; }
-  input[type=time] { text-align: left; }
 
-  /* The day and the common times: one tap each, 44px tall at the least. */
+  /* Three fields as one card, so the form reads as one thing to fill in. */
+  .fields { border: 1px solid var(--line); border-radius: .9rem; overflow: hidden; }
+  .fields input { border: 0; border-radius: 0; min-height: 3.4rem; padding: .9rem 1rem; }
+  .fields label + input { border-top: 1px solid var(--line); }
+  .fields label:first-child + input { border-top: 0; }
+  .fields input:focus-visible { outline: 0; box-shadow: inset 3px 0 0 var(--accent); }
+  .fields input.bad { box-shadow: inset 3px 0 0 var(--bad); }
+  .fields .wrong { padding: 0 1rem .75rem; margin: 0; }
+  input::placeholder { color: var(--quiet); opacity: 1; }
+
+  /*
+   * The day and the time. Radios under the pills, so a tap is a native choice
+   * and the form needs no script; the pill is the span beside the radio.
+   */
+  fieldset { margin-top: 1.75rem; }
   .days { display: grid; grid-template-columns: repeat(7, 1fr); gap: .3rem; }
-  .times { display: grid; grid-template-columns: repeat(4, 1fr); gap: .3rem; margin: .5rem 0; }
-  .times[hidden] { display: none; }
-  .chip {
-    position: relative; margin: 0; min-height: 2.75rem; display: flex; align-items: center; justify-content: center;
-    border: 1px solid var(--line); border-radius: .6rem; color: var(--ink); background: transparent;
-    font: inherit; font-size: .9rem; cursor: pointer; padding: 0; width: auto;
-    -webkit-tap-highlight-color: transparent; font-variant-numeric: tabular-nums;
+  .times {
+    display: flex; gap: .3rem; margin-top: .5rem; padding: .1rem 0;
+    overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none; overscroll-behavior-x: contain;
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 1.5rem, #000 calc(100% - 1.5rem), transparent);
+    mask-image: linear-gradient(90deg, transparent, #000 1.5rem, #000 calc(100% - 1.5rem), transparent);
   }
-  .chip input { position: absolute; opacity: 0; inset: 0; margin: 0; min-height: 0; cursor: pointer; }
-  .chip:has(input:checked), .chip.on { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
-  .days + .wrong { margin-bottom: .25rem; }
-  .days ~ input[type=time] { margin-top: .5rem; }
+  .times::-webkit-scrollbar { display: none; }
+  .times .pick { flex: 0 0 4.4rem; scroll-snap-align: center; }
+  .pick { position: relative; display: block; margin: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .pick input { position: absolute; opacity: 0; width: 1px; height: 1px; min-height: 0; margin: 0; }
+  .pick span:first-of-type {
+    display: flex; align-items: center; justify-content: center; min-height: 2.9rem;
+    border: 1px solid var(--line); border-radius: .75rem; color: var(--ink);
+    font-size: .95rem; font-variant-numeric: tabular-nums;
+    transition: background-color .15s ease, color .15s ease, border-color .15s ease;
+  }
+  .pick input:checked + span { background: var(--accent); color: var(--on-accent); border-color: var(--accent); font-weight: 600; }
+  .pick input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) { .pick span { transition: none; } }
+
+  /* Everything the page used to say above the form, for whoever asks. */
+  .faq { margin-top: 2.5rem; border-top: 1px solid var(--line); }
+  .faq details { border-bottom: 1px solid var(--line); }
+  .faq summary {
+    list-style: none; cursor: pointer; padding: 1rem 2rem 1rem 0; position: relative; font-size: .95rem;
+  }
+  .faq summary::-webkit-details-marker { display: none; }
+  .faq summary::after { content: '+'; position: absolute; right: .25rem; top: .9rem; color: var(--quiet); }
+  .faq details[open] summary::after { content: '\\2212'; }
+  .faq details p { margin: 0 0 1rem; color: var(--quiet); font-size: .95rem; }
 
   button {
     width: 100%; min-height: 3.25rem; margin-top: 1.5rem; padding: .85rem 1rem; font: inherit; font-weight: 600;
@@ -282,7 +338,6 @@ function shell(body: string, language = 'en'): string {
   }
   button.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
   button.quiet { border: 0; color: var(--quiet); margin-top: .25rem; font-weight: 400; }
-  .times .chip { margin: 0; min-height: 2.75rem; font-weight: 400; }
   form + .quiet, button.primary + .quiet { margin-top: .75rem; }
   /* Named, not hidden. A sign-up page that does not say where its terms are is
      a sign-up page hoping nobody looks. */
