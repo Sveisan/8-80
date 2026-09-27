@@ -69,6 +69,10 @@ export class FileStore implements Store {
       return;
     }
 
+    // A first call has no last week to have a verdict about, whatever the
+    // transcript reader concluded from it.
+    const week = before.callNumber > 1 ? outcome.lastWeek : undefined;
+
     mkdirSync(this.dir, { recursive: true });
     writeFileSync(
       this.path(phone),
@@ -80,12 +84,14 @@ export class FileStore implements Store {
           voice: before.voice,
           lastCommitment: commitment ? encrypt(commitment) : undefined,
           lastCommitmentDay: outcome.day ?? before.lastCommitmentDay,
-          // A week not established leaves every count where it was.
+          // A week not established leaves every count where it was — and a
+          // first call cannot establish one, because there was no week before
+          // it. See the same guard in store/postgres.ts for what it cost.
           consecutiveUndone:
-            outcome.lastWeek === 'undone' ? before.consecutiveUndone + 1 : outcome.lastWeek ? 0 : before.consecutiveUndone,
-          weeksDone: (before.weeksDone ?? 0) + (outcome.lastWeek === 'done' ? 1 : 0),
-          weeksPartly: (before.weeksPartly ?? 0) + (outcome.lastWeek === 'partly' ? 1 : 0),
-          weeksUndone: (before.weeksUndone ?? 0) + (outcome.lastWeek === 'undone' ? 1 : 0),
+            week === 'undone' ? before.consecutiveUndone + 1 : week ? 0 : before.consecutiveUndone,
+          weeksDone: (before.weeksDone ?? 0) + (week === 'done' ? 1 : 0),
+          weeksPartly: (before.weeksPartly ?? 0) + (week === 'partly' ? 1 : 0),
+          weeksUndone: (before.weeksUndone ?? 0) + (week === 'undone' ? 1 : 0),
           patienceOffsetMs: before.patienceOffsetMs,
           eight: eight ? encrypt(eight) : undefined,
           eighty: eighty ? encrypt(eighty) : undefined,

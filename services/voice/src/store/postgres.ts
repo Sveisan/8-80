@@ -114,10 +114,26 @@ export class PostgresStore implements Store {
           eightyEnc: sql`coalesce(${eighty}, ${callers.eightyEnc})`,
           beliefEnc: sql`coalesce(${belief}, ${callers.beliefEnc})`,
           // A week not established leaves every count where it was.
-          ...(outcome.lastWeek === 'done' ? { weeksDone: sql`${callers.weeksDone} + 1`, consecutiveUndone: 0 } : {}),
-          ...(outcome.lastWeek === 'partly' ? { weeksPartly: sql`${callers.weeksPartly} + 1`, consecutiveUndone: 0 } : {}),
+          //
+          // And a first call cannot establish one, whatever the transcript
+          // reader concluded — there was no previous week to have a verdict
+          // about. That guard is here, in SQL, rather than only in the reader:
+          // this is the one place that knows which call number this is, the
+          // check happens inside the same statement that increments, and the
+          // counter it protects is the one that decides whether somebody gets
+          // asked about a third week running. A misread line cost exactly that
+          // once already.
+          ...(outcome.lastWeek === 'done'
+            ? { weeksDone: sql`${callers.weeksDone} + case when ${callers.callNumber} > 1 then 1 else 0 end`, consecutiveUndone: 0 }
+            : {}),
+          ...(outcome.lastWeek === 'partly'
+            ? { weeksPartly: sql`${callers.weeksPartly} + case when ${callers.callNumber} > 1 then 1 else 0 end`, consecutiveUndone: 0 }
+            : {}),
           ...(outcome.lastWeek === 'undone'
-            ? { weeksUndone: sql`${callers.weeksUndone} + 1`, consecutiveUndone: sql`${callers.consecutiveUndone} + 1` }
+            ? {
+                weeksUndone: sql`${callers.weeksUndone} + case when ${callers.callNumber} > 1 then 1 else 0 end`,
+                consecutiveUndone: sql`case when ${callers.callNumber} > 1 then ${callers.consecutiveUndone} + 1 else 0 end`,
+              }
             : {}),
           lastCallAt: at,
           updatedAt: sql`now()`,

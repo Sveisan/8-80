@@ -162,3 +162,35 @@ test('a scheduler built from store.raw can write a timestamp', { skip: skip() },
     assert.equal((rows[0]?.['next_call_at'] as Date).toISOString(), '2026-09-08T06:00:00.000Z');
   });
 });
+
+/**
+ * The counter guard, against the store production actually uses.
+ *
+ * The file store has the same rule, but the file store rings nobody. This one
+ * decides whether a real person is told they are on their third week running,
+ * and the guard lives in the SQL rather than in the transcript reader that got
+ * it wrong — because the reader's verdict is a guess about English and the call
+ * number is a fact.
+ */
+test('a first call cannot be counted as a failed week', { skip: skip() }, async () => {
+  await withKey(async () => {
+  const s_ = store as NonNullable<typeof store>;
+  const phone = '+4790000091';
+  const week = (lastWeek: 'done' | 'partly' | 'undone') =>
+    s_.record(phone, { at: new Date().toISOString(), durationMs: 1000, lastWeek });
+
+  // Call one, handed the verdict that reached production from a misread line.
+  await week('undone');
+  const first = await s_.load(phone);
+  assert.equal(first.callNumber, 2, 'the call still happened and still counts as a call');
+  assert.equal(first.consecutiveUndone, 0, 'a first call was counted as a failed week');
+  assert.equal(first.weeksUndone, 0);
+
+  // From call two the counter works exactly as before.
+  await week('undone');
+  await week('undone');
+  const later = await s_.load(phone);
+  assert.equal(later.consecutiveUndone, 2);
+  assert.equal(later.weeksUndone, 2);
+  });
+});

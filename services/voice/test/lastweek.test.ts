@@ -49,6 +49,13 @@ test('undone weeks run up the count, and a done week resets it', async () => {
     const week = (lastWeek?: 'done' | 'partly' | 'undone') =>
       store.record(phone, { at: new Date().toISOString(), durationMs: 1000, ...(lastWeek ? { lastWeek } : {}) });
 
+    // Call one. Even handed an 'undone' verdict it counts nothing, because
+    // there was no week before somebody's first call for it to be about.
+    await week('undone');
+    const first = await store.load(phone);
+    assert.equal(first.consecutiveUndone, 0, 'a first call was counted as a failed week');
+    assert.equal(first.weeksUndone, 0);
+
     await week('undone');
     await week('undone');
     await week(); // not established: leaves everything where it was
@@ -64,4 +71,26 @@ test('undone weeks run up the count, and a done week resets it', async () => {
     if (before === undefined) delete process.env['DATA_ENCRYPTION_KEY'];
     else process.env['DATA_ENCRYPTION_KEY'] = before;
   }
+});
+
+/**
+ * The misread that reached production, and the shape of the fault rather than
+ * the instance.
+ *
+ * `block.first` and `block.ask` share four of the five words `carries` counts,
+ * which is exactly the 0.8 overlap it accepts. So the first real call this
+ * product ever completed was filed as an undone week: the running count went
+ * to one, and the next call would have opened believing somebody with one call
+ * behind them had already missed a commitment.
+ */
+test('a first call has no last week, however the mentor asked about the blocker', () => {
+  const script = loadScript();
+  assert.equal(lastWeek([script.get('block.first') ?? ''], script), undefined);
+});
+
+test('a returning call still reads an undone week from the same family of lines', () => {
+  // The guard above must not buy its safety by making the real signal
+  // unreadable — an undone week that goes unrecorded is the other failure.
+  const script = loadScript();
+  assert.equal(lastWeek([script.get('block.ask') ?? ''], script), 'undone');
 });
