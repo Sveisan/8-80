@@ -641,8 +641,16 @@ schedule:_
 `setup.change_slot`
 > "I can't move it from the call yet, so it stays as it is for now. Sorry about that."
 
-_True today and not for long: a permanent slot change from the call, or by a text link,
-is owed._
+_The text link half of this is built: `sms.slot.link`, sent after the call, with the page's
+"every week from now on" checkbox at the other end. A permanent change from the call itself
+is still owed._
+
+_This line is load-bearing. `settle` reads it back out of the transcript — the mentor
+saying it is how the system knows they asked — so reword it freely, but do not delete it or
+split it in two. Without a match the text is never sent, and the mentor goes back to
+apologising into silence. The same check is why it is read from the mentor's branch rather
+than from what the caller said: a parser confident enough to spot "could we do Thursdays
+instead" in free speech is confident enough to spot it where it is not._
 
 `setup.save_number`
 > "Worth saving the number I'm on, so you know it's me when it rings."
