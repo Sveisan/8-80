@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { preflight } from '../src/preflight.ts';
+import { validOrgnr, preflight } from '../src/preflight.ts';
 
 // The self-hosted Grok path, which is what `stress` runs. The Speechify path
 // is a separate deployment with its own fixture below.
@@ -209,4 +209,33 @@ test('.env.example does not declare anything twice', async () => {
   const { resolve } = await import('node:path');
   const { repoRoot } = await import('../src/config.ts');
   assert.deepEqual(duplicateKeys(readFileSync(resolve(repoRoot, '.env.example'), 'utf8')), []);
+});
+
+/**
+ * The four values that reach a legal page, and whether somebody meant them.
+ *
+ * COMPANY_ORGNR=<orgnr> reached a live .env from a command whose angle brackets
+ * meant "put yours here", and /privacy published "(org. nr. &lt;orgnr&gt;)" to
+ * whoever read it. A placeholder here is not a typo: it is a published claim
+ * about who is responsible for somebody's data.
+ */
+test('a bracketed placeholder on a legal page is a failure, not a value', () => {
+  for (const key of ['COMPANY_NAME', 'COMPANY_ORGNR', 'COMPANY_ADDRESS', 'SUPPORT_EMAIL']) {
+    const env = { ...speechify, [key]: '<put yours here>' };
+    assert.ok(fails(env).some((l) => l.includes(key)), `${key} would be published as typed`);
+  }
+  // Unset is fine, and better: the page then says it is not named yet.
+  assert.deepEqual(fails({ ...speechify }), []);
+});
+
+test('an organisation number is checked, not trusted', () => {
+  // Nerd Valley AS. A transposed pair still looks like an org number, and the
+  // page would name a different company as the one somebody contracts with.
+  assert.ok(validOrgnr('927 065 223'));
+  assert.ok(validOrgnr('927065223'), 'spaces are how people write it, not part of it');
+  assert.ok(!validOrgnr('927 065 232'), 'the last two digits transposed');
+  assert.ok(!validOrgnr('92706522'), 'eight digits');
+  assert.ok(!validOrgnr('abc065223'));
+  assert.ok(fails({ ...speechify, COMPANY_ORGNR: '927 065 232' }).some((l) => l.includes('COMPANY_ORGNR')));
+  assert.deepEqual(fails({ ...speechify, COMPANY_ORGNR: '927 065 223' }), []);
 });

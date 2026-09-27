@@ -75,6 +75,23 @@ export function duplicateKeys(text: string): string[] {
  * published claim about who is responsible for somebody's data, and unset is
  * strictly better, because the page then says it is not named yet.
  */
+/**
+ * Whether a Norwegian organisation number is one.
+ *
+ * Nine digits with a mod-11 control digit, weights 3,2,7,6,5,4,3,2. Worth
+ * checking rather than trusting, because the failure is silent and specific:
+ * a transposed pair still looks like an org number, and /terms then names a
+ * different company — or none — as the party somebody is contracting with.
+ */
+export function validOrgnr(raw: string): boolean {
+  const d = raw.replace(/\s/g, '');
+  if (!/^\d{9}$/.test(d)) return false;
+  const weights = [3, 2, 7, 6, 5, 4, 3, 2];
+  const sum = weights.reduce((acc, w, i) => acc + w * Number(d[i]), 0);
+  const control = 11 - (sum % 11);
+  return (control === 11 ? 0 : control) === Number(d[8]);
+}
+
 function placeholders(env: NodeJS.ProcessEnv, checks: Check[]): void {
   for (const key of ['COMPANY_NAME', 'COMPANY_ORGNR', 'COMPANY_ADDRESS', 'SUPPORT_EMAIL']) {
     const v = env[key] ?? '';
@@ -83,6 +100,15 @@ function placeholders(env: NodeJS.ProcessEnv, checks: Check[]): void {
       ok: false,
       label: `${key} is still a placeholder`,
       detail: `Set to "${v}" — angle brackets where the controller should be named. Put the real value in, or take the line out: unset says "not named here yet", which is honest.`,
+    });
+  }
+
+  const orgnr = env['COMPANY_ORGNR'] ?? '';
+  if (orgnr && !/[<>]/.test(orgnr) && !validOrgnr(orgnr)) {
+    checks.push({
+      ok: false,
+      label: 'COMPANY_ORGNR does not check out',
+      detail: 'Nine digits with a mod-11 control digit. A transposed pair still looks like an org number, and /terms would name a different company as the one somebody is contracting with.',
     });
   }
 }
