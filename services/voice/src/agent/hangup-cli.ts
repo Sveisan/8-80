@@ -13,7 +13,7 @@ import { config } from '../config.ts';
  * twice: an agent that already has it is reported and left alone.
  */
 // The prompt names this exactly (prompt.ts, the close); change both together.
-const HANG_UP_TOOL = 'hang_up';
+const HANG_UP_TOOL = 'end_call';
 
 const key = config.speechify.apiKey();
 const base = config.speechify.base.replace(/\/+$/, '');
