@@ -2,6 +2,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildInstructions, renderForConsole, CONSOLE_VARIABLES } from '../src/prompt.ts';
 import { loadScript } from '../src/script.ts';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { repoRoot } from '../src/config.ts';
 
 test('nothing rendered for the console can be mistaken for a console variable', () => {
   // A surviving {{x}} is either flagged as undeclared or silently substituted
@@ -170,4 +173,25 @@ test('a returning caller with no answers on file gets the read as it always was'
   const p = buildInstructions(loadScript(), { callNumber: 3, lastCommitment: 'call two members' });
   assert.ok(!p.includes('At eight it was'), 'no own-answer read without their answers');
   assert.ok(!p.includes('Never say the assumption itself'), 'no test to ask about');
+});
+
+/**
+ * The prompt names a tool; a CLI registers one. Nothing made them the same name.
+ *
+ * A mismatch is the worst kind of quiet: the call runs to its duration cap
+ * every week, because the mentor is told to call something that does not exist
+ * and there is no error anywhere — the model simply narrates, or stalls, and
+ * the caller waits to find out who is hanging up. That is the exact failure
+ * this tool was added to fix.
+ */
+test('the prompt and the registrar agree on what the hang-up tool is called', () => {
+  const cli = readFileSync(resolve(repoRoot, 'services/voice/src/agent/hangup-cli.ts'), 'utf8');
+  const registered = /const HANG_UP_TOOL = '([^']+)'/.exec(cli)?.[1];
+  assert.ok(registered, 'HANG_UP_TOOL not found — this test is checking nothing');
+
+  const prompt = buildInstructions(loadScript(), { callNumber: 2 });
+  assert.ok(
+    prompt.includes(`\`${registered}\``),
+    `the prompt does not name \`${registered}\`, so the mentor cannot end the call`,
+  );
 });
