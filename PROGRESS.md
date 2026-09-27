@@ -136,3 +136,12 @@ measured — a real regression gate, not evidence about human timing.
   test prints which mode ran so a score can never be attributed to the wrong one.
 - Script §10, serious disclosure, is still behaviour-only. Wording at Milestone 5, for
   your review before it can reach anyone.
+
+## Later
+
+- **Choosing the mentor's voice.** The first call on 27 September asked "man's or
+  woman's voice", took "woman" and said so, and nothing could act on it: a Speechify
+  agent has one fixed voice, `placeCall` sends none, and the answer was never stored.
+  The question is gone from the call. Doing it properly needs a voice choice at sign-up
+  and a second pair of agents (first and returning) in the other voice, picked per
+  caller when the call is placed. Deliberately after the call itself feels right.
