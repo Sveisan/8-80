@@ -30,6 +30,7 @@ const TIMES = Array.from({ length: 33 }, (_, i) => clock(360 + i * 30));
  * renders only once its question exists, so nothing here is English of its own.
  */
 const FAQ: Array<[question: string, answer: string]> = [
+  ['signup.faq.ai', 'signup.honest'],
   ['signup.faq.what', 'signup.what'],
   ['signup.faq.recap', 'signup.after'],
   ['signup.faq.move', 'signup.when.detail'],
@@ -59,10 +60,10 @@ export interface SignupFormState {
  * swipe and tap — nothing opens a picker. Everything else the page could say
  * waits in the questions at the bottom for whoever wants it.
  *
- * The honesty line stays above the form, small, and is the one exception to
- * "one sentence". SCRIPT.md §11 spends an entire call refusing to pretend to
- * be a person; a sign-up page that let somebody find that out later would undo
- * it before the first call.
+ * The honesty line sits above the form until `signup.faq.ai` exists, and then
+ * becomes the first question at the bottom — the owner's call, made against
+ * SCRIPT.md §15's "above the fold". It is first in the list so it is the first
+ * thing anyone who opens the questions reads.
  *
  * Errors sit under the field they belong to, so somebody who mistyped their
  * number on a small screen does not have to scroll to find out which one.
@@ -80,7 +81,8 @@ export function signupPage(script: ScriptLines, state: SignupFormState = {}, lan
   const weekday = v.weekday || '2';
   const time = TIMES.includes(v.time ?? '') ? (v.time as string) : '08:00';
   const faq = FAQ.filter(([q, a]) => script.get(q) && script.get(a));
-  const freeInFaq = faq.some(([, a]) => a === 'signup.free');
+  const inFaq = (answer: string): boolean => faq.some(([, a]) => a === answer);
+  const headline = script.get('signup.headline') ? 'signup.headline' : 'signup.title';
 
   const field = (name: string, label: string, type: string, extra = ''): string => `
       <label for="${name}" class="sr">${label}</label>
@@ -92,8 +94,8 @@ export function signupPage(script: ScriptLines, state: SignupFormState = {}, lan
   return shell(
     `
     <header>${MARK}</header>
-    <h1>${say('signup.title')}</h1>
-    <p class="honest">${say('signup.honest')}</p>
+    <h1>${say(headline)}</h1>
+    ${inFaq('signup.honest') ? '' : `<p class="honest">${say('signup.honest')}</p>`}
 
     ${note('timezone')}
 
@@ -125,7 +127,7 @@ export function signupPage(script: ScriptLines, state: SignupFormState = {}, lan
 
       <input type="hidden" name="timezone" id="tz" value="Europe/Oslo" />
       <button class="primary">${say('signup.submit')}</button>
-      ${freeInFaq ? '' : `<p class="quiet small centre">${say('signup.free')}</p>`}
+      ${inFaq('signup.free') ? '' : `<p class="quiet small centre">${say('signup.free')}</p>`}
     </form>
 
     ${
@@ -266,6 +268,7 @@ function shell(body: string, language = 'en'): string {
   .mark { width: 44px; height: 44px; display: block; }
   h1 { font-size: 1.6rem; line-height: 1.2; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 .6rem; }
   .quiet { color: var(--quiet); margin: 0 0 1rem; }
+  h1 + form, h1 + .wrong { margin-top: 1.75rem; }
   .small { font-size: .9rem; }
   .centre { text-align: center; }
   .honest { color: var(--quiet); font-size: .9rem; margin: 0 0 1.75rem; }
