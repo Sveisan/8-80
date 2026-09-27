@@ -39,9 +39,16 @@ The web app (Next.js) arrives at Milestone 1.
 ```bash
 npm install
 npm run check          # typecheck, lint, tests
+npm run test:db        # ...and the ones that need Postgres
 ```
 
 Everything above runs with no keys and no network.
+
+`npm run check` skips every test that needs a database — about a sixth of the suite — and
+reports green while doing it. That is how a test asserting behaviour we had deliberately
+replaced sat red for weeks. `npm run test:db` starts a throwaway cluster, runs the lot, and
+removes it again; run it before pushing anything that touches the store, the scheduler or
+the loop.
 
 ### Placing the first call
 

@@ -33,6 +33,22 @@ export const callers = pgTable(
     voice: text('voice'),
     /** This is call number N. 1 means they have never been called. */
     callNumber: integer('call_number').notNull().default(1),
+    /**
+     * Serve the next call the first-call experience, whatever the call number
+     * says, then clear itself.
+     *
+     * A testing affordance that has to live in the product, because the thing
+     * it makes testable cannot be reached any other way: whoever built the
+     * onboarding call has already been called, so their own number always gets
+     * the returning prompt. The alternative was deleting yourself and signing
+     * up again for every pass, which costs a verification text, erases the
+     * history the returning call is supposed to remember, and is enough friction
+     * that the onboarding stops being rehearsed at all.
+     *
+     * One shot on purpose. A flag that stays set is a caller permanently stuck
+     * being introduced to a mentor they have known for a year.
+     */
+    rehearseFirstCall: boolean('rehearse_first_call').notNull().default(false),
     /** What they said they would do, in their own words. Encrypted. */
     lastCommitmentEnc: text('last_commitment_enc'),
     /** The day they named. A weekday name on its own tells nobody anything. */

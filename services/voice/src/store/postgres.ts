@@ -58,6 +58,7 @@ export class PostgresStore implements Store {
       language: row.language ?? undefined,
       voice: row.voice ?? undefined,
       callNumber: row.callNumber,
+      rehearseFirstCall: row.rehearseFirstCall,
       lastCommitment: row.lastCommitmentEnc ? decrypt(row.lastCommitmentEnc) : undefined,
       lastCommitmentDay: row.lastCommitmentDay ?? undefined,
       consecutiveUndone: row.consecutiveUndone,
@@ -181,6 +182,37 @@ export class PostgresStore implements Store {
       returning phone_hash
     `;
     return rows.length > 0;
+  }
+
+  /**
+   * Rehearse the first call: serve the onboarding experience once more, without
+   * touching a single thing the returning call remembers.
+   *
+   * Deliberately not "reset this caller". Setting `call_number` back to 1 would
+   * get the onboarding agent too, and would also throw away the commitment, the
+   * eight, the eighty and the week counts — so the next pass at the returning
+   * call would have nothing to be a returning call about. Two different tests,
+   * and only one of them should cost you the other.
+   */
+  async setRehearseFirstCall(phone: string, on: boolean): Promise<boolean> {
+    const rows = await this.raw<{ phone_hash: string }[]>`
+      update callers set rehearse_first_call = ${on}, updated_at = now()
+      where phone_hash = ${phoneKey(phone)}
+      returning phone_hash
+    `;
+    return rows.length > 0;
+  }
+
+  /**
+   * Spend the rehearsal. Called once the call is actually placed, not when it is
+   * claimed: a carrier that refuses the call must leave the flag standing, or a
+   * failed attempt silently turns the rehearsal into an ordinary weekly call.
+   */
+  async clearRehearseFirstCall(phoneHash: string): Promise<void> {
+    await this.raw`
+      update callers set rehearse_first_call = false, updated_at = now()
+      where phone_hash = ${phoneHash} and rehearse_first_call = true
+    `;
   }
 
   /**

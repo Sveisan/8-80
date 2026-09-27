@@ -16,6 +16,8 @@ import { OptedOut } from './sms/types.ts';
  *                    --day tuesday --time 08:00
  *
  *   npm run enrol -- --phone +4790033575 --in 3     # ring me in three minutes
+ *   npm run enrol -- --phone +4790033575 --rehearse --in 3
+ *                                                   # ...as the first call again
  *   npm run enrol -- --list
  *
  * Giving somebody a slot for the first time texts them to say when the first
@@ -47,8 +49,8 @@ const scheduler = new Scheduler(store.raw);
 try {
   if (has('list')) {
     const rows = await store.raw<
-      { call_number: number; timezone: string | null; slot_weekday: number | null; slot_minute: number | null; next_call_at: Date | null; paused: boolean }[]
-    >`select call_number, timezone, slot_weekday, slot_minute, next_call_at, paused from callers order by next_call_at`;
+      { call_number: number; timezone: string | null; slot_weekday: number | null; slot_minute: number | null; next_call_at: Date | null; paused: boolean; rehearse_first_call: boolean }[]
+    >`select call_number, timezone, slot_weekday, slot_minute, next_call_at, paused, rehearse_first_call from callers order by next_call_at`;
     if (!rows.length) console.log('Nobody is enrolled.');
     for (const r of rows) {
       const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -57,7 +59,7 @@ try {
         : `${days[r.slot_weekday]} ${String(Math.floor(r.slot_minute / 60)).padStart(2, '0')}:${String(r.slot_minute % 60).padStart(2, '0')} ${r.timezone}`;
       // No numbers and no names: a terminal is a screen somebody else can see.
       console.log(
-        `call #${r.call_number}  ${slot}${r.paused ? '  (paused)' : ''}  next: ${r.next_call_at?.toISOString() ?? 'never'}`,
+        `call #${r.call_number}  ${slot}${r.paused ? '  (paused)' : ''}${r.rehearse_first_call ? '  (rehearsing the first call)' : ''}  next: ${r.next_call_at?.toISOString() ?? 'never'}`,
       );
     }
     process.exit(0);
@@ -125,8 +127,20 @@ try {
   if (has('pause')) await scheduler.setPaused(phone, true);
   if (has('resume')) await scheduler.setPaused(phone, false);
 
+  if (has('rehearse') || has('no-rehearse')) {
+    const on = !has('no-rehearse');
+    const found = await store.setRehearseFirstCall(phone, on);
+    if (!found) fail('No such caller. Give them a slot first, then rehearse.');
+    console.log(
+      on
+        ? 'The next call will be the first-call experience. Nothing else was changed.'
+        : 'Rehearsal cleared. The next call is the ordinary one.',
+    );
+  }
+
   const rec = await store.load(phone);
-  console.log(`Enrolled. This will be call number ${rec.callNumber}.`);
+  const as = rec.rehearseFirstCall ? ' — served as a first call (rehearsal)' : '';
+  console.log(`Enrolled. This will be call number ${rec.callNumber}${as}.`);
 } finally {
   await store.close();
 }

@@ -18,6 +18,12 @@ export interface CallerRecord {
   voice?: string;
   /** This is call number N. 1 means they have never been called. */
   callNumber: number;
+  /**
+   * Serve the next call the first-call experience whatever `callNumber` says.
+   * Set by `enrol --rehearse`, cleared the moment a call is placed. See
+   * store/schema.ts for why a testing affordance lives in the record.
+   */
+  rehearseFirstCall?: boolean;
   /** What they said they would do, in their own words. */
   lastCommitment?: string;
   /** The day they named for it. */

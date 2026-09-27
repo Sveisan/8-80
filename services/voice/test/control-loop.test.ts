@@ -99,6 +99,38 @@ const completed = (conversationId: string, turns: { role: string; content: strin
   messages: turns,
 });
 
+/**
+ * Rehearsing the onboarding call as somebody who has already been onboarded.
+ *
+ * Whoever builds this call has been called by it, so their own number always
+ * gets the returning prompt and the first-call experience is the one part of the
+ * product nobody can check before shipping it. The two things that make the
+ * affordance safe rather than convenient are asserted here: it does not disturb
+ * the history the returning call depends on, and it does not survive the call.
+ */
+test('a rehearsal serves the first call once and forgets nothing', { skip: skip() }, async () => {
+  const s = store as NonNullable<typeof store>;
+  await enrol('+4790000041');
+  await s.record('+4790000041', {
+    at: NOW.toISOString(),
+    durationMs: 1,
+    commitment: 'run three times',
+    day: 'wednesday',
+  });
+  assert.ok(await s.setRehearseFirstCall('+4790000041', true));
+
+  await tick(deps(), NOW);
+  assert.equal(agent.placed[0]?.firstCall, true, 'a rehearsal is served as a first call');
+  // The commitment still goes out. A rehearsal changes which agent answers, not
+  // what we know — and sending it proves the record was not wiped to get here.
+  assert.equal(agent.placed[0]?.variables?.['last_commitment'], 'run three times');
+
+  const after = await s.load('+4790000041');
+  assert.equal(after.rehearseFirstCall, false, 'the rehearsal outlived the call it was for');
+  assert.equal(after.lastCommitment, 'run three times', 'the rehearsal cost them their last week');
+  assert.ok(after.callNumber >= 2, 'a rehearsal must not rewind the call number');
+});
+
 const readBack = (script.get('next.confirm') ?? '')
   .replace('{{commitment}}', 'run three times')
   .replace('{{day}}', 'Wednesday');
@@ -141,13 +173,20 @@ test('one caller failing does not cost the others their week', { skip: skip() },
   assert.equal(result.placed, 1, 'the other one still got their call');
 });
 
-test('a platform refusal is a failed attempt and no text', { skip: skip() }, async () => {
+test('a platform refusal is a failed attempt, and they are told in the right words', { skip: skip() }, async () => {
   await enrol('+4790000044');
   agent.refuse = true;
   const result = await tick(deps(), NOW);
   assert.deepEqual(result, { claimed: 1, placed: 0, failed: 1 });
-  // Nobody was rung, so there is nothing for them to have missed.
-  assert.equal(texts.length, 0);
+
+  // This assertion used to be `texts.length === 0`, on the reasoning that
+  // nobody was rung so nobody missed anything. That was overturned: a weekly
+  // call that silently fails to arrive is the one failure this product cannot
+  // have, because turning up is the entire promise. So they are told — in the
+  // sentence for a call that never left the building, not the one that claims
+  // their phone rang.
+  assert.equal(texts.length, 1, 'a call that never happened must not pass in silence');
+  assert.match(texts[0]?.body ?? '', /my end, not yours/i, 'they got the "rang just now" line, which is a lie here');
 });
 
 test('a finished call is stored and the recap goes out', { skip: skip() }, async () => {

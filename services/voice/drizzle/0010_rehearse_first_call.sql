@@ -1,0 +1,1 @@
+ALTER TABLE "callers" ADD COLUMN "rehearse_first_call" boolean DEFAULT false NOT NULL;

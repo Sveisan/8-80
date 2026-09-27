@@ -25,6 +25,7 @@
     "serve": "npm run -w @8and80/voice serve",
     "stress": "npm run -w @8and80/voice stress",
     "test": "npm run -ws --if-present test",
+    "test:db": "./scripts/test-with-db.sh",
     "tick": "npm run -w @8and80/voice tick",
     "typecheck": "npm run -ws --if-present typecheck",
     "voices": "npm run -w @8and80/voice voices --"

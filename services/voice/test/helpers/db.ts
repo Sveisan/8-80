@@ -49,6 +49,8 @@ export async function openTestDb(name: string): Promise<TestDb | string> {
       },
     };
   } catch (e) {
-    return `no database at ${URL} (${(e as Error).message}) — start one or set TEST_DATABASE_URL`;
+    // Named loudly, because a skip is silent and this is two thirds of the
+    // suite. `npm run test:db` starts a throwaway cluster and needs no setup.
+    return `no database at ${URL} (${(e as Error).message}) — run \`npm run test:db\`, or set TEST_DATABASE_URL`;
   }
 }

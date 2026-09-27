@@ -110,7 +110,10 @@ export async function tick(deps: LoopDeps, now = new Date()): Promise<TickResult
         to: phone,
         // Which kind of call it is, not which agent serves it: the mapping from
         // one to the other is the platform's business and lives in the adapter.
-        firstCall: caller.callNumber <= 1,
+        // A rehearsal is a first call for this purpose and for no other: nothing
+        // else in the record moves, so the returning call still has a last week
+        // to ask about once the rehearsal is over.
+        firstCall: caller.callNumber <= 1 || caller.rehearseFirstCall === true,
         variables: variablesFor(caller),
         ...(config.speechify.callerIdNumber ? { callerIdNumber: config.speechify.callerIdNumber } : {}),
         ...(caller.language ? { language: caller.language } : {}),
@@ -119,6 +122,10 @@ export async function tick(deps: LoopDeps, now = new Date()): Promise<TickResult
       }));
 
       await deps.scheduler.markPlaced(claim.attemptId, placed.conversationId);
+      // The rehearsal is spent here rather than at claim time: a call that never
+      // left the building has not been rehearsed, and the retry should still be
+      // the call you asked for.
+      if (caller.rehearseFirstCall) await deps.store.clearRehearseFirstCall(claim.phoneHash);
       result.placed++;
     } catch (e) {
       if (e instanceof CallNotPlaced && e.rang) {
