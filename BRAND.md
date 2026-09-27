@@ -35,17 +35,22 @@ The target is correspondence on headed paper. Not a campaign, not a receipt.
 
 ## 2. The idea
 
-One ball. Two eights. Joined.
+One line. Two loops. No end.
 
-- **The 8-ball** — the one object that belongs to both ages. A kid's first pool table, a
-  pub game at eighty. Recognisable from across a room.
-- **Two 8s, fused** — the 8-year-old and the 80-year-old leaning in until they become one
-  shape. Two of you, joined into one.
+- **An 8 lying down is infinity.** Turn the 8 on its side and it stops being a number and
+  becomes "for as long as it takes" — which is what a weekly call is, and why it is weekly
+  and not a course with a last lesson.
+- **Two loops, two sizes** — the small loop is the 8-year-old, the big one the 80-year-old.
+  It is one line: you cannot draw either loop without passing through the other.
 - **Gold and green** — gold is the child (sunlight, play), green is the elder (calm,
-  durable). The gold ball carries the green 88.
+  durable). The gold dot sits in the small loop: the child, carried inside the whole.
 
 Everything in the identity comes from those three sentences. A proposal that cannot be
 traced back to one of them is decoration.
+
+_The mark was a gold 8-ball with a green 88 until 2026-09-27, when it was redrawn as
+"Forever", chosen from ten directions. §§4, 5, 8, 9 and 11 were rewritten with it; the
+palette in §6 did not change._
 
 ---
 
@@ -63,42 +68,48 @@ because DNS cannot hold an ampersand, and it never appears in copy.
 
 ## 4. The mark
 
-A gold ball with a green 88, drawn at the proportion of a real pool ball's numeral.
+**Forever**: one Pine line drawn as a lopsided infinity, a small loop and a big one, with a
+Gold dot in the small loop.
 
-- **The 88 is 38% of the ball's diameter.** That is the pool-ball number proportion, and
-  it is why the mark reads as an object rather than a logo.
-- **Clear space: a quarter of the ball's diameter on every side.**
-- **Below 32px, use `mark-small.svg`** — the same drawing with the 88 enlarged to 54% so
-  the counters survive. The primary mark at 22px turns into a smudge.
+- **The small loop is about 60% the height of the big one.** Equal loops are the maths
+  symbol; unequal ones are two ages. Do not even them out.
+- **The dot sits in the centre of the small loop**, never in the big one and never on the
+  line. It is the one piece of Gold in the mark.
+- **Clear space: the height of the small loop on every side.**
+- **Below 32px wide, use `mark-small.svg`** — the same line, heavier, with a larger dot, so
+  the small loop does not close up.
 
-It works alone. The lockup adds the name only where people do not yet know it.
+It works alone. The lockup — the mark with **8&80** set beside it in the display serif —
+is for places where people do not yet know the name, which is the sign-up page and the
+recap letter.
 
 ---
 
 ## 5. Colourways
 
-**The ball never matches the ground.**
+**The line is always the colour text would be on that ground; the dot is always Gold** —
+except on Gold, where it cannot be.
 
-| Ground | Ball | 88 |
-| --- | --- | --- |
-| Night `#1A2920` | gold | green |
-| Green `#4A6656` | gold | green |
-| Paper `#F4EDE1` | gold | green |
-| White | gold | green |
-| Gold `#E2B653` | **green** | **gold** |
+| Ground | Line | Dot | File |
+| --- | --- | --- | --- |
+| Paper `#F4EDE1` / white | Pine | Gold | `mark.svg` |
+| Night `#1A2920` | Chalk | Gold | `mark-on-night.svg` |
+| Green `#4A6656` | Chalk | Gold | `mark-on-night.svg` |
+| Gold `#E2B653` | **Night** | **Paper** | `mark-on-gold.svg` |
+| Unknown — email, app icons | Pine on a Paper disc | Gold | `mark-badge.svg` |
 
-On gold the whole mark flips, because a gold ball on a gold ground is a hole. The one
-exception is deliberate: for a watermark or an embossed card, let the ball match the
-ground on purpose so only the 88 remains.
+The badge exists because some surfaces pick the ground for us. A mail client shows the same
+image on Paper in light mode and on Night in dark mode, and a bare Pine line vanishes on
+Night at 1.6:1; on its own Paper disc it is right on both.
 
 ### Six ways to break it
 
-1. A gold ball on a gold ground.
-2. Recolouring the 88 to anything but the flip above.
-3. Stretching it.
-4. Rotating it.
-5. Shadows, glows, gradients, or any other effect.
-6. `mark.svg` below 32px.
+1. A Pine line on Night or Green — it is the ground, darkened, and disappears.
+2. A Gold dot on Gold.
+3. Evening out the two loops.
+4. Moving the dot into the big loop, or doubling it.
+5. Stretching, rotating, shadows, glows, gradients, or any other effect.
+6. `mark.svg` below 32px wide.
 
 ---
 
@@ -109,8 +120,8 @@ and bright, and 8&80 is the quiet evening call.
 
 | Name | Hex | Job |
 | --- | --- | --- |
-| Gold | `#E2B653` | The ball. Accent and buttons on dark. Never text on Paper. |
-| Green | `#4A6656` | The 88. The wordmark and headings on light. |
+| Gold | `#E2B653` | The dot. Accent and buttons on dark. Never text on Paper. |
+| Green | `#4A6656` | Links and quiet accents on light. |
 | Pine | `#2F4A3A` | Body text on light, and the filled button. |
 | Night | `#1A2920` | Dark ground — the default. |
 | Chalk | `#F4F1E8` | Text on dark. Never a background. |
@@ -130,14 +141,16 @@ and bright, and 8&80 is the quiet evening call.
 | Pine on Night | 1.6 : 1 | **Never text** — it is the ground, darkened | fail |
 | Chalk on Green | 5.6 : 1 | Text on green panels | pass |
 | Night on Gold | 8.0 : 1 | Text on gold bands and buttons | pass |
-| Green 88 on Gold ball | 3.3 : 1 | Graphic — clears the 3:1 non-text bar | pass |
+| Pine line on Paper | 8.4 : 1 | The mark on light | pass |
+| Chalk line on Night | 13.5 : 1 | The mark on dark | pass |
+| Night line on Gold | 8.0 : 1 | The mark on gold | pass |
 
 Every ratio in that table was recomputed from the hexes. §12 records how this palette was
 arrived at — a bake-off on the real surfaces, not a swatch sheet — and what it replaced.
 
 The failures are the important rows. Gold is loud enough to look like a heading colour on a
 light ground and is unreadable at 1.6:1; green looks like a sober body colour on dark and is
-unreadable at 2.4:1. Both belong to the mark, not to the text.
+unreadable at 2.4:1. Neither is ever text; Gold belongs to the mark's dot and to buttons on dark.
 
 Pine and Green are one colour in two stops, and the stops do different work: Green is the
 accent you notice, Pine is what you read. Never set a link in Pine — it will be invisible
@@ -156,13 +169,19 @@ tight for numbers, open and easy for reading.
 
 | Size · weight | Use |
 | --- | --- |
-| 72 · 700 | The one line at the top of a page |
+| 72 · 500 | The one line at the top of a page — Fraunces |
 | 36 · 700 | Section heads |
 | 21 · 700 | Sub-heads |
 | 18 · 400 | Body |
 | 14 · 400 | The quiet line under a button |
 
 Sentence case everywhere, in type as in voice.
+
+**Forever adds one display face: Fraunces**, a soft old-style serif, for the one line at the
+top of a page and the wordmark in the lockup — the same rule, self-hosted, never from Google
+Fonts. Everything else stays in Bricolage Grotesque. Until the file is in the repo, those
+lines fall back to the system serif (New York on Apple devices), which is close enough to
+ship and not the drawing.
 
 **Where this does not apply: email.** Mail clients cannot use a self-hosted webfont, so
 the email stack is a system stack and the wordmark is live text. See §9.
@@ -171,22 +190,25 @@ the email stack is a system stack and the wordmark is live text. See §9.
 
 ## 8. The talking orb
 
-Wherever 8&80 speaks on a screen, the ball becomes the voice. Four states, one calm motion
-language — and **waiting is a state in its own right.**
+Wherever 8&80 speaks on a screen, the gold dot becomes the voice, and the line is the track
+it moves on. Four states, one calm motion language — and **waiting is a state in its own
+right.**
 
-- **Resting** — a slow breath every six seconds. Present, not busy.
-- **Speaking** — the ball swells gently with the voice, and the 88 turns toward you, like a
-  pool ball rolling to face the table.
-- **Listening** — a thin ring in the ink colour answers your voice. The ball itself stays
-  still.
-- **Waiting** — a gold halo breathes once every five seconds. Still here, in no hurry. **It
-  never fills the silence.**
+- **Resting** — the dot sits in the small loop and breathes once every six seconds.
+  Present, not busy.
+- **Speaking** — the dot travels the line, out through the crossing and round the big loop,
+  at the pace of the voice. It slows at the crossing; it never races.
+- **Listening** — the dot stops, and a thin ring in the ink colour answers your voice
+  around it. The line stays still.
+- **Waiting** — the dot is back in the small loop and a gold halo breathes once every five
+  seconds. Still here, in no hurry. **It never fills the silence.**
 
-Everything eases; nothing snaps. With `prefers-reduced-motion`, only the rings change.
+Everything eases; nothing snaps. With `prefers-reduced-motion`, the dot stays put and only
+the rings change.
 
 The waiting state is the identity's whole argument in one animation. SCRIPT.md §5 tells the
-mentor to let a pause run; an orb that spun or pulsed through that pause would be arguing
-the opposite on the same screen.
+mentor to let a pause run; a dot that raced round the loop through that pause would be
+arguing the opposite on the same screen.
 
 ---
 
@@ -197,9 +219,9 @@ the opposite on the same screen.
 The call promises it out loud, so it is not a newsletter and it is not optional. It is the
 one piece of the product a person keeps.
 
-- **Headed, not bare.** The ball, the wordmark and the date on one line, over a 2px gold
+- **Headed, not bare.** The badge, the wordmark and the date on one line, over a 2px gold
   rule — the one place gold appears on Paper, and the thing that makes it stationery
-  rather than a page. The wordmark is **live text beside the ball**, so the brand survives
+  rather than a page. The wordmark is **live text beside the badge**, so the brand survives
   image blocking, which is the default in Mail.app and Outlook.
 - **Dated.** In the caller's zone, day and month only. A letter is dated; a notification
   is not. No weekday: the day their commitment lands on is already in the letter, and two
@@ -223,11 +245,11 @@ one piece of the product a person keeps.
 - **Light is the default here**, and only here. Night arrives through
   `prefers-color-scheme`, but a client that strips the style block has to be left with a
   complete letter rather than a guess, and the complete letter is the one on Paper.
-- **`mark-small.png` at 40px**, not `mark.svg`. §4's 32px threshold assumes a screen at a
-  known scale; a mail client renders at whatever DPI it likes and Gmail downscales. At 40px
-  in an inbox the primary mark's 88 is a smudge and the small one's is legible — checked
-  side by side, not assumed.
-- **We serve the ball ourselves**, from the control plane at `PUBLIC_URL/mark.png`, and
+- **`mark-email.png` at 40px** — the badge, not the bare mark. A mail client puts the same
+  image on Paper in light mode and on Night in dark mode, and it downscales at whatever DPI
+  it likes; the Paper disc keeps the line visible on both, and the badge's heavier line
+  keeps the small loop open at 40px.
+- **We serve the mark ourselves**, from the control plane at `PUBLIC_URL/mark.png`, and
   not from an image CDN. A remote image in an email tells whoever serves it the moment
   somebody opened their recap, along with their IP. On our own host that is a line in our
   own log that we choose not to write; on a third party's it is a record, on an account we
@@ -285,25 +307,31 @@ In `brand/assets/`:
 
 | File | Use |
 | --- | --- |
-| `mark.svg` | Primary mark, 32px and up |
-| `mark-small.svg` | 32px and below — same drawing, 88 at 54% |
-| `mark-on-gold.svg` | Gold grounds — ball green, 88 gold |
-| `mark-mono.svg` | One colour via `currentColor`, 88 knocked out |
-| `mark-email.png` | Email, shown at 40px. `mark-small` at 160px, transparent |
+| `mark.svg` | Primary mark on Paper or white, 32px wide and up |
+| `mark-small.svg` | Below 32px wide — same line, heavier, larger dot |
+| `mark-on-night.svg` | Night and Green grounds — Chalk line |
+| `mark-on-gold.svg` | Gold grounds — Night line, Paper dot |
+| `mark-mono.svg` | One colour via `currentColor`, line and dot alike |
+| `mark-badge.svg` | The mark on its own Paper disc, for grounds we do not choose |
+| `mark-email.png` | Email, shown at 40px. `mark-badge` at 160px, transparent outside the disc |
 
 `mark-mono.svg` resolves `currentColor` from its parent only when inlined; referenced
-through `<img>` it falls back to black. Inline it, or set `fill` at the use site.
+through `<img>` it falls back to black. Inline it, or set `stroke` and `fill` at the use
+site. The sign-up page inlines the mark with a `currentColor` line for the same reason, so
+one drawing follows the theme.
 
-`mark-email.png` is produced by `brand/render-mark.py`, which reads the geometry out of
-`mark.svg` rather than restating it, so the export cannot quietly disagree with the
-drawing. Its output was checked pixel-for-pixel against a browser's rendering of the same
-SVG: everything that differs is antialiasing on an edge, bar nine pixels in thirty-seven
-thousand. Regenerate at any size with `python3 brand/render-mark.py 512 > out.png`.
+`mark-email.png` is produced by `brand/render-mark.py`, which reads the circles and the
+path out of the SVG rather than restating them, so the export cannot quietly disagree with
+the drawing. Regenerate it with `python3 brand/render-mark.py 160 > brand/assets/mark-email.png`
+after any change to `mark-badge.svg`; its output was compared by eye against a browser's
+rendering of the same SVG on Paper and on Night when the mark was redrawn.
 
 **Not yet in the repo**, and each one blocks something:
 
 - `lockup-light.svg` / `lockup-dark.svg` — mark plus name. Needs the wordmark set in
-  Bricolage Grotesque and converted to outlines; the font is not here yet.
+  Fraunces and converted to outlines; the font is not here yet.
+- `fonts/Fraunces.woff2` — the display serif Forever pairs with (§7), self-hosted. Until it
+  lands, the sign-up page's headline and wordmark render in the system's serif.
 - `fonts/BricolageGrotesque.woff2` — the variable font, self-hosted. Until it lands, any
   page that names Bricolage Grotesque is silently rendering in a system fallback.
 - App icons and a favicon. `render-mark.py` will produce them at any size; what is missing

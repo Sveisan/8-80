@@ -93,7 +93,7 @@ export function signupPage(script: ScriptLines, state: SignupFormState = {}, lan
 
   return shell(
     `
-    <header>${MARK}</header>
+    ${LOCKUP}
     <h1>${say(headline)}</h1>
     ${inFaq('signup.honest') ? '' : `<p class="honest">${say('signup.honest')}</p>`}
 
@@ -201,7 +201,7 @@ export function welcomePage(signup: Signup, first: Date, script: ScriptLines, la
     minute: '2-digit',
   });
   return shell(
-    `<header>${MARK}</header>
+    `${LOCKUP}
      <h1>${esc((script.get('signup.done.title') ?? '').replace('{{when}}', when))}</h1>
      <p class="quiet">${say('signup.done.detail')}</p>`,
     language,
@@ -209,11 +209,15 @@ export function welcomePage(signup: Signup, first: Date, script: ScriptLines, la
 }
 
 /**
- * brand/assets/mark.svg, inlined so the page makes no second request. Shown at
- * 44px, above BRAND.md §4's 32px floor for the primary mark. Decorative here:
- * the page title already names the product.
+ * The Forever mark, brand/assets/mark.svg, inlined so the page makes no second
+ * request. The line is `currentColor` so it follows the theme — Pine on Paper,
+ * Chalk on Night, where Pine would vanish at 1.6:1 — and the dot stays Gold on
+ * both. Decorative: the wordmark beside it is the text.
  */
-const MARK = `<svg class="mark" viewBox="0 0 400 400" aria-hidden="true" focusable="false"><circle cx="200" cy="200" r="190" fill="#E2B653"/><g transform="translate(200,200) scale(0.5342) translate(-111.0,-138.1)" fill="none" stroke="#4A6656" stroke-width="34"><ellipse cx="0" cy="70" rx="62" ry="56" transform="rotate(18 0 250)"/><ellipse cx="0" cy="184" rx="74" ry="66" transform="rotate(18 0 250)"/><ellipse cx="222" cy="70" rx="62" ry="56" transform="rotate(-18 222 250)"/><ellipse cx="222" cy="184" rx="74" ry="66" transform="rotate(-18 222 250)"/></g></svg>`;
+const MARK = `<svg class="mark" viewBox="12 31 96 58" aria-hidden="true" focusable="false"><path d="M51 60C46 50 37 46 31 46C23 46 17 52 17 60C17 68 23 74 31 74C37 74 46 70 51 60C57 46 69 36 81 36C95 36 103 47 103 60C103 73 95 84 81 84C69 84 57 74 51 60Z" fill="none" stroke="currentColor" stroke-width="7" stroke-linejoin="round"/><circle cx="31" cy="60" r="5" fill="#E2B653"/></svg>`;
+
+/** Mark and name together: this is the page where people do not know the name yet. BRAND.md §4. */
+const LOCKUP = `<header class="lockup">${MARK}<span class="wordmark">8&amp;80</span></header>`;
 
 export { clock };
 
@@ -236,7 +240,11 @@ function shell(body: string, language = 'en'): string {
     color-scheme: light dark;
     --ink: #2F4A3A;        /* Pine on Paper, 8.4:1 */
     --bg: #F4EDE1;         /* Paper */
-    --line: #CFCBBC;
+    --line: #CFC7B6;
+    --card: #F8F3EA;       /* the field card, a shade off Paper */
+    /* Forever pairs a serif display with the sans body. Fraunces is the face;
+       until it is self-hosted (BRAND.md §7) this is the system's own serif. */
+    --serif: 'Fraunces', ui-serif, 'New York', 'Iowan Old Style', Georgia, serif;
     --quiet: #5A695E;      /* 5.0:1 on Paper */
     --accent: #2F4A3A;     /* Pine — the filled button and the chosen day and time */
     --on-accent: #F4EDE1;  /* Paper on Pine, 8.4:1 */
@@ -248,6 +256,7 @@ function shell(body: string, language = 'en'): string {
       --ink: #F4F1E8;      /* Chalk on Night, 13.5:1 */
       --bg: #1A2920;       /* Night */
       --line: #4A574D;
+      --card: #203328;
       --quiet: #9DA198;    /* 5.8:1 on Night */
       --accent: #E2B653;   /* Gold, 8.0:1 on Night */
       --on-accent: #1A2920;/* Night on Gold, 8.0:1 */
@@ -264,9 +273,10 @@ function shell(body: string, language = 'en'): string {
     display: flex; justify-content: center;
   }
   main { width: 100%; max-width: 26rem; }
-  header { margin: 0 0 1rem; }
-  .mark { width: 44px; height: 44px; display: block; }
-  h1 { font-size: 1.6rem; line-height: 1.2; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 .6rem; }
+  .lockup { display: flex; align-items: center; gap: .6rem; margin: 0 0 2.25rem; color: var(--ink); }
+  .mark { width: 3.1rem; height: auto; display: block; }
+  .wordmark { font: 600 1.25rem/1 var(--serif); letter-spacing: -0.01em; }
+  h1 { font: 500 2.15rem/1.08 var(--serif); letter-spacing: -0.025em; margin: 0 0 .6rem; }
   .quiet { color: var(--quiet); margin: 0 0 1rem; }
   h1 + form, h1 + .wrong { margin-top: 1.75rem; }
   .small { font-size: .9rem; }
@@ -289,7 +299,7 @@ function shell(body: string, language = 'en'): string {
   input.code { font-size: 1.75rem; letter-spacing: .35em; text-align: center; font-variant-numeric: tabular-nums; }
 
   /* Three fields as one card, so the form reads as one thing to fill in. */
-  .fields { border: 1px solid var(--line); border-radius: .9rem; overflow: hidden; }
+  .fields { border: 1px solid var(--line); border-radius: 1.1rem; overflow: hidden; background: var(--card); }
   .fields input { border: 0; border-radius: 0; min-height: 3.4rem; padding: .9rem 1rem; }
   .fields label + input { border-top: 1px solid var(--line); }
   .fields label:first-child + input { border-top: 0; }
