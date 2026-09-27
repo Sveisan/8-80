@@ -1410,10 +1410,29 @@ _The sign-up page says one sentence above the form. Everything else it used to s
 question under the button, answered with the lines above, so nothing is said twice._
 
 `signup.headline`
-> "A weekly call with the people who want you to succeed most"
+> "Two mentors."
+
+`signup.headline.second`
+> "Both of them you."
 
 _Replaces `signup.title` as the one line at the top. `signup.title` stays for anything
 else that quotes it._
+
+_It names the framework instead of describing the service. The line it replaced — "a
+weekly call with the people who want you to succeed most" — explained what you get; this
+one says what the thing is, and leaves the explaining to "What is this?" under the button.
+The bet is that somebody who reads it either understands immediately or opens a question,
+and that both of those are better than being told._
+
+_The full stops are the line. "Two mentors, both of them you" is a sentence about a
+product. Two sentences is a claim and then its correction, which is the shape the idea
+actually has._
+
+_Two keys rather than one, because the page sets them at different weights: the claim
+heavy, the correction light. Putting both in one string would mean the renderer deciding
+where the sentence ends, and it would decide wrong the first time somebody writes a
+headline with three sentences or none. `signup.headline.second` is optional — leave it out
+and the headline is one line, which is what happens today for `signup.title`._
 
 `signup.email.short`
 > "Email"

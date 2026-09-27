@@ -83,6 +83,9 @@ export function signupPage(script: ScriptLines, state: SignupFormState = {}, lan
   const faq = FAQ.filter(([q, a]) => script.get(q) && script.get(a));
   const inFaq = (answer: string): boolean => faq.some(([, a]) => a === answer);
   const headline = script.get('signup.headline') ? 'signup.headline' : 'signup.title';
+  // The claim, then its correction, set at different weights. Optional: without
+  // it the headline is one line, which is what `signup.title` still is.
+  const second = script.get('signup.headline.second') ? `<span>${say('signup.headline.second')}</span>` : '';
 
   const field = (name: string, label: string, type: string, extra = ''): string => `
       <label for="${name}" class="sr">${label}</label>
@@ -94,7 +97,7 @@ export function signupPage(script: ScriptLines, state: SignupFormState = {}, lan
   return shell(
     `
     ${LOCKUP}
-    <h1>${say(headline)}</h1>
+    <h1>${say(headline)}${second}</h1>
     ${inFaq('signup.honest') ? '' : `<p class="honest">${say('signup.honest')}</p>`}
 
     ${note('timezone')}
@@ -286,7 +289,10 @@ function shell(body: string, language = 'en'): string {
   .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .mark { width: 3.1rem; height: auto; display: block; }
   .wordmark { font: 600 1.25rem/1 var(--serif); letter-spacing: -0.01em; }
-  h1 { font: 500 2.15rem/1.08 var(--serif); letter-spacing: -0.025em; margin: 0 0 .6rem; }
+  h1 { font: 600 2.15rem/1.08 var(--serif); letter-spacing: -0.025em; margin: 0 0 .6rem; }
+  /* The second sentence turns the first one over, so it is set lighter and on
+     its own line — the weight is the punctuation. */
+  h1 span { display: block; font-weight: 300; }
   .quiet { color: var(--quiet); margin: 0 0 1rem; }
   h1 + form, h1 + .wrong { margin-top: 1.75rem; }
   .small { font-size: .9rem; }

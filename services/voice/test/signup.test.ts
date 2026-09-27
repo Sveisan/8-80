@@ -107,7 +107,7 @@ test('every line the sign-up flow says is in SCRIPT.md', () => {
     'signup.code.unknown', 'signup.done.title', 'signup.done.detail', 'sms.code',
     // The shortened page: one headline, a label inside the email field, and the
     // five questions under the button that carry what the page used to say.
-    'signup.headline', 'signup.email.short',
+    'signup.headline', 'signup.headline.second', 'signup.email.short',
     'signup.faq.ai', 'signup.faq.what', 'signup.faq.recap', 'signup.faq.move', 'signup.faq.cost',
   ]) {
     assert.ok(script.get(key), `${key} is missing`);
