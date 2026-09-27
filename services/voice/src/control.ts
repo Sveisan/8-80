@@ -23,6 +23,7 @@ import {
   stoppedPage,
 } from './link/page.ts';
 import { signupRoutes } from './signup/routes.ts';
+import { EMAIL } from './signup/form.ts';
 import { legalPage } from './legal/page.ts';
 import { composeExport } from './legal/export.ts';
 import { checkoutLink, composePaymentFailed, payments } from './billing/notice.ts';
@@ -308,6 +309,23 @@ export function controlPlane(deps: LoopDeps, secret: string | readonly string[] 
             // a data export, it would be a way to read a stranger's week.
             await emailEverything(deps, phone, caller.email);
             return html(res, 200, donePage(deps.script.get('page.export.sent') ?? '', deps.script, caller.language));
+          }
+          if (action === 'email') {
+            // The one thing a call cannot take: an address spelled out loud.
+            // SCRIPT.md §7 — a Norwegian name letter by letter down a phone
+            // line cost one call ninety seconds and still got it wrong.
+            //
+            // No verification mail. The link that opened this page was sent to
+            // their number, which is what this product treats as identity; an
+            // address is where a letter goes, not a way in. Getting it wrong
+            // costs one recap and is fixed by typing it again.
+            const typed = (form.get('email') ?? '').trim();
+            if (!EMAIL.test(typed)) {
+              return html(res, 200, reschedulePage(slot, deps.script, caller.language, caller.email, 'page.email.bad'));
+            }
+            await deps.store.upsertProfile(phone, { email: typed });
+            log('caller.email_set', {});
+            return html(res, 200, reschedulePage(slot, deps.script, caller.language, typed, 'page.email.saved'));
           }
           if (action === 'stop-cancel') return html(res, 200, reschedulePage(slot, deps.script, caller.language));
           if (action === 'forget-confirm') {

@@ -26,7 +26,19 @@ const clock = (minute: number): string =>
  * reload. It has to work on a bad train connection with one thumb, which is
  * exactly the situation somebody is in when they miss a call.
  */
-export function reschedulePage(slot: Slot, script: ScriptLines, language = 'en'): string {
+export function reschedulePage(
+  slot: Slot,
+  script: ScriptLines,
+  language = 'en',
+  /**
+   * The address on file, or nothing. Shown filled so somebody changing one can
+   * see what they are changing, and empty when the call never had one to send
+   * the recap to — which is the case this field exists for.
+   */
+  email?: string,
+  /** A `page.email.*` key, when the last attempt to save one said something. */
+  note?: string,
+): string {
   const say = (id: string): string => esc(script.get(id) ?? '');
   const days = dayNames(language);
   const when = `${days[slot.weekday]} ${clock(slot.minute)}`;
@@ -50,6 +62,15 @@ export function reschedulePage(slot: Slot, script: ScriptLines, language = 'en')
       </div>
       <button name="action" value="move">${say('page.move')}</button>
       <label class="always"><input type="checkbox" name="always" value="1" /> ${say('page.always')}</label>
+    </form>
+
+    <form method="post" class="move">
+      <label for="email">${say('page.email.label')}</label>
+      <div class="row">
+        <input type="email" id="email" name="email" value="${esc(email ?? '')}" placeholder="you@example.com" />
+      </div>
+      <button name="action" value="email">${say('page.email.save')}</button>
+      ${note ? `<p class="now">${say(note)}</p>` : ''}
     </form>
 
     <form method="post" class="skip">

@@ -18,7 +18,12 @@ const E164 = /^\+[1-9]\d{6,14}$/;
  * real address. This rejects what cannot possibly be one and lets the rest
  * through to Resend, which knows.
  */
-const EMAIL = /^[^\s@]+@[^\s@.]+\.[^\s@]{2,}$/;
+/**
+ * Exported because the reschedule page collects an address too, and two
+ * patterns for what an address is would eventually disagree about one — which
+ * would mean a form accepting what the other rejects, for the same person.
+ */
+export const EMAIL = /^[^\s@]+@[^\s@.]+\.[^\s@]{2,}$/;
 
 /** Norwegian numbers typed the way Norwegians type them. */
 function normalisePhone(raw: string, fallbackCountry = '+47'): string {

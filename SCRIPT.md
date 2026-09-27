@@ -1091,6 +1091,24 @@ something they did not ask it to change. The escape hatch is named in the same b
 `sms.skipped`
 > "Consider it skipped. Talk next week."
 
+`sms.slot.link`
+> "You mentioned moving the call. You can set a new time here, and it sticks: {{link}}"
+
+_The call cannot move the schedule — `setup.change_slot` says so out loud, and this is the
+other half of that sentence. Sent once, after the call, only when they actually asked._
+
+`sms.email.ask`
+> "There's no email on file, so the recap has nowhere to go. Add one here and it arrives
+> after the next call: {{link}}"
+
+_An email address is never taken on a call — a Norwegian name spelled letter by letter down
+a phone line cost one call ninety seconds and still got it wrong. So it is collected the
+way everything else outside the call is: one text, one link, one field._
+
+_Only one of these two is ever sent. Somebody who asked to move the call and has no address
+on file gets the slot one, because it is the thing they asked for, and the page carries
+both. A product whose premise is that it does not nag cannot send two texts about one call._
+
 `sms.unparsed`
 > "That one's beyond me, sorry. A day and a time works, or SKIP to leave this week."
 
@@ -1129,6 +1147,22 @@ whoever is holding the phone, so the page is built for a stranger to find boring
 
 `page.always`
 > "Every week from now on"
+
+`page.email.label`
+> "Where the recap goes"
+
+`page.email.save`
+> "Save it"
+
+`page.email.saved`
+> "Saved. The recap goes there after the next call."
+
+`page.email.bad`
+> "That doesn't look like an address — worth another go."
+
+_One field, no confirmation step, no "we've sent you a verification link". The number this
+page was opened from is already the thing we trust; an address is where a letter goes, not
+a way in. Getting it wrong costs somebody one recap and is fixed by typing it again._
 
 `page.stop`
 > "Stop calling me"

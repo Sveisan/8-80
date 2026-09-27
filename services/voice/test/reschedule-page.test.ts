@@ -158,3 +158,44 @@ test('a link for somebody who has since left is not an error page with a stack i
   assert.ok(!(await res.text()).includes('Error'));
   });
 });
+
+/**
+ * The address the call is not allowed to ask for.
+ *
+ * SCRIPT.md §7: an email address is never taken on a call — one real call spent
+ * ninety seconds failing to spell a Norwegian name letter by letter down a
+ * phone line. So it is collected here, and "here" has to actually work.
+ */
+test('an address can be set from the link, and a bad one changes nothing', { skip: skip() }, async () => {
+  const phone = '+4790000066';
+  const token = await enrolled(phone);
+  const s_ = store as NonNullable<typeof store>;
+
+  await serving(async (base) => {
+    const bad = await post(base, token, { action: 'email', email: 'eirik at example dot com' });
+    assert.equal(bad.status, 200);
+    assert.match(await bad.text(), /another go/i, 'nothing told them it was refused');
+    assert.equal((await s_.load(phone)).email, undefined, 'a rejected address was stored anyway');
+
+    const ok = await post(base, token, { action: 'email', email: 'eirik@example.com' });
+    assert.equal(ok.status, 200);
+    const body = await ok.text();
+    assert.match(body, /Saved/i);
+    assert.match(body, /eirik@example\.com/, 'the page does not show back what it saved');
+    assert.equal((await s_.load(phone)).email, 'eirik@example.com');
+  });
+});
+
+test('setting an address does not disturb the slot', { skip: skip() }, async () => {
+  // One page, several controls, one caller record. A form that saved an address
+  // by rewriting the row would quietly move somebody's weekly call.
+  const phone = '+4790000067';
+  const token = await enrolled(phone);
+  const before = await (sched as Scheduler).slotFor(phone);
+
+  await serving(async (base) => {
+    await post(base, token, { action: 'email', email: 'x@example.com' });
+  });
+
+  assert.deepEqual(await (sched as Scheduler).slotFor(phone), before);
+});

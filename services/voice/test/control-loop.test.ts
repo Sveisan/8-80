@@ -208,6 +208,66 @@ test('a finished call is stored and the recap goes out', { skip: skip() }, async
   assert.ok(mail[0]?.recap.body.includes('run three times'));
 });
 
+/**
+ * Two things a call cannot do, and one text between them.
+ *
+ * SCRIPT.md §13: a product whose premise is that it does not nag cannot send
+ * two messages about one call. So somebody who asked to move the call AND has
+ * no address on file gets the slot one — it is the thing they asked for — and
+ * the page at the other end carries both fields anyway.
+ */
+test('a caller who asked to move the call is texted the link, once', { skip: skip() }, async () => {
+  await enrol('+4790000047');
+  await tick(deps(), NOW);
+  texts.length = 0;
+
+  const out = await settleConversation(
+    completed('conv_1', [
+      { role: 'user', content: 'Could we do Thursdays instead?' },
+      { role: 'assistant', content: script.get('setup.change_slot') ?? '' },
+      { role: 'assistant', content: readBack },
+    ]),
+    deps(),
+  );
+  assert.equal(out.status, 'completed');
+  assert.equal(texts.length, 1, 'no address on file and a slot request is still one text');
+  assert.match(texts[0]?.body ?? '', /moving the call/i, 'they got the address text, not the one they asked for');
+});
+
+test('a caller with no address on file is told where to put one', { skip: skip() }, async () => {
+  await enrol('+4790000048');
+  await tick(deps(), NOW);
+  texts.length = 0;
+
+  await settleConversation(
+    completed('conv_1', [
+      { role: 'user', content: 'I got out on the Monday.' },
+      { role: 'assistant', content: readBack },
+    ]),
+    deps(),
+  );
+  assert.equal(texts.length, 1);
+  assert.match(texts[0]?.body ?? '', /recap/i);
+});
+
+test('a caller whose recap has somewhere to go is not texted at all', { skip: skip() }, async () => {
+  // The letter arrived. Texting somebody about it is the nagging this product
+  // exists not to do.
+  await enrol('+4790000049', { email: 'eirik@example.com' });
+  await tick(deps(), NOW);
+  texts.length = 0;
+
+  await settleConversation(
+    completed('conv_1', [
+      { role: 'user', content: 'I got out on the Monday.' },
+      { role: 'assistant', content: readBack },
+    ]),
+    deps(),
+  );
+  assert.equal(mail.length, 1);
+  assert.equal(texts.length, 0, texts.map((t) => t.body).join(' | '));
+});
+
 test('a retried webhook does not settle twice', { skip: skip() }, async () => {
   await enrol('+4790000046', { email: 'eirik@example.com' });
   await tick(deps(), NOW);

@@ -78,6 +78,50 @@ export async function textAfterFailedCall(
   return true;
 }
 
+/**
+ * The text a finished call owes, when the call could not finish the job itself.
+ *
+ * Two things the mentor cannot do on a phone call: move the weekly slot, and
+ * take an email address. It says so out loud in both cases — and a sentence
+ * admitting a limit, followed by nothing, is just an apology. This is the part
+ * that makes it an arrangement.
+ *
+ * One text, never two. Somebody who asked to move the call AND has no address
+ * on file gets the slot one, because that is the thing they asked for, and the
+ * page at the other end carries both. SCRIPT.md §13: a product whose premise is
+ * that it does not nag cannot send two messages about one call.
+ *
+ * Same once-only claim as the missed-call text, so a webhook delivered twice —
+ * which theirs are — cannot text somebody twice.
+ */
+export async function textAfterCall(
+  attemptId: string,
+  phone: string,
+  want: 'slot' | 'email',
+  deps: { sms: Sms; scheduler: Scheduler; script: ScriptLines },
+  link?: string,
+): Promise<boolean> {
+  // Without a link there is nothing to act on, and a text saying "you can't do
+  // this here" with no elsewhere is worse than silence.
+  if (!link) return false;
+  const template = deps.script.get(want === 'slot' ? 'sms.slot.link' : 'sms.email.ask');
+  if (!template) return false;
+  if (!(await deps.scheduler.claimNudge(attemptId))) return false;
+  try {
+    await deps.sms.send(phone, template.replace('{{link}}', link));
+  } catch (e) {
+    if (e instanceof OptedOut) {
+      await deps.scheduler.setPaused(phone, true);
+      log('sms.stopped_by_carrier', { note: 'opted out at the carrier — calls paused' });
+      return false;
+    }
+    log('sms.after_call_not_sent', { reason: (e as Error).message, want });
+    return false;
+  }
+  log('sms.after_call', { want });
+  return true;
+}
+
 export interface ReplyOutcome {
   action: 'moved' | 'moved_always' | 'later' | 'skipped' | 'stopped' | 'started' | 'unread';
   /** What we said back, so a caller always gets an answer from a person's system. */

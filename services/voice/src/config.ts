@@ -26,6 +26,22 @@ export const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../
  * signature of exactly this class of bug. `config.ts` imports nothing of ours
  * now, and nothing here may ever import from the rest of the tree again.
  */
+/**
+ * A value somebody meant, or nothing.
+ *
+ * `COMPANY_ORGNR=<orgnr>` went into a live .env from a command that used
+ * angle brackets to mean "put yours here", and /privacy published
+ * "(org. nr. &lt;orgnr&gt;)" to anybody who read it. These four values are the
+ * only ones that go straight onto a legal page, so a placeholder reaching one
+ * is not a typo, it is a published claim about who is responsible for
+ * somebody's data. Unset says "not named here yet", which is honest. This is
+ * the difference between the two.
+ */
+function real(value: string | undefined): string {
+  const v = (value ?? '').trim();
+  return /[<>]/.test(v) ? '' : v;
+}
+
 export function smsConfigured(env: NodeJS.ProcessEnv = process.env): boolean {
   return Boolean(env['TWILIO_ACCOUNT_SID'] && env['TWILIO_AUTH_TOKEN'] && env['SMS_FROM_NUMBER']);
 }
@@ -183,10 +199,10 @@ export const config = {
      * than inventing a company. A privacy policy naming a data controller that
      * does not exist is worse than one admitting it is a draft.
      */
-    name: (): string => process.env['COMPANY_NAME'] ?? '',
-    orgnr: (): string => process.env['COMPANY_ORGNR'] ?? '',
-    address: (): string => process.env['COMPANY_ADDRESS'] ?? '',
-    supportEmail: (): string => process.env['SUPPORT_EMAIL'] ?? '',
+    name: (): string => real(process.env['COMPANY_NAME']),
+    orgnr: (): string => real(process.env['COMPANY_ORGNR']),
+    address: (): string => real(process.env['COMPANY_ADDRESS']),
+    supportEmail: (): string => real(process.env['SUPPORT_EMAIL']),
   },
   billing: {
     /**

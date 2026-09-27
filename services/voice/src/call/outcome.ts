@@ -5,6 +5,7 @@ import { extractCommitment } from './commitment.ts';
 import { extractReschedule, type SpokenTime } from './reschedule.ts';
 import { readBack } from './readback.ts';
 import { lastWeek } from './lastweek.ts';
+import { carries } from './scorecard.ts';
 
 /** One line of a call, from whichever platform ran it. */
 export interface Turn {
@@ -33,6 +34,18 @@ export interface Settlement {
   outcome?: CallOutcome;
   /** Why, in our words. Never anything the caller said. */
   note?: string;
+  /**
+   * They asked to move the weekly call, and the mentor had to say it cannot be
+   * done from a call. `setup.change_slot` is that sentence, so its presence is
+   * the request — read from the mentor's own branch, like the week's verdict,
+   * because the alternative is guessing at "can we do Thursdays instead" in
+   * free speech.
+   *
+   * The other half of the sentence is a text with a link, sent by the settle
+   * path. Without it the mentor apologises and nothing follows, which is the
+   * shape of a promise this product cannot keep.
+   */
+  wantsSlotChange?: boolean;
   /**
    * A time the mentor agreed to ring back at, as spoken. Left unresolved here:
    * turning "17:30 today" into an instant needs the caller's zone and the
@@ -105,6 +118,8 @@ export function settle(transcript: CallTranscript, script: ScriptLines): Settlem
   const selves = readBack(said, script.get('read.first.keep'));
   const belief = readBack(said, script.get('belief.name'))?.['belief'];
   const week = lastWeek(said, script);
+  const changeSlot = script.get('setup.change_slot');
+  const wantsSlotChange = !!changeSlot && said.some((t) => carries(t, changeSlot));
 
   const outcome: CallOutcome = {
     at: new Date().toISOString(),
@@ -120,6 +135,7 @@ export function settle(transcript: CallTranscript, script: ScriptLines): Settlem
   return {
     status: 'completed',
     outcome,
+    ...(wantsSlotChange ? { wantsSlotChange } : {}),
     ...(callAgain ? { callAgain } : {}),
     ...(commitment ? {} : { note: 'no commitment was reached' }),
   };

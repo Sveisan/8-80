@@ -1,7 +1,7 @@
 import { log } from '../log.ts';
 import { settle } from '../call/outcome.ts';
 import { composeRecap } from '../recap/compose.ts';
-import { textAfterMissedCall } from '../sms/missed.ts';
+import { textAfterCall, textAfterMissedCall } from '../sms/missed.ts';
 import { Links } from '../link/token.ts';
 import { config } from '../config.ts';
 import { eventOf, toTranscript } from '../webhook/speechify.ts';
@@ -17,6 +17,17 @@ export interface Settled {
 }
 
 /** Their words for a call that rang out or reached a machine. */
+/**
+ * A fresh link into the reschedule page, or nothing when there is no public URL
+ * to point at. Shared by the missed-call text and the after-call one so the two
+ * cannot come to disagree about what a link looks like.
+ */
+async function linkFor(deps: LoopDeps, phoneHash: string): Promise<string | undefined> {
+  const base = config.link.publicUrl();
+  if (!base) return undefined;
+  return `${base.replace(/\/$/, '')}/r/${await new Links(deps.store.raw).mint(phoneHash)}`;
+}
+
 const NOT_ANSWERED = /no[_ -]?answer|unanswered|voicemail|machine|busy|rejected|declined/i;
 
 /**
@@ -91,6 +102,16 @@ export async function settleConversation(
         log('recap.not_sent', { reason: (e as Error).message });
       }
     }
+
+    // What the call could not do itself. The mentor says out loud that it
+    // cannot move the slot, and it never asks for an address — both true, and
+    // both an apology until something follows them. One text, one link, and
+    // the slot wins the tie because it is the thing they asked for. See
+    // sms/missed.ts.
+    const want = outcome.wantsSlotChange ? 'slot' : caller.email ? undefined : 'email';
+    if (want) {
+      await textAfterCall(attempt.id, phone, want, deps, await linkFor(deps, attempt.phoneHash));
+    }
   }
 
   await deps.scheduler.finish(attempt.id, outcome.status, {
@@ -117,11 +138,7 @@ export async function settleConversation(
   // Nobody picked up. This is the one text — ARCHITECTURE.md: never voicemail,
   // one warm SMS — and `textAfterMissedCall` guarantees the "one".
   if (outcome.status === 'failed' && NOT_ANSWERED.test(transcript.endedReason ?? '')) {
-    const base = config.link.publicUrl();
-    const link = base
-      ? `${base.replace(/\/$/, '')}/r/${await new Links(deps.store.raw).mint(attempt.phoneHash)}`
-      : undefined;
-    await textAfterMissedCall(attempt.id, phone, deps, link);
+    await textAfterMissedCall(attempt.id, phone, deps, await linkFor(deps, attempt.phoneHash));
   }
 
   log('settle.done', { status: outcome.status, event });

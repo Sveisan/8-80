@@ -65,6 +65,28 @@ export function duplicateKeys(text: string): string[] {
   return [...seen].filter(([, n]) => n > 1).map(([k]) => k);
 }
 
+/**
+ * The four values that go straight onto a legal page, and whether somebody
+ * meant them.
+ *
+ * `COMPANY_ORGNR=<orgnr>` reached a live .env from a command that used angle
+ * brackets to mean "put yours here", and /privacy published
+ * "(org. nr. &lt;orgnr&gt;)". A placeholder here is not a typo: it is a
+ * published claim about who is responsible for somebody's data, and unset is
+ * strictly better, because the page then says it is not named yet.
+ */
+function placeholders(env: NodeJS.ProcessEnv, checks: Check[]): void {
+  for (const key of ['COMPANY_NAME', 'COMPANY_ORGNR', 'COMPANY_ADDRESS', 'SUPPORT_EMAIL']) {
+    const v = env[key] ?? '';
+    if (!/[<>]/.test(v)) continue;
+    checks.push({
+      ok: false,
+      label: `${key} is still a placeholder`,
+      detail: `Set to "${v}" — angle brackets where the controller should be named. Put the real value in, or take the line out: unset says "not named here yet", which is honest.`,
+    });
+  }
+}
+
 export function preflight(env: NodeJS.ProcessEnv = process.env): Check[] {
   const checks: Check[] = [];
 
@@ -100,6 +122,10 @@ export function preflight(env: NodeJS.ProcessEnv = process.env): Check[] {
   // failures for a stack that is not in use, and a report that cries wolf is a
   // report nobody reads — which is how a real misconfiguration hides.
   if (voice === 'speechify') {
+    // Before the provider split: every deployment serves /terms and /privacy,
+    // and the Speechify branch returns without reaching the bottom of this
+    // function.
+    placeholders(env, checks);
     checks.push({ ok: true, label: 'voice: speechify' });
     need('SPEECHIFY_API_KEY', 'Speechify console → API keys.');
     need('SPEECHIFY_AGENT_ID', 'The returning-call agent. In its URL, or ⋯ → Copy ID.');
@@ -183,6 +209,7 @@ export function preflight(env: NodeJS.ProcessEnv = process.env): Check[] {
     return checks;
   }
 
+  placeholders(env, checks);
   checks.push({ ok: true, label: `voice: ${voice}` });
   checks.push({ ok: true, label: `telephony: ${provider}`, detail: undefined });
 

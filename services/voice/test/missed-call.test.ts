@@ -6,7 +6,7 @@ import { PostgresStore } from '../src/store/postgres.ts';
 import { openTestDb } from './helpers/db.ts';
 import { Scheduler } from '../src/schedule/scheduler.ts';
 import type { Slot } from '../src/schedule/time.ts';
-import { handleReply, textAfterMissedCall } from '../src/sms/missed.ts';
+import { handleReply, textAfterCall, textAfterMissedCall } from '../src/sms/missed.ts';
 import type { Sms } from '../src/sms/types.ts';
 
 
@@ -143,4 +143,43 @@ test('something it cannot read still gets an answer', { skip: skip() }, async ()
   // opposite of what the call spends fifteen minutes establishing.
   assert.equal(sms.sent.length, 1);
   assert.ok(out.said.length > 0);
+});
+
+/**
+ * What a finished call owes when it could not finish the job itself.
+ *
+ * The mentor says out loud that it cannot move the weekly slot, and it never
+ * asks for an address. Both true; both only an apology until something follows
+ * them. These are the something.
+ */
+test('the slot text and the address text each go out once', { skip: skip() }, async () => {
+  const id = await missedCall('+4790000034');
+  const sms = new Outbox();
+  const deps = { sms, scheduler: sched as Scheduler, script };
+
+  assert.equal(await textAfterCall(id, '+4790000034', 'slot', deps, LINK), true);
+  assert.match(sms.sent[0]?.body ?? '', /moving the call/i);
+  assert.match(sms.sent[0]?.body ?? '', /8and80\.example/, 'the one thing it exists to carry');
+
+  // The same claim as the missed-call text. Their webhooks arrive twice.
+  assert.equal(await textAfterCall(id, '+4790000034', 'slot', deps, LINK), false);
+  assert.equal(sms.sent.length, 1);
+});
+
+test('no link means no text, for these as for the missed call', { skip: skip() }, async () => {
+  // "I can't do that here" with no elsewhere named is worse than silence.
+  const id = await missedCall('+4790000035');
+  const sms = new Outbox();
+  const deps = { sms, scheduler: sched as Scheduler, script };
+  assert.equal(await textAfterCall(id, '+4790000035', 'email', deps), false);
+  assert.equal(sms.sent.length, 0);
+});
+
+test('the address text says what it is for and carries no commitment', { skip: skip() }, async () => {
+  const id = await missedCall('+4790000036');
+  const sms = new Outbox();
+  await textAfterCall(id, '+4790000036', 'email', { sms, scheduler: sched as Scheduler, script }, LINK);
+  const body = sms.sent[0]?.body ?? '';
+  assert.match(body, /recap/i);
+  assert.ok(!/commit|you said|last week/i.test(body), body);
 });
