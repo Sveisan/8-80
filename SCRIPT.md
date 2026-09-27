@@ -940,6 +940,14 @@ to out loud._
 `email.subject.none`
 > "This week's call"
 
+`email.body.label`
+> "You said"
+
+_Two words above their own sentence, and they are what makes the sentence make sense. It
+starts in lower case and runs into a weekday, because that is how somebody says a thing
+out loud — correct as a quotation, wrong as a headline. The label is what marks it as
+quoted. Not "your commitment": nobody talks like that, and the letter is not a form._
+
 `email.body.commitment`
 > "{{commitment}}, {{day}}."
 

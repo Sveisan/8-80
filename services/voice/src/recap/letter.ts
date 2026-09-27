@@ -116,12 +116,44 @@ export function letterHtml(recap: Recap, options: LetterOptions = {}): string {
   // every sender does not have to remember to forward it, and forgetting would
   // produce a letter that says "if you want them to keep going:" and then
   // nothing at all.
+  /**
+   * Their words, set as the quotation they are.
+   *
+   * The first version set `email.body.commitment` — "{{commitment}}, {{day}}."
+   * — straight into a 30px headline, and it read as a mistake rather than a
+   * design: speech starts in lower case, and a weekday comma-spliced onto a
+   * verb phrase is not a sentence anybody writes. None of that is wrong in a
+   * quotation, which is what it always was. So the words are marked as quoted,
+   * the day becomes its caption, and the page stops looking like a transcript
+   * in a big font.
+   *
+   * The plain-text letter is untouched: `parts` still joins them into the one
+   * correct sentence, for clients that show it and for anybody who replies.
+   */
+  const said = recap.said;
+  const quoted = said?.label
+    ? `<tr><td style="padding:0 0 11px;font-family:${FONT};font-size:11px;line-height:1.6;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:${C.quiet};" class="quiet">${esc(said.label)}</td></tr>
+            <tr><td style="padding:0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+              <td width="3" style="width:3px;background:${C.gold};font-size:0;line-height:0;" class="tick">&nbsp;</td>
+              <td style="padding:0 0 0 18px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr><td style="font-family:${FONT};font-size:27px;line-height:1.34;font-weight:400;letter-spacing:-0.014em;color:${C.ink};" class="lead">${esc(said.commitment)}</td></tr>${
+                  said.day
+                    ? `
+                <tr><td style="padding:11px 0 0;font-family:${FONT};font-size:13px;line-height:1.5;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:${C.accent};" class="wordmark">${esc(said.day)}</td></tr>`
+                    : ''
+                }
+              </table></td>
+            </tr></table></td></tr>
+            <tr><td style="height:32px;font-size:0;line-height:0;">&nbsp;</td></tr>`
+    : '';
+
   const act = options.action ?? recap.action;
   const action = act
     ? `\n            <tr><td style="padding:0 0 26px;font-size:16px;line-height:1.65;"><a href="${esc(act.url)}" style="color:${C.accent};text-decoration:underline;" class="wordmark">${esc(act.label)}</a></td></tr>`
     : '';
 
   const letter = recap.parts
+    .filter((p) => !(quoted && p.role === 'lead'))
     .map((p) => {
       // The sign-off sits under a hairline. A letter ends; it does not just stop.
       const rule =
@@ -151,6 +183,7 @@ export function letterHtml(recap: Recap, options: LetterOptions = {}): string {
     .rule { border-color: #414D44 !important; }
     .lead, .body { color: #F4F1E8 !important; }
     .quiet, .signoff { color: #9DA198 !important; }
+    .tick { background: #E2B653 !important; }
   }
 </style>
 </head>
@@ -170,7 +203,7 @@ export function letterHtml(recap: Recap, options: LetterOptions = {}): string {
           <tr><td style="height:38px;font-size:0;line-height:0;">&nbsp;</td></tr>
           <tr><td style="font-family:${FONT};">
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-            ${letter}
+            ${quoted}${letter}
             </table>
           </td></tr>
         </table>

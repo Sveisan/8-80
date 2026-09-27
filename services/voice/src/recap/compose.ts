@@ -27,6 +27,17 @@ export interface Recap {
   date?: string;
   /** One link, for the one letter that carries one. The recap never does. */
   action?: { label: string; url: string };
+  /**
+   * Their own words and the day they named, kept apart.
+   *
+   * `parts` joins them into one sentence for the plain-text letter, and that
+   * sentence is correct English. Set as a headline it is not: it opens in
+   * lower case because speech does, and it comma-splices a weekday onto a verb
+   * phrase. A renderer given the two pieces can set the words as the quotation
+   * they are and the day as its caption, which is the difference between a
+   * letter and a transcript with a big font.
+   */
+  said?: { label: string; commitment: string; day?: string };
 }
 
 export interface RecapContext {
@@ -122,6 +133,15 @@ export function composeRecap(outcome: CallOutcome, script: ScriptLines, ctx: Rec
     subject: subject.replace(/[—–-]\s*$/, '').trim(),
     body: parts.map((p) => p.text).join('\n\n'),
     parts,
+    ...(outcome.commitment
+      ? {
+          said: {
+            label: script.get('email.body.label') ?? '',
+            commitment: outcome.commitment,
+            ...(outcome.day ? { day: outcome.day } : {}),
+          },
+        }
+      : {}),
     ...(ctx.date ? { date: ctx.date } : {}),
   };
 }

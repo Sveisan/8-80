@@ -16,7 +16,19 @@ const withCommitment = composeRecap({ ...call, commitment: 'run three times', da
 
 test('the letter carries every word the text part does', () => {
   const html = letterHtml(withCommitment);
-  for (const part of withCommitment.parts) assert.ok(html.includes(esc(part.text)), part.text);
+  for (const part of withCommitment.parts) {
+    // The lead is the one part the HTML letter sets differently from the text
+    // one: the text joins their words to the day into a sentence, and the HTML
+    // sets the words as a quotation with the day as its caption. Both pieces
+    // still have to be there — that is what this test is for — but not joined.
+    if (part.role === 'lead') continue;
+    assert.ok(html.includes(esc(part.text)), part.text);
+  }
+  const said = withCommitment.said;
+  assert.ok(said, 'a recap with a commitment must carry it structurally');
+  assert.ok(html.includes(esc(said.commitment)), 'their own words are not in the letter');
+  assert.ok(said.day && html.includes(esc(said.day)), 'the day they named is not in the letter');
+  assert.ok(html.includes(esc(said.label)), 'nothing marks their words as quoted');
 });
 
 test('the wordmark is live text, so the brand survives a blocked image', () => {
@@ -48,7 +60,7 @@ test('the one thing is set far larger than the line about how long the call ran'
   // Thursday by somebody scrolling, so the step down has to be a step, not a
   // nudge — the first draft set them three pixels apart.
   const html = letterHtml(withCommitment);
-  const lead = sizeOf(html, 'run three times, Wednesday.');
+  const lead = sizeOf(html, 'run three times');
   const quiet = sizeOf(html, 'We spoke for 12 minutes.');
   assert.ok(lead >= quiet * 1.8, `lead ${lead}px vs quiet ${quiet}px`);
 });
@@ -154,4 +166,34 @@ test('the column is held to 500px in Outlook too', () => {
   assert.ok(html.slice(open, close).includes('width="500"'), 'and it fixes the width');
   assert.ok(html.includes('<!--[if mso]></td></tr></table><![endif]-->'), 'and it is closed');
   assert.ok(html.indexOf('max-width:500px') > open, 'the real table is still inside it');
+});
+
+/**
+ * The fault that made the first real recap read as a transcript in a big font.
+ *
+ * `email.body.commitment` is "{{commitment}}, {{day}}." — correct English, and
+ * correct in the plain-text letter. Set as a 30px headline it is not: speech
+ * starts in lower case and a weekday comma-spliced onto a verb phrase is not a
+ * sentence anybody writes. The words are a quotation, so the letter has to mark
+ * them as one.
+ */
+test('their words are quoted rather than set as a headline', () => {
+  const html = letterHtml(withCommitment);
+  assert.ok(!html.includes(esc('run three times, Wednesday.')), 'the joined sentence is back in the HTML letter');
+  // The label, the words and the day are three things, and the day is not
+  // inside the quotation — they never said "Wednesday" as part of the sentence.
+  // Searched forwards from the label, because the subject carries the day too
+  // and it reaches the document first, in the <title>.
+  const label = html.indexOf(esc('You said'));
+  const words = html.indexOf(esc('run three times'), label);
+  const day = html.indexOf(esc('Wednesday'), words);
+  assert.ok(label > 0, 'nothing marks their words as quoted');
+  assert.ok(words > label, 'their words do not follow the label');
+  assert.ok(day > words, 'the day is not the caption under their words');
+});
+
+test('the plain-text letter still reads as one sentence', () => {
+  // The quotation treatment is the HTML letter's alone. A client showing the
+  // text part, or anybody hitting reply, gets the sentence SCRIPT.md wrote.
+  assert.ok(withCommitment.body.includes('run three times, Wednesday.'), withCommitment.body);
 });
