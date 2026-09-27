@@ -217,8 +217,19 @@ export function welcomePage(signup: Signup, first: Date, script: ScriptLines, la
  * Chalk on Night, where Pine would vanish at 1.6:1 — and the dot stays Gold on
  * both. It is the only mark of the name on this page now, so the header
  * carries the name for screen readers beside it.
+ *
+ * Square viewBox, not the `12 31 96 58` of the file on disk. A mark that lies
+ * down needs its own width in height once it is a quarter of the way round,
+ * and the first version of the turn clipped the loops flat at the top and
+ * bottom. The drawing inside is untouched; only the window around it is wider.
+ *
+ * The turn is a CSS animation rather than the SMIL in
+ * `brand/assets/mark-animated.svg`, and that is the whole reason it is inlined
+ * twice over: SMIL cannot be switched off from inside the file, so somebody who
+ * has asked their system for less motion would get a logo that will not stop.
+ * CSS honours them. BRAND.md §, "The mark in motion".
  */
-const MARK = `<svg class="mark" viewBox="12 31 96 58" aria-hidden="true" focusable="false"><path d="M51 60C46 50 37 46 31 46C23 46 17 52 17 60C17 68 23 74 31 74C37 74 46 70 51 60C57 46 69 36 81 36C95 36 103 47 103 60C103 73 95 84 81 84C69 84 57 74 51 60Z" fill="none" stroke="currentColor" stroke-width="7" stroke-linejoin="round"/><circle cx="31" cy="60" r="5" fill="#E2B653"/></svg>`;
+const MARK = `<svg class="mark" viewBox="12 12 96 96" aria-hidden="true" focusable="false"><g class="turn"><path d="M51 60C46 50 37 46 31 46C23 46 17 52 17 60C17 68 23 74 31 74C37 74 46 70 51 60C57 46 69 36 81 36C95 36 103 47 103 60C103 73 95 84 81 84C69 84 57 74 51 60Z" fill="none" stroke="currentColor" stroke-width="7" stroke-linejoin="round"/><circle cx="31" cy="60" r="5" fill="#E2B653"/></g></svg>`;
 
 /**
  * The mark alone, centred.
@@ -288,6 +299,22 @@ function shell(body: string, language = 'en'): string {
   .lockup { display: flex; align-items: center; justify-content: center; margin: 0 0 2.25rem; color: var(--ink); }
   .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .mark { width: 3.1rem; height: auto; display: block; }
+  /*
+   * Half a turn, a hold, then the other half: the small loop crosses over, so
+   * the eight leads and then the eighty does. It passes through the upright 8
+   * on the way, which is the figure the name is written in.
+   *
+   * Eighteen seconds for the full circuit. SCRIPT.md spends a whole call
+   * refusing to manufacture urgency, and a mark that spins is a mark that nags.
+   */
+  .mark .turn { transform-box: view-box; transform-origin: 60px 60px; animation: turn 18s infinite; }
+  @keyframes turn {
+    0%, 20%   { transform: rotate(0deg); }
+    46%, 70%  { transform: rotate(180deg); }
+    96%, 100% { transform: rotate(360deg); }
+  }
+  /* Asked for less motion, given less motion. The mark is complete standing still. */
+  @media (prefers-reduced-motion: reduce) { .mark .turn { animation: none; } }
   .wordmark { font: 600 1.25rem/1 var(--serif); letter-spacing: -0.01em; }
   h1 { font: 600 2.15rem/1.08 var(--serif); letter-spacing: -0.025em; margin: 0 0 .6rem; }
   /* The second sentence turns the first one over, so it is set lighter and on
