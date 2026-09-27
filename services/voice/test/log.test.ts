@@ -61,3 +61,17 @@ test('and protecting ids does not let a number through', () => {
     'call [number] request fa47e118d45cf1b8c87752bd',
   );
 });
+
+/**
+ * An agent id has to survive the scrubber, for the same reason a request id did.
+ *
+ * A week of SIP 403s read as a flaky carrier because our own failure log could
+ * not say which of two agents was being refused. Adding the field is only half
+ * of that: a scrubber that rewrites it as `agent_01m2[number]p0j2t` leaves the
+ * log line looking informative and being useless, which is the failure mode
+ * this scrubber has had once already.
+ */
+test('an agent id is still readable after scrubbing', () => {
+  const id = 'agent_01m2wm3vsqf108rsjjw3xp0j2t';
+  assert.deepEqual(scrub({ agent: id }), { agent: id });
+});

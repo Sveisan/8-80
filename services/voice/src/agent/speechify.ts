@@ -68,12 +68,28 @@ export class SpeechifyAgent {
       ...(this.send.amd && req.amd !== undefined ? { amd: req.amd } : {}),
     };
 
-    const res = await this.post('/v1/agents/outbound-calls', body);
+    const res = await this.post('/v1/agents/outbound-calls', body, {
+      // Which agent, on every call, succeeded or not.
+      //
+      // Their support diagnosed a week of "intermittent" SIP 403s in minutes,
+      // because they could see that every refusal came from one of our two
+      // agents and every success from the other. We could not: this log said
+      // which FIELDS were sent and gave the request id, and an agent id is not
+      // a field value it printed. So a fault that was one agent wide read as a
+      // flaky carrier. An agent id is our own identifier, not a person's, and
+      // costs nothing to write down.
+      agent: body['agent_id'],
+      firstCall: req.firstCall === true,
+    });
     const out = res as { conversation_id?: string; status?: string };
     if (!out.conversation_id) throw new Error('Speechify accepted the call but returned no conversation_id');
 
     // The number is in the request, never in a log line.
-    log('agent.call_placed', { conversationId: out.conversation_id, status: out.status ?? 'pending' });
+    log('agent.call_placed', {
+      conversationId: out.conversation_id,
+      status: out.status ?? 'pending',
+      agent: body['agent_id'],
+    });
     return { conversationId: out.conversation_id, status: out.status ?? 'pending' };
   }
 
@@ -86,7 +102,7 @@ export class SpeechifyAgent {
     return await res.json();
   }
 
-  private async post(path: string, body: Record<string, unknown>): Promise<unknown> {
+  private async post(path: string, body: Record<string, unknown>, about: Record<string, unknown> = {}): Promise<unknown> {
     const res = await fetch(`${this.base}${path}`, {
       method: 'POST',
       headers: { authorization: `Bearer ${this.apiKey}`, 'content-type': 'application/json' },
@@ -105,6 +121,7 @@ export class SpeechifyAgent {
       log('agent.call_failed', {
         status: res.status,
         path,
+        ...about,
         sent: Object.keys(body as Record<string, unknown>),
         detail: detail.slice(0, 600),
       });

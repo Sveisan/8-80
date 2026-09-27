@@ -139,6 +139,24 @@ export function preflight(env: NodeJS.ProcessEnv = process.env): Check[] {
         label: 'no separate first-call agent',
         detail: 'First calls will get the returning-call prompt, which opens "Hello again" at somebody who has never been called.',
       });
+    } else {
+      // Nothing here can prove it — the console holds the answer and their API
+      // does not expose it — so this is a reminder rather than a check, and it
+      // is worth the line because the failure it names took a week to find.
+      //
+      // Every agent needs a number assigned to it in the console. An agent
+      // without one hands the call to the carrier with no caller ID, and the
+      // carrier refuses it with SIP 403, which reaches us as a 400 saying
+      // `validation_failed`. A second agent added later is the one that has no
+      // number, so the fault is one agent wide: first calls refused, returning
+      // calls fine, or the other way round. Read as a whole it looks like an
+      // intermittent carrier, and it is not intermittent at all.
+      checks.push({
+        ok: true,
+        label: 'two agents are configured',
+        detail:
+          'Both need a number assigned in the Speechify console (Phone numbers → pick the agent). An agent with no number is refused by the carrier with SIP 403, and only that agent’s calls fail — which reads as a flaky line rather than a missing setting.',
+      });
     }
     checkFeatureGroups(env, checks);
     checkOneNumber(env, checks);
