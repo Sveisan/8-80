@@ -111,6 +111,26 @@ export function preflight(env: NodeJS.ProcessEnv = process.env): Check[] {
     need('DATA_ENCRYPTION_KEY', 'No commitment is stored. Generate with: openssl rand -base64 32');
     need('PUBLIC_URL', 'Where a reschedule link points. Without it no missed-call text is sent at all.');
 
+    if (env['SPEECHIFY_SEND_VARIABLES'] !== '1') {
+      // The returning prompt is built out of {{last_commitment}}, {{last_day}},
+      // {{own_eight}}, {{own_eighty}}, {{last_belief}}, {{weeks_undone_running}}
+      // and {{call_number}}. Without this set we send no dynamic_variables at
+      // all, the console substitutes every one of them with nothing, and the
+      // call opens "Last week you said you'd . What happened?" — which is the
+      // precise sentence NOTHING_RECORDED exists to prevent, arriving by a
+      // different road.
+      //
+      // The flag is opt-in because a request body carrying every optional field
+      // was once refused with "Request body is not valid JSON", so they went
+      // back one at a time. Variables are not optional to this product.
+      checks.push({
+        ok: false,
+        label: 'SPEECHIFY_SEND_VARIABLES is not 1',
+        detail:
+          'No dynamic_variables are sent, so every variable the console prompt uses is substituted with nothing. A returning call then asks what happened to a commitment it does not name.',
+      });
+    }
+
     const callerId = env['SPEECHIFY_CALLER_ID_NUMBER'];
     if (!callerId) {
       // Not a nicety. Left unset, the platform picks a caller ID per call, and

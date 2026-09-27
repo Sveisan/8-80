@@ -99,6 +99,9 @@ const speechify = {
   // 403 on some calls and not others — which read as a flaky carrier for four
   // days. See the check in preflight.ts.
   SPEECHIFY_CALLER_ID_NUMBER: '+15074805619',
+  // Also part of a working deployment. The returning prompt is built out of
+  // variables, and off means the console fills every one with nothing.
+  SPEECHIFY_SEND_VARIABLES: '1',
 } as NodeJS.ProcessEnv;
 
 test('the Speechify deployment is checked on its own terms', () => {
@@ -116,6 +119,17 @@ test('an unpinned caller ID is a failure, because it is how calls die', () => {
   const without = { ...speechify };
   delete without['SPEECHIFY_CALLER_ID_NUMBER'];
   assert.ok(fails(without).some((l) => l.includes('SPEECHIFY_CALLER_ID_NUMBER')));
+});
+
+test('a deployment that sends no variables is refused', () => {
+  // The console can have all seven declared and the loop can have all seven
+  // ready, and if this flag is off none of them leave the building. Nothing
+  // fails, nothing logs: the mentor simply asks what happened to a commitment
+  // it does not name. A green preflight must not be compatible with that.
+  const without = { ...speechify };
+  delete without['SPEECHIFY_SEND_VARIABLES'];
+  assert.ok(fails(without).some((l) => l.includes('SPEECHIFY_SEND_VARIABLES')));
+  assert.deepEqual(fails({ ...speechify, SPEECHIFY_SEND_VARIABLES: 'true' }).length, 1, 'only "1" turns it on');
 });
 
 test('the variables that silently lose a call are required', () => {
