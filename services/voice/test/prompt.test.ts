@@ -1,10 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildInstructions, renderForConsole, CONSOLE_VARIABLES } from '../src/prompt.ts';
+import { buildInstructions, renderForConsole, CONSOLE_VARIABLES, END_CALL_TOOL } from '../src/prompt.ts';
 import { loadScript } from '../src/script.ts';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
-import { repoRoot } from '../src/config.ts';
 
 test('nothing rendered for the console can be mistaken for a console variable', () => {
   // A surviving {{x}} is either flagged as undeclared or silently substituted
@@ -184,14 +181,17 @@ test('a returning caller with no answers on file gets the read as it always was'
  * the caller waits to find out who is hanging up. That is the exact failure
  * this tool was added to fix.
  */
-test('the prompt and the registrar agree on what the hang-up tool is called', () => {
-  const cli = readFileSync(resolve(repoRoot, 'services/voice/src/agent/hangup-cli.ts'), 'utf8');
-  const registered = /const HANG_UP_TOOL = '([^']+)'/.exec(cli)?.[1];
-  assert.ok(registered, 'HANG_UP_TOOL not found — this test is checking nothing');
-
-  const prompt = buildInstructions(loadScript(), { callNumber: 2 });
-  assert.ok(
-    prompt.includes(`\`${registered}\``),
-    `the prompt does not name \`${registered}\`, so the mentor cannot end the call`,
-  );
+test('the prompt names the tool the console actually has', () => {
+  // `end_call` is what the Tools tab calls it, on both agents. A prompt naming
+  // anything else fails silently: no error, the model narrating or stalling,
+  // and the call running to its cap while somebody waits to find out who is
+  // hanging up — which is the failure the tool was added to fix.
+  assert.equal(END_CALL_TOOL, 'end_call', 'changed here, but was it changed on both agents?');
+  for (const callNumber of [1, 2]) {
+    const prompt = buildInstructions(loadScript(), { callNumber });
+    assert.ok(
+      prompt.includes(`\`${END_CALL_TOOL}\``),
+      `call ${callNumber} is never told to call \`${END_CALL_TOOL}\`, so it cannot end itself`,
+    );
+  }
 });

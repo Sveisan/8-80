@@ -51,6 +51,19 @@ export function resolveVoice(profile: Pick<CallerProfile, 'voice'>): string {
  * because they are the product; the model is told to use them as written rather
  * than to improvise around them.
  */
+/**
+ * The tool that ends a call, named exactly as the Speechify console names it.
+ *
+ * It is added on each agent's Tools tab — per agent, like the webhook secret
+ * and the phone number, which is now three things that must be set twice and
+ * have each been missed once. A prompt naming a tool the agent does not have
+ * fails in the quietest way there is: no error, the model narrating or
+ * stalling, and the call running to its duration cap while somebody waits to
+ * find out who is hanging up. So the name lives here, once, and a test in
+ * prompt.test.ts fails if the prompt stops carrying it.
+ */
+export const END_CALL_TOOL = 'end_call';
+
 export function buildInstructions(script: ScriptLines, profile: CallerProfile): string {
   // SCRIPT.md marks its variable parts with {{slots}}. The ones we know are
   // filled here; the rest are filled by the model from what was actually said.
@@ -160,7 +173,7 @@ export function buildInstructions(script: ScriptLines, profile: CallerProfile): 
       `   Then pin the day: "${line('next.when')}" and the moment it happens: "${line('next.cue')}" — the shape is "when this, I'll do that", but never say that formula out loud. Then read it back, cue included, in their words: "${line('next.confirm')}" If the answer is no, make it smaller on the spot and ask again.`,
     ),
     ...setup,
-    `9. Close: "${line('close.logistics')}" then "${line(config.variants.closeQ)}" then "${line('close.end')}" and then call \`end_call\` to end the call yourself. Do not wait for them to hang up. A caller once had to ask three times who was hanging up, and was told "I can't discuss the call setup". If they ask, the answer is "I'll hang up now" — and then call \`end_call\`.`,
+    `9. Close: "${line('close.logistics')}" then "${line(config.variants.closeQ)}" then "${line('close.end')}" and then call \`${END_CALL_TOOL}\` to end the call yourself. Do not wait for them to hang up. A caller once had to ask three times who was hanging up, and was told "I can't discuss the call setup". If they ask, the answer is "I'll hang up now" — and then call \`${END_CALL_TOOL}\`.`,
   );
 
   // The first call's opening used to be stages 1–3 at the foot of a long
