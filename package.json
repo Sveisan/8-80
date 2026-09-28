@@ -6,6 +6,7 @@
     "services/*"
   ],
   "scripts": {
+    "animate-mark": "npm run -w @8and80/voice animate-mark",
     "audition": "npm run -w @8and80/voice audition --",
     "check": "npm run typecheck && npm run lint && npm run test",
     "checkurl": "npm run -w @8and80/voice checkurl",

@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "animate-mark": "tsx src/animate-mark-cli.ts",
     "audition": "tsx src/audition-cli.ts",
     "checkurl": "tsx src/checkurl.ts",
     "control": "tsx src/control-cli.ts",
