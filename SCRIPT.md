@@ -1626,3 +1626,87 @@ is short, and the first line should let somebody see that before they read a wor
 _Dates and outcomes, no transcripts — there are none older than a fortnight and none of
 them are kept as a record of anybody. §12 of privacy.md says so; this is what makes that
 checkable by the person it is about._
+
+---
+
+## 19. Between signing up and the first call
+
+_What happens in the days between "Book my first call" and the phone ringing, and the page
+somebody lands on while they wait._
+
+_**Texts: two, both at sign-up, and nothing after.** The code (`sms.code`) and the welcome
+(`sms.welcome`) are two events — proving the number, and being told when — so §13's
+one-text rule is not broken by there being two. Nothing is sent between the welcome and the
+call. A "your first call is tomorrow" text is a reminder about a reminder, the first thing
+this product would ever send that nobody needed; the welcome already said when, and it
+carries the link. If somebody forgets, the call is the reminder, and missing it is handled
+(`sms.missed`)._
+
+_**The page is the one the link opens.** Right after the code, the browser that signed up
+goes straight to it and remembers it for a week — the life of the link in the welcome text,
+which is always long enough to reach the first call. It is not an account and there is no
+sign-in: the only way to be remembered is to have proved the number a minute ago. A
+browser that is remembered gets everything on the page except the copy and the deletion,
+which stay behind a link from a text, because a laptop in a shared kitchen is not proof
+enough of who is asking to have everything sent or destroyed._
+
+`page.first`
+> "First call {{when}}."
+
+_Shown instead of `page.title` until there has been a call. "Move this week's call" is the
+page for somebody who missed one; before the first call there is nothing to have missed._
+
+`page.first.detail`
+> "Nothing to do before then. If the time's wrong, change it here."
+
+_Says there is no homework. A page that opens after sign-up and offers five things reads as
+five things to do; this one line says none of them are required._
+
+`page.first.pick`
+> "A better time?"
+
+_Before the first call a new time moves the booking, not one week — it is the only week
+there is — so the page does not ask "every week from now on" as it does after a missed
+call. The button is still `page.move`._
+
+`page.goals.label`
+> "Anything to add to this year's list?"
+
+`page.goals.detail`
+> "It goes to the next call, not onto this page — this page opens for whoever has the link."
+
+_Added to, never shown back. The page is built for a stranger to find boring (§14), and a
+list of what somebody wants from their year is the least boring thing about them. The
+detail line is there so nobody wonders where their words went._
+
+_Only once there has been a call. The list is made on the first call — "this year, the
+goals that can move" — and that call asks fresh rather than reading anything written
+before it, so a field before the first call would take words and lose them._
+
+`page.goals.save`
+> "Add it"
+
+`page.goals.saved`
+> "Added. It'll be there on the next call."
+
+`page.goals.full`
+> "That list is long enough to be getting on with. Bring the rest to the call."
+
+_The list goes into the call whole, so it has an end. Dry rather than an error: they have
+done nothing wrong by having a lot they want._
+
+`page.browser.rest`
+> "A copy of everything, or deleting it all, is behind the link in any text from me."
+
+_Where the export and delete buttons would be, for a browser that is only remembered. Says
+where they are rather than hiding that they exist — privacy.md promises both from the link
+in every text, and that is still true._
+
+`page.browser.gone`
+> "This browser doesn't remember you"
+
+`page.browser.gone.detail`
+> "It only does for the week after signing up, on purpose. The link in any text from me
+> opens the same page."
+
+_Not an error and not a sign-in. The way in is the link, and the page says so._

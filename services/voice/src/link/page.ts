@@ -3,8 +3,8 @@ import type { Slot } from '../schedule/time.ts';
 import { BUSY, BUSY_CSS, MOTION, busyLabel } from '../signup/mascot.ts';
 
 /** Weekday names come from the locale, not from a list in this file. */
-const dayNames = (language: string): string[] => {
-  const fmt = new Intl.DateTimeFormat(language, { weekday: 'long', timeZone: 'UTC' });
+const dayNames = (language: string, weekday: 'long' | 'short' = 'long'): string[] => {
+  const fmt = new Intl.DateTimeFormat(language, { weekday, timeZone: 'UTC' });
   // 2026-09-06 was a Sunday, so index 0 is Sunday as everywhere else here.
   return Array.from({ length: 7 }, (_, i) => fmt.format(new Date(Date.UTC(2026, 8, 6 + i))));
 };
@@ -15,17 +15,59 @@ const esc = (s: string): string =>
 const clock = (minute: number): string =>
   `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`;
 
+/** Monday first, the way a week is written down here. Values stay Sunday-is-0. */
+const WEEK = [1, 2, 3, 4, 5, 6, 0];
+
 /**
- * The page a missed-call text points at.
+ * Every half hour from six to ten, the row the sign-up page offers, plus the
+ * slot itself when it sits between them — a call moved by text to 07:15 must
+ * still show as chosen, not as nothing.
+ */
+const timesFor = (minute: number): string[] => {
+  const grid = Array.from({ length: 33 }, (_, i) => 360 + i * 30);
+  return [...new Set([...grid, minute])].sort((a, b) => a - b).map(clock);
+};
+
+/** How the page was reached, and so what it may offer. */
+export interface PageView {
+  /**
+   * `link` is a code from a text: the whole page. `browser` is the cookie on
+   * the browser that signed up: everything but the copy and the deletion,
+   * which stay behind a fresh link from a text. See control.ts.
+   */
+  via?: 'link' | 'browser';
+  /**
+   * When the first call is, if there has not been one yet. The page says that
+   * instead of "move this week's call", and a time chosen on it moves the
+   * booking rather than one week, because before the first call the booking
+   * is the only week there is.
+   */
+  first?: Date;
+  /** Minutes after signing up: the page says it is done before offering anything. */
+  fresh?: boolean;
+  /** Offer the field for adding to this year's goals. Only once a call has made the list. */
+  goals?: boolean;
+  /** A `page.goals.*` key, when the last attempt to add said something. */
+  goalsNote?: string;
+}
+
+/**
+ * The page a text points at, and the page the sign-up browser lands on.
  *
- * Deliberately plain and deliberately small. It shows the slot and offers three
- * things, and it shows nothing else — no name, no commitment, no history. The
- * link may sit in a message thread for years and be opened by whoever has the
- * phone, so the page is designed for a stranger to find boring.
+ * Deliberately plain and deliberately small. It shows the slot and offers the
+ * things somebody would come here to do, and it shows nothing else — no name,
+ * no commitment, no goals, no history. The link may sit in a message thread for
+ * years and be opened by whoever has the phone, so the page is designed for a
+ * stranger to find boring. What they can add, they can add without being shown
+ * what is already there.
  *
- * No client-side framework, no fetch, no JSON. Three forms that post and
- * reload. It has to work on a bad train connection with one thumb, which is
- * exactly the situation somebody is in when they miss a call.
+ * No client-side framework, no fetch, no JSON. Forms that post and reload. It
+ * has to work on a bad train connection with one thumb, which is exactly the
+ * situation somebody is in when they miss a call.
+ *
+ * The time is picked the way it was picked at sign-up: a row of day chips and
+ * a row of times you swipe. Somebody moving their call should recognise the
+ * control they chose it with.
  */
 export function reschedulePage(
   slot: Slot,
@@ -39,59 +81,161 @@ export function reschedulePage(
   email?: string,
   /** A `page.email.*` key, when the last attempt to save one said something. */
   note?: string,
+  view: PageView = {},
 ): string {
   const say = (id: string): string => esc(script.get(id) ?? '');
   const days = dayNames(language);
+  const short = dayNames(language, 'short');
+  const via = view.via ?? 'link';
+  const first = view.first;
   const when = `${days[slot.weekday]} ${clock(slot.minute)}`;
+  const time = clock(slot.minute);
 
-  return shell(
-    `
-    <h1>${say('page.title')}</h1>
+  const head = first
+    ? view.fresh
+      ? `<h1>${esc((script.get('signup.done.title') ?? '').replace('{{when}}', whenOf(first, slot.timezone, language)))}</h1>
+    <p class="now">${say('signup.done.detail')}</p>`
+      : `<h1>${esc((script.get('page.first') ?? '').replace('{{when}}', whenOf(first, slot.timezone, language)))}</h1>
+    <p class="now">${say('page.first.detail')}</p>`
+    : `<h1>${say('page.title')}</h1>
     <p class="now">${esc((script.get('page.usually') ?? '').replace('{{when}}', when))}</p>
 
     <form method="post">
       <button name="action" value="later" class="primary">${busyLabel(say('page.later'))}</button>
-    </form>
+    </form>`;
 
+  // Before the first call a new time is the booking, so "every week" is not
+  // a question worth a checkbox: it is sent, and said on the button.
+  const always = first
+    ? '<input type="hidden" name="always" value="1" />'
+    : `<label class="always"><input type="checkbox" name="always" value="1" /> ${say('page.always')}</label>`;
+
+  const goals = view.goals
+    ? `
     <form method="post" class="move">
-      <label for="weekday">${say('page.pick')}</label>
-      <div class="row">
-        <select id="weekday" name="weekday">
-          ${days.map((d, i) => `<option value="${i}"${i === slot.weekday ? ' selected' : ''}>${esc(d)}</option>`).join('')}
-        </select>
-        <input type="time" name="time" value="${clock(slot.minute)}" required />
-      </div>
-      <button name="action" value="move">${busyLabel(say('page.move'))}</button>
-      <label class="always"><input type="checkbox" name="always" value="1" /> ${say('page.always')}</label>
-    </form>
+      <label for="goals">${say('page.goals.label')}</label>
+      <textarea id="goals" name="goals" rows="3" maxlength="${GOALS_MAX}" required></textarea>
+      <p class="hint">${say('page.goals.detail')}</p>
+      <button name="action" value="goals">${busyLabel(say('page.goals.save'))}</button>
+      ${view.goalsNote ? `<p class="now said">${say(view.goalsNote)}</p>` : ''}
+    </form>`
+    : '';
 
-    <form method="post" class="move">
-      <label for="email">${say('page.email.label')}</label>
-      <div class="row">
-        <input type="email" id="email" name="email" value="${esc(email ?? '')}" placeholder="you@example.com" />
-      </div>
-      <button name="action" value="email">${busyLabel(say('page.email.save'))}</button>
-      ${note ? `<p class="now">${say(note)}</p>` : ''}
-    </form>
-
-    <form method="post" class="skip">
-      <button name="action" value="skip" class="quiet">${say('page.skip')}</button>
-    </form>
-
-    <form method="post" class="stop">
-      <button name="action" value="stop" class="quiet">${say('page.stop')}</button>
-    </form>
-
+  const rest =
+    via === 'link'
+      ? `
     <form method="post" class="stop">
       <button name="action" value="export" class="quiet">${say('page.export')}</button>
     </form>
 
     <form method="post" class="stop">
       <button name="action" value="forget" class="quiet">${say('page.forget')}</button>
+    </form>`
+      : `<p class="hint centre">${say('page.browser.rest')}</p>`;
+
+  return shell(
+    `
+    ${MARK}
+    ${head}
+
+    <form method="post" class="move">
+      <fieldset>
+        <legend>${say(first ? 'page.first.pick' : 'page.pick')}</legend>
+        <div class="days">
+          ${WEEK.map(
+            (i) => `<label class="pick">
+            <input type="radio" name="weekday" value="${i}"${i === slot.weekday ? ' checked' : ''} />
+            <span aria-hidden="true">${esc(short[i] as string)}</span><span class="sr">${esc(days[i] as string)}</span>
+          </label>`,
+          ).join('')}
+        </div>
+        <div class="times" id="times">
+          ${timesFor(slot.minute)
+            .map(
+              (t) =>
+                `<label class="pick"><input type="radio" name="time" value="${t}"${t === time ? ' checked' : ''} /><span>${t}</span></label>`,
+            )
+            .join('')}
+        </div>
+      </fieldset>
+      ${always}
+      <button name="action" value="move">${busyLabel(say('page.move'))}</button>
     </form>
+    ${goals}
+
+    <form method="post" class="move">
+      <label for="email">${say('page.email.label')}</label>
+      <div class="row">
+        <input type="email" id="email" name="email" value="${esc(email ?? '')}" placeholder="you@example.com"
+               autocomplete="email" autocapitalize="off" spellcheck="false" />
+      </div>
+      <button name="action" value="email">${busyLabel(say('page.email.save'))}</button>
+      ${note ? `<p class="now said">${say(note)}</p>` : ''}
+    </form>
+
+    ${
+      // Not before the first call. SKIP writes nothing — after a missed call
+      // the next one is already a week away, so there is nothing to write —
+      // and offered here it would say "skipped" and then ring them anyway.
+      first
+        ? ''
+        : `<form method="post" class="skip">
+      <button name="action" value="skip" class="quiet">${say('page.skip')}</button>
+    </form>`
+    }
+
+    <form method="post" class="stop${first ? ' first' : ''}">
+      <button name="action" value="stop" class="quiet">${say('page.stop')}</button>
+    </form>
+    ${rest}
+    <script>
+      // Brings the chosen time to the middle of its row, as on the sign-up
+      // page. The form works without it: the row scrolls by hand.
+      try {
+        var row = document.getElementById('times');
+        var centre = function (el, smooth) {
+          row.scrollTo({ left: el.offsetLeft - (row.clientWidth - el.offsetWidth) / 2, behavior: smooth ? 'smooth' : 'auto' });
+        };
+        var on = row.querySelector('input:checked');
+        if (on) centre(on.parentNode, false);
+        row.addEventListener('change', function (e) { centre(e.target.parentNode, true); });
+      } catch (e) {}
+    </script>
   `,
     language,
   );
+}
+
+/** A line added to the goals from the page. Long enough for a sentence or two, not an essay. */
+export const GOALS_MAX = 400;
+
+/** "Tuesday 08:00", in their zone. The first call is always inside a week, so the day is enough. */
+function whenOf(at: Date, timezone: string, language: string): string {
+  return at.toLocaleString(language === 'en' ? 'en-GB' : language, {
+    timeZone: timezone,
+    weekday: 'long',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+/**
+ * The Forever mark, still. brand/assets/mark.svg, inlined so the page makes
+ * no second request; the line is `currentColor` so it follows the theme and
+ * the dot stays Gold. It does not turn here: this page is for doing something
+ * and leaving, and a moving logo is one more thing competing for the thumb.
+ */
+const MARK = `<header class="lockup"><span class="sr">8&amp;80</span><svg class="mark" viewBox="12 31 96 58" aria-hidden="true" focusable="false"><path d="M51 60C46 50 37 46 31 46C23 46 17 52 17 60C17 68 23 74 31 74C37 74 46 70 51 60C57 46 69 36 81 36C95 36 103 47 103 60C103 73 95 84 81 84C69 84 57 74 51 60Z" fill="none" stroke="currentColor" stroke-width="7" stroke-linejoin="round"/><circle cx="31" cy="60" r="5" fill="#E2B653"/></svg></header>`;
+
+/**
+ * Where a browser that does not know anybody lands.
+ *
+ * The cookie is gone, lapsed, or was never there. Not an error, and not a
+ * sign-in: the way in is the link in any text, and the page says so.
+ */
+export function unknownBrowserPage(script: ScriptLines, language = 'en'): string {
+  const say = (id: string): string => esc(script.get(id) ?? '');
+  return shell(`${MARK}<h1>${say('page.browser.gone')}</h1><p class="now">${say('page.browser.gone.detail')}</p>`, language);
 }
 
 /**
@@ -127,16 +271,20 @@ export function confirmStopPage(script: ScriptLines, language = 'en'): string {
  * deliver to, so START can never reach them and the way back cannot live only
  * in a message. This link still works.
  */
-export function stoppedPage(script: ScriptLines, language = 'en'): string {
+export function stoppedPage(script: ScriptLines, language = 'en', via: 'link' | 'browser' = 'link'): string {
   const say = (id: string): string => esc(script.get(id) ?? '');
   return shell(
     `<h1>${say('page.stopped')}</h1>
      <form method="post" class="skip">
        <button name="action" value="start" class="quiet">${say('page.stopped.back')}</button>
      </form>
-     <form method="post" class="stop">
+     ${
+       via === 'link'
+         ? `<form method="post" class="stop">
        <button name="action" value="forget" class="quiet">${say('page.forget')}</button>
-     </form>`,
+     </form>`
+         : ''
+     }`,
     language,
   );
 }
@@ -243,12 +391,51 @@ function shell(body: string, language = 'en'): string {
   button.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
   button.quiet { border: 0; color: var(--quiet); }
   ${BUSY_CSS}
-  .always { display: flex; align-items: center; gap: .5rem; margin-top: .6rem; }
+  .always { display: flex; align-items: center; gap: .5rem; margin: .75rem 0 .75rem; }
   .always input { width: auto; }
-  .move { border-top: 1px solid var(--line); padding-top: 1.25rem; }
-  .skip { margin-top: 1.5rem; }
+  .move { border-top: 1px solid var(--line); padding-top: 1.25rem; margin-top: 1.25rem; }
+  .skip, .stop.first { margin-top: 1.5rem; }
   /* Below the things somebody came here to do, and still plainly named. */
   .stop { margin-top: .25rem; }
+  .hint { color: var(--quiet); font-size: .9rem; margin: .4rem 0 .75rem; }
+  .centre { text-align: center; }
+  .said { margin: .75rem 0 0; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .lockup { display: flex; justify-content: center; margin: 0 0 1.75rem; }
+  .mark { width: 3rem; height: auto; display: block; }
+  textarea {
+    display: block; width: 100%; margin: .4rem 0 0; padding: .7rem .75rem; font: inherit; color: var(--ink);
+    background: transparent; border: 1px solid var(--line); border-radius: .5rem; resize: vertical;
+  }
+  input[type=email] {
+    flex: 1; min-width: 0; padding: .7rem .6rem; font: inherit; color: var(--ink);
+    background: transparent; border: 1px solid var(--line); border-radius: .5rem;
+  }
+
+  /*
+   * The day and the time, as the sign-up page picks them: radios under pills,
+   * so a tap is a native choice and moving a call needs no script.
+   */
+  fieldset { border: 0; padding: 0; margin: 0 0 .75rem; min-width: 0; }
+  legend { padding: 0; margin: 0 0 .5rem; font-size: .95rem; color: var(--quiet); }
+  .days { display: grid; grid-template-columns: repeat(7, 1fr); gap: .3rem; }
+  .times {
+    display: flex; gap: .3rem; margin-top: .5rem; padding: .1rem 0;
+    overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none; overscroll-behavior-x: contain;
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 1.5rem, #000 calc(100% - 1.5rem), transparent);
+    mask-image: linear-gradient(90deg, transparent, #000 1.5rem, #000 calc(100% - 1.5rem), transparent);
+  }
+  .times::-webkit-scrollbar { display: none; }
+  .times .pick { flex: 0 0 4.4rem; scroll-snap-align: center; }
+  .pick { position: relative; display: block; margin: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .pick input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; }
+  .pick span:first-of-type {
+    display: flex; align-items: center; justify-content: center; min-height: 2.9rem;
+    border: 1px solid var(--line); border-radius: .75rem; color: var(--ink);
+    font-size: .95rem; font-variant-numeric: tabular-nums;
+  }
+  .pick input:checked + span { background: var(--accent); color: var(--on-accent); border-color: var(--accent); font-weight: 600; }
+  .pick input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
 </style>
 </head>
 <body><main>${body}</main>${BUSY}${MOTION}</body>

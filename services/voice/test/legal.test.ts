@@ -122,7 +122,9 @@ test('the export is sent to the address on file and nowhere else', () => {
   // send somebody's record to an address typed into it would not be a data
   // export, it would be a way to read a stranger's week.
   const control = read('services/voice/src/control.ts');
-  const handler = /if \(action === 'export'\)[\s\S]*?\n {10}}/.exec(control)?.[0] ?? '';
+  // Any indentation: the handler moved into a function once and this test
+  // failed on the spaces rather than on anything it is here to check.
+  const handler = /if \(action === 'export'\) \{[\s\S]*?\n\s*\}/.exec(control)?.[0] ?? '';
   assert.ok(handler, 'export handler not found');
   assert.ok(handler.includes('caller.email'), 'it uses the stored address');
   assert.ok(!/form\.get\(\s*'email'/.test(handler), 'and never one from the form');

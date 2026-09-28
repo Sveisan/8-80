@@ -13,6 +13,7 @@ import { openSms } from './sms/index.ts';
 import { handleReply } from './sms/missed.ts';
 import { verifySignature } from './webhook/signature.ts';
 import { Links } from './link/token.ts';
+import { BROWSER, FRESH_MS, clearBrowser, cookieOf, crossSite } from './link/cookie.ts';
 import {
   confirmForgetPage,
   confirmStopPage,
@@ -21,6 +22,9 @@ import {
   gonePage,
   reschedulePage,
   stoppedPage,
+  unknownBrowserPage,
+  GOALS_MAX,
+  type PageView,
 } from './link/page.ts';
 import { signupRoutes } from './signup/routes.ts';
 import { EMAIL } from './signup/form.ts';
@@ -95,15 +99,17 @@ const mark = (res: ServerResponse): void => {
   res.end(markPng);
 };
 
-const html = (res: ServerResponse, status: number, body: string): void => {
+const html = (res: ServerResponse, status: number, body: string, headers: Record<string, string> = {}): void => {
   res.writeHead(status, {
     'content-type': 'text/html; charset=utf-8',
     // The link is in somebody's messages. It should not also be in a cache.
     'cache-control': 'no-store',
     'referrer-policy': 'no-referrer',
+    ...headers,
   });
   res.end(body);
 };
+
 
 /**
  * The page's buttons, as the sentence a text would have said.
@@ -160,9 +166,20 @@ export function controlPlane(deps: LoopDeps, secret: string | readonly string[] 
         return html(res, 200, legalPage(url.pathname.slice(1) as 'terms' | 'privacy'));
       }
 
+      // A browser that signed up goes to its own page rather than the form it
+      // already filled in. Only the bare address: /start is always the form,
+      // so whoever else uses this browser can still sign themselves up.
+      if (req.method === 'GET' && url.pathname === '/' && cookieOf(req, BROWSER)) {
+        const opened = await new Links(deps.store.raw).open(cookieOf(req, BROWSER) as string, new Date(), 'browser');
+        if (opened.ok) {
+          res.writeHead(303, { location: '/me', 'cache-control': 'no-store' });
+          return res.end();
+        }
+      }
+
       if (url.pathname === '/' || url.pathname.startsWith('/start')) {
         const answer = await signupRoutes(req, url, deps, clientOf(req));
-        if (answer) return html(res, answer.status, answer.body);
+        if (answer) return html(res, answer.status, answer.body, answer.headers);
         return send(res, 404, { error: 'not found' });
       }
 
@@ -278,78 +295,32 @@ export function controlPlane(deps: LoopDeps, secret: string | readonly string[] 
         return send(res, 200, { action: out.action });
       }
 
-      // The page a missed-call text points at. No login: asking somebody to
-      // remember a password in order to move a phone call is how a courtesy
-      // becomes a chore. The token is what limits the damage — see link/token.ts.
+      // The page a text points at. No login: asking somebody to remember a
+      // password in order to move a phone call is how a courtesy becomes a
+      // chore. The token is what limits the damage — see link/token.ts.
       if (url.pathname.startsWith('/r/')) {
         const opened = await new Links(deps.store.raw).open(decodeURIComponent(url.pathname.slice(3)));
         if (!opened.ok) {
           log('link.refused', { why: opened.why });
           return html(res, 410, gonePage(deps.script));
         }
+        return await yourPage(req, res, deps, opened.claims.phoneHash, 'link');
+      }
 
-        const phone = await deps.store.phoneFor(opened.claims.phoneHash);
-        const slot = phone ? await deps.scheduler.slotFor(phone) : undefined;
-        if (!phone || !slot) return html(res, 410, gonePage(deps.script));
-        const caller = await deps.store.load(phone);
-
-        if (req.method === 'GET') return html(res, 200, reschedulePage(slot, deps.script, caller.language));
-
-        if (req.method === 'POST') {
-          const form = new URLSearchParams((await rawBody(req)).toString('utf8'));
-          const action = form.get('action');
-          // Asked, not done. The only control here that a mis-tap should not
-          // be able to end the arrangement with.
-          if (action === 'stop') return html(res, 200, confirmStopPage(deps.script, caller.language));
-          if (action === 'forget') return html(res, 200, confirmForgetPage(deps.script, caller.language));
-          if (action === 'export') {
-            // To the address the recaps go to, and nowhere else. This page is
-            // reachable by whoever is holding the phone, so a form that could
-            // send somebody's record to an address typed into it would not be
-            // a data export, it would be a way to read a stranger's week.
-            await emailEverything(deps, phone, caller.email);
-            return html(res, 200, donePage(deps.script.get('page.export.sent') ?? '', deps.script, caller.language));
-          }
-          if (action === 'email') {
-            // The one thing a call cannot take: an address spelled out loud.
-            // SCRIPT.md §7 — a Norwegian name letter by letter down a phone
-            // line cost one call ninety seconds and still got it wrong.
-            //
-            // No verification mail. The link that opened this page was sent to
-            // their number, which is what this product treats as identity; an
-            // address is where a letter goes, not a way in. Getting it wrong
-            // costs one recap and is fixed by typing it again.
-            const typed = (form.get('email') ?? '').trim();
-            if (!EMAIL.test(typed)) {
-              return html(res, 200, reschedulePage(slot, deps.script, caller.language, caller.email, 'page.email.bad'));
-            }
-            await deps.store.upsertProfile(phone, { email: typed });
-            log('caller.email_set', {});
-            return html(res, 200, reschedulePage(slot, deps.script, caller.language, typed, 'page.email.saved'));
-          }
-          if (action === 'stop-cancel') return html(res, 200, reschedulePage(slot, deps.script, caller.language));
-          if (action === 'forget-confirm') {
-            // The language is read before the delete, because after it there
-            // is no caller to read it from.
-            const language = caller.language;
-            await (deps.store as PostgresStore).forget(phone);
-            log('caller.forgotten', {});
-            return html(res, 200, forgottenPage(deps.script, language));
-          }
-
-          const said = phraseFor(form);
-          if (!said) return html(res, 200, reschedulePage(slot, deps.script, caller.language));
-          // Straight through the same path a text would take, so the two ways
-          // of moving a call cannot drift apart.
-          const out = await handleReply(phone, said, slot, { ...deps, sms: silent }, new Date());
-          // Stopping gets its own page because it is the one outcome that has
-          // to carry the way back: somebody who stopped by texting STOP has a
-          // number the carrier will not deliver to, so START cannot reach them
-          // and this link is all they have left.
-          if (out.action === 'stopped') return html(res, 200, stoppedPage(deps.script, caller.language));
-          if (out.action === 'started') return html(res, 200, reschedulePage(slot, deps.script, caller.language));
-          return html(res, 200, donePage(out.said, deps.script, caller.language));
+      // The same page, for the browser that signed up. See BROWSER below for
+      // what this is and why it is not a login.
+      if (url.pathname === '/me') {
+        const code = cookieOf(req, BROWSER);
+        const opened = code ? await new Links(deps.store.raw).open(code, new Date(), 'browser') : undefined;
+        if (!opened?.ok) {
+          if (opened) log('browser.refused', { why: opened.why });
+          // Forgotten on our side, so forgotten on theirs: a dead cookie left
+          // in place is a dead cookie sent with every request for a week.
+          return html(res, 200, unknownBrowserPage(deps.script), code ? { 'set-cookie': clearBrowser() } : {});
         }
+        if (req.method === 'POST' && crossSite(req)) return send(res, 403, { error: 'forbidden' });
+        const fresh = Date.now() - opened.claims.issuedAt.getTime() < FRESH_MS;
+        return await yourPage(req, res, deps, opened.claims.phoneHash, 'browser', fresh);
       }
 
       return send(res, 404, { error: 'not found' });
@@ -358,6 +329,116 @@ export function controlPlane(deps: LoopDeps, secret: string | readonly string[] 
       if (!res.headersSent) send(res, 500, { error: 'internal' });
     });
   });
+}
+
+/**
+ * The page, for whoever proved they may see it — by a link from a text, or by
+ * being the browser that signed up. One handler for both, so the two ways in
+ * cannot come to offer different things by accident; the one deliberate
+ * difference is `via`, which keeps the copy and the deletion link-only.
+ */
+async function yourPage(
+  req: IncomingMessage,
+  res: ServerResponse,
+  deps: LoopDeps,
+  phoneHash: string,
+  via: 'link' | 'browser',
+  fresh = false,
+): Promise<void> {
+  const phone = await deps.store.phoneFor(phoneHash);
+  const slot = phone ? await deps.scheduler.slotFor(phone) : undefined;
+  if (!phone || !slot) return html(res, 410, via === 'link' ? gonePage(deps.script) : unknownBrowserPage(deps.script));
+  const caller = await deps.store.load(phone);
+  const language = caller.language;
+
+  // No call yet: the page is about the first one. `callNumber` 1 is "never
+  // been called"; a rehearsal is a first call on purpose and says so too.
+  const before = caller.callNumber <= 1 || !!caller.rehearseFirstCall;
+  const view = async (extra: Partial<PageView> = {}): Promise<PageView> => {
+    const next = before ? await deps.scheduler.nextCallFor(phone) : undefined;
+    return {
+      via,
+      // Until there has been a call there is no list to add to — the first
+      // call makes it, and does not read anything added before.
+      goals: !before,
+      ...(next ? { first: next } : {}),
+      ...extra,
+    };
+  };
+  const page = async (email?: string, note?: string, extra: Partial<PageView> = {}): Promise<void> =>
+    html(res, 200, reschedulePage(slot, deps.script, language, email, note, await view(extra)));
+
+  if (req.method === 'GET') return await page(undefined, undefined, { fresh });
+  if (req.method !== 'POST') return send(res, 405, { error: 'method not allowed' });
+
+  const form = new URLSearchParams((await rawBody(req)).toString('utf8'));
+  const action = form.get('action');
+  // Asked, not done. The only control here that a mis-tap should not be able
+  // to end the arrangement with.
+  if (action === 'stop') return html(res, 200, confirmStopPage(deps.script, language));
+
+  // The two that hand over or destroy everything. Only from a link that
+  // arrived on their phone; a browser that remembers them is not enough.
+  if (via === 'browser' && (action === 'export' || action === 'forget' || action === 'forget-confirm')) {
+    log('browser.refused', { why: `${action} needs a link` });
+    return await page();
+  }
+  if (action === 'forget') return html(res, 200, confirmForgetPage(deps.script, language));
+  if (action === 'export') {
+    // To the address the recaps go to, and nowhere else. This page is
+    // reachable by whoever is holding the phone, so a form that could send
+    // somebody's record to an address typed into it would not be a data
+    // export, it would be a way to read a stranger's week.
+    await emailEverything(deps, phone, caller.email);
+    return html(res, 200, donePage(deps.script.get('page.export.sent') ?? '', deps.script, language));
+  }
+  if (action === 'email') {
+    // The one thing a call cannot take: an address spelled out loud.
+    // SCRIPT.md §7 — a Norwegian name letter by letter down a phone line cost
+    // one call ninety seconds and still got it wrong.
+    //
+    // No verification mail. The link that opened this page was sent to their
+    // number, which is what this product treats as identity; an address is
+    // where a letter goes, not a way in. Getting it wrong costs one recap and
+    // is fixed by typing it again.
+    const typed = (form.get('email') ?? '').trim();
+    if (!EMAIL.test(typed)) return await page(caller.email, 'page.email.bad');
+    await deps.store.upsertProfile(phone, { email: typed });
+    log('caller.email_set', {});
+    return await page(typed, 'page.email.saved');
+  }
+  if (action === 'goals') {
+    // Added to what the first call wrote down, never shown back: this page
+    // opens for whoever has the link, and the list is theirs. SCRIPT.md §19.
+    const line = (form.get('goals') ?? '').replace(/\s+/g, ' ').trim().slice(0, GOALS_MAX);
+    if (before || !line) return await page();
+    const added = await (deps.store as PostgresStore).addToGoals(phone, line);
+    log('caller.goals_added', { outcome: added });
+    return await page(undefined, undefined, { goalsNote: added === 'added' ? 'page.goals.saved' : 'page.goals.full' });
+  }
+  if (action === 'stop-cancel') return await page();
+  if (action === 'forget-confirm') {
+    await (deps.store as PostgresStore).forget(phone);
+    log('caller.forgotten', {});
+    return html(res, 200, forgottenPage(deps.script, language));
+  }
+  // Neither is on the page before the first call, and neither means anything
+  // there: SKIP writes nothing, so the call would come anyway, and "later"
+  // rings eight hours from now for a call that may be days away.
+  if ((action === 'skip' || action === 'later') && before) return await page();
+
+  const said = phraseFor(form);
+  if (!said) return await page();
+  // Straight through the same path a text would take, so the two ways of
+  // moving a call cannot drift apart.
+  const out = await handleReply(phone, said, slot, { ...deps, sms: silent }, new Date());
+  // Stopping gets its own page because it is the one outcome that has to
+  // carry the way back: somebody who stopped by texting STOP has a number the
+  // carrier will not deliver to, so START cannot reach them and this link is
+  // all they have left.
+  if (out.action === 'stopped') return html(res, 200, stoppedPage(deps.script, language, via));
+  if (out.action === 'started') return await page();
+  return html(res, 200, donePage(out.said, deps.script, language));
 }
 
 /**

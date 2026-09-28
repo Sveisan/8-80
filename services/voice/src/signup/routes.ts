@@ -10,11 +10,13 @@ import type { LoopDeps } from '../loop/deps.ts';
 import { readSignup } from './form.ts';
 import { Limiter } from './limit.ts';
 import { Pending } from './pending.ts';
-import { codePage, signupPage, welcomePage } from './page.ts';
+import { codePage, signupPage } from './page.ts';
+import { browserCookie } from '../link/cookie.ts';
 
 export interface Answer {
   status: number;
   body: string;
+  headers?: Record<string, string>;
 }
 
 const HOUR = 3600_000;
@@ -146,7 +148,13 @@ export async function signupRoutes(
     }
 
     log('signup.completed', { trialDays: TRIAL_DAYS });
-    return { status: 200, body: welcomePage(signup, first, script) };
+
+    // Straight to their own page, remembered for the week before the first
+    // call — the time it arrives, a time that suits better, where the recap
+    // goes. A redirect rather than the page in this response, so a reload
+    // does not post the code again. What the cookie is and is not: link/cookie.ts.
+    const browser = await new Links(store.raw).mint(phoneKey(signup.phone), now, 'browser');
+    return { status: 303, body: '', headers: { location: '/me', 'set-cookie': browserCookie(browser) } };
   }
 
   return undefined;

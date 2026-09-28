@@ -167,6 +167,15 @@ export class Scheduler {
     return { weekday: row.slot_weekday, minute: row.slot_minute, timezone: row.timezone };
   }
 
+  /** When the phone next rings, for saying so on the page. Nothing when there is no call due. */
+  async nextCallFor(phone: string): Promise<Date | undefined> {
+    const rows = await this.sql<{ next_call_at: Date | null }[]>`
+      select next_call_at from callers where phone_hash = ${phoneKey(phone)} limit 1
+    `;
+    const at = rows[0]?.next_call_at;
+    return at ? new Date(at) : undefined;
+  }
+
   /** Their choice to stop. The slot stays, so resuming is not re-entering it. */
   async setPaused(phone: string, paused: boolean): Promise<void> {
     await this.sql`update callers set paused = ${paused}, updated_at = now() where phone_hash = ${phoneKey(phone)}`;

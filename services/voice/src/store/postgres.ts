@@ -336,6 +336,38 @@ export class PostgresStore implements Store {
     });
   }
 
+  /**
+   * Add to this year's goals, from the page, in their words.
+   *
+   * Added to, never replaced: the list is what they said on the first call,
+   * and a form that overwrote it would lose that for the sake of one line
+   * typed on a train. The page never shows the list back — it opens for
+   * whoever holds the link — so appending is also the only edit it can offer
+   * honestly: you cannot edit what you are not shown.
+   *
+   * Read and written under a row lock, because the column is encrypted and
+   * the database cannot append to ciphertext; two taps must not each read the
+   * old list and the second write drop the first line.
+   *
+   * 'full' when the result would pass `cap`. The list goes into the call's
+   * prompt whole, so it is bounded here rather than trimmed where nobody sees.
+   */
+  async addToGoals(phone: string, line: string, cap = 2000): Promise<'added' | 'full' | 'unknown'> {
+    const hash = phoneKey(phone);
+    return await this.raw.begin(async (tx) => {
+      const rows = await tx<{ goals_enc: string | null }[]>`
+        select goals_enc from callers where phone_hash = ${hash} for update
+      `;
+      const row = rows[0];
+      if (!row) return 'unknown' as const;
+      const before = row.goals_enc ? decrypt(row.goals_enc) : '';
+      const after = before ? `${before}\n${line}` : line;
+      if (after.length > cap) return 'full' as const;
+      await tx`update callers set goals_enc = ${encrypt(after)}, updated_at = now() where phone_hash = ${hash}`;
+      return 'added' as const;
+    });
+  }
+
   async phoneFor(phoneHash: string): Promise<string | undefined> {
     const rows = await this.db
       .select({ enc: callers.phoneEnc })

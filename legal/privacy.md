@@ -45,6 +45,12 @@ long it ran, and a short note if it failed. Never anything you said.
 Squeezy's subscription and customer ids. No card details ever reach us — they
 never touch our servers at all.
 
+**One cookie, on the browser you signed up with**, so that browser opens your
+page for the week before your first call without a link. It holds a random code
+and nothing else, lasts seven days, and is withdrawn when you delete everything.
+It can move or stop your calls; it cannot send a copy of your data or delete it,
+which only the link in a text can. No other cookie, and no analytics.
+
 **Recordings and transcripts of the call are not stored by us.** Our voice
 supplier sends us a transcript when a call ends, we take the one commitment
 (and the answers above, when they were read back to you) out of it, and the raw
@@ -88,7 +94,7 @@ transfer data under the European Commission's standard contractual clauses.
 
 Your record stays until you delete it or ask us to. Transcripts, fourteen days.
 An abandoned sign-up that never confirmed its code, ten minutes. A reschedule
-link, a week.
+link, a week. The cookie on the browser you signed up with, a week.
 
 If you stop the calls, we keep your record so that starting again is one tap
 rather than a re-registration. If you would rather it were gone, say so — see
