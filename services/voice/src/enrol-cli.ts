@@ -2,7 +2,7 @@ import { config } from './config.ts';
 import { Scheduler } from './schedule/scheduler.ts';
 import { parseLocalTime, parseWeekday } from './schedule/time.ts';
 import { PostgresStore, phoneKey } from './store/postgres.ts';
-import { hasKey } from './store/crypto.ts';
+import { decrypt, hasKey } from './store/crypto.ts';
 import { Links } from './link/token.ts';
 import { loadScript } from './script.ts';
 import { openSms } from './sms/index.ts';
@@ -46,20 +46,48 @@ if (!hasKey()) fail('DATA_ENCRYPTION_KEY is not set — a number would go to dis
 const store = new PostgresStore(config.database.url);
 const scheduler = new Scheduler(store.raw);
 
+/** A number somebody who knows it would recognise, and nobody else. */
+function safe(enc: string): string {
+  if (!hasKey()) return '(encrypted)';
+  try {
+    const phone = decrypt(enc);
+    // First three characters and last three, and no attempt to find where the
+    // country code ends. Country codes are one to three digits and nothing in
+    // the number says which, so a regex guessing at it prints "+479" for a
+    // Norwegian number — a wrong country, stated confidently.
+    return `${phone.slice(0, 3)}${'·'.repeat(Math.max(1, phone.length - 6))}${phone.slice(-3)}`;
+  } catch {
+    // A row written under a different key. Worth saying so rather than
+    // printing nothing, because it means that caller cannot be rung either.
+    return '(unreadable)';
+  }
+}
+
 try {
   if (has('list')) {
     const rows = await store.raw<
-      { call_number: number; timezone: string | null; slot_weekday: number | null; slot_minute: number | null; next_call_at: Date | null; paused: boolean; rehearse_first_call: boolean }[]
-    >`select call_number, timezone, slot_weekday, slot_minute, next_call_at, paused, rehearse_first_call from callers order by next_call_at`;
+      { phone_enc: string; call_number: number; timezone: string | null; slot_weekday: number | null; slot_minute: number | null; next_call_at: Date | null; paused: boolean; rehearse_first_call: boolean }[]
+    >`select phone_enc, call_number, timezone, slot_weekday, slot_minute, next_call_at, paused, rehearse_first_call from callers order by next_call_at`;
     if (!rows.length) console.log('Nobody is enrolled.');
     for (const r of rows) {
       const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
       const slot = r.slot_weekday === null || r.slot_minute === null
         ? 'no slot'
         : `${days[r.slot_weekday]} ${String(Math.floor(r.slot_minute / 60)).padStart(2, '0')}:${String(r.slot_minute % 60).padStart(2, '0')} ${r.timezone}`;
-      // No numbers and no names: a terminal is a screen somebody else can see.
+      // The country code and the last three digits, and nothing between.
+      //
+      // This printed nothing identifying at all, on the reasoning that a
+      // terminal is a screen somebody else can see. That reasoning holds and
+      // the line still obeys it — but it also made an ordinary question
+      // unanswerable: which of these rows is a test number and which is a
+      // person about to be rung for the first time. Three digits settle that
+      // for whoever already knows the number and tell a stranger nothing.
+      //
+      // Never the whole number. A list of everybody's number on one screen is
+      // the export this product refuses to build.
+      const n = safe(r.phone_enc);
       console.log(
-        `call #${r.call_number}  ${slot}${r.paused ? '  (paused)' : ''}${r.rehearse_first_call ? '  (rehearsing the first call)' : ''}  next: ${r.next_call_at?.toISOString() ?? 'never'}`,
+        `${n}  call #${r.call_number}  ${slot}${r.paused ? '  (paused)' : ''}${r.rehearse_first_call ? '  (rehearsing the first call)' : ''}  next: ${r.next_call_at?.toISOString() ?? 'never'}`,
       );
     }
     process.exit(0);

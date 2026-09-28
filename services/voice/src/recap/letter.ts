@@ -102,15 +102,28 @@ const INK: Record<RecapRole, string> = {
  * from broken markup.
  */
 export function letterHtml(recap: Recap, options: LetterOptions = {}): string {
+  // The mark centred and alone, the way the sign-up page carries it.
+  //
+  // It sat on the left with the name beside it and the date opposite. The name
+  // is gone for the same reason it went from the page: the letter says who it
+  // is from in its own sign-off, and setting it twice in four inches reads as
+  // stationery rather than correspondence. `alt` carries the name, so a client
+  // with images off still shows it.
+  //
+  // Three cells rather than two, and the empty one is load-bearing: a centred
+  // cell between two of equal width is centred on the page, and without the
+  // left one the date would push the mark off true. Email has no flexbox.
+  // Wide enough for the longest date this writes — "28 September 2026" — and
+  // matched on both sides. At 90px it wrapped onto two lines with the mark
+  // stranded between them.
+  const gutter = `<td width="130" style="width:130px;">&nbsp;</td>`;
   const ball = options.markUrl
-    // No border-radius: the PNG is already a circle on transparency, and
-    // Outlook ignores the property anyway — so it can only ever hide a mistake
-    // in the image from us while showing it to half the recipients.
-    ? `<td style="width:40px;padding:0 13px 0 0;line-height:0;"><img src="${esc(options.markUrl)}" width="40" height="40" alt="" style="display:block;border:0;" /></td>`
-    : '';
-  const date = options.date
-    ? `<td align="right" style="font:400 12px/40px ${FONT};letter-spacing:0.06em;color:${C.quiet};" class="quiet">${esc(options.date)}</td>`
-    : '';
+    // No border-radius: the PNG is already drawn on transparency, and Outlook
+    // ignores the property anyway — so it could only ever hide a mistake in
+    // the image from us while showing it to half the recipients.
+    ? `<td align="center" style="line-height:0;"><img src="${esc(options.markUrl)}" width="40" height="40" alt="8&amp;80" style="display:block;border:0;margin:0 auto;" /></td>`
+    : `<td align="center" style="font:700 13px/40px ${FONT};letter-spacing:0.16em;color:${C.accent};" class="wordmark">8&amp;80</td>`;
+  const date = `<td align="right" width="130" style="width:130px;white-space:nowrap;font:400 12px/40px ${FONT};letter-spacing:0.06em;color:${C.quiet};" class="quiet">${options.date ? esc(options.date) : '&nbsp;'}</td>`;
 
   // From the options or from the letter itself. Carrying it on the Recap means
   // every sender does not have to remember to forward it, and forgetting would
@@ -195,8 +208,7 @@ export function letterHtml(recap: Recap, options: LetterOptions = {}): string {
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:500px;">
           <tr><td style="padding:0 0 14px;">
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
-              ${ball}<td style="font:700 13px/40px ${FONT};letter-spacing:0.16em;color:${C.accent};" class="wordmark">8&amp;80</td>
-              ${date}
+              ${gutter}${ball}${date}
             </tr></table>
           </td></tr>
           <tr><td style="border-top:2px solid ${C.gold};font-size:0;line-height:0;">&nbsp;</td></tr>

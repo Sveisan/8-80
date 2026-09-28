@@ -42,7 +42,23 @@ test('the wordmark is live text, so the brand survives a blocked image', () => {
 test('the mark is included only when there is somewhere to load it from', () => {
   const html = letterHtml(withCommitment, { markUrl: 'https://example.test/mark.png' });
   assert.ok(html.includes('src="https://example.test/mark.png"'));
-  assert.ok(html.includes('alt=""'), 'decorative — the wordmark beside it already says the name');
+  // It used to be decorative, because the name was set beside it. The name is
+  // gone, so the mark is now the only thing at the top of this letter saying
+  // who it is from — and most clients block images by default. The alt text is
+  // what a letterhead becomes when the image does not load.
+  assert.ok(html.includes('alt="8&amp;80"'), 'with images off the letterhead says nothing at all');
+});
+
+test('the letterhead is a mark alone, centred, with the date opposite', () => {
+  // Matched to the sign-up page on the owner's instruction: mark centred, no
+  // name beside it. Centring in email is a three-cell table with an empty cell
+  // on the left — there is no flexbox here, and without that cell the date
+  // pushes the mark off true.
+  const html = letterHtml(withCommitment, { markUrl: 'https://example.test/mark.png', date: '27 September 2026' });
+  const head = html.slice(0, html.indexOf('You said'));
+  assert.equal((head.match(/8&amp;80/g) ?? []).length, 1, 'the name is at the top twice again');
+  assert.match(head, /<img[^>]*align|align="center"[^>]*>\s*<img/, 'the mark is not centred');
+  assert.ok(head.includes('27 September 2026'), 'the date left the letterhead');
 });
 
 /** The px size of the cell a given sentence is set in. */
