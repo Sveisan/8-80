@@ -1,5 +1,6 @@
 import type { ScriptLines } from '../script.ts';
 import type { Slot } from '../schedule/time.ts';
+import { BUSY, BUSY_CSS, MOTION, busyLabel } from '../signup/mascot.ts';
 
 /** Weekday names come from the locale, not from a list in this file. */
 const dayNames = (language: string): string[] => {
@@ -49,7 +50,7 @@ export function reschedulePage(
     <p class="now">${esc((script.get('page.usually') ?? '').replace('{{when}}', when))}</p>
 
     <form method="post">
-      <button name="action" value="later" class="primary">${say('page.later')}</button>
+      <button name="action" value="later" class="primary">${busyLabel(say('page.later'))}</button>
     </form>
 
     <form method="post" class="move">
@@ -60,7 +61,7 @@ export function reschedulePage(
         </select>
         <input type="time" name="time" value="${clock(slot.minute)}" required />
       </div>
-      <button name="action" value="move">${say('page.move')}</button>
+      <button name="action" value="move">${busyLabel(say('page.move'))}</button>
       <label class="always"><input type="checkbox" name="always" value="1" /> ${say('page.always')}</label>
     </form>
 
@@ -69,7 +70,7 @@ export function reschedulePage(
       <div class="row">
         <input type="email" id="email" name="email" value="${esc(email ?? '')}" placeholder="you@example.com" />
       </div>
-      <button name="action" value="email">${say('page.email.save')}</button>
+      <button name="action" value="email">${busyLabel(say('page.email.save'))}</button>
       ${note ? `<p class="now">${say(note)}</p>` : ''}
     </form>
 
@@ -110,10 +111,10 @@ export function confirmStopPage(script: ScriptLines, language = 'en'): string {
     `<h1>${say('page.stop.confirm')}</h1>
      <p class="now">${say('page.stop.detail')}</p>
      <form method="post">
-       <button name="action" value="stop-confirm" class="primary">${say('page.stop.yes')}</button>
+       <button name="action" value="stop-confirm" class="primary">${busyLabel(say('page.stop.yes'))}</button>
      </form>
      <form method="post">
-       <button name="action" value="stop-cancel">${say('page.stop.no')}</button>
+       <button name="action" value="stop-cancel">${busyLabel(say('page.stop.no'))}</button>
      </form>`,
     language,
   );
@@ -153,10 +154,10 @@ export function confirmForgetPage(script: ScriptLines, language = 'en'): string 
     `<h1>${say('page.forget.confirm')}</h1>
      <p class="now">${say('page.forget.detail')}</p>
      <form method="post">
-       <button name="action" value="forget-confirm" class="primary">${say('page.forget.yes')}</button>
+       <button name="action" value="forget-confirm" class="primary">${busyLabel(say('page.forget.yes'))}</button>
      </form>
      <form method="post">
-       <button name="action" value="stop-cancel">${say('page.forget.no')}</button>
+       <button name="action" value="stop-cancel">${busyLabel(say('page.forget.no'))}</button>
      </form>`,
     language,
   );
@@ -241,6 +242,7 @@ function shell(body: string, language = 'en'): string {
   }
   button.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
   button.quiet { border: 0; color: var(--quiet); }
+  ${BUSY_CSS}
   .always { display: flex; align-items: center; gap: .5rem; margin-top: .6rem; }
   .always input { width: auto; }
   .move { border-top: 1px solid var(--line); padding-top: 1.25rem; }
@@ -249,6 +251,6 @@ function shell(body: string, language = 'en'): string {
   .stop { margin-top: .25rem; }
 </style>
 </head>
-<body><main>${body}</main></body>
+<body><main>${body}</main>${BUSY}${MOTION}</body>
 </html>`;
 }

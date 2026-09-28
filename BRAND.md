@@ -188,27 +188,52 @@ the email stack is a system stack and the wordmark is live text. See §9.
 
 ---
 
-## 8. The talking orb
+## 8. The mark in motion
 
-Wherever 8&80 speaks on a screen, the gold dot becomes the voice, and the line is the track
-it moves on. Four states, one calm motion language — and **waiting is a state in its own
-right.**
+Wherever 8&80 is doing something on a screen — loading, sending, talking, waiting for you —
+the mark moves, and it moves one way only: **the loops trade sizes.** The small loop swells
+into the big one while the big one draws in, and the gold dot, the child, rides through the
+crossing into whichever loop is small. Halfway it is a plain, symmetric infinity. The eight
+leads, then the eighty does.
 
-- **Resting** — the dot sits in the small loop and breathes once every six seconds.
-  Present, not busy.
-- **Speaking** — the dot travels the line, out through the crossing and round the big loop,
-  at the pace of the voice. It slows at the crossing; it never races.
-- **Listening** — the dot stops, and a thin ring in the ink colour answers your voice
-  around it. The line stays still.
-- **Waiting** — the dot is back in the small loop and a gold halo breathes once every five
-  seconds. Still here, in no hurry. **It never fills the silence.**
+It never spins. A turning mark is a loading wheel, and a loading wheel says "wait for the
+machine"; two ages taking turns says "we are on it, together".
 
-Everything eases; nothing snaps. With `prefers-reduced-motion`, the dot stays put and only
-the rings change.
+One component, five moods — `services/voice/src/signup/mascot.ts`:
 
-The waiting state is the identity's whole argument in one animation. SCRIPT.md §5 tells the
-mentor to let a pause run; a dot that raced round the loop through that pause would be
-arguing the opposite on the same screen.
+| Mood | What it does | Where |
+| --- | --- | --- |
+| `rest` | Still | Anywhere the mark is just the mark |
+| `idle` | Trades once and back every twelve seconds | Page headers — alive, never busy |
+| `wait` | Trades steadily, 2.8s a round trip | Loading, sending — a pressed button shows it in place of its label |
+| `talk` | Trades faster, 1.4s | The mentor speaking or typing |
+| `nudge` | One quick trade and back, twice, then a long rest | Beside the one thing a person needs to do next, like "check your texts" |
+
+The mascot is the mark doing a job, not a character: no face, no eyes, no bounce, no
+speech bubble. It only ever says "working" or "your move".
+
+Rules:
+
+- **Waiting is a state, and it is quiet.** `nudge` asks once and then rests for four
+  seconds; it never loops continuously beside a person's own task. SCRIPT.md §5 tells the
+  mentor to let a pause run, and a mark that pulsed through that pause would be arguing the
+  opposite on the same screen.
+- **Less motion, when asked.** The animations wait for `begin="indefinite"` and start only
+  if `prefers-reduced-motion` is not set, so with the request, or with scripts off, the mark
+  stands still and is complete standing still. The standalone files below cannot check, so
+  a page using one shows `mark.svg` under `@media (prefers-reduced-motion: reduce)`.
+- **SMIL, not CSS.** Safari cannot animate a path's shape from CSS, and the page is most
+  often opened on an iPhone.
+- **The same colourways as §5.** On a Gold button the dot turns Paper and the line Night,
+  as it does on any Gold ground.
+- **Never in email or the favicon.** Email cannot animate, and at favicon size the trade is
+  a flicker.
+
+Why a warp works where the first attempt, a morph against the mirror image, collapsed into a
+vertical bar: the traded drawing is traced in the same order as the original, left loop then
+right, each from the crossing, so every point moves only within its own loop. Morphing
+against the plain mirror pairs each loop with the other, and halfway every x lands on the
+axis.
 
 ---
 
@@ -321,31 +346,11 @@ through `<img>` it falls back to black. Inline it, or set `stroke` and `fill` at
 site. The sign-up page inlines the mark with a `currentColor` line for the same reason, so
 one drawing follows the theme.
 
-### The mark in motion
-
-The animated files turn the mark half a turn every nine seconds, hold, and turn again: the
-small loop crosses to the other side, so the eight leads, then the eighty does. It passes
-through the upright 8 on the way, which is the figure the name is written in.
-
-It is a rotation and not a morph, and that is not a stylistic choice. Interpolating the
-mark against its own mirror sends every x to the axis at the midpoint and the drawing
-collapses into a vertical bar. Turning keeps the real drawing in every frame.
-
-Three rules:
-
-- **The web header, and nothing else.** Email cannot animate, a favicon cannot animate, and
-  at 30px the turn is illegible. `mark.svg` remains the mark.
-- **The animated files are square** — `viewBox="12 12 96 96"` against the static mark's
-  `12 31 96 58` — because a mark that lies down needs its own width in height once it is a
-  quarter of the way round. The first version clipped the loops flat every nine seconds.
-  Size them by width and let the height follow.
-- **Somebody who has asked for less motion must get less motion.** SMIL cannot be switched
-  off from inside the file, so the page shows `mark.svg` under
-  `@media (prefers-reduced-motion: reduce)` and the animated one otherwise. A logo that
-  will not stop is the same failure as a call that will not stop.
-
-Generated by `brand/animate-mark.py` from the static marks, so the moving drawing cannot
-drift from the still one. Rerun it after any change to a mark.
+The animated files are generated by `brand/animate-mark.py` from the static marks, so the
+moving drawing cannot drift from the still one; rerun it after any change to a mark. For each
+of `mark`, `mark-on-night`, `mark-on-gold` and `mark-badge` it writes `-animated.svg` (the
+`idle` mood) and `-loading.svg` (the `wait` mood). They keep the static mark's proportions: a
+warp never leaves the mark's own box. §8 has the rules.
 
 `mark-email.png` is produced by `brand/render-mark.py`, which reads the circles and the
 path out of the SVG rather than restating them, so the export cannot quietly disagree with
