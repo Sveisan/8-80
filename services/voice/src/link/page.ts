@@ -19,12 +19,12 @@ const clock = (minute: number): string =>
 const WEEK = [1, 2, 3, 4, 5, 6, 0];
 
 /**
- * Every half hour from six to ten, the row the sign-up page offers, plus the
+ * Every quarter hour from six to ten, the row the sign-up page offers, plus the
  * slot itself when it sits between them — a call moved by text to 07:15 must
  * still show as chosen, not as nothing.
  */
 const timesFor = (minute: number): string[] => {
-  const grid = Array.from({ length: 33 }, (_, i) => 360 + i * 30);
+  const grid = Array.from({ length: 65 }, (_, i) => 360 + i * 15);
   return [...new Set([...grid, minute])].sort((a, b) => a - b).map(clock);
 };
 
@@ -420,7 +420,7 @@ function shell(body: string, language = 'en'): string {
   legend { padding: 0; margin: 0 0 .5rem; font-size: .95rem; color: var(--quiet); }
   .days { display: grid; grid-template-columns: repeat(7, 1fr); gap: .3rem; }
   .times {
-    display: flex; gap: .3rem; margin-top: .5rem; padding: .1rem 0;
+    display: flex; gap: .3rem; margin-top: .5rem; padding: .1rem 1.5rem; scroll-padding-inline: 1.5rem;
     overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none; overscroll-behavior-x: contain;
     -webkit-mask-image: linear-gradient(90deg, transparent, #000 1.5rem, #000 calc(100% - 1.5rem), transparent);
     mask-image: linear-gradient(90deg, transparent, #000 1.5rem, #000 calc(100% - 1.5rem), transparent);

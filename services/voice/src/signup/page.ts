@@ -18,12 +18,43 @@ const dayNames = (language: string, weekday: 'long' | 'short' = 'long'): string[
 const WEEK = [1, 2, 3, 4, 5, 6, 0];
 
 /**
- * Every half hour from six in the morning to ten at night, as one row of
+ * Every quarter hour from six in the morning to ten at night, as one row of
  * radio buttons you swipe along. Numbers only, so there is no English here,
  * and radios, so it works with scripts off. A call outside these hours can be
- * moved to from the link in any text.
+ * moved to from the link in any text. Quarters rather than halves: the
+ * owner's call on 2026-09-29, so "in twenty minutes" is on the row.
  */
-const TIMES = Array.from({ length: 33 }, (_, i) => clock(360 + i * 30));
+const FIRST = 6 * 60;
+const LAST = 22 * 60;
+const TIMES = Array.from({ length: (LAST - FIRST) / 15 + 1 }, (_, i) => clock(FIRST + i * 15));
+
+/** Where the page opens: today, in Norway, the way the product is run. */
+const HOME = 'Europe/Oslo';
+
+/**
+ * Today, and the first quarter hour at least fifteen minutes from now, in
+ * Oslo — what the day and time rows start on, so the page opens at "now"
+ * rather than on a Tuesday somebody has to scroll away from.
+ *
+ * Fifteen minutes of margin because the code still has to arrive and be typed:
+ * a time that has passed by the moment the sign-up completes would quietly
+ * make the first call next week. Outside the row's hours the time falls back
+ * to 08:00 and the first call is that day next week; today stays marked.
+ */
+export function startingPoint(now: Date): { weekday: string; time: string } {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: HOME,
+    weekday: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(now);
+  const get = (type: string): string => parts.find((p) => p.type === type)?.value ?? '';
+  const weekday = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(get('weekday'));
+  const minute = Number(get('hour')) * 60 + Number(get('minute'));
+  const next = Math.max(FIRST, Math.ceil((minute + 15) / 15) * 15);
+  return { weekday: String(weekday), time: next <= LAST ? clock(next) : '08:00' };
+}
 
 /**
  * Questions under the form, for anything the page used to say above it.
@@ -69,7 +100,12 @@ export interface SignupFormState {
  * Errors sit under the field they belong to, so somebody who mistyped their
  * number on a small screen does not have to scroll to find out which one.
  */
-export function signupPage(script: ScriptLines, state: SignupFormState = {}, language = 'en'): string {
+export function signupPage(
+  script: ScriptLines,
+  state: SignupFormState = {},
+  language = 'en',
+  now = new Date(),
+): string {
   const say = (id: string): string => esc(script.get(id) ?? '');
   const long = dayNames(language, 'long');
   const short = dayNames(language, 'short');
@@ -79,8 +115,9 @@ export function signupPage(script: ScriptLines, state: SignupFormState = {}, lan
     const key = wrong.get(field);
     return key ? `<p class="wrong" id="${field}-wrong">${say(key)}</p>` : '';
   };
-  const weekday = v.weekday || '2';
-  const time = TIMES.includes(v.time ?? '') ? (v.time as string) : '08:00';
+  const start = startingPoint(now);
+  const weekday = v.weekday || start.weekday;
+  const time = TIMES.includes(v.time ?? '') ? (v.time as string) : start.time;
   const faq = FAQ.filter(([q, a]) => script.get(q) && script.get(a));
   const inFaq = (answer: string): boolean => faq.some(([, a]) => a === answer);
   const headline = script.get('signup.headline') ? 'signup.headline' : 'signup.title';
@@ -325,7 +362,7 @@ function shell(body: string, language = 'en'): string {
   fieldset { margin-top: 1.75rem; }
   .days { display: grid; grid-template-columns: repeat(7, 1fr); gap: .3rem; }
   .times {
-    display: flex; gap: .3rem; margin-top: .5rem; padding: .1rem 0;
+    display: flex; gap: .3rem; margin-top: .5rem; padding: .1rem 1.5rem; scroll-padding-inline: 1.5rem;
     overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none; overscroll-behavior-x: contain;
     -webkit-mask-image: linear-gradient(90deg, transparent, #000 1.5rem, #000 calc(100% - 1.5rem), transparent);
     mask-image: linear-gradient(90deg, transparent, #000 1.5rem, #000 calc(100% - 1.5rem), transparent);

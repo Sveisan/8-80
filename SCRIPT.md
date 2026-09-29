@@ -1273,22 +1273,25 @@ about tone._
 > "A weekly phone call with the two people who know you best"
 
 `signup.what`
-> "Who you were at eight, and who you'll be at eighty. One call a week: what you said
-> you'd do, what happened, and the one thing for next week."
+> "A weekly accountability call from the two people with the most riding on you: you at
+> eight, and you at eighty. Fifteen minutes, same time every week. What you said you'd
+> do, what actually happened, and the one thing for next week. No app, no streaks, nobody
+> clapping."
 
 `signup.after`
-> "A short recap lands in your inbox afterwards: what you talked about, and the one thing
-> you said you'd do."
+> "A short email with the one thing you said you'd do, in your own words. Handy when next
+> week's call asks how it went."
 
 `signup.free`
-> "The first month is free, and we don't ask for a card."
+> "Nothing for the first month, and we don't ask for a card. After that, you decide whether
+> it's earned its fifteen minutes."
 
 _Said once, near the button, and never again. A free trial repeated three times on one
 page is a page that does not believe its own offer._
 
 `signup.honest`
-> "The voice on the call is an AI. It remembers what you said last week, and nothing you
-> say goes anywhere else."
+> "An AI, and it won't pretend otherwise. It remembers what you promised last week —
+> that's rather the point — and it doesn't pass any of it on."
 
 _Non-negotiable and above the fold, not in a footer. §11 spends an entire call refusing to
 pretend to be a person; a sign-up page that lets somebody find out later would undo it
@@ -1313,8 +1316,8 @@ to read it, not that it sit in any particular place._
 > "When suits you?"
 
 `signup.when.detail`
-> "Same time every week. You can move any call, or stop the whole thing, from a link in
-> every text I send."
+> "Move it. Every text I send has a link: another time, or stop the whole thing. One tap,
+> no phone tree, no hard feelings."
 
 `signup.submit`
 > "Book my first call"
@@ -1439,24 +1442,32 @@ and the headline is one line, which is what happens today for `signup.title`._
 
 _Shown inside the email field. "Where the recap goes" was a description, not a label._
 
+_2026-09-29, owner's decision: the answers read as written by a machine, and "What is
+this?" most of all. Rewritten for personality — the accountability, the eight and the
+eighty, and the three beats of the call said together — inside the voice rules: no
+exclamation marks, no praise, and the one joke per line at nobody's expense. "Nobody
+clapping" is the voice rules' "never congratulate someone for showing up", said to a
+stranger.
+The honesty answer still says "an AI" in its first two words; only the tone moved._
+
 `signup.faq.ai`
-> "Who is on the other end?"
+> "Who's on the other end?"
 
 _Answered by `signup.honest`. It is first in the list on purpose: with the honesty line no
 longer above the form, it is the first thing anyone who opens the questions reads._
 
 `signup.faq.what`
-> "What is this?"
+> "What is this, actually?"
 
 _Answered by `signup.what`._
 
 `signup.faq.recap`
-> "What do I get after a call?"
+> "What happens after the call?"
 
 _Answered by `signup.after`._
 
 `signup.faq.move`
-> "What if the time stops working?"
+> "What if the time stops suiting me?"
 
 _Answered by `signup.when.detail`._
 

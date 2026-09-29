@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { loadScript } from '../src/script.ts';
 import { readSignup } from '../src/signup/form.ts';
 import { Limiter } from '../src/signup/limit.ts';
-import { signupPage, codePage } from '../src/signup/page.ts';
+import { signupPage, codePage, startingPoint } from '../src/signup/page.ts';
 
 const script = loadScript();
 const form = (o: Record<string, string>) => new URLSearchParams(o);
@@ -75,11 +75,11 @@ test('the sign-up page says it is an AI, first among its questions', () => {
   // comes first there. So the requirement is unchanged and this test is how it
   // is held: a page that buries it fourth fails, as does one that drops it.
   const page = signupPage(script);
-  assert.ok(page.includes('is an AI'), 'the page no longer says what is on the other end');
+  assert.match(page, /\ban AI\b/i, 'the page no longer says what is on the other end');
 
   const first = /<summary[^>]*>([\s\S]*?)<\/summary>/.exec(page)?.[1] ?? '';
   assert.ok(first, 'no questions on the page — this test is checking nothing');
-  assert.match(first, /Who is on the other end\?/, `the first question is "${first.trim()}"`);
+  assert.match(first, /Who&#39;s on the other end\?/, `the first question is "${first.trim()}"`);
   assert.ok(page.includes("ask for a card"), "the free month is stated near the button");
 });
 
@@ -223,4 +223,22 @@ test('the reachability probe retries a 5xx, because a deploy makes one', async (
   const outside = readFileSync(resolve(repoRoot, 'services/voice/src/outside.ts'), 'utf8');
   assert.match(outside, /res\.status < 500/, 'a sub-500 answer is returned immediately');
   assert.match(outside, /ATTEMPTS = [2-9]/, 'and a 5xx is tried again');
+});
+
+test('the day and time rows open on today and the next quarter hour, in Norway', () => {
+  // 10:07 in Oslo on a Tuesday (CEST): fifteen minutes on is 10:22, so 10:30.
+  assert.deepEqual(startingPoint(new Date('2026-09-29T08:07:00Z')), { weekday: '2', time: '10:30' });
+  // Winter time, an hour behind summer's offset: 10:00 in Oslo is 10:15.
+  assert.deepEqual(startingPoint(new Date('2026-12-01T09:00:00Z')), { weekday: '2', time: '10:15' });
+  // Before the row starts, its first time, today.
+  assert.deepEqual(startingPoint(new Date('2026-09-29T02:00:00Z')), { weekday: '2', time: '06:00' });
+  // After it ends, today stays marked and the time falls back.
+  assert.deepEqual(startingPoint(new Date('2026-09-29T20:50:00Z')), { weekday: '2', time: '08:00' });
+  // Just before midnight UTC is already Wednesday in Oslo.
+  assert.equal(startingPoint(new Date('2026-09-29T22:30:00Z')).weekday, '3');
+
+  const page = signupPage(script, {}, 'en', new Date('2026-09-29T08:07:00Z'));
+  assert.match(page, /name="weekday" value="2" checked/, 'today is marked');
+  assert.match(page, /name="time" value="10:30" checked/, 'and the next quarter hour');
+  assert.match(page, /value="10:45"/, 'quarter hours, not halves');
 });
