@@ -242,3 +242,15 @@ test('the day and time rows open on today and the next quarter hour, in Norway',
   assert.match(page, /name="time" value="10:30" checked/, 'and the next quarter hour');
   assert.match(page, /value="10:45"/, 'quarter hours, not halves');
 });
+
+test('the times say which clock they are on', async () => {
+  // A time with no zone is a time somebody abroad reads as theirs and is
+  // booked as ours. Norwegian by default; the page's script names another.
+  const page = signupPage(script);
+  assert.ok(page.includes(script.get('time.zone.home') ?? '\u0000'));
+  assert.ok(page.includes(`data-other="${script.get('time.zone.other')}"`), 'the other-zone line is on the page for the script');
+
+  const { reschedulePage } = await import('../src/link/page.ts');
+  assert.ok(reschedulePage({ weekday: 2, minute: 480, timezone: 'Europe/Oslo' }, script).includes('Norwegian time'));
+  assert.ok(reschedulePage({ weekday: 2, minute: 480, timezone: 'America/New_York' }, script).includes('New York time'));
+});

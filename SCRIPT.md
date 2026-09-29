@@ -1721,3 +1721,20 @@ in every text, and that is still true._
 > opens the same page."
 
 _Not an error and not a sign-in. The way in is the link, and the page says so._
+
+### Which time
+
+_Under "When suits you?" at sign-up and above the time row on the page. Every time in
+this product is on somebody's clock, and until 2026-09-29 the page never said whose — so
+somebody signing up from London saw times that looked Norwegian and were booked as
+London's. Owner's call: say it, plainly, every time the times are shown._
+
+`time.zone.home`
+> "Norwegian time"
+
+`time.zone.other`
+> "{{zone}} time"
+
+_`{{zone}}` is the place in the zone's name — "London", "New York" — which is how people
+say it. "Central European Summer Time" is correct and nobody has ever said it out loud._
+

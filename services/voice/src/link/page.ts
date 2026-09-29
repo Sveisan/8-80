@@ -141,6 +141,7 @@ export function reschedulePage(
     <form method="post" class="move">
       <fieldset>
         <legend>${say(first ? 'page.first.pick' : 'page.pick')}</legend>
+        <p class="zone">${esc(zoneLine(slot.timezone, script))}</p>
         <div class="days">
           ${WEEK.map(
             (i) => `<label class="pick">
@@ -204,6 +205,13 @@ export function reschedulePage(
   `,
     language,
   );
+}
+
+/** Which clock the times are on: "Norwegian time", or the slot's own place. SCRIPT.md §19. */
+function zoneLine(timezone: string, script: ScriptLines): string {
+  if (timezone === 'Europe/Oslo') return script.get('time.zone.home') ?? '';
+  const city = (timezone.split('/').pop() ?? timezone).replace(/_/g, ' ');
+  return (script.get('time.zone.other') ?? '').replace('{{zone}}', city);
 }
 
 /** A line added to the goals from the page. Long enough for a sentence or two, not an essay. */
@@ -417,7 +425,8 @@ function shell(body: string, language = 'en'): string {
    * so a tap is a native choice and moving a call needs no script.
    */
   fieldset { border: 0; padding: 0; margin: 0 0 .75rem; min-width: 0; }
-  legend { padding: 0; margin: 0 0 .5rem; font-size: .95rem; color: var(--quiet); }
+  legend { padding: 0; margin: 0 0 .15rem; font-size: .95rem; color: var(--quiet); }
+  .zone { margin: 0 0 .5rem; font-size: .85rem; color: var(--quiet); }
   .days { display: grid; grid-template-columns: repeat(7, 1fr); gap: .3rem; }
   .times {
     display: flex; gap: .3rem; margin-top: .5rem; padding: .1rem 1.5rem; scroll-padding-inline: 1.5rem;

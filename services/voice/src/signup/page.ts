@@ -147,8 +147,9 @@ export function signupPage(
         ${field('email', say(script.get('signup.email.short') ? 'signup.email.short' : 'signup.email'), 'email', 'autocomplete="email" autocapitalize="off" spellcheck="false" enterkeyhint="done" required')}
       </div>
 
-      <fieldset>
+      <fieldset${v.weekday || v.time ? '' : ' data-auto'} id="when">
         <legend>${say('signup.when')}</legend>
+        <p class="zone" id="zone" data-other="${say('time.zone.other')}">${say('time.zone.home')}</p>
         <div class="days">
           ${WEEK.map(
             (i) => `<label class="pick">
@@ -184,6 +185,28 @@ export function signupPage(
       // The form works without either: the zone falls back to Oslo, and the
       // row scrolls by hand.
       try { document.getElementById('tz').value = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch (e) {}
+      // Says which clock the times are on. Norwegian unless the phone is set
+      // to somewhere else, and then that place — and, if nothing has been
+      // picked yet, today and the next quarter hour on that clock instead of
+      // Oslo's, so the zone named and the time marked always agree.
+      try {
+        var zone = document.getElementById('tz').value;
+        if (zone && zone !== '${HOME}') {
+          var label = document.getElementById('zone');
+          var city = zone.split('/').pop().replace(/_/g, ' ');
+          label.textContent = label.getAttribute('data-other').replace('{{zone}}', city);
+          if (document.getElementById('when').hasAttribute('data-auto')) {
+            var d = new Date(), m = d.getHours() * 60 + d.getMinutes();
+            var next = Math.max(${FIRST}, Math.ceil((m + 15) / 15) * 15);
+            var t = next <= ${LAST} ? next : 480;
+            var hhmm = String(Math.floor(t / 60)).padStart(2, '0') + ':' + String(t % 60).padStart(2, '0');
+            var day = document.querySelector('input[name=weekday][value="' + d.getDay() + '"]');
+            var time = document.querySelector('input[name=time][value="' + hhmm + '"]');
+            if (day) day.checked = true;
+            if (time) time.checked = true;
+          }
+        }
+      } catch (e) {}
       try {
         var row = document.getElementById('times');
         var centre = function (el, smooth) {
@@ -334,6 +357,8 @@ function shell(body: string, language = 'en'): string {
   form { margin: 0 0 1rem; }
   fieldset { border: 0; padding: 0; min-width: 0; }
   fieldset legend { margin-top: 0; }
+  /* Which clock, directly under the question, quiet enough not to be a second question. */
+  .zone { margin: -.2rem 0 .5rem; font-size: .85rem; color: var(--quiet); }
   label, legend { display: block; font-size: .95rem; color: var(--quiet); margin: 1rem 0 .35rem; padding: 0; }
   input, select {
     width: 100%; min-height: 3rem; padding: .7rem .75rem; font: inherit; color: var(--ink);
