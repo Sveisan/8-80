@@ -542,8 +542,13 @@ delivery rather than a pointed one._
 ### Variant C — a prediction, not a promise (**default**)
 
 `next.ask.c`
-> "Not what you should do next week. What's one thing you'd bet on yourself actually
-> doing?"
+> "What's one thing you'll actually do before we talk next week — the one you'd put money
+> on?"
+
+_Reworded after two real callers in a row answered the old line — "Not what you should
+do next week. What's one thing you'd bet on yourself actually doing?" — with "I don't
+understand the question" and "That is a weird way of phrasing that question". The
+prediction idea survives in the last five words; the riddle does not._
 
 _Changes what is being asked for, and this is the strongest idea in the section. An
 intention can be inflated at no cost; a prediction can be wrong, and people are markedly
@@ -841,7 +846,13 @@ elaborating. Usually the mentor caused it. Name it once, lightly, and give the f
 back:
 
 `repair.not_landing`
-> "That one missed. Go back a step — what were you saying?"
+> "Let me put that another way."
+
+_It used to be "That one missed. Go back a step — what were you saying?" On three real
+calls the model reached for it when the caller had simply not heard, and it landed as a
+riddle every time. For confusion there is the repair ladder in the prompt; this line is
+only for a caller who has gone flat, and even then it is followed by a simpler question,
+not by handing them the floor._
 
 _Once per call. Said twice it becomes its own kind of performance._
 
