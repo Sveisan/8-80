@@ -50,6 +50,7 @@ export function feedbackPage(script: ScriptLines, answers: Answers, language = '
       // Dictation into the box, where the browser can. Nothing is recorded or
       // sent from here: the browser turns speech into words, and the words go
       // with the form like anything typed.
+      ${MERGE}
       try {
         var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (SR) {
@@ -67,9 +68,9 @@ export function feedbackPage(script: ScriptLines, answers: Answers, language = '
               r.continuous = true;
               r.interimResults = true;
               r.onresult = function (e) {
-                var said = '';
-                for (var i = 0; i < e.results.length; i++) said += e.results[i][0].transcript;
-                box.value = (before + said).slice(0, ${ANSWER_MAX});
+                var parts = [];
+                for (var i = 0; i < e.results.length; i++) parts.push(e.results[i][0].transcript);
+                box.value = (before + merge(parts)).slice(0, ${ANSWER_MAX});
               };
               r.onend = function () { b.textContent = label; b.classList.remove('on'); active = null; };
               r.onerror = r.onend;
@@ -85,6 +86,30 @@ export function feedbackPage(script: ScriptLines, answers: Answers, language = '
     language,
   );
 }
+
+/**
+ * The pieces a browser's dictation hands back, as one piece of text.
+ *
+ * Desktop Chrome and Safari return each stretch of speech once, and the pieces
+ * join end to end. Chrome on Android, with continuous listening, returns each
+ * new result carrying everything said so far — so joining them writes "I was
+ * on the train" as "I was I was on I was on the train". A piece that starts
+ * with what is already there replaces it; a piece that is already the end of
+ * it is dropped; anything else is added. Plain ES5 in a string, because it runs
+ * in the page, and exported so a test can run the same text.
+ */
+export const MERGE = `function merge(parts) {
+        var said = '';
+        for (var i = 0; i < parts.length; i++) {
+          var t = String(parts[i] || '').trim();
+          if (!t) continue;
+          var a = said.toLowerCase(), b = t.toLowerCase();
+          if (a && b.indexOf(a) === 0) said = t;
+          else if (a && a.slice(-b.length) === b) continue;
+          else said = said ? said + ' ' + t : t;
+        }
+        return said;
+      }`;
 
 /** After sending. Plain: no follow-up, no share, nothing to do next. */
 export function feedbackThanksPage(script: ScriptLines, language = 'en'): string {

@@ -46,9 +46,11 @@ Squeezy's subscription and customer ids. No card details ever reach us — they
 never touch our servers at all.
 
 **Your answers to the feedback form**, if you fill it in: after your first call we
-send one text, once, asking two questions. What you write — or say, which your browser
-turns into text before it reaches us; we never receive a recording — is encrypted like
-everything else you tell us, kept until you delete everything, and included in your copy.
+send one text, once, asking two questions. What you write is encrypted like everything
+else you tell us, kept until you delete everything, and included in your copy. If you
+choose to speak an answer instead, your phone's own dictation does the listening — on an
+iPhone that is Apple, on Android it is Google, under their terms rather than ours — and
+only the resulting words reach us. We never receive or keep a recording.
 
 **One cookie, on the browser you signed up with**, so that browser opens your
 page for the week before your first call without a link. It holds a random code

@@ -244,3 +244,16 @@ test('every line the feedback flow says is in SCRIPT.md', () => {
     assert.ok(!line.includes('!'), `${key} has an exclamation mark`);
   }
 });
+
+test('dictation does not write a sentence twice, on Android or anywhere else', async () => {
+  const { MERGE } = await import('../src/feedback/page.ts');
+  const merge = new Function(`${MERGE}; return merge;`)() as (parts: string[]) => string;
+  // Desktop Chrome and Safari: each stretch once, joined.
+  assert.equal(merge(['I was on the train', ' and nearly let it ring']), 'I was on the train and nearly let it ring');
+  // Chrome on Android: every result carries everything so far.
+  assert.equal(merge(['I was', 'I was on', 'I was on the train']), 'I was on the train');
+  assert.equal(merge(['I was on the train', 'I was on the train']), 'I was on the train');
+  // Interim and final repeating the tail.
+  assert.equal(merge(['honestly', 'it was the time', 'the time']), 'honestly it was the time');
+  assert.equal(merge([]), '');
+});

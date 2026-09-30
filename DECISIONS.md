@@ -865,6 +865,13 @@ an open box. Once per caller, ever: a row in `feedback` keyed on the phone hash,
 before the text is sent. Answers typed, or said into the browser's own dictation; no
 recording reaches us. Copy in SCRIPT.md §20.
 
+- **Dictation is the browser's, not ours (owner's choice, 2026-09-30).** The Web Speech
+  API: Apple's servers on an iPhone, Google's on Android, named on the form and in
+  privacy.md. Chosen over recording audio and transcribing it ourselves, which would work
+  the same on every phone but would mean handling raw audio — the one thing this product
+  refuses to hold — and a new processor. Where a browser cannot do it the buttons stay
+  hidden. Not yet tried on a real phone; that test is owed before relying on it.
+
 - **Not after a flagged call, permanently.** `call_attempts.safety_tier` is read and a
   flagged call writes a 'skipped' row. Nothing writes the tier yet — the safety pipeline
   does not exist — and the owner chose to switch this on regardless: it is how the product

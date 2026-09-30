@@ -1798,11 +1798,15 @@ something is wrong and never what._
 > "Done talking"
 
 `feedback.speak.note`
-> "Talking works too: your phone turns it into words, and only the words are sent."
+> "Talking works too. Your phone's own dictation, Apple's or Google's, turns it into words,
+> and only the words reach us."
 
-_True, and the reason it is allowed: the browser does the listening, the form receives
-text, and no recording is ever sent to or kept by us — DECISIONS.md's rule on audio holds.
-The buttons only appear where the browser can do it._
+_Names who does the listening, because it is not us and it is not nobody: the browser
+sends the sound to Apple or Google to be turned into text, and the form receives the text.
+No recording is ever sent to or kept by us — DECISIONS.md's rule on audio holds. The
+first version said "your phone turns it into words", which let somebody believe the sound
+never left the phone; on most phones it does. The buttons only appear where the browser
+can do it, and the keyboard's own microphone works everywhere else._
 
 `feedback.submit`
 > "Send it"
