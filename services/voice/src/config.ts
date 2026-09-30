@@ -181,6 +181,19 @@ export const config = {
   database: {
     url: process.env['DATABASE_URL'] ?? '',
   },
+  feedback: {
+    /**
+     * After which completed call the one feedback text goes out. 0 switches
+     * it off. Read on use, so a test or a restart can change it.
+     *
+     * 1 by the owner's decision on 2026-09-30: feedback from the first call
+     * on, because that is how the product finds out whether it works.
+     */
+    afterCall: (): number => {
+      const n = Number(process.env['FEEDBACK_AFTER_CALL'] ?? '1');
+      return Number.isInteger(n) && n >= 0 ? n : 1;
+    },
+  },
   link: {
     /**
      * Where the reschedule page lives, e.g. https://8and80.com

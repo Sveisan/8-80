@@ -198,12 +198,52 @@ export const callAttempts = pgTable(
      * redeploy or a second worker must not turn that into two.
      */
     smsSentAt: timestamp('sms_sent_at', { withTimezone: true }),
+    /**
+     * 1 or 2 when the safety pipeline flags this call, null otherwise.
+     * DECISIONS.md: a flagged call is never auto-actioned. Nothing writes it
+     * yet — the pipeline does not exist — but everything that acts after a
+     * call reads it, so the day it is written it is already obeyed.
+     */
+    safetyTier: integer('safety_tier'),
   },
   (t) => [
     uniqueIndex('call_attempts_slot_key').on(t.phoneHash, t.scheduledFor),
     index('call_attempts_status_idx').on(t.status, t.claimedAt),
   ],
 );
+
+/**
+ * The one request for feedback each caller ever gets, and their answers.
+ *
+ * One row per caller, keyed on the hash, so "once, ever" is a primary key and
+ * not a flag somebody can forget to check. The row is written before the text
+ * is sent: a retry, a redeploy or a second worker finds it and sends nothing.
+ *
+ * `state` is 'sent', 'failed' (the text did not leave), or 'skipped' (the call
+ * it would have followed was flagged — permanent, never deferred).
+ *
+ * The answers are what somebody said about this product and sometimes about
+ * themselves, so they are held like a transcript: encrypted in the
+ * application before they reach Postgres, never logged, in the export and gone
+ * with "delete everything". Kept until then, by the owner's decision on
+ * 2026-09-30 — feedback that deletes itself in a fortnight is feedback nobody
+ * got to read.
+ */
+export const feedback = pgTable('feedback', {
+  phoneHash: text('phone_hash').primaryKey(),
+  state: text('state').notNull(),
+  /** The call it followed. */
+  attemptId: text('attempt_id'),
+  sentAt: timestamp('sent_at', { withTimezone: true }).notNull().defaultNow(),
+  /** First time the link was opened. Counted, never the content. */
+  openedAt: timestamp('opened_at', { withTimezone: true }),
+  /** First time the form was sent; `updatedAt` for every edit after. */
+  submittedAt: timestamp('submitted_at', { withTimezone: true }),
+  updatedAt: timestamp('updated_at', { withTimezone: true }),
+  pickupEnc: text('pickup_enc'),
+  nearlyEnc: text('nearly_enc'),
+  elseEnc: text('else_enc'),
+});
 
 export type CallerRow = typeof callers.$inferSelect;
 export type CallAttemptRow = typeof callAttempts.$inferSelect;

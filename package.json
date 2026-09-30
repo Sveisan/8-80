@@ -19,6 +19,7 @@
     "lint": "eslint .",
     "models": "npm run -w @8and80/voice models",
     "preflight": "npm run -w @8and80/voice preflight",
+    "numbers": "npm run -w @8and80/voice numbers",
     "prompt": "npm run -w @8and80/voice prompt",
     "recap": "npm run -w @8and80/voice recap --",
     "replay": "npm run -w @8and80/voice replay",

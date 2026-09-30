@@ -855,3 +855,33 @@ self-service SIP trunking, and whether they hold +47 mobile numbers is behind a 
 **Telnyx** sell Norway numbers from $1 and are the ones who raised the warning.
 
 Nothing is chosen. The US number stays while the only caller is the person building it.
+
+## One feedback text, after the first call (2026-09-30)
+
+**Decided:** fifteen minutes after a caller's first completed call
+(`FEEDBACK_AFTER_CALL`, default 1; 0 switches it off), one text with a link to a form of
+two questions — "What made you pick up this week?" and "What nearly made you not?" — and
+an open box. Once per caller, ever: a row in `feedback` keyed on the phone hash, written
+before the text is sent. Answers typed, or said into the browser's own dictation; no
+recording reaches us. Copy in SCRIPT.md §20.
+
+- **Not after a flagged call, permanently.** `call_attempts.safety_tier` is read and a
+  flagged call writes a 'skipped' row. Nothing writes the tier yet — the safety pipeline
+  does not exist — and the owner chose to switch this on regardless: it is how the product
+  learns whether it works. The risk accepted is a feedback text fifteen minutes after a
+  first call that went somewhere hard. The gate is already in place for the day the
+  pipeline writes the column.
+- **Not after a short call** (under three minutes) or one that ended early (moved, or no
+  commitment reached); those wait for the next call. Not within thirty minutes of any
+  other text. Not to anybody who has stopped the calls.
+- **No STOP opt-out.** The sender cannot be replied to, carrier STOP would end every
+  message to the number, and a one-time text leaves nothing to opt out of.
+- **The link is a stored code, not a signed token.** `/f/` and ten characters, fourteen
+  days, the same table and the same reasons as every other link: short enough not to look
+  like spam, withdrawn by deleting a row. No number or id in it.
+- **Answers are held like transcripts and kept like the record:** encrypted in the
+  application, never logged, in the export, gone with "delete everything" — but not
+  deleted after fourteen days, because feedback that deletes itself before anyone reads it
+  is not feedback. Owner's call.
+- **Numbers from `npm run numbers`**, not a page: a page would be the first admin login.
+  Sent, opened (link previews not counted), submitted, response rate.

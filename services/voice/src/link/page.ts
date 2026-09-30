@@ -9,7 +9,7 @@ const dayNames = (language: string, weekday: 'long' | 'short' = 'long'): string[
   return Array.from({ length: 7 }, (_, i) => fmt.format(new Date(Date.UTC(2026, 8, 6 + i))));
 };
 
-const esc = (s: string): string =>
+export const esc = (s: string): string =>
   s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
 
 const clock = (minute: number): string =>
@@ -233,7 +233,7 @@ function whenOf(at: Date, timezone: string, language: string): string {
  * the dot stays Gold. It does not turn here: this page is for doing something
  * and leaving, and a moving logo is one more thing competing for the thumb.
  */
-const MARK = `<header class="lockup"><span class="sr">8&amp;80</span><svg class="mark" viewBox="12 31 96 58" aria-hidden="true" focusable="false"><path d="M51 60C46 50 37 46 31 46C23 46 17 52 17 60C17 68 23 74 31 74C37 74 46 70 51 60C57 46 69 36 81 36C95 36 103 47 103 60C103 73 95 84 81 84C69 84 57 74 51 60Z" fill="none" stroke="currentColor" stroke-width="7" stroke-linejoin="round"/><circle cx="31" cy="60" r="5" fill="#E2B653"/></svg></header>`;
+export const MARK = `<header class="lockup"><span class="sr">8&amp;80</span><svg class="mark" viewBox="12 31 96 58" aria-hidden="true" focusable="false"><path d="M51 60C46 50 37 46 31 46C23 46 17 52 17 60C17 68 23 74 31 74C37 74 46 70 51 60C57 46 69 36 81 36C95 36 103 47 103 60C103 73 95 84 81 84C69 84 57 74 51 60Z" fill="none" stroke="currentColor" stroke-width="7" stroke-linejoin="round"/><circle cx="31" cy="60" r="5" fill="#E2B653"/></svg></header>`;
 
 /**
  * Where a browser that does not know anybody lands.
@@ -341,7 +341,7 @@ export function gonePage(script: ScriptLines, language = 'en'): string {
   );
 }
 
-function shell(body: string, language = 'en'): string {
+export function shell(body: string, language = 'en'): string {
   return `<!doctype html>
 <html lang="${esc(language)}">
 <head>

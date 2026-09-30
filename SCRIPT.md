@@ -1738,3 +1738,87 @@ London's. Owner's call: say it, plainly, every time the times are shown._
 _`{{zone}}` is the place in the zone's name — "London", "New York" — which is how people
 say it. "Central European Summer Time" is correct and nobody has ever said it out loud._
 
+---
+
+## 20. Asking how it's going
+
+_One text, once, ever: fifteen minutes after the first completed call
+(`FEEDBACK_AFTER_CALL`, default 1), with a link to a form of two questions. Not after
+every call, not again if they ignore it, and never a reminder about it — §13's rule, which
+this product exists by._
+
+_**Not sent** after a call the safety pipeline flagged — and then never, not deferred to
+the next one — nor after a call under three minutes or one that ended before it got
+anywhere (those wait for the next call), nor within half an hour of any other text, nor to
+somebody who has stopped the calls. The safety flag has nowhere to come from yet; the owner
+chose on 2026-09-30 to switch this on regardless, because this is how the product finds
+out whether it works._
+
+_**No STOP line.** The texts come from a number that cannot be replied to, and carrier STOP
+would end every message to that number, calls included, rather than this one question. It
+is one text, once; there is nothing further to opt out of._
+
+`sms.feedback.1`
+> "One call in, so two questions about me for a change: {{link}}"
+
+`sms.feedback.4`
+> "Four calls in, so two questions about me for a change: {{link}}"
+
+`sms.feedback`
+> "{{count}} calls in, so two questions about me for a change: {{link}}"
+
+_The joke is on the mentor, which is the only place a joke is allowed (§13). Plain
+characters only — no dash, no curly quote — so it stays one segment with the link: about
+ninety characters of a hundred and sixty. `sms.feedback.N` is used when it exists for the
+call count it follows, and the numeral line otherwise._
+
+`feedback.title`
+> "Two questions, both optional"
+
+`feedback.detail`
+> "Short is fine. Blunt is better."
+
+`feedback.pickup`
+> "What made you pick up this week?"
+
+`feedback.nearly`
+> "What nearly made you not?"
+
+_The one that matters, and set exactly like the first — same size, same box — so it does
+not read as an afterthought. No stars, no score, no one-to-ten: a number tells you that
+something is wrong and never what._
+
+`feedback.else`
+> "Anything else"
+
+`feedback.speak`
+> "Say it instead"
+
+`feedback.speak.stop`
+> "Done talking"
+
+`feedback.speak.note`
+> "Talking works too: your phone turns it into words, and only the words are sent."
+
+_True, and the reason it is allowed: the browser does the listening, the form receives
+text, and no recording is ever sent to or kept by us — DECISIONS.md's rule on audio holds.
+The buttons only appear where the browser can do it._
+
+`feedback.submit`
+> "Send it"
+
+`feedback.thanks`
+> "Thanks. A person reads every one of these."
+
+_Plain, and nothing after it: no "tell a friend", no second survey. The sentence is a
+promise, so it has to stay true — somebody does read them, from the export or the
+database, one at a time._
+
+`feedback.expired`
+> "This one has closed. Thanks for thinking of it."
+
+`export.feedback`
+> "What you told me about the calls"
+
+_In the copy of everything (§18), under the questions they were asked, in their words._
+

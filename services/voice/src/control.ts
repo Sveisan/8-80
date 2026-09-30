@@ -27,6 +27,8 @@ import {
   type PageView,
 } from './link/page.ts';
 import { signupRoutes } from './signup/routes.ts';
+import { ANSWER_MAX, isPreview, openFeedback, saveFeedback } from './feedback/feedback.ts';
+import { feedbackGonePage, feedbackPage, feedbackThanksPage } from './feedback/page.ts';
 import { EMAIL } from './signup/form.ts';
 import { legalPage } from './legal/page.ts';
 import { composeExport } from './legal/export.ts';
@@ -305,6 +307,28 @@ export function controlPlane(deps: LoopDeps, secret: string | readonly string[] 
           return html(res, 410, gonePage(deps.script));
         }
         return await yourPage(req, res, deps, opened.claims.phoneHash, 'link');
+      }
+
+      // The one feedback form, from the one feedback text. Same kind of code
+      // as every other link, and its own purpose, so it opens nothing else.
+      if (url.pathname.startsWith('/f/')) {
+        const opened = await new Links(deps.store.raw).open(decodeURIComponent(url.pathname.slice(3)), new Date(), 'feedback');
+        if (!opened.ok) {
+          log('feedback.refused', { why: opened.why });
+          return html(res, 410, feedbackGonePage(deps.script));
+        }
+        const hash = opened.claims.phoneHash;
+        if (req.method === 'POST') {
+          const form = new URLSearchParams((await rawBody(req)).toString('utf8'));
+          const get = (k: string): string => (form.get(k) ?? '').trim().slice(0, ANSWER_MAX);
+          // Never the content, here or anywhere: only that it happened.
+          const saved = await saveFeedback(deps.store.raw, hash, { pickup: get('pickup'), nearly: get('nearly'), else: get('else') });
+          log('feedback.submitted', { saved });
+          return html(res, saved ? 200 : 410, saved ? feedbackThanksPage(deps.script) : feedbackGonePage(deps.script));
+        }
+        const answers = await openFeedback(deps.store.raw, hash, !isPreview(req.headers['user-agent']));
+        if (!answers) return html(res, 410, feedbackGonePage(deps.script));
+        return html(res, 200, feedbackPage(deps.script, answers));
       }
 
       // The same page, for the browser that signed up. See BROWSER below for

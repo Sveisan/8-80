@@ -45,6 +45,11 @@ long it ran, and a short note if it failed. Never anything you said.
 Squeezy's subscription and customer ids. No card details ever reach us — they
 never touch our servers at all.
 
+**Your answers to the feedback form**, if you fill it in: after your first call we
+send one text, once, asking two questions. What you write — or say, which your browser
+turns into text before it reaches us; we never receive a recording — is encrypted like
+everything else you tell us, kept until you delete everything, and included in your copy.
+
 **One cookie, on the browser you signed up with**, so that browser opens your
 page for the week before your first call without a link. It holds a random code
 and nothing else, lasts seven days, and is withdrawn when you delete everything.

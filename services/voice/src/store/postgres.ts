@@ -326,6 +326,7 @@ export class PostgresStore implements Store {
     const hash = phoneKey(phone);
     return await this.raw.begin(async (tx) => {
       await tx`delete from links where phone_hash = ${hash}`;
+      await tx`delete from feedback where phone_hash = ${hash}`;
       await tx`delete from signups where phone_hash = ${hash}`;
       await tx`delete from webhook_deliveries where conversation_id in (
         select provider_call_id from call_attempts where phone_hash = ${hash} and provider_call_id is not null

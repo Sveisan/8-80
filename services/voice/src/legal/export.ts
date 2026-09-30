@@ -1,6 +1,7 @@
 import type { Recap, RecapPart } from '../recap/compose.ts';
 import type { ScriptLines } from '../script.ts';
 import { phoneKey, type PostgresStore } from '../store/postgres.ts';
+import { feedbackFor } from '../feedback/feedback.ts';
 
 /**
  * Everything we hold about one person, as a letter they can read.
@@ -70,7 +71,24 @@ export async function composeExport(
         .join('\n')
     : '';
 
+  // What they told us about the calls, in their words, under the questions
+  // they were asked. SCRIPT.md §20: held like a transcript, handed back like one.
+  const said = await feedbackFor(store.raw, phoneKey(phone));
+  const answered = said
+    ? (
+        [
+          ['feedback.pickup', said.pickup],
+          ['feedback.nearly', said.nearly],
+          ['feedback.else', said.else],
+        ] as const
+      ).filter(([, a]) => a)
+    : [];
+  const feedback = answered.length
+    ? `${line('export.feedback')}:\n` + answered.map(([q, a]) => `  ${line(q)}\n  ${a}`).join('\n\n')
+    : '';
+
   const parts: RecapPart[] = [{ role: 'lead', text: lead }, { role: 'body', text: facts.join('\n') }];
+  if (feedback) parts.push({ role: 'body', text: feedback });
   if (history) parts.push({ role: 'quiet', text: history });
   const quiet = line('email.export.quiet');
   if (quiet) parts.push({ role: 'quiet', text: quiet });

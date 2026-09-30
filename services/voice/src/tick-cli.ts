@@ -4,6 +4,7 @@ import { tick } from './loop/tick.ts';
 import { sweep } from './loop/sweep.ts';
 import { expireTrials } from './billing/trials.ts';
 import { beat } from './schedule/scheduler.ts';
+import { sendDueFeedback } from './feedback/feedback.ts';
 
 /**
  * One tick, then exit. Meant for cron:
@@ -30,8 +31,11 @@ try {
   // so all this does is tell them, and a telling that runs on its own timer is
   // a telling that can stop while the stopping carries on.
   const ended = await expireTrials(deps);
-  if (result.claimed || closed || pruned || ended) {
-    log('tick.summary', { ...result, swept: closed, pruned, trialsEnded: ended });
+  // And the one feedback text, fifteen minutes after the call it follows. A
+  // query each minute rather than a timer per call, so a restart loses nothing.
+  const asked = await sendDueFeedback(deps);
+  if (result.claimed || closed || pruned || ended || asked) {
+    log('tick.summary', { ...result, swept: closed, pruned, trialsEnded: ended, feedbackSent: asked });
   }
 
   // Always, including the quiet runs. A tick logs only when it claims a call,
