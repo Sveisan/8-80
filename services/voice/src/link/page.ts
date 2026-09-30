@@ -45,6 +45,12 @@ export interface PageView {
   first?: Date;
   /** Minutes after signing up: the page says it is done before offering anything. */
   fresh?: boolean;
+  /**
+   * Offer the contact card. Only before the first call, and only when there is
+   * a number to put on it: a card with no number, or the wrong one, is worse
+   * than none — it is saved, and then never matches.
+   */
+  contact?: boolean;
   /** Offer the field for adding to this year's goals. Only once a call has made the list. */
   goals?: boolean;
   /** A `page.goals.*` key, when the last attempt to add said something. */
@@ -104,6 +110,14 @@ export function reschedulePage(
       <button name="action" value="later" class="primary">${busyLabel(say('page.later'))}</button>
     </form>`;
 
+  // Above the time, not below it: before the first call this is the one thing
+  // on the page worth doing, and the rest is only there if the time is wrong.
+  const contact = view.contact
+    ? `
+    <a class="save" href="/contact.vcf" download="8and80.vcf">${say('page.contact')}</a>
+    <p class="hint centre">${say('page.contact.detail')}</p>`
+    : '';
+
   // Before the first call a new time is the booking, so "every week" is not
   // a question worth a checkbox: it is sent, and said on the button.
   const always = first
@@ -137,6 +151,7 @@ export function reschedulePage(
     `
     ${MARK}
     ${head}
+    ${contact}
 
     <form method="post" class="move">
       <fieldset>
@@ -398,6 +413,12 @@ export function shell(body: string, language = 'en'): string {
   }
   button.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
   button.quiet { border: 0; color: var(--quiet); }
+  /* A link, because a download is not a form post; dressed as the filled button. */
+  a.save {
+    display: block; padding: .85rem 1rem; border-radius: .5rem; text-align: center; text-decoration: none;
+    font-weight: 600; background: var(--accent); color: var(--on-accent); border: 1px solid var(--accent);
+  }
+  a.save + .hint { margin-bottom: 1.5rem; }
   ${BUSY_CSS}
   .always { display: flex; align-items: center; gap: .5rem; margin: .75rem 0 .75rem; }
   .always input { width: auto; }

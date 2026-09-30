@@ -13,6 +13,7 @@ import { openSms } from './sms/index.ts';
 import { handleReply } from './sms/missed.ts';
 import { verifySignature } from './webhook/signature.ts';
 import { Links } from './link/token.ts';
+import { contactNumber, vcard } from './link/vcard.ts';
 import { BROWSER, FRESH_MS, clearBrowser, cookieOf, crossSite } from './link/cookie.ts';
 import {
   confirmForgetPage,
@@ -188,6 +189,20 @@ export function controlPlane(deps: LoopDeps, secret: string | readonly string[] 
       // The recap's letterhead. Deliberately not logged: a request for it is
       // somebody opening their email, and that is not ours to keep.
       if (req.method === 'GET' && url.pathname === '/mark.png') return mark(res);
+
+      // The contact card. The same for everybody and holds nothing about
+      // anyone, so it needs no link — and is served as an attachment, which is
+      // what makes iOS open "Add contact" rather than show a page of text.
+      if (req.method === 'GET' && url.pathname === '/contact.vcf') {
+        const number = contactNumber();
+        if (!number) return send(res, 404, { error: 'not found' });
+        res.writeHead(200, {
+          'content-type': 'text/vcard; charset=utf-8',
+          'content-disposition': 'attachment; filename="8and80.vcf"',
+          'cache-control': 'public, max-age=3600',
+        });
+        return void res.end(vcard(deps.script, number, config.link.publicUrl() || undefined));
+      }
 
       if (req.method === 'POST' && url.pathname === '/webhooks/speechify') {
         const body = await rawBody(req);
@@ -385,6 +400,8 @@ async function yourPage(
       // Until there has been a call there is no list to add to — the first
       // call makes it, and does not read anything added before.
       goals: !before,
+      // Before the first call, so the first ring already has a name on it.
+      contact: before && !!contactNumber(),
       ...(next ? { first: next } : {}),
       ...extra,
     };

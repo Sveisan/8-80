@@ -1691,6 +1691,32 @@ _Before the first call a new time moves the booking, not one week — it is the 
 there is — so the page does not ask "every week from now on" as it does after a missed
 call. The button is still `page.move`._
 
+`page.contact`
+> "Save me as a contact"
+
+`page.contact.detail`
+> "So it says 8&80 when I ring, not a number you don't know."
+
+_Above the time picker, before the first call only. Carriers here never show a caller's
+name, so the only way "8&80" is on the screen on the day — rather than a number that looks
+exactly like a cold call — is their own address book, and the minute after signing up is
+when they are most willing to put it there. One tap: iOS opens "Add contact" straight from
+the file, Android opens it from the download. `setup.save_number` still asks once on the
+first call, for whoever skipped this._
+
+`contact.name`
+> "8&80"
+
+_The name on the card, and so the name on their call screen and at the top of the text
+thread every week. Change it here and every card downloaded from then on carries it; cards
+already saved keep the old one._
+
+`contact.note`
+> "Your weekly call. If a time stops suiting, the link in any text from me moves it."
+
+_The note field of the card. Nobody reads it until they wonder, a month in, who this
+number is and how to change it — which is exactly when it should answer._
+
 `page.goals.label`
 > "Anything to add to this year's list?"
 

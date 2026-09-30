@@ -149,7 +149,9 @@ for even when a memorable pattern is available in them.
 
 Since the carrier will never show the name, the only way it reaches the screen is the
 user's own address book. That makes the onboarding vCard a primary feature rather than a
-convenience, and it needs building properly (Milestone 2):
+convenience, and it needs building properly (Milestone 2). Built: `/contact.vcf`
+(`services/voice/src/link/vcard.ts`), offered as the first button on the page somebody
+lands on after signing up, until their first call. Not yet in the verification SMS.
 
 - Served as `text/vcard`, `.vcf`, with `Content-Disposition: attachment`.
 - **vCard 3.0**, not 4.0 — broadest handling across iOS and older Android.
