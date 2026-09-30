@@ -189,3 +189,18 @@ test('a short line has to be said whole; a long one survives a changed word', ()
     true,
   );
 });
+
+test('a returning call that drills into the work is counted, and one that does not is not', () => {
+  const opening = [agent(say('open.return.greet')), caller('Hi.'), agent(say('open.return.callback')), caller('Did half of it.'), agent(say('last.partial')), caller('The invites.')];
+  const drill = ['Which part first?', 'When will it be done?', 'What tells you it is done?', 'What will you check first?', 'Which one is usable first?'].flatMap((q) => [agent(q), caller('Hm.')]);
+  const tail = [agent(say('next.ask.c')), caller('Send the invites.')];
+  assert.equal(severity([...opening, ...drill, ...tail], 'return.work_questions'), 'fail');
+  assert.equal(severity([...opening, ...drill.slice(0, 4), ...tail], 'return.work_questions'), 'ok');
+});
+
+test('a new question before the last was answered is flagged; the same one again after a silence is not', () => {
+  const asked = [agent(say('open.return.greet')), caller('Hi.'), agent('Did this week go anywhere near it?'), agent("What's one thing you'll do next week?")];
+  assert.equal(severity(asked, 'unanswered_question'), 'fail');
+  const repeated = [agent(say('open.return.greet')), caller('Hi.'), agent('Did this week go anywhere near it?'), agent('Still with me? Did this week go anywhere near it?')];
+  assert.equal(severity(repeated, 'unanswered_question'), 'ok');
+});

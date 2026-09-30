@@ -162,6 +162,27 @@ export function scoreCall(script: ScriptLines, turns: TimedTurn[], opts: { first
     stacked.length ? `two questions in one turn: ${stacked.map((t) => quote(t.text)).join('; ')}` : 'one question per turn',
   );
 
+  // A question, then a different question, with nothing from them in between.
+  // Repeating the same question after a silence is the rule; replacing it
+  // tells them their answer was not wanted.
+  const abandoned: string[] = [];
+  for (let i = 0; i + 1 < turns.length; i++) {
+    const a = turns[i];
+    const b = turns[i + 1];
+    if (a?.speaker !== 'agent' || b?.speaker !== 'agent') continue;
+    if (!a.text.includes('?') || !b.text.includes('?')) continue;
+    if (!/[.?!…]\s*$/.test(a.text.trim())) continue; // a cut-off, counted elsewhere
+    const qa = questionIn(a.text);
+    const qb = questionIn(b.text);
+    if (carries(qb, qa) || carries(qa, qb)) continue;
+    abandoned.push(`${quote(qa, 50)} then ${quote(qb, 50)}`);
+  }
+  add(
+    'unanswered_question',
+    abandoned.length ? 'fail' : 'ok',
+    abandoned.length ? `asked something new before the last question was answered: ${abandoned.join('; ')}` : 'every question waited for its answer',
+  );
+
   findings.push(...scoreSilence(turns));
   return { first, findings };
 }
@@ -330,7 +351,35 @@ function scoreReturn(script: ScriptLines, turns: TimedTurn[]): Finding[] {
       severity: found ? 'ok' : 'fail',
       detail: found ? 'reached a commitment and its day' : 'never reached next week\'s commitment',
     },
+    workQuestions(script, turns),
   ];
+}
+
+/** Four questions about their work, across the whole call, is the ceiling. */
+const WORK_QUESTION_CEILING = 4;
+
+/**
+ * Questions between last week and the read or the one thing — the stretch
+ * where a returning call once asked eleven about a front end in a row. The
+ * lines that belong there by design (what happened, what got in the way) are
+ * not counted against it.
+ */
+function workQuestions(script: ScriptLines, turns: TimedTurn[]): Finding {
+  const ends = ['read.eight', 'read.eight.own', 'next.ask.a', 'next.ask.b', 'next.ask.c', 'next.when']
+    .map((id) => indexOfLine(turns, script.get(id)))
+    .filter((i) => i >= 0);
+  const end = ends.length ? Math.min(...ends) : turns.length;
+  const scripted = ['open.return.callback', 'last.did', 'last.partial', 'block.ask', 'block.external', 'block.internal', 'nothing.c.follow']
+    .map((id) => script.get(id))
+    .filter((l): l is string => !!l);
+  const asked = turns
+    .slice(0, end)
+    .filter((t) => t.speaker === 'agent' && t.text.includes('?') && !scripted.some((l) => carries(t.text, l)));
+  return {
+    check: 'return.work_questions',
+    severity: asked.length > WORK_QUESTION_CEILING ? 'fail' : 'ok',
+    detail: `${asked.length} question${asked.length === 1 ? '' : 's'} about their work before the read or the one thing (ceiling ${WORK_QUESTION_CEILING})`,
+  };
 }
 
 /**
