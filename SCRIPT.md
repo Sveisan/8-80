@@ -133,9 +133,8 @@ first thing said._
   and it would not have mattered if they had._
 - _Auditing — never: whether it's realistic, why that one, whether it's the real goal,
   how they'll measure it, what happens if it fails._
-- _Logistics — not here: when they'll look at listings, which day, what time. That is
-  the one thing for next week, and it gets its turn at the end. A goal is not a
-  schedule._
+- _Logistics — not on this call at all: when they'll look at listings, which day, what
+  time. A goal is not a schedule, and the next call is the only deadline._
 
 _Every answer gets a line of genuine reaction before the next question — something that
 could only follow what they said. "Soccer and video games — so, competitive" is a
