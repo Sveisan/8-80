@@ -62,9 +62,8 @@ disclosure waiting for an "okay" nobody asked for, and went from the frame strai
    after it belongs to them rather than to a silence._
 3. _`open.first.frame` and `open.first.first_question` together as one turn. Then stop._
 
-_Every sentence of the disclosure carries something they are owed: that this is an AI,
-that the words are written down and kept, that a service in the States sees them, and
-that they can stop at any point. Nothing in the opening is shortened, reordered, merged
+_Every part of the disclosure carries something they are owed: that this is an AI, that
+what they say is written down so it is remembered, and that they can stop at any point. Nothing in the opening is shortened, reordered, merged
 or paraphrased. If they ask something in the middle, one plain sentence of answer, then
 the next line of the opening._
 
@@ -88,11 +87,8 @@ disclosure the mentor answers nothing but yes and no. If it was real, they will 
 again, in a sentence, and it will be heard._
 
 `open.first.disclosure`
-> "Two quick things, and then they're done with. I'm an AI, not a person — you'll hear it
-> soon enough. I write down what we say, the words rather than the audio, so that next
-> week I actually remember. It goes through a service in the States to work at all, so
-> they see it too. And if you'd rather stop at any point, just say so and I'll go. That's
-> everything — all right with that?"
+> "One thing before we start — I'm an AI, and I keep a written note of what we say so I
+> remember next week. You can stop me any time. All right?"
 
 _Warmer than the first version, which opened "Good." and read like terms being served.
 The content is identical — it has to be — but somebody hearing this has just answered a
@@ -100,10 +96,10 @@ question, and the first thing they hear back should not sound like a form. "Done
 and "That's everything" do the work: this is a thing being got out of the way, not a
 thing being imposed._
 
-_"They see it too" is there because it is true while the call runs on a third-party
-platform, and this is the one line in the call that has to be. It comes out the day
-the platform is ours or confirms it retains nothing — not before. Three seconds is a
-cheap price for the sentence after it being believed._
+_The sentence about a service in the States is gone from the call (decided 1 October,
+reversing 12 September — see DECISIONS.md). Where the data goes is in the privacy policy
+and is agreed to at sign-up; the call says what a person needs to hear before talking:
+that this is an AI, that it keeps notes, and that they can stop._
 
 `open.first.frame`
 > "Good. This first one's the longer one — fifteen minutes or so, and after today they're

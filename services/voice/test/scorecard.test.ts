@@ -64,12 +64,12 @@ test('it is read as a first call because it opens on the first-call greeting', (
 test('a disclosure with a sentence missing is a failure, and says which', () => {
   const turns = goodFirstCall();
   const disclosure = say('open.first.disclosure');
-  const withoutStates = disclosure.replace(/It goes through a service in the States[^.]*\./, '');
+  const withoutStates = disclosure.replace(/You can stop me any time\./, '');
   assert.notEqual(withoutStates, disclosure, 'the test must actually remove the sentence');
   turns[2] = agent(withoutStates);
   const f = scoreCall(script, turns).findings.find((x) => x.check === 'disclosure.complete');
   assert.equal(f?.severity, 'fail');
-  assert.match(f?.detail ?? '', /States/);
+  assert.match(f?.detail ?? '', /stop me/);
 });
 
 test('answering a misheard word before the disclosure is a failure; asking again is not', () => {

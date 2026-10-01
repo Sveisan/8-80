@@ -892,3 +892,15 @@ recording reaches us. Copy in SCRIPT.md §20.
   is not feedback. Owner's call.
 - **Numbers from `npm run numbers`**, not a page: a page would be the first admin login.
   Sent, opened (link previews not counted), submitted, response rate.
+
+## The call no longer says the data goes through the States — 2026-10-01
+
+Reverses the spoken half of 12 September. Eirik's decision, after four first calls in
+which the sentence was the thing callers remembered from the opening. The disclosure is
+now one breath: an AI, a written note so it remembers, stop any time.
+
+What stays: the AI Act requires the AI disclosure at the start of the interaction, so
+that stays spoken. The transfer to a US processor stays disclosed in writing — privacy.md
+names it — and the consent for special-category data rests on sign-up, which therefore
+has to say it plainly and be agreed to before the first call. That is owed by the sign-up
+page; until it is there, the gap is ours.
