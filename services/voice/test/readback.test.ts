@@ -92,3 +92,8 @@ test('a correction to this year says back only that part, and the correction is 
   assert.equal(settled.outcome?.goals, 'being part of operators');
   assert.equal(settled.outcome?.eight, 'making people laugh', 'the rest of the map stands');
 });
+
+test('a light remark after the read-back is not part of the commitment', () => {
+  const c = extractCommitment("Right — write five minutes of material. I'll ask how it went next time we talk. I'll be gentle. Mostly.", script);
+  assert.equal(c?.text, 'write five minutes of material');
+});

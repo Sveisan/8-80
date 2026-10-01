@@ -631,10 +631,17 @@ this, I'll do that" is the shape; the mentor never says the formula out loud:_
 `next.cue`
 > "And the moment — straight after what?"
 
-_Then read it back, once, in their words, cue included, and stop:_
+_Then read it back, once, in their words, cue included:_
 
 `next.confirm`
-> "Right — {{commitment}}. That's the one I'll ask about."
+> "Right — {{commitment}}. I'll ask how it went next time we talk."
+
+_"That's the one I'll ask about" sounded like a rule being explained. This is a friend
+saying they'll be curious. After it, when it suits and only then, one short light touch
+of the mentor's own — a smile in the voice, a little humour about the thing itself
+("I'll be gentle. Mostly."). Different every time, often nothing at all, and never a
+reason or a justification for asking. The read-back sentence itself stays word for
+word._
 
 _It used to end "Will you?". On a real call that closed a four-attempt sequence of
 pinning the commitment down, and it read as cornering: it tests compliance and invites
