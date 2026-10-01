@@ -75,3 +75,20 @@ test('"all right with that?" is not a commitment, and a call that reached none k
 test('the read-back found without its closing words, when the turn opens on it', () => {
   assert.equal(extractCommitment('Right — write five minutes of material, Thursday.', script)?.text, 'write five minutes of material');
 });
+
+test('a correction to this year says back only that part, and the correction is what is kept', () => {
+  const settled = settle(
+    {
+      providerCallId: 'c4',
+      durationMs: 600_000,
+      turns: [
+        { speaker: 'agent', text: 'Let me say it back. At eight, making people laugh. By eighty, a family. And this year, lobbying for my main job. Have I got that right?' },
+        { speaker: 'caller', text: 'Being part of Operators.' },
+        { speaker: 'agent', text: 'So this year: being part of Operators. Got it.' },
+      ],
+    },
+    script,
+  );
+  assert.equal(settled.outcome?.goals, 'being part of operators');
+  assert.equal(settled.outcome?.eight, 'making people laugh', 'the rest of the map stands');
+});

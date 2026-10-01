@@ -319,6 +319,14 @@ function scoreDeliverables(script: ScriptLines, turns: TimedTurn[]): Finding[] {
     severity: ids.some(said) ? ('ok' as const) : missing,
     detail: ids.some(said) ? what : `never ${what}`,
   }));
+  // The one noticed connection. Only worth a look when missing: some calls
+  // genuinely have nothing at both ends.
+  const noticed = turns.some((t) => t.speaker === 'agent' && /\bboth ends\b/i.test(t.text));
+  out.push({
+    check: 'map.noticed',
+    severity: noticed ? 'ok' : 'warn',
+    detail: noticed ? 'named a connection between eight and eighty' : 'never named a connection between eight and eighty — check whether there was one',
+  });
   // Sign-up has it. Taking one letter by letter down a phone line failed on a
   // real call and is never to be tried again.
   // The question itself, not the turn: the close says "there's an email

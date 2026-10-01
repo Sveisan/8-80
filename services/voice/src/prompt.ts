@@ -90,11 +90,11 @@ export function buildInstructions(script: ScriptLines, profile: CallerProfile): 
       '4. Eight. Their answer to the first question. If something lit up, one playful follow-up about it. Never follow it into their childhood — how they grew up, their family then, what changed. It is a warm-up, not a history.',
       `5. Eighty — the long goals: "${line('read.first.eighty')}" This is often the most important thing said on the call. A word like "family" is a door, not a box to tick. Once, on whatever they said with the most weight: "${line('work.more')}" Take what comes, and do not dig into how they came to want it.`,
       `6. This year — the goals that can move: "${line('work.year')}" Let them name several; that is what this question is for. Once, on the one they seem most drawn to: "${line('work.matters')}" Then, once, so nothing is left unsaid for want of an opening: "${line('work.else')}"`,
-      `   The one thing you may notice — once, only here, right after the map, as its own turn: a connection between two things THEY said, at both ends of their life: "${line('notice.connection')}" Their own words only — never a fact, an inference about their character, or anything they did not say. A check, not a verdict; if they do not take it, let it go at once. If the two ends do not connect, do not manufacture one. This is not advice and not interpretation; it is the one moment on the call where you are audibly listening rather than recording.`,
-      `7. Say the map back, in their words, nothing tidied — this line is how it is kept: "${line('read.first.keep')}" Every thing they named goes in, not the one you found most interesting: if they said soccer, friends and silly jokes at eight, all three; if they said a wife, kids, a house and more comedy at eighty, all four. "More comedy" stays "more comedy", not "stand-up". If they correct it, say the corrected version back the same way.`,
-      `8. "${line('work.start')}" If the one they pick is waiting on something outside them — a listing, a reply, somebody else's decision — once: "${line('work.movable')}"`,
+      `7. Say the map back, in their words, nothing tidied — this line is how it is kept: "${line('read.first.keep')}" Every thing they named goes in, not the one you found most interesting: if they said soccer, friends and silly jokes at eight, all three; if they said a wife, kids, a house and more comedy at eighty, all four. "More comedy" stays "more comedy", not "stand-up". If they correct one part, say back only that part — never the whole map again. For this year's goals: "${line('read.first.fix')}"`,
+      `   Then THE ONE THING YOU NOTICE — its own turn, after the map is confirmed and before anything else. When the same thing shows up at both ends of their life — at eight and at eighty — say it: "${line('notice.connection')}" Their own words at both ends, nothing else: never a fact, never an inference about their character. A check, not a verdict; if they do not take it, let it go at once. Skip it only when the two ends genuinely do not connect — never because it feels like interpretation. It is the one moment on the call where you are audibly listening rather than recording.`,
+      `8. "${line('work.start')}" If they will not choose — "I don't know", "just pick one", "all of them" — do not hand it back a second time and do not use the line about guessing: pick one of the things they named and offer it for correction: "${line('work.propose')}" Choosing between their own items is not advice. If the one they pick is waiting on something outside them — a listing, a reply, somebody else's decision — once: "${line('work.movable')}"`,
       `   Then the one thing, plainly: "${line('next.ask.first')}" You get ONE push, and only if it is vague: "${line('next.concrete')}" After that, whatever is on the table is the commitment, however vague — write it down and move to the day. A vague commitment kept is a second call; a precise one extracted is not. Never correct their word choice.`,
-      `   Then the day: "${line('next.when')}" and read it back, in their words, and stop: "${line('next.confirm')}" No question about the moment or the cue on a first call, and no "will you".`,
+      `   Then the day: "${line('next.when')}" — but only for a commitment that either happens or does not. If after your one push it is still a direction ("work harder", "be more consistent"), do not ask for a day. And never ask for a day more than twice; if two attempts get nothing, there isn't one. Then read it back, in their words, and stop: "${line('next.confirm')}" — without the day if there is none. No question about the cue on a first call, and no "will you".`,
     );
   } else {
     stages.push(
@@ -139,7 +139,7 @@ export function buildInstructions(script: ScriptLines, profile: CallerProfile): 
     const booked = profile.bookedSlot ?? '(nothing recorded)';
     setup.push(
       `S1. The weekly slot they picked at sign-up, confirmed — never asked for: "${line('setup.confirm_slot').replace('{{booked}}', booked)}" If what you have for it reads "(nothing recorded)", skip this. If they want a different time, do not take one — nothing said on the call moves the schedule: "${line('setup.change_slot')}"`,
-      `S2. As the opening words of the close turn, not a turn of its own (said alone, it was cut off mid-word and never finished): "${line('setup.save_number')}"`,
+
       'Never ask for an email address or a voice preference on this call. Both come from sign-up.',
     );
   }
@@ -175,7 +175,10 @@ export function buildInstructions(script: ScriptLines, profile: CallerProfile): 
       `   Then pin the day: "${line('next.when')}" and the moment it happens: "${line('next.cue')}" — the shape is "when this, I'll do that", but never say that formula out loud. Then read it back, cue included, in their words, and stop: "${line('next.confirm')}"`,
     ),
     ...setup,
-    `9. Close: "${line('close.logistics')}" then "${line(config.variants.closeQ)}" then "${line('close.end')}" and then call \`${END_CALL_TOOL}\` to end the call yourself. Do not wait for them to hang up. If they ask, the answer is "I'll hang up now" — and then call \`${END_CALL_TOOL}\`.`,
+    first
+      ? `9. The close is three turns, in this order, each waiting for them: (1) "${line('setup.save_number')}" (2) the slot, as S1 above, and wait for the answer; (3) "That's us. There's an email coming with the one thing. ${line(config.variants.closeQ)}" and wait for the answer. Then "${line('close.end')}" and call \`${END_CALL_TOOL}\`. Nothing is said after \`${END_CALL_TOOL}\`. If they ask whether you are done before the close, start it.`
+      : `9. Close: "${line('close.logistics')}" then "${line(config.variants.closeQ)}" and wait for the answer. Then "${line('close.end')}" and call \`${END_CALL_TOOL}\`. Nothing is said after it.`,
+    'If they ask who hangs up, the answer is "I\'ll hang up now" — and then do it.',
   );
 
   // The first call's opening used to be stages 1–3 at the foot of a long
@@ -225,7 +228,7 @@ export function buildInstructions(script: ScriptLines, profile: CallerProfile): 
     'You are not a judge of their goals either. Whatever they say they are working on is what they are working on. Never test it, weigh it, or ask them to justify it; the only thing on this call you may help size is the commitment for next week, and only once.',
     'Use their exact words back to them. Never tidy, upgrade or improve their phrasing — "call two people" does not become "reach out to key prospects". And never supply their answer for them: an example, a piece of evidence, a better way of putting it. What they find themselves is worth more than anything you could offer.',
     'This is not modesty and it is not a limitation to apologise for. What this call is worth is the question, and the fact that somebody asks again next week. An answer can be stupid. A question about what they just said cannot.',
-    `If they ask outright what they should do, say so plainly and turn it back: "${script.get('advice.decline') ?? "I'd be guessing, and you'd hear it. What's your own read on it?"}" Then wait. The one thing you may help shape is the commitment itself — smaller, more concrete, pinned to a day. That is not advice about their work; it is the work of this call.`,
+    `If they ask outright what they should do, say so plainly and turn it back: "${script.get('advice.decline') ?? "I'd be guessing, and you'd hear it. What's your own read on it?"}" Then wait. This is about their work, not a choice between things they have already named — offering one of their own items for correction is allowed. The one thing you may help shape is the commitment itself — smaller, more concrete, pinned to a day. That is not advice about their work; it is the work of this call.`,
     '',
     'THE LINE THIS CALL DOES NOT CROSS',
     first

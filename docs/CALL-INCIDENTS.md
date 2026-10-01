@@ -27,3 +27,8 @@ Add a row when a real call produces a rule. Run the call through
 | 2026-09-30 | conv_01m3rw01… | Eleven questions about a front end until "we're going way too deep" | Three non-question moves after two follow-ups; four work questions per call |
 | 2026-09-30 | conv_01m3rw01… | "Bet on yourself" misunderstood on a second call running | Plain one-thing question |
 | 2026-09-30 | conv_01m3rw01… | A new question 19s after an unanswered one | After silence, the same question — never a different one |
+| 2026-09-30 | conv_01m3sbkx… | Laughter at eight and a career making people laugh at eighty, read back in one sentence, unremarked — third call running | Noticing is required when the same thing is at both ends, and placed after the map |
+| 2026-09-30 | conv_01m3sbkx… | "Just pick one" met with "I'd be guessing"; caller disengaged | Offer one of their own items for correction |
+| 2026-09-30 | conv_01m3sbkx… | Four attempts to pin a day on "work harder" | No day for a direction; never more than two attempts |
+| 2026-09-30 | conv_01m3sbkx… | Close lines spoken after `end_call` fired; "Are we done?" before it began | Close is three turns in order; nothing after `end_call` |
+| 2026-09-30 | conv_01m3sbkx… | Whole map re-read to change three words | Say back only the corrected part (`read.first.fix`) |

@@ -194,8 +194,13 @@ never a fact, an inference about their character, or anything they did not say. 
 check, not a verdict, and let go of at once if they do not take it:_
 
 `notice.connection`
-> "You said {{then}} at eight, and {{now}} at eighty. Same thing, both ends — is that
-> how it looks to you?"
+> "One thing I noticed. At eight it was {{then}}, and at eighty it's {{now}}. Same thing,
+> both ends — is that how it looks to you?"
+
+_Three calls running had the same thread at both ends — jokes and making people laugh at
+eight, comedy or a career that makes people laugh at eighty — and the third read both
+back in one sentence without remarking on it. Optional, it never fired. So when the
+same thing is there at both ends, it is said; it is skipped only when it is not._
 
 _A real call had "jokes about silly stuff" at eight and "more comedy in my life" at
 eighty, recorded both, and asked "anything else on the list?" Every reflection in eleven
@@ -205,6 +210,23 @@ a connection manufactured is worse than none. Then:_
 
 `work.start`
 > "Which one do you want to start with?"
+
+_If they will not choose — "I don't know", "just pick one", "all of them" — do not hand
+it back a second time. Pick one of the things they named and offer it for correction,
+with the reason in their words:_
+
+`work.propose`
+> "Then I'd say {{pick}}, since {{reason}}. Or swap it."
+
+_Choosing between their own items is not advice: nothing is added, and one word undoes
+it. Handing it back with "what's your own read on it?" lost the last caller in two turns.
+If they have named nothing to choose from, that is a different problem; ask again._
+
+_If they correct the map, say back only the part that changed. For this year's goals,
+the line that keeps it:_
+
+`read.first.fix`
+> "So this year: {{goals}}. Got it."
 
 _If the one they pick is waiting on something outside them — a listing, a reply, a
 decision somebody else makes — once:_

@@ -201,7 +201,8 @@ test('the first call may notice one connection, repairs on a ladder, and never s
   // unremarked; one question was rephrased four times; a misheard "parents'
   // project" was said back three times.
   const p = buildInstructions(loadScript(), { callNumber: 1 });
-  assert.match(p, /The one thing you may notice — once/);
+  assert.match(p, /THE ONE THING YOU NOTICE/);
+  assert.match(p, /never because it feels like interpretation/);
   assert.match(p, /Never ask a fourth version/);
   assert.match(p, /never say one back the first time you hear it/);
   assert.match(p, /You get ONE push/);

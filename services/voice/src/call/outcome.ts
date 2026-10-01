@@ -116,6 +116,14 @@ export function settle(transcript: CallTranscript, script: ScriptLines): Settlem
   // taken from the line where the mentor read it back, like the commitment.
   const said = agentTurns.map((t) => t.text);
   const selves = readBack(said, script.get('read.first.keep'));
+  // A correction says back only the part that changed. If this year's goals
+  // were corrected after the map, the correction is what was agreed.
+  const keptAt = lastIndex(said, script.get('read.first.keep'));
+  const fixAt = lastIndex(said, script.get('read.first.fix'));
+  if (selves && fixAt > keptAt) {
+    const fixed = readBack([said[fixAt] ?? ''], script.get('read.first.fix'))?.['goals'];
+    if (fixed) selves['goals'] = fixed;
+  }
   const belief = readBack(said, script.get('belief.name'))?.['belief'];
   const week = lastWeek(said, script);
   const changeSlot = script.get('setup.change_slot');
@@ -139,4 +147,10 @@ export function settle(transcript: CallTranscript, script: ScriptLines): Settlem
     ...(callAgain ? { callAgain } : {}),
     ...(commitment ? {} : { note: 'no commitment was reached' }),
   };
+}
+
+/** The last turn that carries a whole read-back of `template`, or -1. */
+function lastIndex(turns: readonly string[], template: string | undefined): number {
+  for (let i = turns.length - 1; i >= 0; i--) if (readBack([turns[i] ?? ''], template)) return i;
+  return -1;
 }
