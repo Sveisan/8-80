@@ -619,13 +619,11 @@ followed up:_
 `next.which_self`
 > "Is that one for the eight-year-old, or the one at eighty?"
 
-_Then pin it. This is not optional; unscheduled commitments are the ones that come back
-undone:_
+_No day is asked for. The next call is a week away and that is the deadline; "which
+day?" on top of it was felt as unnecessary on a real call, and chasing one for a
+commitment that was a direction took four attempts on another (removed 1 October)._
 
-`next.when`
-> "Which day?"
-
-_And the moment it happens — a cue, so it is a plan rather than an intention. "When
+_On a returning call, the moment it happens — a cue, so it is a plan rather than an intention. "When
 this, I'll do that" is the shape; the mentor never says the formula out loud:_
 
 `next.cue`
@@ -634,7 +632,7 @@ this, I'll do that" is the shape; the mentor never says the formula out loud:_
 _Then read it back, once, in their words, cue included, and stop:_
 
 `next.confirm`
-> "Right — {{commitment}}, {{day}}. That's the one I'll ask about."
+> "Right — {{commitment}}. That's the one I'll ask about."
 
 _It used to end "Will you?". On a real call that closed a four-attempt sequence of
 pinning the commitment down, and it read as cornering: it tests compliance and invites

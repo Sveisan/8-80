@@ -41,8 +41,6 @@ function goodFirstCall(): TimedTurn[] {
     caller('The stand-up set.'),
     agent(say('next.ask.first')),
     caller('Write five minutes of material.'),
-    agent(say('next.when')),
-    caller('Thursday.'),
     agent(say('next.confirm')),
     caller('Yes.'),
     agent(say('setup.confirm_slot')),
@@ -124,16 +122,15 @@ test('going straight from the first answer to the one thing is rushed, and says 
 
 test('asking for an email address on the call is a failure', () => {
   const turns = goodFirstCall();
-  turns.splice(28, 0, agent('And where should the recap go — which address?'), caller('E at P-I.'));
+  turns.splice(26, 0, agent('And where should the recap go — which address?'), caller('E at P-I.'));
   assert.equal(severity(turns, 'no_email_asked'), 'fail');
   assert.equal(severity(goodFirstCall(), 'no_email_asked'), 'ok');
 });
 
 test('a call that never confirmed the slot or closed says so', () => {
-  const turns = goodFirstCall().slice(0, 28);
+  const turns = goodFirstCall().slice(0, 26);
   assert.equal(severity(turns, 'deliverable.slot'), 'warn', 'skipped correctly when none was on record');
   assert.equal(severity(turns, 'deliverable.close'), 'fail');
-  assert.equal(severity(turns, 'deliverable.day'), 'ok');
 });
 
 test('two minutes of silence after a question is dead air; a pause to think is not', () => {

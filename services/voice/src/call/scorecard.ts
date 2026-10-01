@@ -308,8 +308,7 @@ function scoreGoal(script: ScriptLines, turns: TimedTurn[]): Finding[] {
 function scoreDeliverables(script: ScriptLines, turns: TimedTurn[]): Finding[] {
   const said = (id: string) => indexOfLine(turns, script.get(id)) >= 0;
   const need: [string, string, string[], Severity][] = [
-    ['deliverable.day', 'asked which day the one thing lands on', ['next.when'], 'fail'],
-    ['deliverable.readback', 'read the commitment and its day back', ['next.confirm'], 'fail'],
+    ['deliverable.readback', 'read the commitment back', ['next.confirm'], 'fail'],
     // Skipped, correctly, when no slot was on record, so only worth a look.
     ['deliverable.slot', 'confirmed the weekly slot', ['setup.confirm_slot'], 'warn'],
     ['deliverable.close', 'closed the call', ['close.end', 'close.logistics'], 'fail'],

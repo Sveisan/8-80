@@ -49,7 +49,8 @@ test('a real call yields the commitment from the read-back', () => {
   );
   assert.equal(s.status, 'completed');
   assert.equal(s.outcome?.commitment, 'run three times');
-  assert.equal(s.outcome?.day, 'wednesday');
+  // No day is asked for any more; the next call is the deadline.
+  assert.equal(s.outcome?.day, undefined);
 });
 
 test('a call that reached no commitment is completed, not failed', () => {

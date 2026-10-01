@@ -23,10 +23,14 @@ export function extractCommitment(spoken: string, script: ScriptLines): Commitme
   const template = script.get('next.confirm');
   if (!template) return undefined;
 
-  // "Right. {{commitment}}, {{day}}. That's what..." → the fixed text around
-  // the slots, which is what we anchor on.
-  const [before, middle, after] = template.split(/\{\{commitment\}\}|\{\{day\}\}/);
-  if (before === undefined || middle === undefined) return undefined;
+  // "Right — {{commitment}}. That's the one..." → the fixed text around the
+  // slots, which is what we anchor on. A {{day}} slot is optional: the line
+  // stopped asking for one, and transcripts from before still carry it.
+  const parts = template.split(/\{\{commitment\}\}|\{\{day\}\}/);
+  const before = parts[0];
+  const middle = parts.length === 3 ? parts[1] : undefined;
+  const after = parts.length > 1 ? parts[parts.length - 1] : undefined;
+  if (before === undefined || after === undefined) return undefined;
 
   const anchor = (s: string) => normalise(s).trim();
   const said = normalise(spoken);
@@ -51,7 +55,7 @@ export function extractCommitment(spoken: string, script: ScriptLines): Commitme
   // survive normalising — so the separator is usually nothing at all. The day
   // is found by looking for a day, which is also what works when the mentor
   // says "run three times on Wednesday" instead of reading the slots apart.
-  const sep = anchor(middle);
+  const sep = anchor(middle ?? '');
   if (sep) {
     const parts = rest.split(new RegExp(`\\s${sep}\\s`));
     const head2 = (parts[0] ?? rest).trim();
