@@ -224,6 +224,23 @@ export class PostgresStore implements Store {
   }
 
   /**
+   * Replace or clear what next week's call opens on, by hand. For a commitment
+   * the extractor got wrong, or one that was never really one — a call that
+   * opens by quoting nonsense back at somebody has failed in its first line.
+   * Clearing it makes the next call ask what they ended up working on.
+   */
+  async setCommitment(phone: string, commitment: string | undefined): Promise<boolean> {
+    if (commitment && !hasKey()) throw new Error('DATA_ENCRYPTION_KEY is required to store a commitment');
+    const sealed = commitment ? encrypt(commitment) : null;
+    const rows = await this.raw<{ phone_hash: string }[]>`
+      update callers set last_commitment_enc = ${sealed}, last_commitment_day = null, updated_at = now()
+      where phone_hash = ${phoneKey(phone)}
+      returning phone_hash
+    `;
+    return rows.length > 0;
+  }
+
+  /**
    * Spend the rehearsal. Called once the call is actually placed, not when it is
    * claimed: a carrier that refuses the call must leave the flag standing, or a
    * failed attempt silently turns the rehearsal into an ordinary weekly call.

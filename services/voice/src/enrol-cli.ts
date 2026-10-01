@@ -18,6 +18,9 @@ import { OptedOut } from './sms/types.ts';
  *   npm run enrol -- --phone +4790033575 --in 3     # ring me in three minutes
  *   npm run enrol -- --phone +4790033575 --rehearse --in 3
  *                                                   # ...as the first call again
+ *   npm run enrol -- --phone +4790033575 --clear-commitment
+ *   npm run enrol -- --phone +4790033575 --commitment "send the dinner invites"
+ *                                                   # fix what next week opens on
  *   npm run enrol -- --list
  *
  * Giving somebody a slot for the first time texts them to say when the first
@@ -164,6 +167,13 @@ try {
         ? 'The next call will be the first-call experience. Nothing else was changed.'
         : 'Rehearsal cleared. The next call is the ordinary one.',
     );
+  }
+
+  if (flag('commitment') !== undefined || has('clear-commitment')) {
+    const text = has('clear-commitment') ? undefined : flag('commitment');
+    const found = await store.setCommitment(phone, text);
+    if (!found) fail('No such caller.');
+    console.log(text ? `Next call opens on: "${text}".` : 'Commitment cleared. The next call asks what they ended up working on.');
   }
 
   const rec = await store.load(phone);

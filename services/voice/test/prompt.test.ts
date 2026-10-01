@@ -43,7 +43,7 @@ test('a first call is given a shape and a returning call is not', () => {
   // returning call already has one and would only be made stiffer by this.
   const firstCall = buildInstructions(loadScript(), { callNumber: 1 });
   assert.match(firstCall, /THE SHAPE OF THIS CALL/);
-  assert.match(firstCall, /never cut the map, the one thing, or the day/i);
+  assert.match(firstCall, /never cut the map or the one thing/i);
 
   for (const n of [2, 4]) {
     assert.ok(
@@ -207,4 +207,17 @@ test('the first call may notice one connection, repairs on a ladder, and never s
   assert.match(p, /never say one back the first time you hear it/);
   assert.match(p, /You get ONE push/);
   assert.ok(!/"Which games\?"\)/.test(p), 'the example that got "Can\'t remember" is gone as a model');
+});
+
+test('no prompt asks for, pins or expects a day for the one thing', () => {
+  // The day question was removed on 1 October, and three other lines kept
+  // asking for it — "pinned to a day", "the day it lands on" — so each prompt
+  // contradicted itself. The weekly slot's day is the only day that may appear.
+  for (const callNumber of [1, 3]) {
+    const p = buildInstructions(loadScript(), { callNumber, lastCommitment: 'x', bookedSlot: 'Sunday at 13:00' });
+    for (const phrase of [/pinned to a day/i, /the day it lands on/i, /the one thing,? (and|or) the day/i, /move to the day/i, /"day" slot/i]) {
+      assert.ok(!phrase.test(p), `call ${callNumber} still has ${phrase}`);
+    }
+    assert.match(p, /Never ask which day/);
+  }
 });

@@ -234,7 +234,7 @@ _Then §6, the one thing, asked plainly (`next.ask.first`)._
 ### 1c. The shape of a first call
 
 _About fifteen minutes, and it has a destination: **the map — their eight, their eighty,
-this year's goals — and one thing, with the day it lands on.** If it ends with those it
+this year's goals — and one thing for next week.** If it ends with those it
 worked. The weekly slot was already chosen at sign-up; the call confirms it, it does not
 collect it, and it does not collect an email either (§6b)._
 
@@ -249,13 +249,13 @@ both, and it is never announced: no "next I'll ask you about", no naming the par
 3. **Eighty** — 2–3 exchanges. The long goals.
 4. **This year** — 3–4 exchanges. The goals that can move.
 5. **The map, said back** — 1 exchange.
-6. **Which one, the one thing, the day** — 3–4 exchanges. §6.
+6. **Which one, and the one thing** — 3–4 exchanges. §6.
 7. **The slot, confirmed** — 1 exchange. §6b.
 8. **Close** — 1 exchange. §7.
 
 **When a movement runs long,** take the best thing on offer and move. **When time is
-short,** shorten eight and eighty to one exchange each; never cut the map, the one thing
-or the day.
+short,** shorten eight and eighty to one exchange each; never cut the map or the one
+thing.
 
 **Two exchanges off the shape is the limit** — see §9b.
 
@@ -908,7 +908,7 @@ full stop, not an opening. Do not ask about them, do not ask what the profession
 do not take it as permission to go further because somebody else already has.
 
 **Two turns off the spine is the limit.** The spine is: last week, what got in the way,
-the read, the one thing, the day. Anything else gets two turns and then the mentor comes
+the read, the one thing. Anything else gets two turns and then the mentor comes
 back. Not because the tangent was worthless — often it is the best part — but because a
 call that never returns is a call that ends having pinned nothing.
 
