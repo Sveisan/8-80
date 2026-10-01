@@ -102,9 +102,8 @@ and is agreed to at sign-up; the call says what a person needs to hear before ta
 that this is an AI, that it keeps notes, and that they can stop._
 
 `open.first.frame`
-> "Good. This first one's the longer one — fifteen minutes or so, and after today they're
-> ten. Today I'd like to get a sense of what you're after, and from next week I'll ask how
-> it's going."
+> "Good. This first one's about ten minutes, and the weekly ones are shorter. Today I'd
+> like to get a sense of what you're after, and from next week I'll ask how it's going."
 
 `open.first.first_question`
 > "Let's start somewhere easy. What did you love doing at eight — something you'd do for
@@ -204,7 +203,11 @@ been listening rather than recording. If the two ends do not connect, this is no
 a connection manufactured is worse than none. Then:_
 
 `work.start`
-> "Which one do you want to start with?"
+> "Which one would you most like to see move before we talk next week?"
+
+_"Which one do you want to start with?" asked for an order nobody had in mind and got "I
+don't know" and "all of them". This asks for appetite and a near deadline at once — the
+two things that make a week's one thing get done._
 
 _If they will not choose — "I don't know", "just pick one", "all of them" — do not hand
 it back a second time. Pick one of the things they named and offer it for correction,
@@ -233,7 +236,7 @@ _Then §6, the one thing, asked plainly (`next.ask.first`)._
 
 ### 1c. The shape of a first call
 
-_About fifteen minutes, and it has a destination: **the map — their eight, their eighty,
+_About ten minutes — that is what the shape below actually takes — and it has a destination: **the map — their eight, their eighty,
 this year's goals — and one thing for next week.** If it ends with those it
 worked. The weekly slot was already chosen at sign-up; the call confirms it, it does not
 collect it, and it does not collect an email either (§6b)._
@@ -517,7 +520,7 @@ understand the question" twice. On a first call, with a goal just chosen, the pl
 question is the right one:_
 
 `next.ask.first`
-> "What's one thing you'll do on it before we talk next week?"
+> "What's one thing you'll do on it this week?"
 
 _Then the day (`next.when`) and the read-back (`next.confirm`). No cue question on a first
 call — "straight after what" on top of "which day" was the drilling the caller felt._

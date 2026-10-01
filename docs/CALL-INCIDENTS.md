@@ -33,3 +33,4 @@ Add a row when a real call produces a rule. Run the call through
 | 2026-09-30 | conv_01m3sbkx… | Close lines spoken after `end_call` fired; "Are we done?" before it began | Close is three turns in order; nothing after `end_call` |
 | 2026-09-30 | conv_01m3sbkx… | Whole map re-read to change three words | Say back only the corrected part (`read.first.fix`) |
 | 2026-10-01 | conv_01m3sbkx… | "Which day?" felt unnecessary; the next call is already the deadline | No day is asked for, first or returning; read-back has no day |
+| 2026-10-01 | 18:00 rehearsal | "Which one do you want to start with?" doesn't get the answer it wants; the call took ten minutes, not the fifteen it announced | work.start asks for appetite and a near deadline; the frame says ten minutes |

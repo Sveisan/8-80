@@ -117,7 +117,7 @@ test('the first call runs from easy to real: eight, eighty, this year, then the 
     "You're eighty, looking back",
     'this year. What would you like to move?',
     'Let me say it back.',
-    'Which one do you want to start with?',
+    'Which one would you most like to see move',
     "What's one thing you'll do on it",
   ].map(at);
   assert.ok(order.every((n) => n >= 0), 'a stage is missing');
