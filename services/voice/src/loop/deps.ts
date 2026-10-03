@@ -1,3 +1,4 @@
+import type { BillingGateway } from '../billing/gateway.ts';
 import type { ScriptLines } from '../script.ts';
 import type { Scheduler } from '../schedule/scheduler.ts';
 import type { PostgresStore } from '../store/postgres.ts';
@@ -15,6 +16,7 @@ import type { Deliveries } from '../webhook/deliveries.ts';
  * is better than discovering it at four minutes past eight on a Tuesday.
  */
 export interface LoopDeps {
+  billing?: BillingGateway;
   store: PostgresStore;
   scheduler: Scheduler;
   agent: SpeechifyAgent;

@@ -44,7 +44,7 @@ after(async () => {
 });
 
 beforeEach(async () => {
-  if (sql) await sql`truncate table callers, call_attempts, links, signups`;
+  if (sql) await sql`truncate table message_attempts, message_outbox, callers, call_attempts, links, signups`;
   process.env['DATA_ENCRYPTION_KEY'] = KEY;
   for (const k of ['TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN', 'SMS_FROM_NUMBER']) delete process.env[k];
 });
@@ -241,7 +241,7 @@ test('after a call, goals can be added from the link and are never shown back', 
   await s_.upsertProfile(phone, { name: 'x' });
   await (sched as Scheduler).setSlot(phone, { weekday: 2, minute: 480, timezone: 'Europe/Oslo' });
   await (sql as NonNullable<typeof sql>)`update callers set call_number = 2`;
-  await s_.record(phone, { at: new Date().toISOString(), durationMs: 1, goals: 'run a half marathon' });
+  await s_.record(phone, { at: new Date().toISOString(), durationMs: 1, onboardingComplete: true, goals: 'run a half marathon' });
   const token = await new Links(sql as NonNullable<typeof sql>).mint(phoneKey(phone));
 
   await serving(async (base) => {

@@ -1,3 +1,5 @@
+import { milestone } from '../journey/measure.ts';
+import { accountState } from '../link/account.ts';
 import { log } from '../log.ts';
 import { settle } from '../call/outcome.ts';
 import { composeRecap } from '../recap/compose.ts';
@@ -6,8 +8,10 @@ import { Links } from '../link/token.ts';
 import { config } from '../config.ts';
 import { eventOf, toTranscript } from '../webhook/speechify.ts';
 import { resolveSpokenTime } from '../call/reschedule.ts';
-import { describeSlot, letterDate } from '../schedule/time.ts';
+import { describeAppointment, letterDate } from '../schedule/time.ts';
 import type { LoopDeps } from './deps.ts';
+import { queued, dispatchMessage, enqueue } from '../messages/outbox.ts';
+import { Scheduler } from '../schedule/scheduler.ts';
 
 export interface Settled {
   handled: boolean;
@@ -36,17 +40,44 @@ const NOT_ANSWERED = /no[_ -]?answer|unanswered|voicemail|machine|busy|rejected|
  * The order is deliberate and the first step is the important one. Webhooks are
  * retried, and settling twice would increment the call number twice, overwrite
  * the commitment with itself and send the recap a second time — three things a
- * caller would notice. So permission is taken first, atomically, and everything
- * after it happens exactly once.
+ * caller would notice. Claim, state changes and message intents commit together.
+ * Provider I/O follows the commit; the outbox owns retries and uncertain results.
  *
  * The recap goes only to a call that actually happened. A call nobody could
  * hear produces no email: writing to somebody about a conversation they did not
  * have is worse than saying nothing.
  */
 export async function settleConversation(
+  payload: unknown, deps: LoopDeps, headerEvent?: string, now = new Date(),
+): Promise<Settled> {
+  const transcript = toTranscript(payload);
+  const attempt = await deps.scheduler.attemptForConversation(transcript.providerCallId);
+  if (!attempt) return { handled: false, why: 'no attempt for this conversation' };
+  const ids: string[] = [];
+  const result = await deps.store.raw.begin(async tx => {
+    const [caller] = await tx`select phone_hash from callers where phone_hash = ${attempt.phoneHash} for update`;
+    if (!caller) return { handled: false, why: 'account deleted' };
+    const messages = queued(tx, attempt.phoneHash, `call:${attempt.id}`, now, 'call', attempt.id);
+    const answer = await settleInside(payload, { ...deps, store: deps.store.in(tx), scheduler: new Scheduler(tx), sms: messages.sms, mailer: messages.mailer }, headerEvent, now);
+    ids.push(...messages.ids);
+    // Silent/interrupted calls get a way back, with no invented next-week promise.
+    if (answer.handled && ['silent', 'unverified', 'interrupted'].includes(answer.status ?? '') && !messages.ids.length) {
+      const base = config.link.publicUrl().replace(/\/$/, '');
+      const phone = await deps.store.in(tx).phoneFor(attempt.phoneHash);
+      if (base && phone) ids.push(await enqueue(tx, { eventKey: `call:${attempt.id}:sms`, phoneHash: attempt.phoneHash, channel: 'sms', kind: 'call', reference: attempt.id,
+        to: phone, body: (deps.script.get('sms.interrupted') ?? '').replace('{{link}}', `${base}/me`) }, now));
+    }
+    return answer;
+  });
+  for (const id of ids) await dispatchMessage(deps, id, now);
+  return result;
+}
+
+async function settleInside(
   payload: unknown,
   deps: LoopDeps,
   headerEvent?: string,
+  now = new Date(),
 ): Promise<Settled> {
   const event = eventOf(payload, headerEvent);
   if (!event) {
@@ -75,33 +106,45 @@ export async function settleConversation(
     return { handled: true, status: 'failed', why: 'no number on file' };
   }
 
-  const outcome = settle(transcript, deps.script);
+  const outcome = settle(transcript, deps.script, now);
   // Fetched once: the recap promises when the next call is, and a reschedule
   // needs the same zone to resolve a spoken time into an instant.
   const slot = await deps.scheduler.slotFor(phone);
 
+  // Resolve and persist a callback before any message describes the next call.
+  let callbackBooked = false;
+  if (outcome.callAgain && slot) {
+    const at = resolveSpokenTime(outcome.callAgain, slot.timezone, now);
+    callbackBooked = await deps.scheduler.moveIfActive(phone, at);
+    log('settle.call_again', { booked: callbackBooked, at: at.toISOString() });
+  }
+  const next = await deps.scheduler.nextEligibleCallFor(phone, now);
+  const nextSaid = next && slot ? describeAppointment(next, slot.timezone, (await deps.store.load(phone)).language) : undefined;
+
+  if (outcome.callAgain) {
+    await textAfterCall(attempt.id, phone, callbackBooked && nextSaid ? 'callback' : 'callback_unavailable', deps,
+      await linkFor(deps, attempt.phoneHash), nextSaid);
+  }
+
   if (outcome.status === 'completed' && outcome.outcome) {
     await deps.store.record(phone, outcome.outcome);
+    if (outcome.outcome.onboardingComplete) await milestone(deps.store.raw, attempt.phoneHash, 'onboarding_complete', attempt.phoneHash, now);
+    if (outcome.outcome.commitment) await milestone(deps.store.raw, attempt.phoneHash, 'action_read_back', attempt.id, now);
     const caller = await deps.store.load(phone);
+    const publicUrl = config.link.publicUrl().replace(/\/$/, '');
+    const account = await accountState(deps.store.raw, attempt.phoneHash, now);
     const recap = composeRecap(outcome.outcome, deps.script, {
+      ...(account?.billing === 'trialing' && account.trialEnds && slot ? { trialEnds: describeAppointment(account.trialEnds, slot.timezone, caller.language) } : {}),
+      ...(publicUrl ? { controlUrl: `${publicUrl}/me` } : {}),
       // The next CALL, not the day the commitment lands on. Those are different
       // days, and this line is the one the caller would act on.
-      ...(slot ? { nextSlot: describeSlot(slot, caller.language) } : {}),
+      ...(nextSaid ? { nextSlot: nextSaid } : {}),
       // The letterhead's date. In the caller's zone, because a call taken at
       // half past eight in Oslo is the previous day in UTC often enough to
       // matter, and a letter dated the day before the call reads as a mistake.
       ...dated(slot ? letterDate(outcome.outcome.at, slot.timezone, caller.language) : undefined),
     });
-    if (caller.email) {
-      try {
-        await deps.mailer.send(caller.email, recap);
-      } catch (e) {
-        // The commitment is already stored, which is the part that matters.
-        // A failed send is logged and not retried: three recaps is worse than
-        // none, and next week's call does not depend on this email.
-        log('recap.not_sent', { reason: (e as Error).message });
-      }
-    }
+    if (caller.email) await deps.mailer.send(caller.email, recap);
 
     // What the call could not do itself. The mentor says out loud that it
     // cannot move the slot, and it never asks for an address — both true, and
@@ -109,7 +152,7 @@ export async function settleConversation(
     // the slot wins the tie because it is the thing they asked for. See
     // sms/missed.ts.
     const want = outcome.wantsSlotChange ? 'slot' : caller.email ? undefined : 'email';
-    if (want) {
+    if (want && !outcome.callAgain) {
       await textAfterCall(attempt.id, phone, want, deps, await linkFor(deps, attempt.phoneHash));
     }
   }
@@ -118,22 +161,6 @@ export async function settleConversation(
     durationMs: transcript.durationMs,
     ...(outcome.note ? { note: outcome.note } : {}),
   });
-
-  // The mentor said it would ring back, so the system rings back. Until this
-  // existed the agreement was a sentence and nothing else: a caller was told
-  // "I'll ring you at half five", believed it, and the scheduler knew nothing
-  // about it. A promise the product cannot keep is worse than a refusal.
-  if (outcome.callAgain) {
-    if (slot) {
-      const at = resolveSpokenTime(outcome.callAgain, slot.timezone, new Date());
-      await deps.scheduler.callAgainAt(phone, at);
-      log('settle.call_again', { at: at.toISOString() });
-    } else {
-      // No zone means no instant we could defend, and a callback at the wrong
-      // hour is worse than none. The weekly slot stands.
-      log('settle.call_again_unresolved', { why: 'no slot, so no timezone' });
-    }
-  }
 
   // Nobody picked up. This is the one text — ARCHITECTURE.md: never voicemail,
   // one warm SMS — and `textAfterMissedCall` guarantees the "one".

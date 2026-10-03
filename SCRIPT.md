@@ -763,7 +763,7 @@ any call that touched §10._
 ### Variant C — the lightest
 
 `close.q.c`
-> "Same time next week?"
+> "Does that work for you?"
 
 _Barely a question, and that is the point. It ends on the arrangement continuing rather
 than on anything about them. Good for a first call._
@@ -771,7 +771,7 @@ than on anything about them. Good for a first call._
 Then:
 
 `close.end`
-> "Good. Talk next week."
+> "Good. Goodbye for now."
 
 _And hang up. No lingering, no second goodbye, no "have a great week"._
 
@@ -1041,10 +1041,10 @@ _Never "that's okay", and never a reassurance about the week not having produced
 call already declined to forgive it; the email does not get to either._
 
 `email.body.logistics`
-> "We spoke for {{minutes}} minutes. I'll call you {{next_slot}}."
+> "We spoke for {{minutes}} minutes. When we spoke, your next call was booked for {{next_slot}}."
 
 `email.body.logistics.one`
-> "We spoke for a minute. I'll call you {{next_slot}}."
+> "We spoke for a minute. When we spoke, your next call was booked for {{next_slot}}."
 
 _A separate line rather than a plural rule in code, for the same reason as every other
 line here: the grammar of the next language is not English's, and a rule written into the
@@ -1122,7 +1122,7 @@ outcome, one fewer sentence that sounds like a mailing list — and the link wor
 or not their carrier would have handled the word._
 
 `sms.stopped`
-> "Done. I won't ring again. Text START if you want it back."
+> "Calls are stopped. This does not cancel a paid subscription. Reply CANCEL MY SUBSCRIPTION to stop renewal, or START to resume eligible calls."
 
 _No "are you sure", no "sorry to see you go", no reason asked for. A product that makes
 leaving feel like an argument is a product that has decided its own retention matters more
@@ -1136,9 +1136,26 @@ second, and why a confirmation that fails to send is not allowed to undo anythin
 `sms.started`
 > "Back on. Next call {{when}}."
 
+`sms.start.inactive`
+> "Calls have not restarted: your next weekly slot falls outside your current access. Open your account controls to review continuation or contact support."
+
+`sms.move.inactive`
+> "That time could not be booked. Calls may be paused or the time may fall outside your current access. Your schedule is unchanged; open your account controls to review it."
+
+`sms.skipped.paid_end`
+> "Skipped. There are no further calls scheduled before your paid access ends. Renewal stays cancelled."
+
 `sms.failed`
-> "Couldn't get a call through to you just now — my end, not yours. Back to the usual time
-> next week, or pick another: {{link}}"
+> "We couldn't connect your call. Check your next appointment or choose another time here: {{link}}"
+
+`sms.interrupted`
+> "We couldn't confirm a complete conversation. Check your next appointment or choose another time here: {{link}}"
+
+`access.delivery.pending`
+> "We couldn't confirm that your code was sent. If it arrives, enter it here. Otherwise wait a minute and request another code."
+
+`signup.code.deliverypending`
+> "We couldn't confirm that your code was sent. If it arrives, enter it here. Otherwise wait a minute and request another code; your booking choices are saved."
 
 _When the call never left the building: a carrier refusing it, a platform outage, anything
 that means their phone never rang. Distinct from `sms.missed`, which says "rang just now"
@@ -1153,7 +1170,7 @@ turn it into two. A person whose weekly call silently did not arrive is the exac
 this product cannot have: it has one promise, and the promise is that it turns up._
 
 `sms.moved`
-> "{{when}}, then. Your usual slot stays as it is — say ALWAYS if you'd rather move it for good."
+> "{{when}}, then. Your usual slot stays as it is. To move it for good, send the day and time with ALWAYS."
 
 _A day and time after a missed call means this week, not a new standing arrangement. Most
 people mean the former and a system that silently rewrites the latter has changed
@@ -1163,10 +1180,26 @@ something they did not ask it to change. The escape hatch is named in the same b
 > "Moved for good. {{when}} from now on."
 
 `sms.later`
-> "Right. I'll have another go this evening."
+> "What time suits you? Send a day and time, like Friday 18:00. Your call stays as it is until you choose."
+
+_A vague “later” does not choose an hour. The web page offers its time picker;
+the reply path asks for a day and time. Neither silently adds eight hours._
 
 `sms.skipped`
-> "Consider it skipped. Talk next week."
+> "Skipped. Next call {{when}}."
+
+`sms.skipped.trial_end`
+> "Skipped. There are no more calls scheduled during your free month."
+
+`sms.skip.unchanged`
+> "No call changed. Next call {{when}}."
+
+`sms.skip.inactive`
+> "There isn't an active call to skip. Your schedule is unchanged."
+
+_The page skips the appointment it names, once. A text saying SKIP leaves the
+current local Monday–Sunday week; it does not also remove next week's call
+after a missed call. Confirm the actual next date rather than guessing “next week”._
 
 `sms.slot.link`
 > "You mentioned moving the call. You can set a new time here, and it sticks: {{link}}"
@@ -1208,16 +1241,19 @@ commitment, no history. The link may sit in a message thread for years and be op
 whoever is holding the phone, so the page is built for a stranger to find boring._
 
 `page.title`
-> "Move this week's call"
+> "Change your call"
+
+`page.next`
+> "Next call {{when}}."
 
 `page.usually`
 > "Usually {{when}}."
 
 `page.later`
-> "Try again later today"
+> "Choose another time"
 
 `page.pick`
-> "Or pick another time this week"
+> "Choose another time"
 
 `page.move`
 > "Move it"
@@ -1251,8 +1287,8 @@ plainly. "Manage preferences" is how a system hides an exit; this is the exit._
 > "Stop the weekly call?"
 
 `page.stop.detail`
-> "No more calls and no more texts. You can start again from this same link whenever you
-> like."
+> "This pauses your calls. It does not cancel a paid subscription. You can return here to
+> resume while your account is eligible."
 
 _A confirm step, because this is the one control on the page that a mis-tap should not be
 able to end the arrangement with — and because the page is opened one-thumbed, often
@@ -1274,7 +1310,7 @@ _The same link brings them back. Somebody who stopped by text may have a blocked
 and no way to send START, so the way back cannot live only in a message._
 
 `page.skip`
-> "Leave this week"
+> "Skip this call"
 
 `page.close`
 > "That's it. You can close this."
@@ -1283,7 +1319,7 @@ and no way to send START, so the way back cannot live only in a message._
 > "This link has gone off"
 
 `page.expired.detail`
-> "They only last a week. The next call comes as usual, and you can move it then."
+> "This link lasts a week. Verify your phone number to open your calls again."
 
 ---
 
@@ -1310,7 +1346,7 @@ about tone._
 
 `signup.what`
 > "A weekly accountability call from the two people with the most riding on you: you at
-> eight, and you at eighty. Fifteen minutes, same time every week. What you said you'd
+> eight, and you at eighty. About ten minutes for the first conversation, shorter after that, at your chosen weekly time. What you said you'd
 > do, what actually happened, and the one thing for next week. No app, no streaks, nobody
 > clapping."
 
@@ -1326,8 +1362,7 @@ _Said once, near the button, and never again. A free trial repeated three times 
 page is a page that does not believe its own offer._
 
 `signup.honest`
-> "An AI, and it won't pretend otherwise. It remembers what you promised last week —
-> that's rather the point — and it doesn't pass any of it on."
+> "An AI. It keeps a written note so the next call can pick up where you left off. You can stop at any time. Our Privacy page explains storage and service providers."
 
 _Non-negotiable and above the fold, not in a footer. §11 spends an entire call refusing to
 pretend to be a person; a sign-up page that lets somebody find out later would undo it
@@ -1388,7 +1423,7 @@ person who mistyped a digit is not in error, they are in a hurry._
 > "Check your texts"
 
 `signup.code.detail`
-> "Six digits, just sent to {{phone}}. It's good for ten minutes."
+> "A six-digit code is on its way to {{phone}}. It works for ten minutes."
 
 `signup.code.label`
 > "The code"
@@ -1397,16 +1432,16 @@ person who mistyped a digit is not in error, they are in a hurry._
 > "That's it"
 
 `signup.code.again`
-> "Start again"
+> "Back to booking"
 
 `signup.code.wrong`
 > "That's not the code. Have another look."
 
 `signup.code.expired`
-> "That code has gone off. Start again and I'll send a new one."
+> "That code has expired. Request a new one below; your booking choices are saved."
 
 `signup.code.toomany`
-> "Too many tries. Start again and I'll send a new one."
+> "Too many attempts with this code. Request a new one below; your booking choices are saved."
 
 `signup.code.unknown`
 > "I don't have a sign-up waiting for that number. Start again."
@@ -1420,10 +1455,9 @@ _Shown when the send actually failed, and only then. Until this existed, the pag
 we cannot reach sat waiting for a message that was never coming — and, as far as they
 knew, had signed up._
 
-_Deliberately not shown when the request was merely rate limited. Telling a script which
-numbers are rate limited tells it which numbers it has reached; telling a person their
-text failed is the only honest thing to do. The two look the same from outside and must
-not read the same to the one person who deserves the truth._
+_Delivery failures and rate limits have different recovery messages. A limit says that
+no new code was sent and preserves the booking. The same per-number limits apply
+whether or not that number already has an account._
 
 `signup.done.title`
 > "Done. First call {{when}}."
@@ -1445,8 +1479,9 @@ message that reads like a sentence._
 
 ### The page, shortened
 
-_The sign-up page says one sentence above the form. Everything else it used to say is a
-question under the button, answered with the lines above, so nothing is said twice._
+_Updated 2 October 2026: the headline is followed by the visible AI-call summary.
+Free-month terms are visible beside the booking action. The questions below provide
+more detail. The form asks for a number and recap address; a name is no longer required._
 
 `signup.headline`
 > "Two mentors."
@@ -1459,9 +1494,8 @@ else that quotes it._
 
 _It names the framework instead of describing the service. The line it replaced — "a
 weekly call with the people who want you to succeed most" — explained what you get; this
-one says what the thing is, and leaves the explaining to "What is this?" under the button.
-The bet is that somebody who reads it either understands immediately or opens a question,
-and that both of those are better than being told._
+one says what the thing is. The visible summary now explains the service before booking,
+with more detail under "What is this?" below the button._
 
 _The full stops are the line. "Two mentors, both of them you" is a sentence about a
 product. Two sentences is a claim and then its correction, which is the shape the idea
@@ -1541,8 +1575,7 @@ is a number that will eventually disagree with itself._
 > "Pick it up here"
 
 `email.trial.quiet`
-> "And if not, that's genuinely fine. Nothing is deleted, and the same link starts the
-> calls again whenever you want them."
+> "You can leave it here. Your notes stay until you delete them. If you continue, any paused calls stay paused until you choose to resume."
 
 _"Genuinely fine" is doing work. Every other product says something like it while making
 leaving difficult, so the sentence only survives because everything around it — the stop
@@ -1580,9 +1613,7 @@ it — that is not a data export, it is a way to read a stranger's week._
 > "Delete everything I have on you?"
 
 `page.forget.detail`
-> "Your number, your email, your slot, and the one thing from last week. All of it, now,
-> for good. This can't be undone and there's nothing to restore afterwards — if you came
-> back you'd start from scratch."
+> "This stops your calls and permanently removes your 8&80 profile, notes, feedback and retained call data. If you have a subscription, we must confirm it will not renew before deleting your account. The payment provider keeps its billing records. This cannot be undone."
 
 `page.forget.yes`
 > "Yes, delete it all"
@@ -1634,14 +1665,13 @@ words somebody chose, not field names._
 > "Everything 8&80 has about you"
 
 `email.export.lead`
-> "This is all of it."
+> "Here is your stored profile, notes, call history, retained call data and account settings. Access codes and authentication secrets are excluded."
 
 _Not "please find attached", not "as requested". The point of the letter is that the list
 is short, and the first line should let somebody see that before they read a word of it._
 
 `email.export.quiet`
-> "If anything here is wrong, tell me and I'll fix it. If you'd rather none of it existed,
-> the link at the bottom of any text from me deletes the lot, immediately."
+> "Correct your notes or request deletion from your call controls. Billing must be resolved before a subscribed account is deleted. The payment provider holds its own transaction records."
 
 `export.name`
 > "Name"
@@ -1681,7 +1711,7 @@ checkable by the person it is about._
 _What happens in the days between "Book my first call" and the phone ringing, and the page
 somebody lands on while they wait._
 
-_**Texts: two, both at sign-up, and nothing after.** The code (`sms.code`) and the welcome
+_**Routine signup texts: a code and a welcome.** The code (`sms.code`) and the welcome
 (`sms.welcome`) are two events — proving the number, and being told when — so §13's
 one-text rule is not broken by there being two. Nothing is sent between the welcome and the
 call. A "your first call is tomorrow" text is a reminder about a reminder, the first thing
@@ -1691,8 +1721,8 @@ carries the link. If somebody forgets, the call is the reminder, and missing it 
 
 _**The page is the one the link opens.** Right after the code, the browser that signed up
 goes straight to it and remembers it for a week — the life of the link in the welcome text,
-which is always long enough to reach the first call. It is not an account and there is no
-sign-in: the only way to be remembered is to have proved the number a minute ago. A
+and can recover access at `/access` after it expires. There is no password: a fresh phone
+code proves access on a new browser. A
 browser that is remembered gets everything on the page except the copy and the deletion,
 which stay behind a link from a text, because a laptop in a shared kitchen is not proof
 enough of who is asking to have everything sent or destroyed._
@@ -1769,7 +1799,7 @@ _The list goes into the call whole, so it has an end. Dry rather than an error: 
 done nothing wrong by having a lot they want._
 
 `page.browser.rest`
-> "A copy of everything, or deleting it all, is behind the link in any text from me."
+> "To get a copy of your data or delete it, open a recent text link or verify your phone again."
 
 _Where the export and delete buttons would be, for a browser that is only remembered. Says
 where they are rather than hiding that they exist — privacy.md promises both from the link
@@ -1779,10 +1809,9 @@ in every text, and that is still true._
 > "This browser doesn't remember you"
 
 `page.browser.gone.detail`
-> "It only does for the week after signing up, on purpose. The link in any text from me
-> opens the same page."
+> "Sessions last a week. Verify your phone number to open your calls on this browser."
 
-_Not an error and not a sign-in. The way in is the link, and the page says so._
+_An expired session offers phone verification without changing their booking._
 
 ### Which time
 
@@ -1888,3 +1917,338 @@ database, one at a time._
 
 _In the copy of everything (§18), under the questions they were asked, in their words._
 
+
+## 21. Returning access and account state
+
+_A permanent destination, `/me`, belongs in recaps. Credentials still expire; phone-code
+recovery creates fresh access without reenrolling the caller. Codes last ten minutes,
+allow five attempts, and can be requested three times an hour, at least a minute apart.
+Recovery grants a fresh text-link equivalent; the remembered browser keeps its narrower
+permissions. Neither screen displays stored commitments, goals or other private context._
+
+`access.title`
+> "Open your calls"
+
+`access.detail`
+> "Use the phone number you signed up with. We’ll text a code to confirm it’s you."
+
+`access.phone.detail`
+> "Include your country code. Norwegian numbers can use eight digits."
+
+`access.send`
+> "Text me a code"
+
+`access.help`
+> "If you blocked texts from 8&80, unblock them first. For help, use the contact details on our Privacy page."
+
+`access.home`
+> "Back to 8&80"
+
+`access.returning`
+> "Already getting calls? Open your calls"
+
+`access.verify`
+> "Verify your phone"
+
+`access.code.title`
+> "Check your phone"
+
+`access.code.detail`
+> "If this number has an 8&80 account, a code is on its way. Enter the latest code below."
+
+`access.code.expires`
+> "The code works once, for ten minutes."
+
+`access.code.submit`
+> "Open my calls"
+
+`access.resend`
+> "Send a new code"
+
+`access.resend.detail`
+> "Wait one minute between requests. You can request up to three codes an hour."
+
+`access.change`
+> "Use a different number"
+
+`access.code.wrong`
+> "That code could not be used. Check the latest text, or request a new code if it expired or you tried five times."
+
+`access.limited`
+> "Please wait before requesting another code. Codes are limited to three per number each hour, at least one minute apart."
+
+`access.tryagain`
+> "Please open this page again and try once more."
+
+`access.unavailable`
+> "We could not send a code. Try again later, or use a working link from a recent 8&80 text."
+
+`access.sms`
+> "Your 8&80 access code is {{code}}. It expires in ten minutes. Do not share it. If you did not request it, ignore this text."
+
+`page.paused.detail`
+> "Your calls are paused. Pausing does not cancel a paid subscription."
+
+`page.ended`
+> "No calls are scheduled"
+
+`page.ended.detail`
+> "Your account is not currently eligible for calls. Contact us for help continuing."
+
+`page.trial`
+> "Your free month ends {{when}}."
+
+`page.trial.ended`
+> "Your free month ended {{when}}."
+
+`page.paid`
+> "Your paid subscription is active."
+
+`page.payment_due`
+> "Your payment is overdue. Calls remain enabled while the payment is retried; your pause setting still applies."
+
+`page.comped`
+> "Your calls are complimentary."
+
+`page.billing.ended`
+> "Your account is not currently eligible for calls."
+
+`page.no_next`
+> "There is no upcoming appointment to show. Choose a time below."
+
+`page.no_next.trial`
+> "There is no upcoming appointment within your free month. You can choose an earlier time below."
+
+`page.support`
+> "Contact us about your account"
+
+`page.email.current`
+> "Recaps currently go to {{email}}."
+
+`page.email.none`
+> "No recap address is saved yet."
+
+`page.back`
+> "Back to your calls"
+
+`email.controls`
+> "Manage your calls"
+
+`access.privacy`
+> "Privacy and contact"
+
+`page.trial.unknown`
+> "Your account is on a free trial. Contact us to confirm its end date."
+
+`page.move.unavailable`
+> "That time could not be booked. Check your call status and choose a time within your free month if you are on a trial."
+
+
+## 22. First-call continuity
+
+`onboarding.confirmed`
+> "That's the map I'll keep for next time."
+
+_Say this only after the caller confirms or corrects the full first-call map. Completing
+that introduction does not require choosing an action and is not a claim of activation.
+Interrupted introductions keep their progress; availability-only calls do not advance it._
+
+`open.first.continue`
+> "Hello again. Shall we pick up where we left off?"
+
+`open.first.continue.disclosure`
+> "I'm the AI you spoke to before. I keep a written note so we can pick this up, and you can stop me any time. All right?"
+
+`close.unscheduled`
+> "There isn't another call booked at the moment. You can check the arrangement from your call page."
+
+`sms.callback`
+> "Your callback is booked for {{when}}. Your usual weekly time stays the same. Change it here: {{link}}"
+
+`sms.callback.unavailable`
+> "I couldn't book that callback. Please check your call status and choose a time here: {{link}}"
+
+`signup.summary`
+> "A weekly phone conversation with an AI. About ten minutes for the first call, shorter after that, with a short email recap. Choose your usual weekly time below."
+
+`signup.terms.summary`
+> "30 days free, no card required. Calls stop when the free month ends unless you choose to continue. Any paid plan and its price are shown before you pay."
+
+`signup.code.pending`
+> "Enter the latest code for {{phone}}, or use the options below."
+
+`signup.code.booking`
+> "Your weekly time: {{when}}. Your first call is booked after verification."
+
+`signup.code.resend`
+> "Send a new code"
+
+`signup.code.edit`
+> "Change number or booking"
+
+`signup.code.limited`
+> "Please wait before trying again. Code texts are limited to three per number each hour, at least one minute apart. No new code was sent."
+
+`signup.code.tryagain`
+> "Please reopen the booking page and try again."
+
+`page.welcome.unavailable`
+> "Your number is verified, but we could not confirm delivery of the welcome text. Check the call status below. You can save the number and manage your calls here."
+
+`memory.title`
+> "Correct what I remember"
+
+`memory.detail`
+> "Review your saved commitment and goals for the next call. This access lasts 15 minutes after phone verification."
+
+`memory.commitment`
+> "Your current commitment"
+
+`memory.goals`
+> "Your goals for this year"
+
+`memory.empty`
+> "Leave a field empty to remove it from the next call’s notes."
+
+`memory.save`
+> "Save corrections"
+
+`memory.done`
+> "Finish and return to your calls"
+
+`memory.saved`
+> "Saved. Future calls will use these words."
+
+`memory.changed`
+> "These notes changed while you were editing. The latest version is shown below; review it before saving again."
+
+`memory.long`
+> "Keep each field within 2,000 characters."
+
+`access.memory.detail`
+> "Confirm your phone number again before viewing private notes. We'll text a code to open them for 15 minutes."
+
+`access.memory.submit`
+> "Open my notes"
+
+`signup.code.verifylimited`
+> "Too many attempts to check a code. Wait ten minutes before trying again. You can still change your booking below."
+
+`signup.code.restart`
+> "That code can no longer be used. Return to booking below to choose a time and request a new code."
+
+## Billing and data controls — 3 October 2026
+
+`page.billing.manage`
+> "Manage payment details"
+
+`page.billing.verify`
+> "Verify your phone to manage billing"
+
+`page.billing.continue`
+> "See the price and continue"
+
+`page.billing.price`
+> "Review the plan, renewal price and payment terms at checkout before you decide. Paying does not restart calls you have paused."
+
+`page.billing.unavailable`
+> "Billing is not available here right now. Use the support link below to check payment or continuation options."
+
+`page.billing.checked`
+> "Your billing status has been checked. Your call status is shown on this page."
+
+`page.billing.pending`
+> "We are waiting for billing confirmation. Returning from checkout alone does not confirm a payment. Check this page again shortly or contact support."
+
+`page.cancel.action`
+> "Cancel subscription renewal"
+
+`page.cancel.title`
+> "Cancel renewal?"
+
+`page.cancel.detail`
+> "Your subscription will not renew. Calls remain available until the paid period ends, unless you pause them. Your saved notes stay here."
+
+`page.cancel.confirm`
+> "Cancel renewal"
+
+`page.cancel.back`
+> "Keep my current arrangement"
+
+`page.cancel.saved`
+> "Renewal is cancelled. Your call and billing status are shown on this page."
+
+`page.cancel.none`
+> "There is no paid subscription to cancel."
+
+`page.cancel.failed`
+> "We could not confirm cancellation. Your subscription has not been marked cancelled here. Please try again or contact support."
+
+`page.cancel.until`
+> "Renewal is cancelled. Your paid access ends {{when}}. Paused calls stay paused."
+
+`page.cancel.ended`
+> "Renewal is cancelled. Your paid access ended {{when}}."
+
+`page.paid.nonrenewing`
+> "Your remaining paid access is available."
+
+`page.paid.ended`
+> "Your paid access has ended."
+
+`page.cancel.unknown`
+> "when the payment provider confirms the end of the paid period"
+
+`page.forget.failed`
+> "Your calls are stopped. We could not confirm that subscription renewal has stopped, so your account has been kept to resolve billing. Please try again or contact support."
+
+`page.export.failed`
+> "We could not send your copy. Check the recap address on your call page and try again, or contact support."
+
+`page.export.failed.title`
+> "Your copy was not sent."
+
+`page.feedback.detail`
+> "Feedback requests are optional. This setting does not change call recaps, booking texts, phone codes or billing notices."
+
+`page.feedback.off`
+> "Stop feedback requests"
+
+`page.feedback.on`
+> "Allow feedback requests"
+
+`page.feedback.saved`
+> "Your feedback preference is saved."
+
+`email.billing.unavailable`
+> "Billing is not available through a link right now. For help, contact {{email}}."
+
+`email.billing.subject`
+> "Your 8&80 subscription"
+
+`email.billing.active`
+> "Your subscription is active. Your payment provider has the receipt and payment details."
+
+`email.billing.cancelled`
+> "Your subscription will not renew. You can check the end of the paid period and your call status from your controls."
+
+`email.billing.ended`
+> "Your paid subscription has ended. Calls are no longer scheduled under that subscription. Your notes remain until you delete them."
+
+`email.billing.paused`
+> "Paying or changing billing does not restart paused calls. Open your controls to check your next appointment."
+
+`email.trial.reminder`
+> "Your free month ends {{when}}. Calls then stop unless you choose a paid plan. Open your call controls to review the price and continuation options."
+
+`sms.subscription.cancelled`
+> "Your subscription will not renew. Calls remain available until the paid period ends unless you pause them. Your saved notes stay."
+
+`sms.subscription.none`
+> "There is no paid subscription to cancel. Reply STOP if you want to stop the calls."
+
+`sms.subscription.failed`
+> "We could not confirm cancellation. Please open your call controls to try again or contact support: {{link}}"
+
+`sms.subscription.needs_verification`
+> "To cancel subscription renewal, open your call controls and verify your phone. Stopping calls alone does not cancel renewal."

@@ -18,6 +18,9 @@ export interface CallerRecord {
   voice?: string;
   /** This is call number N. 1 means they have never been called. */
   callNumber: number;
+  /** Legacy keeps existing routing without claiming measured onboarding completion. */
+  onboarding?: 'pending' | 'in_progress' | 'complete' | 'legacy';
+  onboardingCompletedAt?: string;
   /**
    * Serve the next call the first-call experience whatever `callNumber` says.
    * Set by `enrol --rehearse`, cleared the moment a call is placed. See
@@ -65,6 +68,8 @@ export interface CallerRecord {
 export interface CallOutcome {
   at: string;
   durationMs: number;
+  /** The caller confirmed the first-call map, independently of choosing an action. */
+  onboardingComplete?: boolean;
   /** The commitment for next week, if one was reached. */
   commitment?: string;
   day?: string;
@@ -75,6 +80,11 @@ export interface CallOutcome {
   eighty?: string;
   belief?: string;
   goals?: string;
+}
+
+export function needsOnboarding(caller: Pick<CallerRecord, 'callNumber' | 'onboarding' | 'rehearseFirstCall'>): boolean {
+  if (caller.rehearseFirstCall) return true;
+  return caller.onboarding ? !['complete', 'legacy'].includes(caller.onboarding) : caller.callNumber <= 1;
 }
 
 export interface Store {

@@ -43,7 +43,7 @@ test('a first call is given a shape and a returning call is not', () => {
   // returning call already has one and would only be made stiffer by this.
   const firstCall = buildInstructions(loadScript(), { callNumber: 1 });
   assert.match(firstCall, /THE SHAPE OF THIS CALL/);
-  assert.match(firstCall, /never cut the map or the one thing/i);
+  assert.match(firstCall, /do not rush the map/i);
 
   for (const n of [2, 4]) {
     assert.ok(

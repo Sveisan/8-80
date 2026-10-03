@@ -23,7 +23,7 @@ after(async () => {
 });
 
 beforeEach(async () => {
-  if (sql) await sql`truncate table callers, call_attempts, heartbeats`;
+  if (sql) await sql`truncate table message_attempts, message_outbox, callers, call_attempts, heartbeats`;
   process.env['DATA_ENCRYPTION_KEY'] = KEY;
 });
 
@@ -190,4 +190,116 @@ test('a heartbeat that cannot be written never fails the tick', { skip: skip() }
     throw new Error('database is on fire');
   }) as unknown as typeof sql;
   await beat(onFire as NonNullable<typeof sql>, 'tick');
+});
+
+test('skipping the shown appointment removes that occurrence and preserves the weekly slot', { skip: skip() }, async () => {
+  const phone = '+4790000021';
+  await caller(phone);
+  const result = await (sched as Scheduler).skipCall(phone, new Date('2026-09-07T12:00:00Z'), new Date('2026-09-08T06:00:00Z'));
+  assert.equal(result.kind, 'skipped');
+  assert.equal((await (sched as Scheduler).nextCallFor(phone))?.toISOString(), '2026-09-15T06:00:00.000Z');
+  assert.deepEqual(await (sched as Scheduler).slotFor(phone), OSLO);
+  assert.deepEqual(await (sched as Scheduler).claimDue(new Date('2026-09-08T06:00:00Z')), []);
+  assert.equal((await (sched as Scheduler).claimDue(new Date('2026-09-15T06:00:00Z'))).length, 1);
+});
+
+test('two submissions of the same appointment skip it only once', { skip: skip() }, async () => {
+  const phone = '+4790000022';
+  await caller(phone);
+  const now = new Date('2026-09-07T12:00:00Z');
+  const expected = new Date('2026-09-08T06:00:00Z');
+  const results = await Promise.all([
+    (sched as Scheduler).skipCall(phone, now, expected),
+    new Scheduler(sql as postgres.Sql).skipCall(phone, now, expected),
+  ]);
+  assert.deepEqual(results.map(r => r.kind).sort(), ['skipped', 'unchanged']);
+  assert.equal((await (sched as Scheduler).nextCallFor(phone))?.toISOString(), '2026-09-15T06:00:00.000Z');
+});
+
+test('a stale page cannot skip a newly moved call', { skip: skip() }, async () => {
+  const phone = '+4790000023';
+  await caller(phone);
+  await (sched as Scheduler).callAgainAt(phone, new Date('2026-09-09T07:00:00Z'));
+  const result = await (sched as Scheduler).skipCall(phone, new Date('2026-09-07T12:00:00Z'), new Date('2026-09-08T06:00:00Z'));
+  assert.equal(result.kind, 'unchanged');
+  assert.equal((await (sched as Scheduler).nextCallFor(phone))?.toISOString(), '2026-09-09T07:00:00.000Z');
+});
+
+test('skipping a one-off callback returns to the next regular occurrence', { skip: skip() }, async () => {
+  const phone = '+4790000024';
+  await caller(phone);
+  const callback = new Date('2026-09-07T16:00:00Z');
+  await (sched as Scheduler).callAgainAt(phone, callback);
+  await (sched as Scheduler).skipCall(phone, new Date('2026-09-07T12:00:00Z'), callback);
+  assert.equal((await (sched as Scheduler).nextCallFor(phone))?.toISOString(), '2026-09-08T06:00:00.000Z');
+});
+
+test('SMS skip leaves the whole local week, including a callback before the regular slot', { skip: skip() }, async () => {
+  const phone = '+4790000025';
+  await caller(phone);
+  await (sched as Scheduler).callAgainAt(phone, new Date('2026-09-07T16:00:00Z'));
+  const now = new Date('2026-09-07T12:00:00Z');
+  assert.equal((await (sched as Scheduler).skipCall(phone, now)).kind, 'skipped');
+  assert.equal((await (sched as Scheduler).skipCall(phone, now)).kind, 'unchanged');
+  assert.equal((await (sched as Scheduler).nextCallFor(phone))?.toISOString(), '2026-09-15T06:00:00.000Z');
+});
+
+test('a stale skip after the tick claimed a call preserves the following week', { skip: skip() }, async () => {
+  const phone = '+4790000026';
+  await caller(phone);
+  const at = new Date('2026-09-08T06:00:00Z');
+  await (sched as Scheduler).claimDue(at);
+  assert.equal((await (sched as Scheduler).skipCall(phone, at, at)).kind, 'unchanged');
+  assert.equal((await (sched as Scheduler).nextCallFor(phone))?.toISOString(), '2026-09-15T06:00:00.000Z');
+});
+
+test('skip never resumes a paused caller or promises an expired trial a call', { skip: skip() }, async () => {
+  const phone = '+4790000027';
+  await caller(phone);
+  const at = new Date('2026-09-08T06:00:00Z');
+  const now = new Date('2026-09-07T12:00:00Z');
+  await (sched as Scheduler).setPaused(phone, true);
+  assert.deepEqual(await (sched as Scheduler).skipCall(phone, now, at), { kind: 'inactive' });
+  const [row] = await (sql as postgres.Sql)`select paused from callers`;
+  assert.equal(row?.['paused'], true);
+  await (sched as Scheduler).setPaused(phone, false);
+  await (sql as postgres.Sql)`update callers set billing_status = 'trialing', trial_ends_at = '2026-09-01T00:00:00Z'`;
+  assert.deepEqual(await (sched as Scheduler).skipCall(phone, now, at), { kind: 'inactive' });
+  assert.equal((await (sched as Scheduler).nextCallFor(phone))?.toISOString(), at.toISOString());
+});
+
+test('SMS skip uses the local Monday boundary, including midnight', { skip: skip() }, async () => {
+  const phone = '+4790000028';
+  await caller(phone, OSLO, new Date('2026-09-27T12:00:00Z'));
+  assert.equal((await (sched as Scheduler).skipCall(phone, new Date('2026-09-27T21:30:00Z'))).kind, 'unchanged');
+  // Midnight Monday in Oslo, while the UTC calendar still says Sunday.
+  assert.equal((await (sched as Scheduler).skipCall(phone, new Date('2026-09-27T22:00:00Z'))).kind, 'skipped');
+  assert.equal((await (sched as Scheduler).nextCallFor(phone))?.toISOString(), '2026-10-06T06:00:00.000Z');
+});
+
+test('skipping across the autumn clock change preserves the local appointment time', { skip: skip() }, async () => {
+  const phone = '+4790000029';
+  const now = new Date('2026-10-19T12:00:00Z');
+  await caller(phone, OSLO, now);
+  await (sched as Scheduler).skipCall(phone, now, new Date('2026-10-20T06:00:00Z'));
+  assert.equal((await (sched as Scheduler).nextCallFor(phone))?.toISOString(), '2026-10-27T07:00:00.000Z');
+});
+
+test('an unknown number cannot receive a successful skip', { skip: skip() }, async () => {
+  await assert.rejects(() => (sched as Scheduler).skipCall('+4790000099'), UnknownCaller);
+});
+
+test('a displayed next call must be permitted when that appointment arrives', { skip: skip() }, async () => {
+  const phone = '+4790000097';
+  const now = new Date('2026-09-07T12:00:00Z');
+  await caller(phone);
+  assert.equal((await (sched as Scheduler).nextEligibleCallFor(phone, now))?.toISOString(), '2026-09-08T06:00:00.000Z');
+  await (sched as Scheduler).setPaused(phone, true);
+  assert.equal(await (sched as Scheduler).nextEligibleCallFor(phone, now), undefined);
+  await (sched as Scheduler).setPaused(phone, false);
+  // Still in the trial now, but the trial ends before the booked occurrence.
+  await (sql as postgres.Sql)`update callers set billing_status = 'trialing', trial_ends_at = '2026-09-08T00:00:00Z'`;
+  assert.equal(await (sched as Scheduler).nextEligibleCallFor(phone, now), undefined);
+  await (sql as postgres.Sql)`update callers set billing_status = 'active'`;
+  assert.equal(await (sched as Scheduler).nextEligibleCallFor(phone, new Date('2026-09-09T12:00:00Z')), undefined);
 });

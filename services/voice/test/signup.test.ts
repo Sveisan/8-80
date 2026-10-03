@@ -232,8 +232,10 @@ test('the day and time rows open on today and the next quarter hour, in Norway',
   assert.deepEqual(startingPoint(new Date('2026-12-01T09:00:00Z')), { weekday: '2', time: '10:15' });
   // Before the row starts, its first time, today.
   assert.deepEqual(startingPoint(new Date('2026-09-29T02:00:00Z')), { weekday: '2', time: '06:00' });
-  // After it ends, today stays marked and the time falls back.
-  assert.deepEqual(startingPoint(new Date('2026-09-29T20:50:00Z')), { weekday: '2', time: '08:00' });
+  // After it ends, tomorrow morning is offered rather than this morning next week.
+  assert.deepEqual(startingPoint(new Date('2026-09-29T20:50:00Z')), { weekday: '3', time: '08:00' });
+  assert.deepEqual(startingPoint(new Date('2026-10-02T20:00:00Z')), { weekday: '6', time: '08:00' });
+  assert.deepEqual(startingPoint(new Date('2026-10-03T20:00:00Z')), { weekday: '0', time: '08:00' });
   // Just before midnight UTC is already Wednesday in Oslo.
   assert.equal(startingPoint(new Date('2026-09-29T22:30:00Z')).weekday, '3');
 
@@ -253,4 +255,12 @@ test('the times say which clock they are on', async () => {
   const { reschedulePage } = await import('../src/link/page.ts');
   assert.ok(reschedulePage({ weekday: 2, minute: 480, timezone: 'Europe/Oslo' }, script).includes('Norwegian time'));
   assert.ok(reschedulePage({ weekday: 2, minute: 480, timezone: 'America/New_York' }, script).includes('New York time'));
+});
+
+test('an expired booking draft never claims its choices are still saved', () => {
+  for (const reason of ['signup.code.expired', 'signup.code.toomany']) {
+    const page = codePage('+4790000000', script, reason);
+    assert.match(page, /Return to booking below/);
+    assert.doesNotMatch(page, /choices are saved|action="\/start\/resend"/);
+  }
 });

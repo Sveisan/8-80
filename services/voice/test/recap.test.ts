@@ -76,7 +76,7 @@ test('the email promises the next call, not the commitment day', () => {
     script,
     { nextSlot: 'Friday at 08:30' },
   );
-  assert.match(r.body, /I'll call you Friday at 08:30\./);
+  assert.match(r.body, /next call was booked for Friday at 08:30\./);
   assert.ok(!/I'll call you.*Wednesday/.test(r.body), 'the commitment lands on Wednesday; the call is on Friday');
 });
 
@@ -96,4 +96,13 @@ test('the sign-off survives the empty-slot rule', () => {
   // It has no slots, so the rule that drops hollow sentences must not take it.
   const r = composeRecap({ at: '', durationMs: 600_000 }, script);
   assert.ok(r.body.endsWith('— 8&80'));
+});
+
+test('recaps carry a durable controls destination in both plain text and HTML', async () => {
+  const { letterHtml } = await import('../src/recap/letter.ts');
+  const recap = composeRecap(call, script, { controlUrl: 'https://8and80.example/me' });
+  assert.equal(recap.action?.url, 'https://8and80.example/me');
+  assert.ok(recap.body.includes('Manage your calls: https://8and80.example/me'));
+  assert.ok(letterHtml(recap).includes('href="https://8and80.example/me"'));
+  assert.ok(!recap.body.includes('/r/'), 'email navigation does not carry a bearer credential');
 });

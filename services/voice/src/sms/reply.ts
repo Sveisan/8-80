@@ -5,7 +5,8 @@ export type Reply =
   | { kind: 'stop' }
   /** Undo a stop. */
   | { kind: 'start' }
-  /** Try again later today, without touching the slot. */
+  | { kind: 'cancel_subscription' }
+  /** Ask for a specific replacement time, without guessing an hour. */
   | { kind: 'later' }
   /** Leave this week entirely. */
   | { kind: 'skip' }
@@ -99,6 +100,8 @@ export function parseReply(text: string, now = new Date(), timezone = 'UTC'): Re
   // for. See SCRIPT.md §13 for why this is the most important rule in the file.
   const bare = said.replace(/[.!?,\s]+$/, '');
   if (STOP_ALONE.has(bare)) return { kind: 'stop' };
+  if (/\b(?:don['’]?t|do not|never|ikke)\b[^.!?]{0,30}\b(?:cancel|stop|si opp|avslutt)\b/.test(bare)) return { kind: 'unparsed' };
+  if (/\b(cancel (?:my |the )?subscription|cancel (?:my |the )?renewal|stop (?:my |the )?subscription|si opp abonnement|avslutt abonnement)\b/.test(bare)) return { kind: 'cancel_subscription' };
   if (START_ALONE.has(bare)) return { kind: 'start' };
   // "don't call me again" is a stop; "call me again on Friday" is not, and the
   // phrase alone cannot tell them apart. Only the negated form counts.

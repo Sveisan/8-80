@@ -1,44 +1,26 @@
-import { log } from '../log.ts';
-import { PostgresStore } from '../store/postgres.ts';
+import { milestone } from '../journey/measure.ts';
 import type { LoopDeps } from '../loop/deps.ts';
-import { checkoutLink, composeTrialEnded } from './notice.ts';
+import { billingHome, composeTrialEnded } from './notice.ts';
+import { enqueue, dispatchMessage } from '../messages/outbox.ts';
+import { decrypt } from '../store/crypto.ts';
 
-/**
- * Free months that have run out.
- *
- * The calls have already stopped by the time this runs — `claimDue` reads the
- * trial date directly, so nothing has to move for somebody to stop being rung.
- * This exists only to tell them, which is the part that would otherwise be a
- * silence: a weekly call that simply stops arriving, from a product whose
- * whole claim is that it turns up.
- *
- * One email each, ever. `expireTrials` flips the status in the same statement
- * that selects the row, so two sweeps cannot both claim the same person.
- */
+/** Trial closure and its notice commit together. Missing addresses remain visible failures. */
 export async function expireTrials(deps: LoopDeps, now = new Date()): Promise<number> {
-  const store = deps.store;
-  if (!(store instanceof PostgresStore)) return 0;
-
-  const done = await store.expireTrials(now);
-  let told = 0;
-  for (const { phoneHash } of done) {
-    try {
-      const phone = await store.phoneFor(phoneHash);
-      if (!phone) continue;
-      const caller = await store.load(phone);
-      if (!caller.email) continue;
-
-      const letter = composeTrialEnded(deps.script, checkoutLink(phoneHash, caller.email));
-      if (!letter) continue;
-      await deps.mailer.send(caller.email, letter);
-      told++;
-    } catch (e) {
-      // The status is already flipped, so a failed email is a person who is
-      // not being called and has not been told why. That is worth a loud log
-      // and is not worth failing the sweep for everybody else.
-      log('trial.notice_failed', { reason: (e as Error).message });
+  const ids: string[] = [];
+  const count = await deps.store.raw.begin(async tx => {
+    const rows = await tx<{ phone_hash: string; email_enc: string | null; trial_ends_at: Date }[]>`update callers set billing_status = 'ended', updated_at = ${now}
+      where billing_status = 'trialing' and trial_ends_at <= ${now} returning phone_hash, email_enc, trial_ends_at`;
+    for (const row of rows) {
+      await milestone(tx, row.phone_hash, 'trial_ended', `${row.phone_hash}:${row.trial_ends_at.toISOString()}`, now);
+      const letter = composeTrialEnded(deps.script, billingHome());
+      if (!letter) throw new Error('Missing trial notice template');
+      const id = await enqueue(tx, { eventKey: `trial:${row.phone_hash}:${row.trial_ends_at.toISOString()}`, phoneHash: row.phone_hash, channel: 'email', kind: 'trial',
+        to: row.email_enc ? decrypt(row.email_enc) : '', body: letter }, now);
+      if (!row.email_enc) await tx`update message_outbox set status = 'failed', reason = 'missing_address' where id = ${id}`;
+      ids.push(id);
     }
-  }
-  if (done.length) log('trial.ended', { count: done.length, told });
-  return done.length;
+    return rows.length;
+  });
+  for (const id of ids) await dispatchMessage(deps, id, now);
+  return count;
 }

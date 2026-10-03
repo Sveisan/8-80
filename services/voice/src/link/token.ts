@@ -22,13 +22,13 @@ const BROWSER_LENGTH = 25;
  * weaker proof than a message that arrived on their phone. A code of one kind
  * never opens the other, so a cookie cannot be pasted into a link to get more.
  */
-export type Purpose = 'reschedule' | 'browser' | 'feedback';
+export type Purpose = 'reschedule' | 'browser' | 'feedback' | 'memory';
 
 /**
  * A feedback link lasts a fortnight: it is not about this week's call, and
  * somebody who means to answer "when I have a minute" should find it working.
  */
-const TTL: Record<Purpose, number> = { reschedule: TTL_MS, browser: TTL_MS, feedback: 14 * 24 * 3600_000 };
+const TTL: Record<Purpose, number> = { reschedule: TTL_MS, browser: TTL_MS, feedback: 14 * 24 * 3600_000, memory: 15 * 60_000 };
 
 export interface LinkClaims {
   phoneHash: string;
@@ -52,7 +52,7 @@ export type Opened = { ok: true; claims: LinkClaims } | { ok: false; why: string
  * cannot be withdrawn without rotating the secret for everybody at once.
  */
 export class Links {
-  constructor(private readonly sql: postgres.Sql) {}
+  constructor(private readonly sql: postgres.Sql | postgres.TransactionSql) {}
 
   async mint(phoneHash: string, now = new Date(), purpose: Purpose = 'reschedule'): Promise<string> {
     // ISO strings rather than Date objects: the driver serialises a Date
@@ -62,7 +62,7 @@ export class Links {
     // Collisions are vanishingly unlikely and not impossible; retrying twice
     // is cheaper than the incident where two people share a link.
     for (let attempt = 0; attempt < 3; attempt++) {
-      const code = randomCode(purpose === 'browser' ? BROWSER_LENGTH : LENGTH);
+      const code = randomCode((purpose === 'browser' || purpose === 'memory') ? BROWSER_LENGTH : LENGTH);
       const inserted = await this.sql<{ code: string }[]>`
         insert into links (code, phone_hash, purpose, created_at, expires_at)
         values (${code}, ${phoneHash}, ${purpose}, ${now.toISOString()}, ${expiresAt})

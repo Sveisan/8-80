@@ -24,7 +24,9 @@
     "test": "node --import tsx --test test/*.test.ts",
     "tick": "tsx src/tick-cli.ts",
     "typecheck": "tsc --noEmit",
-    "voices": "tsx src/voices-cli.ts"
+    "voices": "tsx src/voices-cli.ts",
+    "messages": "tsx src/messages-cli.ts",
+    "journey": "tsx src/journey-cli.ts"
   },
   "dependencies": {
     "dotenv": "^16.4.5",

@@ -36,6 +36,12 @@ function normalisePhone(raw: string, fallbackCountry = '+47'): string {
   return digits;
 }
 
+/** Shared by signup and recovery, so the same number always resolves the same way. */
+export function readPhone(raw: string): string | undefined {
+  const phone = normalisePhone(raw.trim());
+  return E164.test(phone) ? phone : undefined;
+}
+
 /**
  * What the form said, or what is wrong with it.
  *
@@ -61,7 +67,7 @@ export function readSignup(
   if (!EMAIL.test(email)) errors.push({ field: 'email', why: 'email' });
 
   const name = get('name').slice(0, 80);
-  if (!name) errors.push({ field: 'name', why: 'name' });
+  // The voice deliberately never uses a name; new signups need not provide it.
 
   const weekday = parseWeekday(get('weekday'));
   if (weekday === undefined) errors.push({ field: 'weekday', why: 'weekday' });

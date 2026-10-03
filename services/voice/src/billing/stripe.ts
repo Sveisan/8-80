@@ -87,7 +87,9 @@ export function readStripeWebhook(headers: Record<string, string | string[] | un
   const object = obj(obj(p?.['data'])?.['object']);
   if (!object) return { ok: false, why: 'no data.object', shape: shapeOf(payload) };
 
-  const change: Change = { event };
+  const allowed = new Set(['checkout.session.completed', 'checkout.session.async_payment_succeeded', 'checkout.session.async_payment_failed', 'customer.subscription.created', 'customer.subscription.updated', 'customer.subscription.deleted', 'invoice.paid', 'invoice.payment_failed']);
+  if (!allowed.has(event)) return { ok: false, why: `event not used: ${event}`, shape: shapeOf(payload) };
+  const change: Change = { event, provider: 'stripe', ...(str(p?.['id']) ? { eventId: str(p?.['id'])! } : {}) };
   const objectType = str(object['object']) ?? '';
 
   if (objectType === 'checkout.session') {
@@ -98,11 +100,10 @@ export function readStripeWebhook(headers: Record<string, string | string[] | un
     if (sub) change.subscriptionId = sub;
     const customer = idOf(object['customer']);
     if (customer) change.customerId = customer;
-    // A completed session in subscription mode is a paid subscription. The
-    // customer.subscription.created that follows carries the authoritative
-    // status; this is the one that carries the identity.
-    change.status = str(object['payment_status']) ?? 'complete';
-    change.standing = change.status === 'unpaid' ? 'past_due' : 'active';
+    // This event carries identity; the service retrieves the current
+    // subscription before changing access, regardless of delivery order.
+    change.status = str(object['payment_status']) ?? 'unpaid';
+    change.standing = change.status === 'paid' || change.status === 'no_payment_required' ? 'active' : 'past_due';
     return { ok: true, change };
   }
 
@@ -118,13 +119,16 @@ export function readStripeWebhook(headers: Record<string, string | string[] | un
       // towards cutting off a paying customer.
       change.standing = STANDING[status] ?? 'past_due';
     }
-    const ends = num(object['current_period_end']) ?? num(object['cancel_at']);
+    change.cancelAtPeriodEnd = object['cancel_at_period_end'] === true || !!object['cancel_at'];
+    const items = obj(object['items'])?.['data'];
+    const periods = Array.isArray(items) ? items.map(i => Number(obj(i)?.['current_period_end'])).filter(Number.isFinite) : [];
+    const ends = num(object['cancel_at']) ?? num(object['current_period_end']) ?? (periods.length ? String(Math.min(...periods)) : undefined);
     if (ends) change.endsAt = new Date(Number(ends) * 1000).toISOString();
     return { ok: true, change };
   }
 
   if (objectType === 'invoice') {
-    const sub = idOf(object['subscription']) ?? idOf(obj(object['parent'])?.['subscription']);
+    const sub = idOf(object['subscription']) ?? idOf(obj(obj(object['parent'])?.['subscription_details'])?.['subscription']) ?? idOf(obj(object['parent'])?.['subscription']);
     if (sub) change.subscriptionId = sub;
     const customer = idOf(object['customer']);
     if (customer) change.customerId = customer;

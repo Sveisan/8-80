@@ -85,7 +85,11 @@ test('the event name is taken from the header when the body has none', () => {
 
 test('the checkout link carries our key and their email', () => {
   const before = process.env['LEMONSQUEEZY_CHECKOUT_URL'];
+  const settings = ['BILLING_PROVIDER', 'PUBLIC_URL', 'LEMONSQUEEZY_API_KEY', 'LEMONSQUEEZY_WEBHOOK_SECRET'];
+  const saved = settings.map(key => process.env[key]);
   try {
+    process.env['BILLING_PROVIDER'] = 'lemonsqueezy'; process.env['PUBLIC_URL'] = 'https://8and80.example';
+    process.env['LEMONSQUEEZY_API_KEY'] = process.env['LEMONSQUEEZY_WEBHOOK_SECRET'] = 'fixture';
     process.env['LEMONSQUEEZY_CHECKOUT_URL'] = 'https://8and80.lemonsqueezy.com/buy/abc';
     const link = checkoutLink('hash123', 'e@example.com');
     assert.ok(link.includes('checkout%5Bcustom%5D%5Bphone_hash%5D=hash123'), link);
@@ -93,6 +97,7 @@ test('the checkout link carries our key and their email', () => {
     delete process.env['LEMONSQUEEZY_CHECKOUT_URL'];
     assert.equal(checkoutLink('hash123'), '', 'unconfigured means no link, not a broken one');
   } finally {
+    settings.forEach((key, i) => { if (saved[i] === undefined) delete process.env[key]; else process.env[key] = saved[i]; });
     if (before === undefined) delete process.env['LEMONSQUEEZY_CHECKOUT_URL'];
     else process.env['LEMONSQUEEZY_CHECKOUT_URL'] = before;
   }

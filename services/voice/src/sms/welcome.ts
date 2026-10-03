@@ -1,6 +1,6 @@
 import { log } from '../log.ts';
 import type { ScriptLines } from '../script.ts';
-import type { Slot } from '../schedule/time.ts';
+import { describeAppointment, type Slot } from '../schedule/time.ts';
 import type { Sms } from './types.ts';
 import { OptedOut } from './types.ts';
 
@@ -30,16 +30,12 @@ export async function textBeforeFirstCall(
   const template = deps.script.get('sms.welcome');
   if (!template) return false;
 
-  const when = first.toLocaleString('en-GB', {
-    timeZone: slot.timezone,
-    weekday: 'long',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  const when = describeAppointment(first, slot.timezone);
 
   try {
     await deps.sms.send(phone, template.replace('{{when}}', when).replace('{{link}}', link));
   } catch (e) {
+    if (deps.sms.transactional) throw e;
     // Somebody who opted out before they were ever enrolled has said no in
     // advance, and the answer is the same as saying it afterwards: do not ring
     // them. The caller decides what to do with that; this only reports it.

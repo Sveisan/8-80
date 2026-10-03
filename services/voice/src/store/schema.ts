@@ -33,6 +33,8 @@ export const callers = pgTable(
     voice: text('voice'),
     /** This is call number N. 1 means they have never been called. */
     callNumber: integer('call_number').notNull().default(1),
+    onboarding: text('onboarding').notNull().default('pending'),
+    onboardingCompletedAt: timestamp('onboarding_completed_at', { withTimezone: true }),
     /**
      * Serve the next call the first-call experience, whatever the call number
      * says, then clear itself.
@@ -84,6 +86,7 @@ export const callers = pgTable(
     nextCallAt: timestamp('next_call_at', { withTimezone: true }),
     /** Their choice to stop, which is not the same as having no slot. */
     paused: boolean('paused').notNull().default(false),
+    smsOptOut: boolean('sms_opt_out').notNull().default(false),
 
     /*
      * Billing. Four columns, and the product works without any of them set —
@@ -103,6 +106,10 @@ export const callers = pgTable(
      */
     lsSubscriptionId: text('ls_subscription_id'),
     lsCustomerId: text('ls_customer_id'),
+    billingProvider: text('billing_provider'),
+    cancelAtPeriodEnd: boolean('cancel_at_period_end').notNull().default(false),
+    paidUntil: timestamp('paid_until', { withTimezone: true }),
+    feedbackOptOut: boolean('feedback_opt_out').notNull().default(false),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -234,7 +241,7 @@ export const feedback = pgTable('feedback', {
   state: text('state').notNull(),
   /** The call it followed. */
   attemptId: text('attempt_id'),
-  sentAt: timestamp('sent_at', { withTimezone: true }).notNull().defaultNow(),
+  sentAt: timestamp('sent_at', { withTimezone: true }),
   /** First time the link was opened. Counted, never the content. */
   openedAt: timestamp('opened_at', { withTimezone: true }),
   /** First time the form was sent; `updatedAt` for every edit after. */
@@ -244,6 +251,27 @@ export const feedback = pgTable('feedback', {
   nearlyEnc: text('nearly_enc'),
   elseEnc: text('else_enc'),
 });
+
+/** Encrypted durable send intents. Acceptance and delivery are different states. */
+export const messageOutbox = pgTable('message_outbox', {
+  id: text('id').primaryKey(), eventKey: text('event_key').notNull().unique(),
+  phoneHash: text('phone_hash').notNull(), channel: text('channel').notNull(), kind: text('kind').notNull(),
+  reference: text('reference'), recipientEnc: text('recipient_enc'), payloadEnc: text('payload_enc'),
+  status: text('status').notNull().default('pending'), reason: text('reason'),
+  attempts: integer('attempts').notNull().default(0), providerId: text('provider_id'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  availableAt: timestamp('available_at', { withTimezone: true }).notNull().defaultNow(),
+  firstAttemptAt: timestamp('first_attempt_at', { withTimezone: true }),
+  startedAt: timestamp('started_at', { withTimezone: true }), acceptedAt: timestamp('accepted_at', { withTimezone: true }),
+  deliveredAt: timestamp('delivered_at', { withTimezone: true }), checkedAt: timestamp('checked_at', { withTimezone: true }),
+}, t => [index('message_outbox_due_idx').on(t.status, t.availableAt), index('message_outbox_caller_idx').on(t.phoneHash, t.createdAt)]);
+
+export const messageAttempts = pgTable('message_attempts', {
+  id: text('id').primaryKey(), messageId: text('message_id').notNull(),
+  startedAt: timestamp('started_at', { withTimezone: true }).notNull(),
+  finishedAt: timestamp('finished_at', { withTimezone: true }), result: text('result'),
+}, t => [index('message_attempts_message_idx').on(t.messageId)]);
 
 export type CallerRow = typeof callers.$inferSelect;
 export type CallAttemptRow = typeof callAttempts.$inferSelect;
@@ -341,3 +369,31 @@ export const heartbeats = pgTable('heartbeats', {
 });
 
 export type HeartbeatRow = typeof heartbeats.$inferSelect;
+
+/** Short-lived phone recovery proof, separate from pending enrolment. */
+export const accessCodes = pgTable('access_codes', {
+  phoneHash: text('phone_hash').primaryKey(),
+  id: text('id').notNull().unique(),
+  codeHash: text('code_hash').notNull(),
+  attempts: integer('attempts').notNull().default(0),
+  consumed: boolean('consumed').notNull().default(false),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  windowAt: timestamp('window_at', { withTimezone: true }).notNull(),
+  sentAt: timestamp('sent_at', { withTimezone: true }).notNull(),
+  sends: integer('sends').notNull(),
+}, (t) => [index('access_codes_sent_idx').on(t.sentAt)]);
+
+/** Daily request counts with no visitor identifiers, cookies, IPs or form values. */
+export const journeyCounts = pgTable('journey_counts', {
+  day: text('day').notNull(),
+  event: text('event').notNull(),
+  count: integer('count').notNull().default(0),
+}, t => [uniqueIndex('journey_counts_day_event_idx').on(t.day, t.event)]);
+
+/** Named milestones only; no free text, recording or remembered content. */
+export const journeyEvents = pgTable('journey_events', {
+  id: text('id').primaryKey(),
+  phoneHash: text('phone_hash').notNull(),
+  event: text('event').notNull(),
+  at: timestamp('at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [index('journey_events_phone_at_idx').on(t.phoneHash, t.at), index('journey_events_at_idx').on(t.at)]);

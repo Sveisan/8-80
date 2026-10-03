@@ -1,10 +1,25 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { describeSlot, nextSlotAfter, parseLocalTime, parseWeekday, zonedTimeToUtc, type Slot } from '../src/schedule/time.ts';
+import { describeAppointment, describeSlot, localDate, nextSlotAfter, parseLocalTime, parseWeekday, zonedTimeToUtc, type Slot } from '../src/schedule/time.ts';
 
 const OSLO: Slot = { weekday: 2, minute: 8 * 60, timezone: 'Europe/Oslo' };
 
 const iso = (d: Date) => d.toISOString();
+
+test('local midnight belongs to the day that just began', () => {
+  assert.deepEqual(localDate(new Date('2026-09-27T22:00:00Z'), 'Europe/Oslo'), {
+    year: 2026, month: 9, day: 28, weekday: 1,
+  });
+  assert.equal(iso(zonedTimeToUtc(2026, 9, 28, 0, 'Europe/Oslo')), '2026-09-27T22:00:00.000Z');
+});
+
+test('appointments name the actual date, local time and zone', () => {
+  const text = describeAppointment(new Date('2026-10-03T06:00:00Z'), 'Europe/Oslo');
+  assert.match(text, /Saturday/);
+  assert.match(text, /3 October/);
+  assert.match(text, /08:00/);
+  assert.match(text, /CEST|GMT\+2/);
+});
 
 test('a slot lands on the named weekday at the named local time', () => {
   // Monday 2026-09-07, 10:00 UTC.

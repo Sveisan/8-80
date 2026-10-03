@@ -1,5 +1,10 @@
 # DEPLOY — the voice service on the VPS
 
+The local first-month journey changes have additional migration, prompt, SMS-signature
+and billing release requirements. Review [the implementation plan](docs/first-month-improvement-plan.md)
+before using this runbook to release them. Paid checkout and the actual price remain
+unverified until the selected provider is configured and tested.
+
 For the first call you need three things: the code on the box, a hostname with TLS that
 Twilio can open a websocket to, and your `.env`. Twenty minutes, most of it DNS.
 
@@ -150,3 +155,7 @@ never written to disk.
 | Dial fails with an unhelpful error | Destination country not enabled under **Voice** geo permissions. Messaging geo permissions is a different setting. |
 | A recorded notice before the call | Twilio trial. Verify the number, or upgrade. |
 | Agent responds slower than feels natural | Deliberate at `ENDPOINTING_SENSITIVITY=0.25`. Note it in the free-text score rather than treating it as a fault. |
+
+## First-month journey release
+
+Review [the delivery runbook](docs/message-delivery.md) and [the improvement plan](docs/first-month-improvement-plan.md) before deploying this branch. Apply migrations 0013–0019 before services start. Coordinate both Speechify prompts and variable declarations with the backend. Keep one public-signup replica until its process-local extra limits are replaced with shared enforcement. `npm run messages` and `npm run journey` provide read-only operational/baseline reports. Assign monitoring ownership and complete the real-device, billing-price and policy gates before enrollment. Rollback must stop both old and new ticks and preserve unresolved outbox work.

@@ -1,6 +1,6 @@
 # Terms
 
-Last updated 22 September 2026.
+Draft updated 3 October 2026; operational wording requires review before a paid launch.
 
 ## Who you are agreeing with
 
@@ -27,23 +27,28 @@ the service and of the person who owns it.
 
 ## The free month
 
-The first month is free and we do not ask for a card. When it ends, the calls
-stop and we send one email with a link to continue. We do not charge you at the
+The first 30 days are free and we do not ask for a card. Your call controls show
+the trial end. When it ends, calls stop and we send an email directing you to
+continuation options, or to support if paid checkout is not available. We do not charge you at the
 end of a trial you did not convert, because there is nothing to charge.
 
 ## Paying
 
-Payments are handled by Lemon Squeezy, who are the merchant of record. They
-take the payment, issue the receipt, and handle VAT. Their terms apply to the
-transaction itself.
+The payment provider and paid plan are shown at checkout. Review the full price,
+renewal interval, tax treatment and payment terms there before paying. No price is
+promised on this draft page while checkout is unconfigured. Do not enter payment
+details in messages to us.
 
-The subscription renews every month until you cancel. Cancel any time, from the
-link in the receipt or by emailing us; the calls continue to the end of the
-period you have already paid for, and then stop.
+Subscriptions renew under the terms accepted at checkout. Cancel renewal from
+"Cancel subscription renewal" in your phone-verified call controls, or contact
+{{support_email}}. We show cancellation as confirmed only after the payment
+provider confirms it. Calls remain available until the paid period ends unless
+you have paused them. Paying or changing billing does not undo a pause.
 
-As a consumer buying a digital service you have a fourteen-day right of
-withdrawal under Norwegian law. Because the first month is free, this period
-runs from the first payment rather than from sign-up.
+Consumer withdrawal rights are separate from cancellation of future renewal.
+Contact {{support_email}} to exercise those rights; using the cancellation controls
+does not waive them. The paid checkout and withdrawal information must be reviewed
+for the selected provider and service before paid enrollment opens.
 
 ## Stopping
 
@@ -54,8 +59,9 @@ You can stop the calls at any time, immediately, without asking anybody:
 - or email {{support_email}}.
 
 Stopping ends the calls. It does not by itself cancel a subscription or delete
-your data — both of those are on the same page, and neither is hidden behind an
-email to us.
+your data. The call controls offer separate renewal cancellation and deletion
+actions after phone verification. If billing cannot be reached, cancellation is
+reported as unconfirmed and subscribed accounts are retained until it is resolved.
 
 ## When we might call and when we might not
 

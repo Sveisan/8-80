@@ -35,7 +35,7 @@ after(async () => {
 });
 
 beforeEach(async () => {
-  if (sql) await sql`truncate table callers, call_attempts`;
+  if (sql) await sql`truncate table message_attempts, message_outbox, callers, call_attempts`;
   process.env['DATA_ENCRYPTION_KEY'] = KEY;
 });
 
@@ -111,11 +111,12 @@ test('saying always moves the standing slot', { skip: skip() }, async () => {
   assert.equal(rows[0]?.['slot_minute'], 540);
 });
 
-test('skipping a week is not leaving', { skip: skip() }, async () => {
+test('skipping after a missed call leaves next week intact', { skip: skip() }, async () => {
   await missedCall('+4790000034');
   const sms = new Outbox();
   const out = await handleReply('+4790000034', 'skip', OSLO, { sms, scheduler: sched as Scheduler, script }, NOW);
-  assert.equal(out.action, 'skipped');
+  assert.equal(out.action, 'unchanged');
+  assert.match(out.said, /15 September/);
 
   const rows = await (sql as postgres.Sql)`select slot_weekday, paused, next_call_at from callers`;
   assert.equal(rows[0]?.['paused'], false, 'they skipped a week, they did not leave');
@@ -123,15 +124,29 @@ test('skipping a week is not leaving', { skip: skip() }, async () => {
   assert.equal((rows[0]?.['next_call_at'] as Date).toISOString(), '2026-09-15T06:00:00.000Z');
 });
 
-test('later means today, and does not move the arrangement', { skip: skip() }, async () => {
+test('later asks for an explicit time and does not change the next appointment', { skip: skip() }, async () => {
   await missedCall('+4790000035');
   const sms = new Outbox();
   const out = await handleReply('+4790000035', 'try again tonight', OSLO, { sms, scheduler: sched as Scheduler, script }, NOW);
-  assert.equal(out.action, 'later');
+  assert.equal(out.action, 'needs_time');
+  assert.match(out.said, /day and time/);
 
   const rows = await (sql as postgres.Sql)`select next_call_at, slot_weekday from callers`;
-  assert.equal((rows[0]?.['next_call_at'] as Date).toISOString(), '2026-09-08T14:00:00.000Z');
+  assert.equal((rows[0]?.['next_call_at'] as Date).toISOString(), '2026-09-15T06:00:00.000Z');
   assert.equal(rows[0]?.['slot_weekday'], 2);
+});
+
+test('skipping the final trial appointment does not promise a call after expiry', { skip: skip() }, async () => {
+  const phone = '+4790000037';
+  await (store as PostgresStore).upsertProfile(phone, { name: 'Test' });
+  const now = new Date('2026-09-07T12:00:00Z');
+  const at = await (sched as Scheduler).setSlot(phone, OSLO, now);
+  await (sql as postgres.Sql)`update callers set billing_status = 'trialing', trial_ends_at = '2026-09-10T00:00:00Z'`;
+  const out = await handleReply(phone, 'skip', OSLO, { sms: new Outbox(), scheduler: sched as Scheduler, script }, now, { skipAt: at });
+  assert.equal(out.action, 'skipped');
+  assert.match(out.said, /no more calls scheduled during your free month/);
+  assert.doesNotMatch(out.said, /Next call/);
+  assert.equal((await (sched as Scheduler).nextCallFor(phone))?.toISOString(), '2026-09-15T06:00:00.000Z');
 });
 
 test('something it cannot read still gets an answer', { skip: skip() }, async () => {

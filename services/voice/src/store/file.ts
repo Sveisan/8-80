@@ -39,6 +39,8 @@ export class FileStore implements Store {
         language: raw['language'] as string | undefined,
         voice: raw['voice'] as string | undefined,
         callNumber: Number(raw['callNumber'] ?? 1),
+        onboarding: (raw['onboarding'] as CallerRecord['onboarding']) ?? (Number(raw['callNumber'] ?? 1) > 1 ? 'legacy' : 'pending'),
+        onboardingCompletedAt: raw['onboardingCompletedAt'] as string | undefined,
         lastCommitment: typeof sealed === 'string' && sealed ? decrypt(sealed) : undefined,
         lastCommitmentDay: raw['lastCommitmentDay'] as string | undefined,
         consecutiveUndone: Number(raw['consecutiveUndone'] ?? 0),
@@ -81,6 +83,8 @@ export class FileStore implements Store {
       JSON.stringify(
         {
           callNumber: before.callNumber + 1,
+          onboarding: ['complete', 'legacy'].includes(before.onboarding ?? '') ? before.onboarding : outcome.onboardingComplete ? 'complete' : 'in_progress',
+          onboardingCompletedAt: before.onboardingCompletedAt ?? (outcome.onboardingComplete ? outcome.at : undefined),
           name: before.name,
           language: before.language,
           voice: before.voice,

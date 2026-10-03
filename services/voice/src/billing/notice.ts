@@ -1,3 +1,4 @@
+import { providerUrl } from './gateway.ts';
 import { config } from '../config.ts';
 import { lemonPayments } from './lemonsqueezy.ts';
 import { stripePayments } from './stripe.ts';
@@ -17,8 +18,8 @@ import type { ScriptLines } from '../script.ts';
  */
 export function checkoutLink(phoneHash: string, email?: string): string {
   const base = config.billing.checkoutUrl();
-  if (!base) return '';
-  return payments().checkout(base, phoneHash, email);
+  if (!base || !config.billing.checkoutReady()) return '';
+  try { return payments().checkout(providerUrl(base, config.billing.provider()), phoneHash, email); } catch { return ''; }
 }
 
 /** Whichever vendor is configured. See config.billing.provider. */
@@ -64,7 +65,8 @@ function letterFrom(script: ScriptLines, prefix: string, link: string): Recap | 
   const body = line('body');
   if (body && link) parts.push({ role: 'body', text: body });
   const quiet = line('quiet');
-  if (quiet) parts.push({ role: 'quiet', text: quiet });
+  if (quiet && link) parts.push({ role: 'quiet', text: quiet });
+  if (!link) parts.push({ role: 'body', text: (script.get('email.billing.unavailable') ?? '').replace('{{email}}', config.company.supportEmail() || 'hei@8and80.me') });
   const signoff = script.get('email.signoff');
   if (signoff) parts.push({ role: 'signoff', text: signoff });
 
@@ -76,3 +78,6 @@ function letterFrom(script: ScriptLines, prefix: string, link: string): Recap | 
     ...(link && label ? { action: { label, url: link } } : {}),
   };
 }
+
+/** Letters lead to authenticated controls, never to a checkout for an existing subscriber. */
+export const billingHome = (): string => { const base = config.link.publicUrl().replace(/\/$/, ''); return base ? `${base}/me` : ''; };

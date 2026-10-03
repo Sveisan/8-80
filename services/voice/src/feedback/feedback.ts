@@ -3,7 +3,7 @@ import { config } from '../config.ts';
 import { log } from '../log.ts';
 import { Links } from '../link/token.ts';
 import { decrypt, encrypt } from '../store/crypto.ts';
-import { OptedOut } from '../sms/types.ts';
+import { enqueue, dispatchMessage } from '../messages/outbox.ts';
 import type { LoopDeps } from '../loop/deps.ts';
 
 /** Not on top of the recap, which goes the moment the call settles. */
@@ -48,16 +48,16 @@ export async function sendDueFeedback(deps: LoopDeps, now = new Date()): Promise
   const sql = deps.store.raw;
 
   const due = await sql<
-    { id: string; phone_hash: string; duration_ms: number | null; note: string | null; safety_tier: number | null; n: number }[]
+    { id: string; phone_hash: string; duration_ms: number | null; note: string | null; safety_tier: number | null; ended_at: Date; n: number }[]
   >`
     with done as (
       select phone_hash, count(*)::int as n
       from call_attempts where status = 'completed' and ended_at is not null
       group by phone_hash
     )
-    select a.id, a.phone_hash, a.duration_ms, a.note, a.safety_tier, done.n
+    select a.id, a.phone_hash, a.duration_ms, a.note, a.safety_tier, a.ended_at, done.n
     from done
-    join callers c on c.phone_hash = done.phone_hash and c.paused = false
+    join callers c on c.phone_hash = done.phone_hash and c.paused = false and c.feedback_opt_out = false
     join lateral (
       select id, phone_hash, ended_at, duration_ms, note, safety_tier from call_attempts
       where phone_hash = done.phone_hash and status = 'completed' and ended_at is not null
@@ -85,34 +85,20 @@ export async function sendDueFeedback(deps: LoopDeps, now = new Date()): Promise
     }
     if ((row.duration_ms ?? 0) < MIN_CALL_MS || (row.note && ENDED_EARLY.includes(row.note))) continue;
 
-    const claimed = await sql<{ phone_hash: string }[]>`
-      insert into feedback (phone_hash, state, attempt_id, sent_at) values (${row.phone_hash}, 'sent', ${row.id}, ${now.toISOString()})
-      on conflict do nothing returning phone_hash
-    `;
-    if (!claimed.length) continue;
+    const id = await sql.begin(async tx => {
+      const [caller] = await tx`select phone_hash from callers where phone_hash = ${row.phone_hash} and paused = false and feedback_opt_out = false for update`;
+      if (!caller) return undefined;
+      const claimed = await tx`insert into feedback (phone_hash, state, attempt_id) values (${row.phone_hash}, 'queued', ${row.id}) on conflict do nothing returning phone_hash`;
+      if (!claimed.length) return undefined;
+      const phone = await deps.store.in(tx).phoneFor(row.phone_hash);
+      const template = deps.script.get(`sms.feedback.${row.n}`) ?? deps.script.get('sms.feedback');
+      if (!phone || !template) throw new Error('Feedback message incomplete');
+      const link = `${base}/f/${await new Links(tx).mint(row.phone_hash, now, 'feedback')}`;
+      return enqueue(tx, { eventKey: `feedback:${row.phone_hash}`, phoneHash: row.phone_hash, channel: 'sms', kind: 'feedback', reference: row.id,
+        to: phone, body: template.replace('{{count}}', String(row.n)).replace('{{link}}', link), expiresAt: new Date(+row.ended_at + STALE_MS) }, now);
+    });
+    if (id && await dispatchMessage(deps, id, now) === 'accepted') sent++;
 
-    const phone = await deps.store.phoneFor(row.phone_hash);
-    const template = deps.script.get(`sms.feedback.${row.n}`) ?? deps.script.get('sms.feedback');
-    if (!phone || !template) {
-      await sql`update feedback set state = 'failed' where phone_hash = ${row.phone_hash}`;
-      continue;
-    }
-    const link = `${base}/f/${await new Links(sql).mint(row.phone_hash, now, 'feedback')}`;
-    try {
-      await deps.sms.send(phone, template.replace('{{count}}', String(row.n)).replace('{{link}}', link));
-      sent++;
-      log('feedback.sent', { afterCall: row.n });
-    } catch (e) {
-      await sql`update feedback set state = 'failed' where phone_hash = ${row.phone_hash}`;
-      if (e instanceof OptedOut) {
-        // The same rule as every other text: a number that refuses messages
-        // has said no, and the calls stop. SCRIPT.md §13.
-        await deps.scheduler.setPaused(phone, true);
-        log('sms.stopped_by_carrier', { note: 'opted out at the carrier — calls paused' });
-      } else {
-        log('feedback.not_sent', { reason: (e as Error).message });
-      }
-    }
   }
   return sent;
 }

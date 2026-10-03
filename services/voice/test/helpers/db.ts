@@ -49,6 +49,8 @@ export async function openTestDb(name: string): Promise<TestDb | string> {
       },
     };
   } catch (e) {
+    // An explicitly configured database is a required check, never a silent skip.
+    if (process.env['TEST_DATABASE_URL']) throw e;
     // Named loudly, because a skip is silent and this is two thirds of the
     // suite. `npm run test:db` starts a throwaway cluster and needs no setup.
     return `no database at ${URL} (${(e as Error).message}) — run \`npm run test:db\`, or set TEST_DATABASE_URL`;

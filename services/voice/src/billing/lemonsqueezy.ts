@@ -2,25 +2,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import { shapeOf } from '../webhook/speechify.ts';
 import { num, obj, pick, str, type Change, type Payments, type Read, type Standing, type Verdict } from './types.ts';
 
-/**
- * Lemon Squeezy's webhook, read defensively.
- *
- * This file was written without access to Lemon Squeezy's documentation — the
- * network this was built on cannot reach it — so everything that could differ
- * from what they actually send is either tried in several forms or recorded
- * for inspection rather than assumed. That is not a stopgap: it is the same
- * shape the Speechify webhook ended up in after five rounds of being wrong
- * about a header name and an envelope, and it cost an evening each time.
- *
- * What is safe to assume: the signature is an HMAC-SHA256 of the raw body in
- * hex, keyed on the secret set alongside the webhook. Every vendor does that
- * one the same way, and getting it wrong fails closed.
- *
- * What is not: the exact header names and the exact set of status strings. So
- * the headers are a list, the statuses are a table with an explicit default,
- * and an unrecognised payload comes back with its shape printed rather than
- * silently treated as nothing having happened.
- */
+/** Lemon Squeezy's documented HMAC signature and subscription event envelopes. */
 
 /** Tried in order. The first one present is used. */
 const SIGNATURE_HEADERS = ['x-signature', 'x-lemonsqueezy-signature', 'signature'];
@@ -80,12 +62,17 @@ export function readLemonWebhook(headers: Record<string, string | string[] | und
   // pay with a different address than they signed up with all the time.
   const custom = obj(meta?.['custom_data']) ?? obj(meta?.['customData']);
 
-  const change: Change = { event };
-  const id = str(data?.['id']) ?? num(data?.['id']);
+  if (!['subscription_created', 'subscription_updated', 'subscription_cancelled', 'subscription_resumed', 'subscription_expired', 'subscription_paused', 'subscription_unpaused', 'subscription_payment_failed', 'subscription_payment_success', 'subscription_payment_recovered'].includes(event)) return { ok: false, why: 'event not used', shape: shapeOf(payload) };
+  const change: Change = { event, provider: 'lemonsqueezy' };
+  change.cancelAtPeriodEnd = attrs?.['cancelled'] === true || status === 'cancelled';
+  const invoice = data?.['type'] === 'subscription-invoices';
+  const id = invoice ? str(attrs?.['subscription_id']) ?? num(attrs?.['subscription_id']) : str(data?.['id']) ?? num(data?.['id']);
   if (id) change.subscriptionId = id;
   const customer = str(attrs?.['customer_id']) ?? num(attrs?.['customer_id']);
   if (customer) change.customerId = customer;
-  if (status) {
+  if (invoice) {
+    change.standing = event === 'subscription_payment_failed' ? 'past_due' : 'active';
+  } else if (status) {
     change.status = status;
     change.standing = STANDING[status] ?? 'past_due';
   }
