@@ -1,11 +1,17 @@
+import { countRequest } from './journey/measure.ts';
+import twilio from 'twilio';
+import { randomUUID } from 'node:crypto';
+import { queued, enqueue, dispatchMessage } from './messages/outbox.ts';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
+import { isIP } from 'node:net';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { config, repoRoot } from './config.ts';
 import { log } from './log.ts';
 import { loadScript } from './script.ts';
 import { openStore } from './store/index.ts';
-import { PostgresStore } from './store/postgres.ts';
+import { needsOnboarding } from './store/types.ts';
+import { PostgresStore, phoneKey } from './store/postgres.ts';
 import { Scheduler } from './schedule/scheduler.ts';
 import { SpeechifyAgent } from './agent/speechify.ts';
 import { openMailer } from './recap/mailer.ts';
@@ -14,26 +20,33 @@ import { handleReply } from './sms/missed.ts';
 import { verifySignature } from './webhook/signature.ts';
 import { Links } from './link/token.ts';
 import { contactNumber, vcard } from './link/vcard.ts';
-import { BROWSER, FRESH_MS, clearBrowser, cookieOf, crossSite } from './link/cookie.ts';
+import { BROWSER, FRESH_MS, clearBrowser, clearMemory, cookieOf, crossSite } from './link/cookie.ts';
 import {
   confirmForgetPage,
+  confirmBillingPage,
   confirmStopPage,
   donePage,
+  exportFailedPage,
   forgottenPage,
   gonePage,
   reschedulePage,
-  stoppedPage,
   unknownBrowserPage,
   GOALS_MAX,
   type PageView,
 } from './link/page.ts';
+import { accountState } from './link/account.ts';
+import { readMemory, correctMemory } from './memory/context.ts';
+import { memoryPage } from './memory/page.ts';
+import { accessRoutes } from './access/routes.ts';
 import { signupRoutes } from './signup/routes.ts';
 import { ANSWER_MAX, isPreview, openFeedback, saveFeedback } from './feedback/feedback.ts';
 import { feedbackGonePage, feedbackPage, feedbackThanksPage } from './feedback/page.ts';
 import { EMAIL } from './signup/form.ts';
 import { legalPage } from './legal/page.ts';
 import { composeExport } from './legal/export.ts';
-import { checkoutLink, composePaymentFailed, payments } from './billing/notice.ts';
+import { syncBilling, cancelRenewal, deleteAccount, customerPortal } from './billing/service.ts';
+import { parseReply } from './sms/reply.ts';
+import { checkoutLink, billingHome, payments } from './billing/notice.ts';
 import { parseLocalTime } from './schedule/time.ts';
 import { settleConversation } from './loop/settle.ts';
 import { UnreadablePayload, shapeOf } from './webhook/speechify.ts';
@@ -62,18 +75,13 @@ async function rawBody(req: IncomingMessage): Promise<Buffer> {
   return Buffer.concat(chunks);
 }
 
-/**
- * Who is asking, for rate limiting only.
- *
- * Behind a reverse proxy the socket address is the proxy, so the forwarded
- * header is read first — and only the first hop of it, because everything
- * after that was written by the client and a limiter keyed on a value the
- * client controls is not a limiter.
- */
+/** Only the local reverse proxy may supply the last forwarded hop. */
 const clientOf = (req: IncomingMessage): string => {
+  const peer = req.socket.remoteAddress ?? 'unknown';
+  const localProxy = ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(peer);
   const forwarded = req.headers['x-forwarded-for'];
-  const first = (Array.isArray(forwarded) ? forwarded[0] : forwarded)?.split(',')[0]?.trim();
-  return first || req.socket.remoteAddress || 'unknown';
+  const last = typeof forwarded === 'string' ? forwarded.split(',').at(-1)?.trim() : undefined;
+  return localProxy && last && isIP(last) ? last : peer;
 };
 
 const send = (res: ServerResponse, status: number, body: unknown): void => {
@@ -102,7 +110,7 @@ const mark = (res: ServerResponse): void => {
   res.end(markPng);
 };
 
-const html = (res: ServerResponse, status: number, body: string, headers: Record<string, string> = {}): void => {
+const html = (res: ServerResponse, status: number, body: string, headers: Record<string, string | string[]> = {}): void => {
   res.writeHead(status, {
     'content-type': 'text/html; charset=utf-8',
     // The link is in somebody's messages. It should not also be in a cache.
@@ -180,9 +188,15 @@ export function controlPlane(deps: LoopDeps, secret: string | readonly string[] 
         }
       }
 
+      if (url.pathname === '/access' || url.pathname === '/access/verify') {
+        const answer = await accessRoutes(req, url, deps, clientOf(req));
+        if (answer) return html(res, answer.status, answer.body, answer.headers);
+      }
+
       if (url.pathname === '/' || url.pathname.startsWith('/start')) {
         const answer = await signupRoutes(req, url, deps, clientOf(req));
         if (answer) return html(res, answer.status, answer.body, answer.headers);
+        if (req.method === 'GET' && url.pathname === '/') return html(res, 303, '', { location: '/access' });
         return send(res, 404, { error: 'not found' });
       }
 
@@ -271,14 +285,13 @@ export function controlPlane(deps: LoopDeps, secret: string | readonly string[] 
         }
         const read = vendor.read(req.headers, payload);
         if (!read.ok) {
-          // The shape, not the contents. Both adapters were written without
-          // access to the vendor's documentation, so the first real delivery
-          // is the documentation — and a 200 keeps them from retrying
-          // something we already have.
+          // Ignore unrelated events without logging customer data.
           log('billing.unreadable', { vendor: vendor.name, why: read.why, shape: read.shape });
           return send(res, 200, { handled: false });
         }
-        const applied = await (deps.store as PostgresStore).applyBilling(read.change);
+        let applied;
+        try { applied = await syncBilling(deps, read.change); }
+        catch { log('billing.sync_failed', { vendor: vendor.name }); return send(res, 503, { error: 'billing confirmation pending' }); }
         log('billing.event', {
           vendor: vendor.name,
           event: read.change.event,
@@ -287,35 +300,65 @@ export function controlPlane(deps: LoopDeps, secret: string | readonly string[] 
           matched: applied.matched,
           from: applied.from ?? 'none',
         });
-        // On the transition only. Their dunning re-sends this for days, and a
-        // second voice chasing the same card is what makes somebody cancel out
-        // of irritation rather than intent.
-        if (applied.matched && read.change.standing === 'past_due' && applied.from !== 'past_due') {
-          await tellThemTheCardFailed(deps, applied.phoneHash as string);
-        }
         return send(res, 200, { handled: applied.matched });
       }
 
       if (req.method === 'POST' && url.pathname === '/webhooks/sms') {
         const body = await rawBody(req);
         const form = new URLSearchParams(body.toString('utf8'));
+        const signature = req.headers['x-twilio-signature'];
+        const token = process.env['TWILIO_AUTH_TOKEN'];
+        const base = config.link.publicUrl().replace(/\/$/, '');
+        // The webhook can live on api.example while controls live on example.
+        // Never infer the signed origin from untrusted proxy headers.
+        const signedUrl = process.env['TWILIO_SMS_WEBHOOK_URL'] || (base ? `${base}${req.url}` : '');
+        if (!token || !signedUrl || typeof signature !== 'string' || !twilio.validateRequest(token, signature, signedUrl, Object.fromEntries(form))) return send(res, 403, { error: 'unverified SMS' });
+        const smsAck = (): void => { res.writeHead(200, { 'content-type': 'text/xml; charset=utf-8' }); res.end('<Response/>'); };
         const from = form.get('From');
         const text = form.get('Body');
         if (!from || !text) return send(res, 400, { error: 'missing From or Body' });
+        const sid = form.get('MessageSid') ?? '';
+        if (!/^SM[a-zA-Z0-9_]{1,64}$/.test(sid)) return send(res, 400, { error: 'missing message identity' });
+        const hash = phoneKey(from);
+        const scope = `reply:${sid}`;
+        const [previous] = await deps.store.raw`select id from message_outbox where event_key = ${`${scope}:sms`}`;
+        if (previous) { await dispatchMessage(deps, previous['id']); return smsAck(); }
 
         const caller = await deps.store.load(from);
-        if (!caller.callNumber) return send(res, 200, { handled: false });
+        if (!caller.callNumber) return smsAck();
+        const intent = parseReply(text);
+        if (intent.kind === 'cancel_subscription') {
+          let key: string;
+          try { key = await cancelRenewal(deps, phoneKey(from)) === 'cancelled' ? 'sms.subscription.cancelled' : 'sms.subscription.none'; }
+          catch { key = 'sms.subscription.failed'; }
+          const id = await deps.store.raw.begin(async tx => {
+            const [caller] = await tx`select phone_hash from callers where phone_hash = ${hash} for update`;
+            if (!caller) return undefined;
+            return enqueue(tx, { eventKey: `${scope}:sms`, phoneHash: hash, channel: 'sms', kind: 'reply', to: from,
+              body: (deps.script.get(key) ?? '').replace('{{link}}', billingHome() || `mailto:${config.company.supportEmail() || 'hei@8and80.me'}`) });
+          });
+          if (id) await dispatchMessage(deps, id);
+          return smsAck();
+        }
         const slot = await deps.scheduler.slotFor(from);
-        if (!slot) return send(res, 200, { handled: false, why: 'no slot' });
-
-        const out = await handleReply(from, text, slot, deps);
-        return send(res, 200, { action: out.action });
+        if (!slot) return smsAck();
+        const ids = await deps.store.raw.begin(async tx => {
+          const [current] = await tx`select phone_hash from callers where phone_hash = ${hash} for update`;
+          if (!current || (await tx`select id from message_outbox where event_key = ${`${scope}:sms`}`).length) return [];
+          if (intent.kind === 'start' || intent.kind === 'stop') await tx`update callers set sms_opt_out = ${intent.kind === 'stop'} where phone_hash = ${hash}`;
+          const messages = queued(tx, hash, scope, new Date(), 'reply');
+          await handleReply(from, text, slot, { ...deps, scheduler: new Scheduler(tx), sms: messages.sms });
+          return messages.ids;
+        });
+        for (const id of ids) await dispatchMessage(deps, id);
+        return smsAck();
       }
 
       // The page a text points at. No login: asking somebody to remember a
       // password in order to move a phone call is how a courtesy becomes a
       // chore. The token is what limits the damage — see link/token.ts.
       if (url.pathname.startsWith('/r/')) {
+        if (req.method === 'POST' && crossSite(req)) return send(res, 403, { error: 'forbidden' });
         const opened = await new Links(deps.store.raw).open(decodeURIComponent(url.pathname.slice(3)));
         if (!opened.ok) {
           log('link.refused', { why: opened.why });
@@ -344,6 +387,32 @@ export function controlPlane(deps: LoopDeps, secret: string | readonly string[] 
         const answers = await openFeedback(deps.store.raw, hash, !isPreview(req.headers['user-agent']));
         if (!answers) return html(res, 410, feedbackGonePage(deps.script));
         return html(res, 200, feedbackPage(deps.script, answers));
+      }
+
+      if (url.pathname === '/memory') {
+        if (req.method === 'POST' && crossSite(req)) return send(res, 403, { error: 'forbidden' });
+        const code = cookieOf(req, 'memory');
+        const opened = code ? await new Links(deps.store.raw).open(code, new Date(), 'memory') : undefined;
+        if (!opened?.ok) return html(res, 303, '', { location: '/access?for=memory', 'set-cookie': clearMemory() });
+        const hash = opened.claims.phoneHash;
+        let current = await readMemory(deps.store.raw, hash);
+        if (!current) return html(res, 410, gonePage(deps.script), { 'set-cookie': clearMemory() });
+        if (req.method === 'GET') return html(res, 200, memoryPage(current, deps.script));
+        if (req.method !== 'POST') return send(res, 405, { error: 'method not allowed' });
+        const form = new URLSearchParams((await rawBody(req)).toString('utf8'));
+        if (form.get('action') === 'done') {
+          await deps.store.raw`delete from links where code = ${code!} and purpose = 'memory'`;
+          return html(res, 303, '', { location: '/me', 'set-cookie': clearMemory() });
+        }
+        if (form.get('action') !== 'save') return html(res, 400, memoryPage(current, deps.script));
+        const commitment = (form.get('commitment') ?? '').trim();
+        const goals = (form.get('goals') ?? '').trim();
+        if (commitment.length > 2000 || goals.length > 2000) return html(res, 400, memoryPage(current, deps.script, 'memory.long'));
+        const result = await correctMemory(deps.store.raw, hash, form.get('revision') ?? '', commitment, goals);
+        current = await readMemory(deps.store.raw, hash);
+        if (!current) return html(res, 410, gonePage(deps.script), { 'set-cookie': clearMemory() });
+        log('caller.memory_correction', { result });
+        return html(res, result === 'saved' ? 200 : 409, memoryPage(current, deps.script, result === 'saved' ? 'memory.saved' : 'memory.changed'));
       }
 
       // The same page, for the browser that signed up. See BROWSER below for
@@ -389,40 +458,82 @@ async function yourPage(
   if (!phone || !slot) return html(res, 410, via === 'link' ? gonePage(deps.script) : unknownBrowserPage(deps.script));
   const caller = await deps.store.load(phone);
   const language = caller.language;
+  const back = new URL(req.url ?? '/me', 'http://local').pathname;
 
   // No call yet: the page is about the first one. `callNumber` 1 is "never
   // been called"; a rehearsal is a first call on purpose and says so too.
-  const before = caller.callNumber <= 1 || !!caller.rehearseFirstCall;
+  const before = needsOnboarding(caller);
   const view = async (extra: Partial<PageView> = {}): Promise<PageView> => {
-    const next = before ? await deps.scheduler.nextCallFor(phone) : undefined;
+    const account = await accountState(deps.store.raw, phoneHash);
+    const next = account?.next;
     return {
       via,
+      account,
+      beforeFirst: before,
       // Until there has been a call there is no list to add to — the first
       // call makes it, and does not read anything added before.
       goals: !before,
       // Before the first call, so the first ring already has a name on it.
       contact: before && !!contactNumber(),
-      ...(next ? { first: next } : {}),
+      ...(next ? { next, ...(before ? { first: next } : {}) } : {}),
       ...extra,
     };
   };
   const page = async (email?: string, note?: string, extra: Partial<PageView> = {}): Promise<void> =>
-    html(res, 200, reschedulePage(slot, deps.script, language, email, note, await view(extra)));
+    html(res, 200, reschedulePage(slot, deps.script, language, email ?? caller.email, note, await view(extra)));
 
-  if (req.method === 'GET') return await page(undefined, undefined, { fresh });
+  if (req.method === 'GET') {
+    await countRequest(deps.store.raw, 'controls_loaded');
+    const query = new URL(req.url ?? '/me', 'http://local').searchParams;
+    let billingNote: string | undefined;
+    if (query.get('billing') === 'return') {
+      const [record] = await deps.store.raw`select ls_subscription_id, billing_provider from callers where phone_hash = ${phoneHash}`;
+      if (record?.['ls_subscription_id']) {
+        try { await syncBilling(deps, { event: 'account.return', phoneHash, subscriptionId: record['ls_subscription_id'], provider: record['billing_provider'] ?? config.billing.provider() }); billingNote = 'page.billing.checked'; }
+        catch { billingNote = 'page.billing.pending'; }
+      } else billingNote = 'page.billing.pending';
+    }
+    return await page(undefined, undefined, { fresh, scheduleNote: query.get('welcome') === 'unavailable' ? 'page.welcome.unavailable' : billingNote });
+  }
   if (req.method !== 'POST') return send(res, 405, { error: 'method not allowed' });
 
   const form = new URLSearchParams((await rawBody(req)).toString('utf8'));
   const action = form.get('action');
+  await countRequest(deps.store.raw, 'control_submitted');
+  const measured = (success: boolean) => countRequest(deps.store.raw, success ? 'control_applied' : 'control_not_applied');
+  const state = await accountState(deps.store.raw, phoneHash);
+  if (!state) return html(res, 410, gonePage(deps.script));
+  // A stale page must not resume paused calls by changing their weekly slot.
+  if (['start', 'move', 'skip', 'later'].includes(action ?? '') &&
+      (!state.canCall || (state.paused && action !== 'start'))) return await page();
   // Asked, not done. The only control here that a mis-tap should not be able
   // to end the arrangement with.
+  if (action === 'feedback-on' || action === 'feedback-off') {
+    await deps.store.raw`update callers set feedback_opt_out = ${action === 'feedback-off'} where phone_hash = ${phoneHash}`;
+    await measured(true);
+    return await page(undefined, undefined, { scheduleNote: 'page.feedback.saved' });
+  }
   if (action === 'stop') return html(res, 200, confirmStopPage(deps.script, language));
 
   // The two that hand over or destroy everything. Only from a link that
   // arrived on their phone; a browser that remembers them is not enough.
-  if (via === 'browser' && (action === 'export' || action === 'forget' || action === 'forget-confirm')) {
+  if (via === 'browser' && (action === 'export' || action === 'forget' || action === 'forget-confirm' || action === 'billing-portal' || action === 'cancel-renewal' || action === 'cancel-renewal-confirm')) {
     log('browser.refused', { why: `${action} needs a link` });
     return await page();
+  }
+  if (action === 'checkout') {
+    if (state.subscribed && state.billing !== 'ended') return await page();
+    const link = checkoutLink(phoneHash, caller.email);
+    return link ? html(res, 303, '', { location: link }) : await page(undefined, undefined, { scheduleNote: 'page.billing.unavailable' });
+  }
+  if (action === 'billing-portal') {
+    try { return html(res, 303, '', { location: await customerPortal(deps, phoneHash) }); }
+    catch { return await page(undefined, undefined, { scheduleNote: 'page.billing.unavailable' }); }
+  }
+  if (action === 'cancel-renewal') return html(res, 200, confirmBillingPage(deps.script, 'cancel-renewal-confirm', back));
+  if (action === 'cancel-renewal-confirm') {
+    try { const result = await cancelRenewal(deps, phoneHash); await measured(result === 'cancelled'); return await page(undefined, undefined, { scheduleNote: result === 'none' ? 'page.cancel.none' : 'page.cancel.saved' }); }
+    catch { await measured(false); return await page(undefined, undefined, { scheduleNote: 'page.cancel.failed' }); }
   }
   if (action === 'forget') return html(res, 200, confirmForgetPage(deps.script, language));
   if (action === 'export') {
@@ -430,8 +541,9 @@ async function yourPage(
     // reachable by whoever is holding the phone, so a form that could send
     // somebody's record to an address typed into it would not be a data
     // export, it would be a way to read a stranger's week.
-    await emailEverything(deps, phone, caller.email);
-    return html(res, 200, donePage(deps.script.get('page.export.sent') ?? '', deps.script, language));
+    const sent = await emailEverything(deps, phone, caller.email);
+    await measured(sent);
+    return html(res, sent ? 200 : 503, sent ? donePage(deps.script.get('page.export.sent') ?? '', deps.script, language, back) : exportFailedPage(deps.script, language, back));
   }
   if (action === 'email') {
     // The one thing a call cannot take: an address spelled out loud.
@@ -445,6 +557,7 @@ async function yourPage(
     const typed = (form.get('email') ?? '').trim();
     if (!EMAIL.test(typed)) return await page(caller.email, 'page.email.bad');
     await deps.store.upsertProfile(phone, { email: typed });
+    await measured(true);
     log('caller.email_set', {});
     return await page(typed, 'page.email.saved');
   }
@@ -454,74 +567,64 @@ async function yourPage(
     const line = (form.get('goals') ?? '').replace(/\s+/g, ' ').trim().slice(0, GOALS_MAX);
     if (before || !line) return await page();
     const added = await (deps.store as PostgresStore).addToGoals(phone, line);
+    await measured(added === 'added');
     log('caller.goals_added', { outcome: added });
     return await page(undefined, undefined, { goalsNote: added === 'added' ? 'page.goals.saved' : 'page.goals.full' });
   }
   if (action === 'stop-cancel') return await page();
   if (action === 'forget-confirm') {
-    await (deps.store as PostgresStore).forget(phone);
+    try { await deleteAccount(deps, phone, phoneHash); }
+    catch { return await page(undefined, undefined, { scheduleNote: 'page.forget.failed' }); }
+    await measured(true);
     log('caller.forgotten', {});
     return html(res, 200, forgottenPage(deps.script, language));
   }
-  // Neither is on the page before the first call, and neither means anything
-  // there: SKIP writes nothing, so the call would come anyway, and "later"
-  // rings eight hours from now for a call that may be days away.
-  if ((action === 'skip' || action === 'later') && before) return await page();
+  // Old pages may still submit “later”. Show the time picker rather than
+  // treating that vague request as permission to pick an hour for them.
+  if (action === 'later' || (action === 'skip' && before)) return await page();
+
+  let skipAt: Date | undefined;
+  if (action === 'skip') {
+    const value = form.get('skip_at') ?? '';
+    skipAt = new Date(value);
+    // A legacy or malformed form has no named occurrence to cancel.
+    if (!Number.isFinite(skipAt.getTime()) || skipAt.toISOString() !== value) return await page();
+  }
 
   const said = phraseFor(form);
   if (!said) return await page();
   // Straight through the same path a text would take, so the two ways of
   // moving a call cannot drift apart.
-  const out = await handleReply(phone, said, slot, { ...deps, sms: silent }, new Date());
-  // Stopping gets its own page because it is the one outcome that has to
-  // carry the way back: somebody who stopped by texting STOP has a number the
-  // carrier will not deliver to, so START cannot reach them and this link is
-  // all they have left.
-  if (out.action === 'stopped') return html(res, 200, stoppedPage(deps.script, language, via));
+  const out = await handleReply(phone, said, slot, { ...deps, sms: silent }, new Date(), { skipAt, language });
+  await measured(['moved', 'moved_always', 'skipped', 'stopped', 'started'].includes(out.action));
+  // Re-render persisted state after pause/resume, so a revisit shows the same
+  // result. Recovery remains available if the credential later expires.
+  if (out.action === 'stopped') return await page();
   if (out.action === 'started') return await page();
-  return html(res, 200, donePage(out.said, deps.script, language));
+  if (out.action === 'unchanged' && action === 'move') return await page(undefined, undefined, { scheduleNote: 'page.move.unavailable' });
+  return html(res, 200, donePage(out.said, deps.script, language, back));
 }
 
 /**
  * A copy of everything, to the address already on file.
  *
- * Never throws: privacy.md promises this works from the link in every text,
- * and a 500 on that promise is worse than the silence it replaces. A caller
- * with no address on file gets the same page — there is nowhere to send it,
- * and saying so would tell whoever is holding the phone whether an address
- * exists.
+ * Return the send result so the page can distinguish completion from failure.
  */
-async function emailEverything(deps: LoopDeps, phone: string, email: string | undefined): Promise<void> {
+async function emailEverything(deps: LoopDeps, phone: string, email: string | undefined): Promise<boolean> {
   try {
-    if (!email) return;
-    const letter = await composeExport(deps.store, phone, deps.script);
-    if (!letter) return;
-    await deps.mailer.send(email, letter);
-    log('export.sent', {});
+    if (!email) return false;
+    const id = await deps.store.raw.begin(async tx => {
+      const hash = phoneKey(phone);
+      const [caller] = await tx`select phone_hash from callers where phone_hash = ${hash} for update`;
+      if (!caller) return undefined;
+      const letter = await composeExport(deps.store.in(tx), phone, deps.script);
+      if (!letter) return undefined;
+      return enqueue(tx, { eventKey: `export:${randomUUID()}`, phoneHash: hash, channel: 'email', kind: 'export', to: email, body: letter });
+    });
+    return !!id && await dispatchMessage(deps, id) === 'accepted';
   } catch (e) {
     log('export.failed', { reason: (e as Error).message });
-  }
-}
-
-/**
- * The one email about a failed card.
- *
- * Never throws. The billing state is already written, and a webhook that
- * returns 500 because an email bounced is a webhook Lemon Squeezy will resend
- * — which is how one failed payment becomes four identical letters.
- */
-async function tellThemTheCardFailed(deps: LoopDeps, phoneHash: string): Promise<void> {
-  try {
-    const phone = await deps.store.phoneFor(phoneHash);
-    if (!phone) return;
-    const caller = await deps.store.load(phone);
-    if (!caller.email) return;
-    const letter = composePaymentFailed(deps.script, checkoutLink(phoneHash, caller.email));
-    if (!letter) return;
-    await deps.mailer.send(caller.email, letter);
-    log('billing.told_them', {});
-  } catch (e) {
-    log('billing.notice_failed', { reason: (e as Error).message });
+    return false;
   }
 }
 

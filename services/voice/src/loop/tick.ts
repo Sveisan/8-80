@@ -1,10 +1,14 @@
+import { randomUUID } from 'node:crypto';
 import { config } from '../config.ts';
 import { log } from '../log.ts';
 import { CallNotPlaced } from '../agent/speechify.ts';
 import { Links } from '../link/token.ts';
 import { textAfterFailedCall, textAfterMissedCall } from '../sms/missed.ts';
 import type { LoopDeps } from './deps.ts';
-import { describeSlot } from '../schedule/time.ts';
+import { needsOnboarding, type CallerRecord } from '../store/types.ts';
+import { describeAppointment, describeSlot } from '../schedule/time.ts';
+import { queued, dispatchMessage } from '../messages/outbox.ts';
+import { Scheduler } from '../schedule/scheduler.ts';
 
 export interface TickResult {
   claimed: number;
@@ -75,21 +79,40 @@ async function textForMissedCall(
   claim: { attemptId: string; phoneHash: string },
   deps: LoopDeps,
   rang: boolean,
+  now: Date,
+  note: string,
 ): Promise<void> {
+  const ids: string[] = [];
   try {
-    const phone = await deps.store.phoneFor(claim.phoneHash);
+  await deps.store.raw.begin(async tx => {
+    const [caller] = await tx`select phone_hash from callers where phone_hash = ${claim.phoneHash} for update`;
+    if (!caller) return;
+    const messages = queued(tx, claim.phoneHash, `call:${claim.attemptId}`, now, 'call', claim.attemptId);
+    const scoped = { ...deps, store: deps.store.in(tx), scheduler: new Scheduler(tx), sms: messages.sms };
+    await scoped.scheduler.finish(claim.attemptId, rang ? 'missed' : 'failed', { note });
+    const phone = await scoped.store.phoneFor(claim.phoneHash);
     if (!phone) return;
     const base = config.link.publicUrl();
-    const link = base ? `${base.replace(/\/$/, '')}/r/${await new Links(deps.store.raw).mint(claim.phoneHash)}` : undefined;
+    const link = base ? `${base.replace(/\/$/, '')}/r/${await new Links(tx).mint(claim.phoneHash, now)}` : undefined;
     // Two sentences, because they are two different things to the person
     // reading them. "Rang just now" is a lie when their phone never made a
     // sound, and a product whose one promise is that it turns up cannot
     // explain an absence with a fiction.
     const send = rang ? textAfterMissedCall : textAfterFailedCall;
-    await send(claim.attemptId, phone, deps, link);
-  } catch (e) {
-    log('tick.missed_text_failed', { reason: (e as Error).message });
+    await send(claim.attemptId, phone, scoped, link);
+    ids.push(...messages.ids);
+  });
+  } catch {
+    // A malformed stored address must not stop the other callers. Preserve a
+    // visible failure even when composing the notice itself was impossible.
+    await deps.store.raw.begin(async tx => {
+      await tx`select phone_hash from callers where phone_hash = ${claim.phoneHash} for update`;
+      await new Scheduler(tx).finish(claim.attemptId, rang ? 'missed' : 'failed', { note });
+      await tx`insert into message_outbox (id, event_key, phone_hash, channel, kind, reference, status, reason, created_at, available_at, expires_at)
+        values (${randomUUID()}, ${`call:${claim.attemptId}:sms`}, ${claim.phoneHash}, 'sms', 'call', ${claim.attemptId}, 'failed', 'composition_failed', ${now}, ${now}, ${now}) on conflict do nothing`;
+    });
   }
+  for (const id of ids) await dispatchMessage(deps, id, now);
 }
 
 export async function tick(deps: LoopDeps, now = new Date()): Promise<TickResult> {
@@ -108,6 +131,9 @@ export async function tick(deps: LoopDeps, now = new Date()): Promise<TickResult
 
       const caller = await deps.store.load(phone);
       const slotSaid = await bookedSlot(deps, phone, caller.language);
+      const next = await deps.scheduler.nextEligibleCallFor(phone, now);
+      const zone = (await deps.scheduler.slotFor(phone))?.timezone;
+      const nextSaid = next && zone ? describeAppointment(next, zone, caller.language) : NOTHING_RECORDED;
       const placed = await withRetries(() => deps.agent.placeCall({
         to: phone,
         // Which kind of call it is, not which agent serves it: the mapping from
@@ -115,8 +141,8 @@ export async function tick(deps: LoopDeps, now = new Date()): Promise<TickResult
         // A rehearsal is a first call for this purpose and for no other: nothing
         // else in the record moves, so the returning call still has a last week
         // to ask about once the rehearsal is over.
-        firstCall: caller.callNumber <= 1 || caller.rehearseFirstCall === true,
-        variables: variablesFor({ ...caller, ...(slotSaid ? { bookedSlot: slotSaid } : {}) }),
+        firstCall: needsOnboarding(caller),
+        variables: variablesFor({ ...caller, nextSlot: nextSaid, ...(slotSaid ? { bookedSlot: slotSaid } : {}) }),
         ...(config.speechify.callerIdNumber ? { callerIdNumber: config.speechify.callerIdNumber } : {}),
         ...(caller.language ? { language: caller.language } : {}),
         ringingTimeoutMs: config.speechify.ringingTimeoutMs,
@@ -136,8 +162,7 @@ export async function tick(deps: LoopDeps, now = new Date()): Promise<TickResult
         // goes unanswered takes, so the two cannot drift apart. Before this,
         // an unanswered ring was filed as "could not place" and the person got
         // nothing at all: no call, no text, no way to move it.
-        await deps.scheduler.finish(claim.attemptId, 'missed', { note: e.reason || 'no answer' });
-        await textForMissedCall(claim, deps, true);
+        await textForMissedCall(claim, deps, true, now, e.reason || 'no answer');
         result.failed++;
         continue;
       }
@@ -145,10 +170,7 @@ export async function tick(deps: LoopDeps, now = new Date()): Promise<TickResult
       // missed-call text — but it does get a text, because from where they are
       // sitting the weekly call simply did not happen, and a silence is how
       // somebody decides a thing is broken and stops expecting it.
-      await deps.scheduler.finish(claim.attemptId, 'failed', {
-        note: `could not place after ${ATTEMPTS} tries: ${(e as Error).message}`,
-      });
-      await textForMissedCall(claim, deps, false);
+      await textForMissedCall(claim, deps, false, now, `could not place after ${ATTEMPTS} tries: ${(e as Error).message}`);
       result.failed++;
     }
   }
@@ -175,9 +197,13 @@ export function variablesFor(caller: {
   goals?: string;
   /** The weekly slot as it is said, "Sunday at 13:00". From the scheduler, not the record. */
   bookedSlot?: string;
+  nextSlot?: string;
+  onboarding?: CallerRecord['onboarding'];
 }): Record<string, string> {
   return {
     call_number: String(caller.callNumber),
+    onboarding_progress: caller.onboarding ?? (caller.callNumber <= 1 ? 'pending' : 'legacy'),
+    next_appointment: caller.nextSlot ?? NOTHING_RECORDED,
     // Their name is deliberately NOT here. The mentor never says it — the
     // returning greeting is "Hello again." on purpose — so sending it would
     // hand a name to a voice platform for nothing, and a model that has one

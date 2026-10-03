@@ -5,9 +5,10 @@ import { log } from '../log.ts';
 import type { Recap } from './compose.ts';
 import { letterHtml } from './letter.ts';
 import { ResendMailer } from './resend.ts';
+import type { Receipt, SendOptions, TransportInfo } from '../messages/types.ts';
 
-export interface Mailer {
-  send(to: string, recap: Recap): Promise<void>;
+export interface Mailer extends TransportInfo {
+  send(to: string, recap: Recap, options?: SendOptions): Promise<void | Receipt>;
 }
 
 /**
@@ -49,6 +50,7 @@ export function openMailer(): Mailer {
  * committed to and it has no business surviving in a working copy.
  */
 export class FileMailer implements Mailer {
+  readonly previewOnly = true;
   constructor(private readonly dir = resolve(repoRoot, 'runs', 'mail')) {}
 
   async send(to: string, recap: Recap): Promise<void> {

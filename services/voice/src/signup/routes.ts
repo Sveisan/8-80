@@ -1,161 +1,129 @@
+import { milestone, countRequest } from '../journey/measure.ts';
 import type { IncomingMessage } from 'node:http';
 import { config } from '../config.ts';
 import { log } from '../log.ts';
 import { Links } from '../link/token.ts';
-import { PostgresStore, phoneKey } from '../store/postgres.ts';
-import { openSms } from '../sms/index.ts';
-import { OptedOut } from '../sms/types.ts';
+import { phoneKey } from '../store/postgres.ts';
+import { enqueue, queued, dispatchMessage } from '../messages/outbox.ts';
+import { Scheduler } from '../schedule/scheduler.ts';
 import { textBeforeFirstCall } from '../sms/welcome.ts';
 import type { LoopDeps } from '../loop/deps.ts';
-import { readSignup } from './form.ts';
+import { readSignup, type Signup } from './form.ts';
 import { Limiter } from './limit.ts';
 import { Pending } from './pending.ts';
-import { codePage, signupPage } from './page.ts';
-import { browserCookie } from '../link/cookie.ts';
+import { codePage, signupPage, type SignupFormState } from './page.ts';
+import { browserCookie, crossSite } from '../link/cookie.ts';
 
-export interface Answer {
-  status: number;
-  body: string;
-  headers?: Record<string, string>;
-}
-
+export interface Answer { status: number; body: string; headers?: Record<string, string | string[]>; }
 const HOUR = 3600_000;
-/** One number may be texted three times an hour. It is somebody's evening. */
 const perNumber = new Limiter(3, HOUR);
-/** One client may ask ten times an hour. It is our phone bill. */
 const perClient = new Limiter(10, HOUR);
-
+const resendDelay = new Limiter(1, 60_000);
+const verifyClient = new Limiter(30, 10 * 60_000);
 const TRIAL_DAYS = 30;
 
-async function body(req: IncomingMessage): Promise<URLSearchParams> {
+async function body(req: IncomingMessage): Promise<URLSearchParams | undefined> {
   const chunks: Buffer[] = [];
   let size = 0;
   for await (const chunk of req) {
     size += (chunk as Buffer).length;
-    // A form with six short fields does not need more, and a public endpoint
-    // that will read as much as it is given is a way to run us out of memory.
-    if (size > 8_192) break;
+    if (size > 8192) return undefined;
     chunks.push(chunk as Buffer);
   }
   return new URLSearchParams(Buffer.concat(chunks).toString('utf8'));
 }
 
-/**
- * The sign-up flow: describe it, take a form, prove the number, make a caller.
- *
- * Three steps and no account. There is no password anywhere in this product
- * and there is not going to be: everything a caller can do, they do from a
- * link in a text or by saying it on the phone, and a login would be a fourth
- * thing to forget in order to move a phone call.
- *
- * Returns undefined for a path it does not own, so the control plane's 404
- * stays in one place.
- */
-export async function signupRoutes(
-  req: IncomingMessage,
-  url: URL,
-  deps: LoopDeps,
-  client: string,
-  now = new Date(),
-): Promise<Answer | undefined> {
-  const script = deps.script;
-  const store = deps.store as PostgresStore;
-  const pending = new Pending(store.raw);
+const valuesOf = (signup: Signup): SignupFormState['values'] => ({
+  name: signup.name, phone: signup.phone, email: signup.email, weekday: String(signup.weekday),
+  time: `${String(Math.floor(signup.minute / 60)).padStart(2, '0')}:${String(signup.minute % 60).padStart(2, '0')}`,
+  timezone: signup.timezone,
+});
 
+/** Draft capabilities preserve booking choices without revealing them by phone-number lookup. */
+export async function signupRoutes(req: IncomingMessage, url: URL, deps: LoopDeps, client: string, now = new Date()): Promise<Answer | undefined> {
+  const { script, store } = deps;
+  const pending = new Pending(store.raw);
+  const page = (status: number, state: SignupFormState = {}): Answer => ({ status, body: signupPage(script, state, 'en', now) });
   if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/start')) {
     if (!config.signup.open()) return undefined;
-    return { status: 200, body: signupPage(script) };
+    await countRequest(store.raw, 'booking_view', now);
+    return page(200);
+  }
+  if (req.method !== 'POST' || !['/start', '/start/verify', '/start/resend', '/start/edit'].includes(url.pathname)) return undefined;
+  if (crossSite(req)) return page(403, { note: 'signup.code.tryagain' });
+  if (url.pathname === '/start' && !config.signup.open()) return undefined;
+  const form = await body(req);
+  if (!form) return page(413, { note: 'signup.code.tryagain' });
+  const id = (form.get('draft') ?? '').slice(0, 36);
+  const saved = id ? await pending.draft(id, now) : undefined;
+  const draft = saved ? { id, signup: saved } : undefined;
+
+  if (url.pathname === '/start/verify') {
+    const phone = (form.get('phone') ?? '').trim();
+    if (!verifyClient.take(client, +now)) return { status: 429, body: codePage(phone, script, 'signup.code.verifylimited', 'en', draft) };
+    let browser = '';
+    const messageIds: string[] = [];
+    const verdict = await pending.verify(phone, form.get('code') ?? '', now, id || undefined, async (tx, signup) => {
+      const hash = phoneKey(signup.phone);
+      const scopedStore = store.in(tx);
+      // Serialize competing signup/recovery while preserving any existing account.
+      await tx`select pg_advisory_xact_lock(hashtextextended(${hash}, 1))`;
+      if (!(await scopedStore.phoneFor(hash))) {
+        const slot = { weekday: signup.weekday, minute: signup.minute, timezone: signup.timezone };
+        await scopedStore.upsertProfile(signup.phone, { ...(signup.name ? { name: signup.name } : {}), email: signup.email });
+        await scopedStore.startTrial(signup.phone, new Date(+now + TRIAL_DAYS * 24 * HOUR));
+        const first = await new Scheduler(tx).setSlot(signup.phone, slot, now);
+        const messages = queued(tx, hash, `welcome:${hash}:${now.toISOString()}`, now, 'welcome');
+        const link = `${config.link.publicUrl().replace(/\/$/, '')}/r/${await new Links(tx).mint(hash, now)}`;
+        await textBeforeFirstCall(signup.phone, first, slot, { sms: messages.sms, script }, link);
+        messageIds.push(...messages.ids);
+        await milestone(tx, hash, 'phone_verified', hash, now);
+        log('signup.completed', { trialDays: TRIAL_DAYS });
+      }
+      browser = await new Links(tx).mint(hash, now, 'browser');
+    });
+    if (!verdict.ok) {
+      const key = { unknown: 'signup.code.unknown', expired: 'signup.code.expired', wrong: 'signup.code.wrong', 'too many': 'signup.code.toomany' }[verdict.why];
+      return { status: 400, body: codePage(phone, script, key, 'en', draft) };
+    }
+    let notice = '';
+    for (const id of messageIds) if (await dispatchMessage(deps, id, now) !== 'accepted') notice = '?welcome=unavailable';
+    return { status: 303, body: '', headers: { location: `/me${notice}`, 'set-cookie': browserCookie(browser) } };
   }
 
-  if (req.method === 'POST' && url.pathname === '/start') {
-    if (!config.signup.open()) return undefined;
-    const form = await body(req);
+  if (url.pathname === '/start/edit') {
+    return saved ? page(200, { values: valuesOf(saved) }) : page(400, { note: 'signup.code.unknown' });
+  }
+  let signup: Signup;
+  if (url.pathname === '/start/resend') {
+    if (!saved) return page(400, { note: 'signup.code.unknown' });
+    signup = saved;
+  } else {
     const read = readSignup(form, now);
     if (!read.ok) {
-      return {
-        status: 200,
-        body: signupPage(script, {
-          errors: read.errors,
-          values: {
-            name: form.get('name') ?? '',
-            phone: form.get('phone') ?? '',
-            email: form.get('email') ?? '',
-            weekday: form.get('weekday') ?? '',
-            time: form.get('time') ?? '',
-          },
-        }),
-      };
+      const values = Object.fromEntries(['name', 'phone', 'email', 'weekday', 'time', 'timezone'].map(k => [k, form.get(k) ?? '']));
+      return page(400, { errors: read.errors, values });
     }
-
-    const { signup } = read;
-    // Both limits, and the number's first: a client that has burned its own
-    // window must not be able to spend somebody else's by switching IP.
-    if (!perNumber.take(phoneKey(signup.phone), now.getTime()) || !perClient.take(client, now.getTime())) {
-      log('signup.rate_limited', {});
-      // Deliberately indistinguishable from success. Telling a script which
-      // numbers are rate limited tells it which numbers it has reached.
-      return { status: 200, body: codePage(signup.phone, script) };
-    }
-
-    const code = await pending.start(signup, now);
-    const template = script.get('sms.code') ?? '';
-    try {
-      await openSms().send(signup.phone, template.replace('{{code}}', code));
-    } catch (e) {
-      // Including an opt-out: somebody who told the carrier to stop messaging
-      // us is somebody we do not text.
-      log('signup.code_not_sent', { reason: e instanceof OptedOut ? 'opted out' : (e as Error).message });
-      // And they are told, on this page, now. The page used to say "check your
-      // texts" whether or not a text had left the building — so the first real
-      // sign-up sat waiting for a message that was never coming and believed
-      // it had worked. A silence that looks like success is the worst thing
-      // this page can do.
-      return { status: 200, body: codePage(signup.phone, script, 'signup.code.notsent') };
-    }
-    return { status: 200, body: codePage(signup.phone, script) };
+    signup = read.signup;
+    await countRequest(store.raw, 'booking_submitted', now);
   }
 
-  if (req.method === 'POST' && url.pathname === '/start/verify') {
-    const form = await body(req);
-    const phone = (form.get('phone') ?? '').trim();
-    const verdict = await pending.verify(phone, form.get('code') ?? '', now);
-    if (!verdict.ok) {
-      const key = {
-        unknown: 'signup.code.unknown',
-        expired: 'signup.code.expired',
-        wrong: 'signup.code.wrong',
-        'too many': 'signup.code.toomany',
-      }[verdict.why];
-      return { status: 200, body: codePage(phone, script, key) };
-    }
-
-    const { signup } = verdict;
-    const slot = { weekday: signup.weekday, minute: signup.minute, timezone: signup.timezone };
-    await store.upsertProfile(signup.phone, { name: signup.name, email: signup.email });
-    await store.startTrial(signup.phone, new Date(now.getTime() + TRIAL_DAYS * 24 * HOUR));
-    const first = await deps.scheduler.setSlot(signup.phone, slot, now);
-
-    // The same text an enrolment sends, for the same reason: the first call
-    // must not be the first they hear of it, and the link has to exist before
-    // the phone rings rather than after.
-    const link = `${config.link.publicUrl()}/r/${await new Links(store.raw).mint(phoneKey(signup.phone))}`;
-    try {
-      await textBeforeFirstCall(signup.phone, first, slot, { sms: openSms(), script }, link);
-    } catch (e) {
-      if (!(e instanceof OptedOut)) throw e;
-      await deps.scheduler.setPaused(signup.phone, true);
-      log('signup.opted_out', { note: 'verified but the number refuses messages — paused' });
-    }
-
-    log('signup.completed', { trialDays: TRIAL_DAYS });
-
-    // Straight to their own page, remembered for the week before the first
-    // call — the time it arrives, a time that suits better, where the recap
-    // goes. A redirect rather than the page in this response, so a reload
-    // does not post the code again. What the cookie is and is not: link/cookie.ts.
-    const browser = await new Links(store.raw).mint(phoneKey(signup.phone), now, 'browser');
-    return { status: 303, body: '', headers: { location: '/me', 'set-cookie': browserCookie(browser) } };
+  const hash = phoneKey(signup.phone);
+  if (!perClient.take(client, +now) || !resendDelay.take(hash, +now) || !perNumber.take(hash, +now)) {
+    return draft
+      ? { status: 429, body: codePage(signup.phone, script, 'signup.code.limited', 'en', draft) }
+      : page(429, { values: valuesOf(signup), note: 'signup.code.limited' });
   }
-
-  return undefined;
+  let messageId = '';
+  const challenge = await pending.begin(signup, now, async (tx, id, code) => {
+    messageId = await enqueue(tx, { eventKey: `signup:${id}`, phoneHash: hash, channel: 'sms', kind: 'signup', reference: id,
+      to: signup.phone, body: (script.get('sms.code') ?? '').replace('{{code}}', code), expiresAt: new Date(+now + 10 * 60_000) }, now);
+  });
+  const nextDraft = { id: challenge.id, signup };
+  const delivery = await dispatchMessage(deps, messageId, now);
+  if (delivery !== 'accepted') {
+    if (delivery === 'failed' || delivery === 'suppressed') await pending.invalidate(challenge.id, now);
+    return { status: 503, body: codePage(signup.phone, script, delivery === 'failed' || delivery === 'suppressed' ? 'signup.code.notsent' : 'signup.code.deliverypending', 'en', nextDraft) };
+  }
+  return { status: 200, body: codePage(signup.phone, script, undefined, 'en', nextDraft) };
 }

@@ -1,5 +1,8 @@
+import { checkoutLink } from '../billing/notice.ts';
+import { config } from '../config.ts';
+import { maskEmail, type AccountState } from './account.ts';
 import type { ScriptLines } from '../script.ts';
-import type { Slot } from '../schedule/time.ts';
+import { describeAppointment, type Slot } from '../schedule/time.ts';
 import { BUSY, BUSY_CSS, MOTION, busyLabel } from '../signup/mascot.ts';
 
 /** Weekday names come from the locale, not from a list in this file. */
@@ -36,6 +39,8 @@ export interface PageView {
    * which stay behind a fresh link from a text. See control.ts.
    */
   via?: 'link' | 'browser';
+  account?: AccountState;
+  beforeFirst?: boolean;
   /**
    * When the first call is, if there has not been one yet. The page says that
    * instead of "move this week's call", and a time chosen on it moves the
@@ -43,6 +48,8 @@ export interface PageView {
    * is the only week there is.
    */
   first?: Date;
+  /** The actual occurrence shown by this page and targeted by its skip form. */
+  next?: Date;
   /** Minutes after signing up: the page says it is done before offering anything. */
   fresh?: boolean;
   /**
@@ -55,6 +62,7 @@ export interface PageView {
   goals?: boolean;
   /** A `page.goals.*` key, when the last attempt to add said something. */
   goalsNote?: string;
+  scheduleNote?: string;
 }
 
 /**
@@ -79,11 +87,7 @@ export function reschedulePage(
   slot: Slot,
   script: ScriptLines,
   language = 'en',
-  /**
-   * The address on file, or nothing. Shown filled so somebody changing one can
-   * see what they are changing, and empty when the call never had one to send
-   * the recap to — which is the case this field exists for.
-   */
+  /** The delivery address is masked and never inserted into an input or hidden field. */
   email?: string,
   /** A `page.email.*` key, when the last attempt to save one said something. */
   note?: string,
@@ -93,26 +97,30 @@ export function reschedulePage(
   const days = dayNames(language);
   const short = dayNames(language, 'short');
   const via = view.via ?? 'link';
-  const first = view.first;
+  const state = view.account;
+  const arranging = !state || (state.canCall && !state.paused);
+  const first = arranging ? view.first : undefined;
+  const booking = view.beforeFirst ?? !!first;
   const when = `${days[slot.weekday]} ${clock(slot.minute)}`;
   const time = clock(slot.minute);
 
-  const head = first
+  const head = state?.paused
+    ? `<h1>${say('page.stopped')}</h1><p class="now">${say('page.paused.detail')}</p>`
+    : state && !state.canCall
+      ? `<h1>${say('page.ended')}</h1><p class="now">${say('page.ended.detail')}</p>`
+      : first
     ? view.fresh
       ? `<h1>${esc((script.get('signup.done.title') ?? '').replace('{{when}}', whenOf(first, slot.timezone, language)))}</h1>
     <p class="now">${say('signup.done.detail')}</p>`
       : `<h1>${esc((script.get('page.first') ?? '').replace('{{when}}', whenOf(first, slot.timezone, language)))}</h1>
     <p class="now">${say('page.first.detail')}</p>`
     : `<h1>${say('page.title')}</h1>
-    <p class="now">${esc((script.get('page.usually') ?? '').replace('{{when}}', when))}</p>
-
-    <form method="post">
-      <button name="action" value="later" class="primary">${busyLabel(say('page.later'))}</button>
-    </form>`;
+    ${view.next ? `<p class="now">${esc((script.get('page.next') ?? '').replace('{{when}}', describeAppointment(view.next, slot.timezone, language)))}</p>` : ''}
+    <p class="hint">${esc((script.get('page.usually') ?? '').replace('{{when}}', when))}</p>`;
 
   // Above the time, not below it: before the first call this is the one thing
   // on the page worth doing, and the rest is only there if the time is wrong.
-  const contact = view.contact
+  const contact = view.contact && arranging
     ? `
     <a class="save" href="/contact.vcf" download="8and80.vcf">${say('page.contact')}</a>
     <p class="hint centre">${say('page.contact.detail')}</p>`
@@ -120,11 +128,11 @@ export function reschedulePage(
 
   // Before the first call a new time is the booking, so "every week" is not
   // a question worth a checkbox: it is sent, and said on the button.
-  const always = first
+  const always = booking
     ? '<input type="hidden" name="always" value="1" />'
     : `<label class="always"><input type="checkbox" name="always" value="1" /> ${say('page.always')}</label>`;
 
-  const goals = view.goals
+  const goals = view.goals && arranging
     ? `
     <form method="post" class="move">
       <label for="goals">${say('page.goals.label')}</label>
@@ -145,17 +153,45 @@ export function reschedulePage(
     <form method="post" class="stop">
       <button name="action" value="forget" class="quiet">${say('page.forget')}</button>
     </form>`
-      : `<p class="hint centre">${say('page.browser.rest')}</p>`;
+      : `<p class="hint centre">${say('page.browser.rest')} <a href="/access">${say('access.verify')}</a></p>`;
+
+  const trialDate = state?.trialEnds
+    ? new Intl.DateTimeFormat(language === 'en' ? 'en-GB' : language, { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: slot.timezone, timeZoneName: 'short' }).format(state.trialEnds)
+    : undefined;
+  const billingKey = state?.cancelAtPeriodEnd ? state.canCall ? 'page.paid.nonrenewing' : 'page.paid.ended' : state?.billing === 'trialing'
+    ? !trialDate ? 'page.trial.unknown' : state.canCall ? 'page.trial' : 'page.trial.ended'
+    : state?.billing === 'trial_ended' ? 'page.trial.ended'
+    : state?.billing === 'active' ? 'page.paid'
+      : state?.billing === 'past_due' ? 'page.payment_due'
+        : state?.billing === 'comped' ? 'page.comped' : 'page.billing.ended';
+  const paidDate = state?.paidUntil ? new Intl.DateTimeFormat(language === 'en' ? 'en-GB' : language, { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: slot.timezone, timeZoneName: 'short' }).format(state.paidUntil) : '';
+  const renewal = state?.cancelAtPeriodEnd ? `<p class="now">${esc((script.get(state.canCall ? 'page.cancel.until' : 'page.cancel.ended') ?? '').replace('{{when}}', paidDate || (script.get('page.cancel.unknown') ?? '')))}</p>` : '';
+  const billingControls = state ? state.subscribed && state.billing !== 'ended'
+    ? via === 'link' ? `<form method="post"><button name="action" value="billing-portal">${say('page.billing.manage')}</button></form>${!state.cancelAtPeriodEnd ? `<form method="post"><button name="action" value="cancel-renewal">${say('page.cancel.action')}</button></form>` : ''}`
+      : `<p><a href="/access">${say('page.billing.verify')}</a></p>`
+    : ['trialing', 'trial_ended', 'ended'].includes(state.billing) ? checkoutLink('availability-check') ? `<form method="post"><button name="action" value="checkout"${!state.canCall ? ' class="primary"' : ''}>${say('page.billing.continue')}</button></form><p class="hint">${say('page.billing.price')}</p>` : `<p class="hint">${say('page.billing.unavailable')}</p>` : '' : '';
+  const billing = state ? `<p class="hint">${esc((script.get(billingKey) ?? '').replace('{{when}}', trialDate ?? ''))}</p>` : '';
+  const resume = state?.paused && state.canCall
+    ? `<form method="post"><button name="action" value="start" class="primary">${say('page.stopped.back')}</button></form>` : '';
+  const support = state
+    ? `<p><a${!state.canCall ? ' class="save"' : ''} href="mailto:${esc(config.company.supportEmail() || 'hei@8and80.me')}">${say('page.support')}</a></p>` : '';
 
   return shell(
     `
     ${MARK}
     ${head}
+    ${billing}
+    ${renewal}
+    ${billingControls}
+    ${view.scheduleNote ? `<p role="status">${say(view.scheduleNote)}</p>` : ''}
+    ${arranging && !view.next ? `<p class="now">${say(state?.trialEnds ? 'page.no_next.trial' : 'page.no_next')}</p>` : ''}
+    ${resume}
+    ${support}
     ${contact}
 
-    <form method="post" class="move">
+    ${arranging ? `<form method="post" class="move">
       <fieldset>
-        <legend>${say(first ? 'page.first.pick' : 'page.pick')}</legend>
+        <legend>${say(booking ? 'page.first.pick' : 'page.pick')}</legend>
         <p class="zone">${esc(zoneLine(slot.timezone, script))}</p>
         <div class="days">
           ${WEEK.map(
@@ -175,14 +211,15 @@ export function reschedulePage(
         </div>
       </fieldset>
       ${always}
-      <button name="action" value="move">${busyLabel(say('page.move'))}</button>
-    </form>
+      <button name="action" value="move"${first && view.contact ? '' : ' class="primary"'}>${busyLabel(say('page.move'))}</button>
+    </form>` : ''}
     ${goals}
 
     <form method="post" class="move">
       <label for="email">${say('page.email.label')}</label>
+      <p class="hint">${email ? esc((script.get('page.email.current') ?? '').replace('{{email}}', maskEmail(email))) : say('page.email.none')}</p>
       <div class="row">
-        <input type="email" id="email" name="email" value="${esc(email ?? '')}" placeholder="you@example.com"
+        <input type="email" id="email" name="email" value="" placeholder="you@example.com"
                autocomplete="email" autocapitalize="off" spellcheck="false" />
       </div>
       <button name="action" value="email">${busyLabel(say('page.email.save'))}</button>
@@ -190,27 +227,30 @@ export function reschedulePage(
     </form>
 
     ${
-      // Not before the first call. SKIP writes nothing — after a missed call
-      // the next one is already a week away, so there is nothing to write —
-      // and offered here it would say "skipped" and then ring them anyway.
-      first
+      // Target the occurrence this page showed, never whichever call is next
+      // when an old form is submitted for a second time.
+      !arranging || booking || !view.next
         ? ''
         : `<form method="post" class="skip">
+      <input type="hidden" name="skip_at" value="${esc(view.next.toISOString())}" />
       <button name="action" value="skip" class="quiet">${say('page.skip')}</button>
     </form>`
     }
 
-    <form method="post" class="stop${first ? ' first' : ''}">
+    ${arranging ? `<form method="post" class="stop${first ? ' first' : ''}">
       <button name="action" value="stop" class="quiet">${say('page.stop')}</button>
-    </form>
+    </form>` : ''}
+    ${state ? `<form method="post"><p class="hint">${say('page.feedback.detail')}</p><button name="action" value="${state.feedbackOptOut ? 'feedback-on' : 'feedback-off'}">${say(state.feedbackOptOut ? 'page.feedback.on' : 'page.feedback.off')}</button></form>` : ''}
     ${rest}
+    <p class="hint centre"><a href="/memory">${say('memory.title')}</a></p>
     <script>
       // Brings the chosen time to the middle of its row, as on the sign-up
       // page. The form works without it: the row scrolls by hand.
       try {
         var row = document.getElementById('times');
         var centre = function (el, smooth) {
-          row.scrollTo({ left: el.offsetLeft - (row.clientWidth - el.offsetWidth) / 2, behavior: smooth ? 'smooth' : 'auto' });
+          var box = el.getBoundingClientRect(), track = row.getBoundingClientRect();
+          row.scrollTo({ left: row.scrollLeft + box.left - track.left - (row.clientWidth - box.width) / 2, behavior: smooth ? 'smooth' : 'auto' });
         };
         var on = row.querySelector('input:checked');
         if (on) centre(on.parentNode, false);
@@ -232,14 +272,9 @@ function zoneLine(timezone: string, script: ScriptLines): string {
 /** A line added to the goals from the page. Long enough for a sentence or two, not an essay. */
 export const GOALS_MAX = 400;
 
-/** "Tuesday 08:00", in their zone. The first call is always inside a week, so the day is enough. */
+/** The actual first appointment, including its calendar date and local zone. */
 function whenOf(at: Date, timezone: string, language: string): string {
-  return at.toLocaleString(language === 'en' ? 'en-GB' : language, {
-    timeZone: timezone,
-    weekday: 'long',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  return describeAppointment(at, timezone, language);
 }
 
 /**
@@ -258,7 +293,7 @@ export const MARK = `<header class="lockup"><span class="sr">8&amp;80</span><svg
  */
 export function unknownBrowserPage(script: ScriptLines, language = 'en'): string {
   const say = (id: string): string => esc(script.get(id) ?? '');
-  return shell(`${MARK}<h1>${say('page.browser.gone')}</h1><p class="now">${say('page.browser.gone.detail')}</p>`, language);
+  return shell(`${MARK}<h1>${say('page.browser.gone')}</h1><p class="now">${say('page.browser.gone.detail')}</p><a class="save" href="/access">${say('access.title')}</a>`, language);
 }
 
 /**
@@ -344,14 +379,19 @@ export function forgottenPage(script: ScriptLines, language = 'en'): string {
   return shell(`<h1>${say('page.forgotten')}</h1>`, language);
 }
 
-export function donePage(message: string, script: ScriptLines, language = 'en'): string {
-  return shell(`<h1>${esc(message)}</h1><p class="now">${esc(script.get('page.close') ?? '')}</p>`, language);
+export function donePage(message: string, script: ScriptLines, language = 'en', back = '/me'): string {
+  return shell(`<h1>${esc(message)}</h1><p class="now">${esc(script.get('page.close') ?? '')}</p><a class="save" href="${esc(back)}">${esc(script.get('page.back') ?? '')}</a>`, language);
+}
+
+export function exportFailedPage(script: ScriptLines, language = 'en', back = '/me'): string {
+  return shell(`<h1>${esc(script.get('page.export.failed.title') ?? '')}</h1><p class="now">${esc(script.get('page.export.failed') ?? '')}</p><a class="save" href="${esc(back)}">${esc(script.get('page.back') ?? '')}</a><p><a href="mailto:${esc(config.company.supportEmail() || 'hei@8and80.me')}">${esc(script.get('page.support') ?? '')}</a></p>`, language);
 }
 
 export function gonePage(script: ScriptLines, language = 'en'): string {
   return shell(
     `<h1>${esc(script.get('page.expired') ?? '')}</h1>
-     <p class="now">${esc(script.get('page.expired.detail') ?? '')}</p>`,
+     <p class="now">${esc(script.get('page.expired.detail') ?? '')}</p>
+     <a class="save" href="/access">${esc(script.get('access.title') ?? '')}</a>`,
     language,
   );
 }
@@ -436,7 +476,9 @@ export function shell(body: string, language = 'en'): string {
     display: block; width: 100%; margin: .4rem 0 0; padding: .7rem .75rem; font: inherit; color: var(--ink);
     background: transparent; border: 1px solid var(--line); border-radius: .5rem; resize: vertical;
   }
-  input[type=email] {
+  a { color: var(--ink); }
+  input[type=tel], input[type=text] { display: block; width: 100%; margin: .4rem 0 1rem; }
+  input[type=email], input[type=tel], input[type=text] {
     flex: 1; min-width: 0; padding: .7rem .6rem; font: inherit; color: var(--ink);
     background: transparent; border: 1px solid var(--line); border-radius: .5rem;
   }
@@ -470,4 +512,11 @@ export function shell(body: string, language = 'en'): string {
 </head>
 <body><main>${body}</main>${BUSY}${MOTION}</body>
 </html>`;
+}
+
+
+export function confirmBillingPage(script: ScriptLines, action: string, back: string): string {
+  return shell(`<h1>${esc(script.get('page.cancel.title') ?? '')}</h1><p class="now">${esc(script.get('page.cancel.detail') ?? '')}</p>
+    <form method="post"><button name="action" value="${esc(action)}" class="primary">${esc(script.get('page.cancel.confirm') ?? '')}</button></form>
+    <p><a href="${esc(back)}">${esc(script.get('page.cancel.back') ?? '')}</a></p>`);
 }

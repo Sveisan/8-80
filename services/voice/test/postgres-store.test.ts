@@ -30,7 +30,7 @@ after(async () => {
 });
 
 beforeEach(async () => {
-  if (sql) await sql`truncate table callers`;
+  if (sql) await sql`truncate table message_attempts, message_outbox, callers`;
 });
 
 async function withKey<T>(fn: () => T | Promise<T>): Promise<T> {

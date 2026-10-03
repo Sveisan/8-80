@@ -70,14 +70,15 @@ test('a call that reached no commitment is completed, not failed', () => {
   assert.equal(s.note, 'no commitment was reached');
 });
 
-test('a long call where the caller said nothing is not called silent', () => {
+test('a long call without caller transcription is unverified, not completed', () => {
   // Fifteen minutes with no caller turn is a transcription failure, not a dead
   // line, and guessing "silent" would send someone a wrong apology.
   const s = settle(
     call({ durationMs: 900_000, turns: [{ speaker: 'agent', text: 'Hello again.' }] }),
     script,
   );
-  assert.equal(s.status, 'completed');
+  assert.equal(s.status, 'unverified');
+  assert.equal(s.outcome, undefined);
 });
 
 test('a half-configured mailer degrades instead of stopping the calls', () => {

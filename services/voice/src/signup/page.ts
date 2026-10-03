@@ -38,8 +38,8 @@ const HOME = 'Europe/Oslo';
  *
  * Fifteen minutes of margin because the code still has to arrive and be typed:
  * a time that has passed by the moment the sign-up completes would quietly
- * make the first call next week. Outside the row's hours the time falls back
- * to 08:00 and the first call is that day next week; today stays marked.
+ * make the first call next week. After the row's final time, offer tomorrow
+ * at 08:00 rather than a time that has already passed today.
  */
 export function startingPoint(now: Date): { weekday: string; time: string } {
   const parts = new Intl.DateTimeFormat('en-GB', {
@@ -53,7 +53,7 @@ export function startingPoint(now: Date): { weekday: string; time: string } {
   const weekday = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(get('weekday'));
   const minute = Number(get('hour')) * 60 + Number(get('minute'));
   const next = Math.max(FIRST, Math.ceil((minute + 15) / 15) * 15);
-  return { weekday: String(weekday), time: next <= LAST ? clock(next) : '08:00' };
+  return { weekday: String(next <= LAST ? weekday : (weekday + 1) % 7), time: next <= LAST ? clock(next) : '08:00' };
 }
 
 /**
@@ -81,13 +81,14 @@ const ERROR_KEY: Record<Invalid['why'], string> = {
 
 export interface SignupFormState {
   errors?: Invalid[];
-  values?: Partial<Record<'name' | 'phone' | 'email' | 'weekday' | 'time', string>>;
+  note?: string;
+  values?: Partial<Record<'name' | 'phone' | 'email' | 'weekday' | 'time' | 'timezone', string>>;
 }
 
 /**
  * The only page a stranger sees.
  *
- * One sentence, three fields, a day and a time. The fields carry their names
+ * A headline, a service summary, two fields, a day and a time. The fields carry their names
  * inside them rather than above, the day is one tap, and the time is a row you
  * swipe and tap — nothing opens a picker. Everything else the page could say
  * waits in the questions at the bottom for whoever wants it.
@@ -138,11 +139,12 @@ export function signupPage(
     <h1>${say(headline)}${second}</h1>
     ${inFaq('signup.honest') ? '' : `<p class="honest">${say('signup.honest')}</p>`}
 
+    <p class="honest">${say('signup.summary')}</p>
+    ${state.note ? `<p class="wrong" role="alert">${say(state.note)}</p>` : ''}
     ${note('timezone')}
 
     <form method="post" action="/start" novalidate>
       <div class="fields">
-        ${field('name', say('signup.name'), 'text', 'autocomplete="given-name" autocapitalize="words" enterkeyhint="next" required')}
         ${field('phone', say('signup.phone'), 'tel', 'autocomplete="tel" inputmode="tel" enterkeyhint="next" required')}
         ${field('email', say(script.get('signup.email.short') ? 'signup.email.short' : 'signup.email'), 'email', 'autocomplete="email" autocapitalize="off" spellcheck="false" enterkeyhint="done" required')}
       </div>
@@ -167,10 +169,12 @@ export function signupPage(
         ${note('minute')}
       </fieldset>
 
-      <input type="hidden" name="timezone" id="tz" value="Europe/Oslo" />
+      <input type="hidden" name="timezone" id="tz" value="${esc(v.timezone || HOME)}"${v.timezone ? ' data-preserved="1"' : ''} />
       <button class="primary">${busyLabel(say('signup.submit'))}</button>
       ${inFaq('signup.free') ? '' : `<p class="quiet small centre">${say('signup.free')}</p>`}
+      <p class="quiet small centre">${say('signup.terms.summary')}</p>
     </form>
+    <p class="quiet small centre"><a href="/access">${say('access.returning')}</a></p>
 
     ${
       faq.length
@@ -184,7 +188,7 @@ export function signupPage(
       // Fills the timezone and brings the chosen time to the middle of its row.
       // The form works without either: the zone falls back to Oslo, and the
       // row scrolls by hand.
-      try { document.getElementById('tz').value = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch (e) {}
+      try { if (!document.getElementById('tz').hasAttribute('data-preserved')) document.getElementById('tz').value = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch (e) {}
       // Says which clock the times are on. Norwegian unless the phone is set
       // to somewhere else, and then that place — and, if nothing has been
       // picked yet, today and the next quarter hour on that clock instead of
@@ -200,7 +204,8 @@ export function signupPage(
             var next = Math.max(${FIRST}, Math.ceil((m + 15) / 15) * 15);
             var t = next <= ${LAST} ? next : 480;
             var hhmm = String(Math.floor(t / 60)).padStart(2, '0') + ':' + String(t % 60).padStart(2, '0');
-            var day = document.querySelector('input[name=weekday][value="' + d.getDay() + '"]');
+            var nextDay = next <= ${LAST} ? d.getDay() : (d.getDay() + 1) % 7;
+            var day = document.querySelector('input[name=weekday][value="' + nextDay + '"]');
             var time = document.querySelector('input[name=time][value="' + hhmm + '"]');
             if (day) day.checked = true;
             if (time) time.checked = true;
@@ -210,7 +215,8 @@ export function signupPage(
       try {
         var row = document.getElementById('times');
         var centre = function (el, smooth) {
-          row.scrollTo({ left: el.offsetLeft - (row.clientWidth - el.offsetWidth) / 2, behavior: smooth ? 'smooth' : 'auto' });
+          var box = el.getBoundingClientRect(), track = row.getBoundingClientRect();
+          row.scrollTo({ left: row.scrollLeft + box.left - track.left - (row.clientWidth - box.width) / 2, behavior: smooth ? 'smooth' : 'auto' });
         };
         var on = row.querySelector('input:checked');
         if (on) centre(on.parentNode, false);
@@ -223,24 +229,31 @@ export function signupPage(
 }
 
 /** After the form, before the caller exists. The code is the whole page. */
-export function codePage(phone: string, script: ScriptLines, wrong?: string, language = 'en'): string {
+export function codePage(phone: string, script: ScriptLines, wrong?: string, language = 'en', draft?: { id: string; signup: Signup }): string {
   const say = (id: string): string => esc(script.get(id) ?? '');
+  const notice = !draft && ['signup.code.expired', 'signup.code.toomany'].includes(wrong ?? '') ? 'signup.code.restart' : wrong;
   return shell(
     `
     <header class="lockup">${mascot('nudge')}</header>
     <h1>${say('signup.code.title')}</h1>
-    <p class="quiet">${esc((script.get('signup.code.detail') ?? '').replace('{{phone}}', phone))}</p>
-    ${wrong ? `<p class="wrong">${say(wrong)}</p>` : ''}
+    <p class="quiet">${esc((script.get(wrong ? 'signup.code.pending' : 'signup.code.detail') ?? '').replace('{{phone}}', phone))}</p>
+    ${draft ? `<p class="quiet">${esc((script.get('signup.code.booking') ?? '').replace('{{when}}', `${dayNames(language, 'long')[draft.signup.weekday]} ${clock(draft.signup.minute)} · ${draft.signup.timezone}`))}</p>` : ''}
+    ${notice ? `<p class="wrong">${say(notice)}</p>` : ''}
     <form method="post" action="/start/verify" id="verify">
       <input type="hidden" name="phone" value="${esc(phone)}" />
+      ${draft ? `<input type="hidden" name="draft" value="${esc(draft.id)}" />` : ''}
       <label for="code" class="sr">${say('signup.code.label')}</label>
       <input id="code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code"
-             pattern="[0-9]*" maxlength="6" required autofocus class="code" enterkeyhint="go" />
+             pattern="[0-9]{6}" maxlength="6" required autofocus class="code" enterkeyhint="go" />
       <button class="primary">${busyLabel(say('signup.code.submit'))}</button>
     </form>
-    <form method="get" action="/">
-      <button class="quiet">${say('signup.code.again')}</button>
-    </form>
+    ${draft ? `<form method="post" action="/start/resend">
+      <input type="hidden" name="draft" value="${esc(draft.id)}" />
+      <button>${say('signup.code.resend')}</button>
+    </form><form method="post" action="/start/edit">
+      <input type="hidden" name="draft" value="${esc(draft.id)}" />
+      <button class="quiet">${say('signup.code.edit')}</button>
+    </form>` : `<form method="get" action="/start"><button class="quiet">${say('signup.code.again')}</button></form>`}
     <script>
       // When the phone autofills the code from the text, send it. The button
       // is still there for anyone who types it, or has scripts off.
@@ -370,7 +383,7 @@ function shell(body: string, language = 'en'): string {
   input.bad { border-color: var(--bad); }
   input.code { font-size: 1.75rem; letter-spacing: .35em; text-align: center; font-variant-numeric: tabular-nums; }
 
-  /* Three fields as one card, so the form reads as one thing to fill in. */
+  /* Two fields as one card, so the form reads as one thing to fill in. */
   .fields { border: 1px solid var(--line); border-radius: 1.1rem; overflow: hidden; background: var(--card); }
   .fields input { border: 0; border-radius: 0; min-height: 3.4rem; padding: .9rem 1rem; }
   .fields label + input { border-top: 1px solid var(--line); }

@@ -31,13 +31,14 @@ const forConsole = console_;
 const profile =
   arg === 'first'
     ? forConsole
-      ? { callNumber: 1, bookedSlot: '{{booked_slot}}' }
+      ? { callNumber: 1, bookedSlot: '{{booked_slot}}', onboardingProgress: '{{onboarding_progress}}', eight: '{{own_eight}}', eighty: '{{own_eighty}}', goals: '{{own_goals}}', lastCommitment: '{{last_commitment}}', nextSlot: '{{next_appointment}}' }
       : { callNumber: 1 }
     : arg === 'third'
       ? { callNumber: 4, lastCommitment: 'run three times', consecutiveUndone: 3 }
       : forConsole
         ? {
             callNumber: '{{call_number}}',
+            nextSlot: '{{next_appointment}}',
             lastCommitment: '{{last_commitment}}',
             callDay: '{{last_day}}',
             eight: '{{own_eight}}',

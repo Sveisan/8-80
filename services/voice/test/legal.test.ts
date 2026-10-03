@@ -82,11 +82,11 @@ test('both pages say how to stop and how to complain', () => {
   assert.ok(/116 123/.test(terms), 'and where to go if the call is not the right help');
 });
 
-test('the terms name Lemon Squeezy as merchant of record', () => {
+test('the terms keep provider choice and consumer withdrawal distinct from cancellation', () => {
   // They take the money and handle the VAT; saying otherwise would be wrong
   // about who the customer's contract for the payment is with.
-  assert.ok(/merchant of record/i.test(terms));
-  assert.ok(/fourteen-day right of withdrawal/i.test(terms));
+  assert.ok(/payment provider and paid plan are shown at checkout/i.test(terms));
+  assert.ok(/Consumer withdrawal rights are separate/i.test(terms));
 });
 
 test('the page offers the copy the privacy page promises', async () => {
@@ -142,6 +142,8 @@ test('the export is sent to the address on file and nowhere else', () => {
  */
 const COVERED: Record<string, RegExp> = {
   call_number: /how many calls|which call|call number/i,
+  onboarding_progress: /onboarding progress/i,
+  next_appointment: /next appointment/i,
   last_commitment: /last commitment/i,
   last_day: /the day you named|last commitment/i,
   own_eight: /eight/i,

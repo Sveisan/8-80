@@ -30,7 +30,9 @@
     "test:db": "./scripts/test-with-db.sh",
     "tick": "npm run -w @8and80/voice tick",
     "typecheck": "npm run -ws --if-present typecheck",
-    "voices": "npm run -w @8and80/voice voices --"
+    "voices": "npm run -w @8and80/voice voices --",
+    "messages": "npm run -w @8and80/voice messages --",
+    "journey": "npm run -w @8and80/voice journey"
   },
   "devDependencies": {
     "@eslint/js": "^9.13.0",

@@ -73,9 +73,9 @@ const TOO_SHORT_MS = 90_000;
  * end without one, and treating that as an error would put a red mark against
  * the weeks a person most needed the call to be ordinary.
  */
-export function settle(transcript: CallTranscript, script: ScriptLines): Settlement {
-  const agentTurns = transcript.turns.filter((t) => t.speaker === 'agent');
-  const callerTurns = transcript.turns.filter((t) => t.speaker === 'caller');
+export function settle(transcript: CallTranscript, script: ScriptLines, now = new Date()): Settlement {
+  const agentTurns = transcript.turns.filter((t) => t.speaker === 'agent' && t.text.trim());
+  const callerTurns = transcript.turns.filter((t) => t.speaker === 'caller' && t.text.trim());
 
   if (agentTurns.length === 0) {
     return { status: 'failed', note: `the agent never spoke (${transcript.endedReason ?? 'no reason given'})` };
@@ -87,6 +87,7 @@ export function settle(transcript: CallTranscript, script: ScriptLines): Settlem
       note: `agent spoke ${agentTurns.length}×, caller never did, ${Math.round(transcript.durationMs / 1000)}s`,
     };
   }
+  if (callerTurns.length === 0) return { status: 'unverified', note: 'no caller transcript; conversation could not be verified' };
 
   // The commitment comes from the mentor's read-back, not the caller's words —
   // see commitment.ts for why. Joined across turns because the read-back can
@@ -94,28 +95,36 @@ export function settle(transcript: CallTranscript, script: ScriptLines): Settlem
   const spoken = agentTurns.map((t) => t.text).join(' ');
   // The turn that carries the whole read-back first; the whole call only when
   // a backchannel split it.
-  const commitment =
-    agentTurns.map((t) => extractCommitment(t.text, script)).filter((c) => c !== undefined).pop() ??
-    extractCommitment(spoken, script);
+  const tail = script.get('next.confirm')?.split('}}').at(-1);
+  const current = tail && carries(spoken, tail)
+    ? agentTurns.map(t => extractCommitment(t.text, script)).filter(c => c !== undefined).pop() ?? extractCommitment(spoken, script)
+    : undefined;
+  // Older recordings used a question at the end of the fixed read-back.
+  const legacyScript = new Map(script).set('next.confirm', 'Right. {{commitment}}, {{day}}. Will you?');
+  const legacy = agentTurns.filter(t => /^right[\s.—-]/i.test(t.text.trim()) && /will you\??[.!]?$/i.test(t.text.trim()))
+    .map(t => extractCommitment(t.text, legacyScript)).filter(c => c !== undefined).pop();
+  const commitment = current ?? legacy;
   const callAgain = extractReschedule(spoken, script);
+  const said = agentTurns.map((t) => t.text);
+  const selves = readBack(said, script.get('read.first.keep'));
 
   // A call moved before it got anywhere is not a failed call and not a week
   // that happened. It is an appointment, and the only thing to carry out of it
   // is the time. Recording it as completed would make next week's call open by
   // asking what happened to a commitment nobody ever made.
-  if (callAgain && !commitment) {
+  if (callAgain && !commitment && !selves && transcript.durationMs < TOO_SHORT_MS) {
     return {
-      status: 'completed',
+      status: 'rescheduled',
       callAgain,
       note: 'moved during the call',
-      outcome: { at: new Date().toISOString(), durationMs: transcript.durationMs },
     };
   }
 
   // Their own eight and eighty, and an assumption they chose to test — each
   // taken from the line where the mentor read it back, like the commitment.
-  const said = agentTurns.map((t) => t.text);
-  const selves = readBack(said, script.get('read.first.keep'));
+  if (!commitment && !selves && transcript.durationMs < TOO_SHORT_MS) {
+    return { status: 'interrupted', note: 'conversation ended before a substantive exchange' };
+  }
   // A correction says back only the part that changed. If this year's goals
   // were corrected after the map, the correction is what was agreed.
   const keptAt = lastIndex(said, script.get('read.first.keep'));
@@ -128,10 +137,16 @@ export function settle(transcript: CallTranscript, script: ScriptLines): Settlem
   const week = lastWeek(said, script);
   const changeSlot = script.get('setup.change_slot');
   const wantsSlotChange = !!changeSlot && said.some((t) => carries(t, changeSlot));
+  const confirmed = script.get('onboarding.confirmed');
+  const mappedAt = transcript.turns.findLastIndex(t => t.speaker === 'agent' && !!readBack([t.text], script.get('read.first.keep')));
+  const confirmedAt = transcript.turns.findLastIndex(t => t.speaker === 'agent' && !!confirmed && carries(t.text, confirmed));
+  const onboardingComplete = !!selves && mappedAt >= 0 && confirmedAt > mappedAt
+    && transcript.turns.slice(mappedAt + 1, confirmedAt).some(t => t.speaker === 'caller' && t.text.trim());
 
   const outcome: CallOutcome = {
-    at: new Date().toISOString(),
+    at: now.toISOString(),
     durationMs: transcript.durationMs,
+    ...(onboardingComplete ? { onboardingComplete: true } : {}),
     ...(commitment ? { commitment: commitment.text, ...(commitment.day ? { day: commitment.day } : {}) } : {}),
     ...(selves?.['eight'] ? { eight: selves['eight'] } : {}),
     ...(selves?.['eighty'] ? { eighty: selves['eighty'] } : {}),

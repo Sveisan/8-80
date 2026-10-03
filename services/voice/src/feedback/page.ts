@@ -113,9 +113,9 @@ export const MERGE = `function merge(parts) {
 
 /** After sending. Plain: no follow-up, no share, nothing to do next. */
 export function feedbackThanksPage(script: ScriptLines, language = 'en'): string {
-  return shell(`${MARK}<h1>${esc(script.get('feedback.thanks') ?? '')}</h1>`, language);
+  return shell(`${MARK}<h1>${esc(script.get('feedback.thanks') ?? '')}</h1><p><a href="/me">${esc(script.get('email.controls') ?? '')}</a></p>`, language);
 }
 
 export function feedbackGonePage(script: ScriptLines, language = 'en'): string {
-  return shell(`${MARK}<h1>${esc(script.get('feedback.expired') ?? '')}</h1>`, language);
+  return shell(`${MARK}<h1>${esc(script.get('feedback.expired') ?? '')}</h1><p><a href="/me">${esc(script.get('email.controls') ?? '')}</a></p>`, language);
 }

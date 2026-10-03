@@ -1,5 +1,6 @@
 import { log } from '../log.ts';
 import { OptedOut, isOptOutCode, type Sms } from './types.ts';
+import { SendFailure, type Receipt, type DeliveryStatus } from '../messages/types.ts';
 
 /**
  * Texts through Twilio's REST API, over fetch.
@@ -17,10 +18,11 @@ export class TwilioSms implements Sms {
     private readonly from: string,
   ) {}
 
-  async send(to: string, body: string): Promise<void> {
+  async send(to: string, body: string): Promise<Receipt> {
     const url = `https://api.twilio.com/2010-04-01/Accounts/${this.accountSid}/Messages.json`;
     const res = await fetch(url, {
       method: 'POST',
+      signal: AbortSignal.timeout(8000), redirect: 'error',
       headers: {
         authorization: `Basic ${Buffer.from(`${this.accountSid}:${this.authToken}`).toString('base64')}`,
         'content-type': 'application/x-www-form-urlencoded',
@@ -48,8 +50,20 @@ export class TwilioSms implements Sms {
       // sentence is safe to keep even though it quotes the destination.
       const why = typeof body?.message === 'string' ? body.message : '';
       log('sms.send_failed', { status: res.status, code: typeof code === 'number' ? code : 0, why });
-      throw new Error(`Twilio refused the message (HTTP ${res.status}${code ? `, code ${String(code)}` : ''})${why ? `: ${why}` : ''}`);
+      throw new SendFailure(res.status === 429 ? 'retry' : res.status >= 500 || res.status === 408 ? 'uncertain' : 'permanent', `Twilio refused the message (HTTP ${res.status}${code ? `, code ${String(code)}` : ''})${why ? `: ${why}` : ''}`);
     }
     log('sms.sent', { via: 'twilio' });
+    const receipt = await res.json() as { sid?: string };
+    if (!receipt.sid) throw new SendFailure('uncertain', 'No SMS receipt');
+    return { id: receipt.sid };
+  }
+
+  async deliveryStatus(id: string): Promise<DeliveryStatus> {
+    const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${this.accountSid}/Messages/${encodeURIComponent(id)}.json`, {
+      headers: { authorization: `Basic ${Buffer.from(`${this.accountSid}:${this.authToken}`).toString('base64')}` }, signal: AbortSignal.timeout(8000), redirect: 'error',
+    });
+    if (!response.ok) throw new Error('SMS receipt unavailable');
+    const value = await response.json() as { status?: string };
+    return ['delivered', 'read'].includes(value.status ?? '') ? 'delivered' : ['failed', 'undelivered', 'canceled'].includes(value.status ?? '') ? 'failed' : 'pending';
   }
 }

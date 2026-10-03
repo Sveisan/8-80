@@ -1,3 +1,6 @@
+import { pruneJourney } from './journey/measure.ts';
+import { Pending } from './signup/pending.ts';
+import { AccessCodes } from './access/codes.ts';
 import { log } from './log.ts';
 import { openDeps } from './control.ts';
 import { tick } from './loop/tick.ts';
@@ -5,6 +8,7 @@ import { sweep } from './loop/sweep.ts';
 import { expireTrials } from './billing/trials.ts';
 import { beat } from './schedule/scheduler.ts';
 import { sendDueFeedback } from './feedback/feedback.ts';
+import { dispatchMessages } from './messages/outbox.ts';
 
 /**
  * One tick, then exit. Meant for cron:
@@ -18,6 +22,8 @@ import { sendDueFeedback } from './feedback/feedback.ts';
 const deps = openDeps();
 try {
   const result = await tick(deps);
+  await new AccessCodes(deps.store.raw).prune();
+  await new Pending(deps.store.raw).prune();
   // Hourly would be tidier, but a sweep that only runs from its own schedule is
   // a second thing that can stop running. This one cannot outlive the tick.
   const closed = await sweep(deps);
@@ -34,6 +40,8 @@ try {
   // And the one feedback text, fifteen minutes after the call it follows. A
   // query each minute rather than a timer per call, so a restart loses nothing.
   const asked = await sendDueFeedback(deps);
+  await dispatchMessages(deps);
+  await pruneJourney(deps.store.raw);
   if (result.claimed || closed || pruned || ended || asked) {
     log('tick.summary', { ...result, swept: closed, pruned, trialsEnded: ended, feedbackSent: asked });
   }

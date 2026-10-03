@@ -17,7 +17,7 @@ after(async () => {
 });
 
 beforeEach(async () => {
-  if (db) await db.sql`truncate table links`;
+  if (db) await db.sql`truncate table message_attempts, message_outbox, links`;
 });
 
 test('a code is short enough to sit in a text message', { skip: skip() }, async () => {

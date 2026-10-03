@@ -22,8 +22,8 @@ function fakeScheduler() {
       calls.push(`setPaused:${paused}`);
       api.paused = paused;
     },
-    async setSlot() {
-      calls.push('setSlot');
+    async resumeIfEligible() {
+      calls.push('resumeIfEligible');
       return new Date('2026-09-15T06:00:00Z');
     },
     async callAgainAt() {
@@ -68,7 +68,7 @@ test('one week off is not leaving', () => {
 });
 
 test('a sentence that cancels the whole thing cancels the whole thing', () => {
-  for (const said of ['cancel everything', 'please cancel the calls', 'cancel my subscription']) {
+  for (const said of ['cancel everything', 'please cancel the calls']) {
     assert.equal(parseReply(said, NOW, OSLO.timezone).kind, 'stop', said);
   }
 });
@@ -87,7 +87,7 @@ test('START brings them back and lands on a real next slot', async () => {
   assert.equal(out.action, 'started');
   // Unpausing alone would leave next_call_at in the past, which the tick reads
   // as a missed week the moment it sees it.
-  assert.deepEqual(sched.calls, ['setPaused:false', 'setSlot']);
+  assert.deepEqual(sched.calls, ['resumeIfEligible']);
 });
 
 test('the calls stop before anybody is told they have', async () => {
@@ -169,6 +169,16 @@ test('every line the stop path says is in SCRIPT.md', () => {
   }
 });
 
+test('an evening request for later never becomes an overnight appointment', async () => {
+  const sched = fakeScheduler();
+  const sms = new Outbox();
+  const out = await handleReply('+4790000000', 'later', OSLO, { sms, scheduler: as(sched), script }, new Date('2026-10-02T15:00:00Z'));
+  assert.equal(out.action, 'needs_time');
+  assert.deepEqual(sched.calls, [], 'no guessed callback, slot change or pause');
+  assert.match(sms.sent[0] ?? '', /day and time/);
+  assert.doesNotMatch(out.said, /this evening|have another go/);
+});
+
 test('nobody is rung by an unknown number with no warning', async () => {
   // The first contact used to be the phone ringing on a Tuesday morning, which
   // is indistinguishable from a cold call. SCRIPT.md §13.
@@ -202,4 +212,13 @@ test('somebody who opted out before being enrolled is not enrolled quietly', asy
     () => textBeforeFirstCall('+4790000000', NOW, OSLO, { sms: refusing, script }, 'https://x.test/r/t'),
     (e: Error) => e instanceof OptedOut,
   );
+});
+
+
+test('subscription cancellation is distinct from a call pause', () => {
+  assert.equal(parseReply('Please cancel my subscription').kind, 'cancel_subscription');
+  assert.equal(parseReply('cancel the subscription').kind, 'cancel_subscription');
+  assert.equal(parseReply("Don't cancel my subscription").kind, 'unparsed');
+  assert.equal(parseReply("Please don't stop my subscription").kind, 'unparsed');
+  assert.equal(parseReply('Ikke si opp abonnementet').kind, 'unparsed');
 });

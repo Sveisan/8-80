@@ -78,7 +78,7 @@ after(async () => {
 });
 
 beforeEach(async () => {
-  if (sql) await sql`truncate table callers, call_attempts, links`;
+  if (sql) await sql`truncate table message_attempts, message_outbox, callers, call_attempts, links`;
   process.env['DATA_ENCRYPTION_KEY'] = KEY;
   process.env['PUBLIC_URL'] = 'https://8and80.example';
   agent.reset();
@@ -138,6 +138,7 @@ const readBack = (script.get('next.confirm') ?? '')
 test('a tick rings whoever is due, carrying last week in their own words', { skip: skip() }, async () => {
   await enrol('+4790000040');
   await (store as NonNullable<typeof store>).record('+4790000040', {
+    onboardingComplete: true,
     at: NOW.toISOString(),
     durationMs: 1,
     commitment: 'run three times',
@@ -186,7 +187,7 @@ test('a platform refusal is a failed attempt, and they are told in the right wor
   // sentence for a call that never left the building, not the one that claims
   // their phone rang.
   assert.equal(texts.length, 1, 'a call that never happened must not pass in silence');
-  assert.match(texts[0]?.body ?? '', /my end, not yours/i, 'they got the "rang just now" line, which is a lie here');
+  assert.match(texts[0]?.body ?? '', /couldn't connect/i, 'they got the "rang just now" line, which is a lie here');
 });
 
 test('a finished call is stored and the recap goes out', { skip: skip() }, async () => {

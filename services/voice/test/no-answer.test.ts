@@ -59,7 +59,7 @@ test('a call that never left the building still gets a text, and not a lie', asy
   assert.ok(/rang/i.test(missed), 'the missed-call text says their phone rang');
   assert.ok(!/rang just now/i.test(failed), 'and this one must not, because it did not');
   assert.ok(failed.includes('{{link}}'), 'it carries a way to move the call');
-  assert.ok(/my end/i.test(failed), 'and says whose fault it was');
+  assert.ok(/couldn't connect/i.test(failed), 'and acknowledges the connection failure' );
 });
 
 test('their request id reaches the attempt row, not just the journal', () => {

@@ -6,6 +6,7 @@ import type { Sms } from './types.ts';
 
 /** Appends to a file instead of sending, for development. Under runs/, gitignored. */
 export class FileSms implements Sms {
+  readonly previewOnly = true;
   private readonly path: string;
 
   constructor(dir = resolve(repoRoot, 'runs', 'sms')) {

@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { sql } from 'drizzle-orm';
-import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js';
+import { drizzle, PostgresJsDatabase, PostgresJsSession } from 'drizzle-orm/postgres-js';
+import { PgDialect } from 'drizzle-orm/pg-core';
 import postgres from 'postgres';
 import { log } from '../log.ts';
 import { decrypt, encrypt, hasKey } from './crypto.ts';
@@ -34,12 +35,22 @@ export class PostgresStore implements Store {
   private readonly options: postgres.Options<Record<string, never>>;
   private rawClient: postgres.Sql | undefined;
 
-  constructor(url: string, options: postgres.Options<Record<string, never>> = {}) {
+  constructor(url: string, options: postgres.Options<Record<string, never>> = {}, tx?: postgres.TransactionSql) {
     this.url = url;
     this.options = options;
-    this.sqlClient = postgres(url, { max: 4, ...options });
-    this.db = drizzle(this.sqlClient);
+    this.sqlClient = (tx as unknown as postgres.Sql | undefined) ?? postgres(url, { max: 4, ...options });
+    if (tx) this.rawClient = tx as unknown as postgres.Sql;
+    // drizzle(client) configures pool-level parsers; a postgres transaction has
+    // no pool options. Bind the exported session directly to the borrowed
+    // transaction, preserving the raw client's Date parsing and atomic writes.
+    const dialect = new PgDialect();
+    this.db = tx
+      ? new PostgresJsDatabase(dialect, new PostgresJsSession(this.sqlClient, dialect, undefined), undefined)
+      : drizzle(this.sqlClient);
   }
+
+  /** Shares the current transaction; never close this borrowed store. */
+  in(tx: postgres.TransactionSql): PostgresStore { return new PostgresStore(this.url, this.options, tx); }
 
   async load(phone: string): Promise<CallerRecord> {
     const rows = await this.db
@@ -58,6 +69,8 @@ export class PostgresStore implements Store {
       language: row.language ?? undefined,
       voice: row.voice ?? undefined,
       callNumber: row.callNumber,
+      onboarding: row.onboarding as CallerRecord['onboarding'],
+      onboardingCompletedAt: row.onboardingCompletedAt?.toISOString(),
       rehearseFirstCall: row.rehearseFirstCall,
       lastCommitment: row.lastCommitmentEnc ? decrypt(row.lastCommitmentEnc) : undefined,
       lastCommitmentDay: row.lastCommitmentDay ?? undefined,
@@ -97,6 +110,8 @@ export class PostgresStore implements Store {
         phoneHash: key,
         phoneEnc: encrypt(phone),
         callNumber: 2,
+        onboarding: outcome.onboardingComplete ? 'complete' : 'in_progress',
+        onboardingCompletedAt: outcome.onboardingComplete ? at : null,
         lastCommitmentEnc: commitment,
         lastCommitmentDay: outcome.day ?? null,
         eightEnc: eight,
@@ -109,6 +124,9 @@ export class PostgresStore implements Store {
         target: callers.phoneHash,
         set: {
           callNumber: sql`${callers.callNumber} + 1`,
+          onboarding: sql`case when ${callers.onboarding} in ('complete', 'legacy') then ${callers.onboarding}
+            when ${!!outcome.onboardingComplete} then 'complete' else 'in_progress' end`,
+          onboardingCompletedAt: sql`coalesce(${callers.onboardingCompletedAt}, ${outcome.onboardingComplete ? at.toISOString() : null})`,
           // A call that reached no commitment leaves the last one standing.
           lastCommitmentEnc: sql`coalesce(${commitment}, ${callers.lastCommitmentEnc})`,
           lastCommitmentDay: sql`coalesce(${outcome.day ?? null}, ${callers.lastCommitmentDay})`,
@@ -253,63 +271,6 @@ export class PostgresStore implements Store {
   }
 
   /**
-   * Record what the payments vendor says about somebody.
-   *
-   * Found by our own key first and by their subscription id second. The first
-   * webhook for a new subscription is the only one that carries the phone hash
-   * — it rides along in the checkout's custom data — so it is also the one
-   * that writes the id every later webhook is found by.
-   *
-   * It never touches `paused`. See `claimDue`: that column is the caller's own
-   * decision and billing is a different question asked in the same `where`.
-   */
-  async applyBilling(change: {
-    phoneHash?: string;
-    subscriptionId?: string;
-    customerId?: string;
-    standing?: 'active' | 'past_due' | 'ended';
-  }): Promise<{ matched: boolean; from?: string; phoneHash?: string }> {
-    if (!change.standing) return { matched: false };
-    const status = change.standing;
-
-    // A CTE rather than a subquery in RETURNING, because the old value is the
-    // whole point and RETURNING's visibility rules are exactly the kind of
-    // subtlety that works in testing and is wrong under load. `before` reads
-    // and locks the row; `upd` writes it; the select joins them. There is no
-    // version of this where the two disagree.
-    //
-    // The old status matters because Lemon Squeezy re-sends webhooks and
-    // retries dunning: "is past_due" arrives many times, "has just become
-    // past_due" once, and only the second is worth emailing somebody about.
-    const rows = change.phoneHash
-      ? await this.raw<{ phone_hash: string; was: string }[]>`
-          with before as (
-            select phone_hash, billing_status from callers where phone_hash = ${change.phoneHash} for update
-          ), upd as (
-            update callers set billing_status = ${status},
-              ls_subscription_id = coalesce(${change.subscriptionId ?? null}, ls_subscription_id),
-              ls_customer_id = coalesce(${change.customerId ?? null}, ls_customer_id),
-              updated_at = now()
-            where phone_hash = ${change.phoneHash}
-            returning phone_hash
-          )
-          select upd.phone_hash, before.billing_status as was from upd join before on before.phone_hash = upd.phone_hash`
-      : change.subscriptionId
-        ? await this.raw<{ phone_hash: string; was: string }[]>`
-            with before as (
-              select phone_hash, billing_status from callers where ls_subscription_id = ${change.subscriptionId} for update
-            ), upd as (
-              update callers set billing_status = ${status}, updated_at = now()
-              where ls_subscription_id = ${change.subscriptionId}
-              returning phone_hash
-            )
-            select upd.phone_hash, before.billing_status as was from upd join before on before.phone_hash = upd.phone_hash`
-        : [];
-    const row = rows[0];
-    return row ? { matched: true, from: row.was, phoneHash: row.phone_hash } : { matched: false };
-  }
-
-  /**
    * Trials that have run out, turned into a state that stops the calls.
    *
    * One transition and one email, ever, per caller: `billing_status` moves
@@ -339,19 +300,26 @@ export class PostgresStore implements Store {
    * leave a record of when a named person was rung, which is exactly the thing
    * they asked to be rid of.
    */
-  async forget(phone: string): Promise<boolean> {
+  async forget(phone: string, transaction?: postgres.TransactionSql): Promise<boolean> {
     const hash = phoneKey(phone);
-    return await this.raw.begin(async (tx) => {
+    const erase = async (tx: postgres.TransactionSql): Promise<boolean> => {
+      const [billing] = await tx`select phone_hash, ls_subscription_id from callers where phone_hash = ${hash} for update`;
+      if (billing?.['ls_subscription_id'] && !transaction) throw new Error('Cancel billing through the account deletion service before erasing this record');
+      await tx`delete from journey_events where phone_hash = ${hash}`;
       await tx`delete from links where phone_hash = ${hash}`;
       await tx`delete from feedback where phone_hash = ${hash}`;
       await tx`delete from signups where phone_hash = ${hash}`;
+      await tx`delete from access_codes where phone_hash = ${hash}`;
+      await tx`delete from message_attempts where message_id in (select id from message_outbox where phone_hash = ${hash})`;
+      await tx`delete from message_outbox where phone_hash = ${hash}`;
       await tx`delete from webhook_deliveries where conversation_id in (
         select provider_call_id from call_attempts where phone_hash = ${hash} and provider_call_id is not null
       )`;
       await tx`delete from call_attempts where phone_hash = ${hash}`;
       const gone = await tx<{ phone_hash: string }[]>`delete from callers where phone_hash = ${hash} returning phone_hash`;
       return gone.length > 0;
-    });
+    };
+    return transaction ? erase(transaction) : await this.raw.begin(erase);
   }
 
   /**

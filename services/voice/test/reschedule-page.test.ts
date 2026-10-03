@@ -7,7 +7,7 @@ import { Scheduler } from '../src/schedule/scheduler.ts';
 import { phoneKey } from '../src/store/postgres.ts';
 import { Links } from '../src/link/token.ts';
 import { controlPlane } from '../src/control.ts';
-import type { Slot } from '../src/schedule/time.ts';
+import { nextSlotAfter, type Slot } from '../src/schedule/time.ts';
 import type { LoopDeps } from '../src/loop/deps.ts';
 
 const KEY = Buffer.alloc(32, 7).toString('base64');
@@ -36,7 +36,7 @@ after(async () => {
 });
 
 beforeEach(async () => {
-  if (sql) await sql`truncate table callers, call_attempts, links`;
+  if (sql) await sql`truncate table message_attempts, message_outbox, callers, call_attempts, links`;
   process.env['DATA_ENCRYPTION_KEY'] = KEY;
 });
 
@@ -121,14 +121,44 @@ test('ticking "every week" moves the standing slot', { skip: skip() }, async () 
   });
 });
 
-test('leaving the week does not pause them', { skip: skip() }, async () => {
-  const token = await enrolled('+4790000063');
+test('a skip form targets the displayed appointment and cannot skip twice', { skip: skip() }, async () => {
+  const phone = '+4790000063';
+  const token = await enrolled(phone);
+  await (store as NonNullable<typeof store>).record(phone, { at: new Date().toISOString(), durationMs: 300_000, onboardingComplete: true });
+  const next = await (sched as Scheduler).setSlot(phone, OSLO);
   await serving(async (base) => {
-  await post(base, token, { action: 'skip' });
+    const body = await (await fetch(`${base}/r/${token}`)).text();
+    const skipAt = /name="skip_at" value="([^"]+)"/.exec(body)?.[1];
+    assert.equal(skipAt, next.toISOString(), 'the occurrence the page names is the one submitted');
+    assert.match(body, /Skip this call/);
+    assert.ok(!body.includes('value="later"'), 'no action guesses an hour');
 
-  const rows = await (sql as NonNullable<typeof sql>)`select paused, slot_weekday from callers`;
-  assert.equal(rows[0]?.['paused'], false);
-  assert.equal(rows[0]?.['slot_weekday'], 2);
+    const form = { action: 'skip', skip_at: skipAt as string };
+    const first = await post(base, token, form);
+    assert.match(await first.text(), /Skipped/);
+    const second = await post(base, token, form);
+    assert.match(await second.text(), /No call changed/);
+
+    const rows = await (sql as NonNullable<typeof sql>)`select paused, slot_weekday, next_call_at from callers`;
+    assert.equal(rows[0]?.['paused'], false);
+    assert.equal(rows[0]?.['slot_weekday'], 2);
+    assert.equal((rows[0]?.['next_call_at'] as Date).toISOString(), nextSlotAfter(next, OSLO).toISOString());
+  });
+});
+
+test('legacy later and untargeted skip forms cannot change a returning caller schedule', { skip: skip() }, async () => {
+  const phone = '+4790000068';
+  const token = await enrolled(phone);
+  await (store as NonNullable<typeof store>).record(phone, { at: new Date().toISOString(), durationMs: 300_000, onboardingComplete: true });
+  const next = await (sched as Scheduler).setSlot(phone, OSLO);
+  await serving(async (base) => {
+    const forms: Record<string, string>[] = [{ action: 'later' }, { action: 'skip' }, { action: 'skip', skip_at: 'not-a-date' }];
+    for (const form of forms) {
+      const res = await post(base, token, form);
+      assert.equal(res.status, 200);
+      assert.match(await res.text(), /name="time"/);
+      assert.equal((await (sched as Scheduler).nextCallFor(phone))?.toISOString(), next.toISOString());
+    }
   });
 });
 
@@ -181,7 +211,8 @@ test('an address can be set from the link, and a bad one changes nothing', { ski
     assert.equal(ok.status, 200);
     const body = await ok.text();
     assert.match(body, /Saved/i);
-    assert.match(body, /eirik@example\.com/, 'the page does not show back what it saved');
+    assert.match(body, /e•••@e•••\.com/, 'the saved address is recognisable');
+    assert.ok(!body.includes('eirik@example.com'), 'the full address must not appear in markup');
     assert.equal((await s_.load(phone)).email, 'eirik@example.com');
   });
 });

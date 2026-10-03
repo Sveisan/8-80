@@ -3,29 +3,14 @@ import { config } from '../config.ts';
 import { TTL_MS as LINK_TTL_MS } from './token.ts';
 
 /**
- * The browser that signed up, remembered for a week.
+ * A week-long, purpose-scoped credential for a browser verified at signup or
+ * through recovery. It opens scheduling and a masked delivery address, without
+ * exposing private context. Export and deletion require a fresh phone proof
+ * or a reschedule link. Deletion withdraws the stateful credential.
  *
- * Not an account and not a login: there is nothing to sign into and no way to
- * get one of these except by proving a number with a code sent to it, on the
- * sign-up form, a minute ago. It is a link the browser holds instead of the
- * messages app, and it gets exactly a link's terms:
- *
- * - Seven days, the life of the link in the welcome text minted beside it. The
- *   first call is always inside that week, and after it every text carries a
- *   fresh link, so nothing is gained by remembering longer and a laptop in a
- *   shared kitchen is exposed for longer.
- * - Stateful, a row in `links` like any other code, so deleting everything
- *   withdraws it and nothing needs rotating.
- * - It opens the same boring page, which shows the slot and nothing about the
- *   person. A partner who picks up the laptop finds a time and some buttons.
- * - Not the copy, and not the deletion. Those hand over or destroy everything,
- *   and a browser that once belonged to somebody is not proof enough for
- *   either; the page says they are behind the link in any text.
- *
- * HttpOnly, because no script on the page needs it. SameSite=Lax, so a form
- * on somebody else's site cannot post to the page with it; and a fetch-metadata
- * check on top, for the browsers that send it. Secure whenever the public
- * address is https.
+ * HttpOnly, SameSite=Lax and Secure on the public HTTPS address. Mutations also
+ * check Fetch Metadata and Origin. Recovery can issue new access after expiry;
+ * the credential itself is never made permanent.
  */
 export const BROWSER = 'browser';
 /** Opened within this long of signing up, the page says "done" before anything else. */
@@ -47,4 +32,25 @@ export function cookieOf(req: IncomingMessage, name: string): string | undefined
 }
 
 /** A post that another site started. Old browsers send nothing, and SameSite covers them. */
-export const crossSite = (req: IncomingMessage): boolean => req.headers['sec-fetch-site'] === 'cross-site';
+export const crossSite = (req: IncomingMessage): boolean => {
+  if (req.headers['sec-fetch-site'] === 'cross-site') return true;
+  const origin = req.headers.origin;
+  if (!origin) return false;
+  // Our no-referrer policy makes a navigation POST's Origin null. Fetch
+  // Metadata is browser-controlled, so only a same-origin form may use this
+  // exception; sandboxed documents and other sites remain refused.
+  if (origin === 'null') return req.headers['sec-fetch-site'] !== 'same-origin';
+  try {
+    const supplied = new URL(origin);
+    const publicUrl = config.link.publicUrl();
+    return publicUrl ? supplied.origin !== new URL(publicUrl).origin : supplied.host !== req.headers.host;
+  } catch {
+    return true;
+  }
+};
+
+/** Separate, short-lived authority to read and correct private context. */
+export function memoryCookie(code: string): string {
+  return `memory=${code}; Path=/memory; Max-Age=900; HttpOnly; SameSite=Strict${config.link.publicUrl().startsWith('https:') ? '; Secure' : ''}`;
+}
+export const clearMemory = (): string => 'memory=; Path=/memory; Max-Age=0; HttpOnly; SameSite=Strict';

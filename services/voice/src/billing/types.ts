@@ -3,6 +3,9 @@ export type Standing = 'active' | 'past_due' | 'ended';
 
 export interface Change {
   event: string;
+  provider?: 'stripe' | 'lemonsqueezy';
+  eventId?: string;
+  cancelAtPeriodEnd?: boolean;
   /** The vendor's subscription id, as a string. */
   subscriptionId?: string;
   customerId?: string;

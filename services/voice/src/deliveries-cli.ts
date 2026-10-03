@@ -122,8 +122,8 @@ try {
         throw new Error('a replay never calls the platform');
       },
     } as unknown as LoopDeps['agent'],
-    mailer: { send: async () => undefined },
-    sms: { send: async () => undefined },
+    mailer: { previewOnly: true, send: async () => undefined },
+    sms: { previewOnly: true, send: async () => undefined },
     script: loadScript(),
   };
   // No mailer and no SMS: replaying a call from last Tuesday must not text

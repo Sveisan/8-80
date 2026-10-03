@@ -218,20 +218,9 @@ export const config = {
     supportEmail: (): string => real(process.env['SUPPORT_EMAIL']),
   },
   billing: {
-    /**
-     * Which payments vendor is live, decided by which secret is set.
-     *
-     * Two exist because the vendor changed under us mid-build: Lemon Squeezy
-     * was acquired by Stripe and its successor is Stripe Managed Payments.
-     * Rather than rip one out, both are kept behind one interface — if the
-     * Stripe eligibility review had gone the other way, this would have been a
-     * variable rather than a week.
-     *
-     * Stripe wins when both are set. Nobody configures two payment vendors on
-     * purpose, and taking money twice is the worse error.
-     */
+    /** Explicit selection takes precedence; the webhook secret preserves legacy selection. */
     provider: (): 'stripe' | 'lemonsqueezy' =>
-      process.env['STRIPE_WEBHOOK_SECRET'] ? 'stripe' : 'lemonsqueezy',
+      process.env['BILLING_PROVIDER'] === 'stripe' ? 'stripe' : process.env['BILLING_PROVIDER'] === 'lemonsqueezy' ? 'lemonsqueezy' : process.env['STRIPE_WEBHOOK_SECRET'] ? 'stripe' : 'lemonsqueezy',
     /**
      * The hosted checkout, e.g. https://buy.stripe.com/<link>
      *
@@ -240,9 +229,16 @@ export const config = {
      * with itself, and the one that takes the money should win.
      */
     checkoutUrl: (): string =>
-      process.env['STRIPE_CHECKOUT_URL'] ?? process.env['LEMONSQUEEZY_CHECKOUT_URL'] ?? '',
+      config.billing.provider() === 'stripe' ? process.env['STRIPE_CHECKOUT_URL'] ?? '' : process.env['LEMONSQUEEZY_CHECKOUT_URL'] ?? '',
     webhookSecret: (): string =>
-      process.env['STRIPE_WEBHOOK_SECRET'] ?? process.env['LEMONSQUEEZY_WEBHOOK_SECRET'] ?? '',
+      config.billing.provider() === 'stripe' ? process.env['STRIPE_WEBHOOK_SECRET'] ?? '' : process.env['LEMONSQUEEZY_WEBHOOK_SECRET'] ?? '',
+    /** A hosted link alone cannot confirm payment or support cancellation. */
+    checkoutReady: (): boolean => {
+      const selected = process.env['BILLING_PROVIDER'];
+      if (selected && selected !== 'stripe' && selected !== 'lemonsqueezy') return false;
+      const key = config.billing.provider() === 'stripe' ? process.env['STRIPE_SECRET_KEY'] : process.env['LEMONSQUEEZY_API_KEY'];
+      return !!key && !!config.billing.webhookSecret() && /^https:\/\//.test(config.link.publicUrl());
+    },
     /** How long the free month is, in days. */
     trialDays: (): number => num('TRIAL_DAYS', 30),
   },

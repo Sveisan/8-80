@@ -3,6 +3,7 @@ import postgres from 'postgres';
 import { log } from '../log.ts';
 import { phoneKey } from '../store/postgres.ts';
 import { nextSlotAfter, type Slot } from './time.ts';
+import { transaction, type Database } from '../store/transaction.ts';
 
 /** A call the scheduler has taken responsibility for placing. */
 export interface Claim {
@@ -19,7 +20,12 @@ export class UnknownCaller extends Error {
   }
 }
 
-export type AttemptStatus = 'claimed' | 'placed' | 'settling' | 'completed' | 'silent' | 'failed' | 'missed';
+export type AttemptStatus = 'claimed' | 'placed' | 'settling' | 'completed' | 'rescheduled' | 'interrupted' | 'unverified' | 'silent' | 'failed' | 'missed';
+
+export type SkipResult =
+  | { kind: 'skipped'; next?: Date; paidAccessEnded?: boolean }
+  | { kind: 'unchanged'; next: Date }
+  | { kind: 'inactive' };
 
 /**
  * How late a call may be and still be the call. Past this it is recorded as
@@ -48,14 +54,14 @@ const MAX_MISSED = 12;
  * a visible row and what `stale` exists to find.
  */
 export class Scheduler {
-  constructor(private readonly sql: postgres.Sql) {}
+  constructor(private readonly sql: Database) {}
 
   /**
    * Take responsibility for every caller whose slot has come round, and move
    * each of their slots to next week in the same breath.
    */
   async claimDue(now = new Date(), limit = 50, graceMs = GRACE_MS): Promise<Claim[]> {
-    return await this.sql.begin(async (tx) => {
+    return await transaction(this.sql, async (tx) => {
       const due = await tx<
         { phone_hash: string; next_call_at: Date; slot_weekday: number; slot_minute: number; timezone: string }[]
       >`
@@ -71,6 +77,7 @@ export class Scheduler {
             billing_status in ('comped', 'active', 'past_due')
             or (billing_status = 'trialing' and (trial_ends_at is null or trial_ends_at > ${now}))
           )
+          and (not cancel_at_period_end or paid_until > ${now})
           and next_call_at is not null
           and next_call_at <= ${now}
           and slot_weekday is not null
@@ -167,13 +174,103 @@ export class Scheduler {
     return { weekday: row.slot_weekday, minute: row.slot_minute, timezone: row.timezone };
   }
 
-  /** When the phone next rings, for saying so on the page. Nothing when there is no call due. */
+  /** Stored occurrence, even when paused or billing-ineligible. Use nextEligibleCallFor for a promise. */
   async nextCallFor(phone: string): Promise<Date | undefined> {
     const rows = await this.sql<{ next_call_at: Date | null }[]>`
       select next_call_at from callers where phone_hash = ${phoneKey(phone)} limit 1
     `;
     const at = rows[0]?.next_call_at;
     return at ? new Date(at) : undefined;
+  }
+
+  /** Only promise a future call that pause and billing permit at that time. */
+  async nextEligibleCallFor(phone: string, now = new Date()): Promise<Date | undefined> {
+    const [row] = await this.sql<{ next_call_at: Date }[]>`
+      select next_call_at from callers
+      where phone_hash = ${phoneKey(phone)} and paused = false and next_call_at > ${now}
+        and (not cancel_at_period_end or paid_until > next_call_at)
+        and (billing_status in ('comped', 'active', 'past_due')
+          or (billing_status = 'trialing' and (trial_ends_at is null or trial_ends_at > next_call_at)))
+    `;
+    return row ? new Date(row.next_call_at) : undefined;
+  }
+
+  /** A move cannot undo a concurrent pause or book beyond eligible access. */
+  async moveIfActive(phone: string, at: Date, weekly?: Slot): Promise<boolean> {
+    const changed = await this.sql<{ phone_hash: string }[]>`
+      update callers set next_call_at = ${at},
+        slot_weekday = coalesce(${weekly?.weekday ?? null}, slot_weekday),
+        slot_minute = coalesce(${weekly?.minute ?? null}, slot_minute),
+        timezone = coalesce(${weekly?.timezone ?? null}, timezone), updated_at = now()
+      where phone_hash = ${phoneKey(phone)} and paused = false
+        and (not cancel_at_period_end or paid_until > ${at})
+        and (billing_status in ('comped', 'active', 'past_due')
+          or (billing_status = 'trialing' and (trial_ends_at is null or trial_ends_at > ${at})))
+      returning phone_hash
+    `;
+    return changed.length > 0;
+  }
+
+  /** Resume only when the stored weekly arrangement has an eligible next call. */
+  async resumeIfEligible(phone: string, now = new Date()): Promise<Date | undefined> {
+    return await transaction(this.sql, async tx => {
+      const [row] = await tx<{
+        slot_weekday: number | null; slot_minute: number | null; timezone: string | null;
+        billing_status: string; trial_ends_at: Date | null; cancel_at_period_end: boolean; paid_until: Date | null;
+      }[]>`select slot_weekday, slot_minute, timezone, billing_status, trial_ends_at, cancel_at_period_end, paid_until
+        from callers where phone_hash = ${phoneKey(phone)} for update`;
+      if (!row || row.slot_weekday === null || row.slot_minute === null || !row.timezone) return undefined;
+      const next = nextSlotAfter(now, { weekday: row.slot_weekday, minute: row.slot_minute, timezone: row.timezone });
+      const eligible = ['comped', 'active', 'past_due'].includes(row.billing_status)
+        || (row.billing_status === 'trialing' && (!row.trial_ends_at || row.trial_ends_at > next));
+      if (!eligible || (row.cancel_at_period_end && (!row.paid_until || row.paid_until <= next))) return undefined;
+      await tx`update callers set paused = false, next_call_at = ${next}, updated_at = now() where phone_hash = ${phoneKey(phone)}`;
+      return next;
+    });
+  }
+
+  /**
+   * Skip the appointment shown on a page, or the current local week for SMS.
+   * Lock against the tick and other controls: a stale or repeated form must
+   * never skip the replacement appointment. An SMS has no appointment token,
+   * so its calendar-week boundary makes repeating “skip this week” harmless.
+   */
+  async skipCall(phone: string, now = new Date(), expectedAt?: Date): Promise<SkipResult> {
+    return await transaction(this.sql, async (tx) => {
+      const [row] = await tx<{
+        next_call_at: Date | null; slot_weekday: number | null; slot_minute: number | null;
+        timezone: string | null; eligible: boolean; trial_until: Date | null; cancel_at_period_end: boolean;
+      }[]>`
+        select next_call_at, slot_weekday, slot_minute, timezone, cancel_at_period_end,
+          case when cancel_at_period_end then paid_until when billing_status = 'trialing' then trial_ends_at end as trial_until,
+          (paused = false and (
+            billing_status in ('comped', 'active', 'past_due')
+            or (billing_status = 'trialing' and (trial_ends_at is null or trial_ends_at > ${now}))
+          ) and (not cancel_at_period_end or paid_until > ${now})) as eligible
+        from callers where phone_hash = ${phoneKey(phone)} for update
+      `;
+      if (!row) throw new UnknownCaller();
+      if (!row.eligible || !row.next_call_at || row.slot_weekday === null || row.slot_minute === null || !row.timezone) {
+        return { kind: 'inactive' as const };
+      }
+
+      const current = new Date(row.next_call_at);
+      if (row.trial_until && current >= row.trial_until) return { kind: 'inactive' as const };
+      const slot: Slot = { weekday: row.slot_weekday, minute: row.slot_minute, timezone: row.timezone };
+      let after = new Date(Math.max(now.getTime(), current.getTime()));
+      if (expectedAt) {
+        if (current.getTime() !== expectedAt.getTime()) return { kind: 'unchanged' as const, next: current };
+      } else {
+        const weekEnd = nextSlotAfter(now, { weekday: 1, minute: 0, timezone: slot.timezone });
+        if (current >= weekEnd) return { kind: 'unchanged' as const, next: current };
+        // Leave the whole local week, including a replacement before the
+        // usual slot. Subtract a millisecond so Monday 00:00 remains eligible.
+        after = new Date(weekEnd.getTime() - 1);
+      }
+      const next = nextSlotAfter(after, slot);
+      await tx`update callers set next_call_at = ${next}, updated_at = now() where phone_hash = ${phoneKey(phone)}`;
+      return { kind: 'skipped' as const, ...(row.trial_until && next >= row.trial_until ? { paidAccessEnded: row.cancel_at_period_end } : { next }) };
+    });
   }
 
   /** Their choice to stop. The slot stays, so resuming is not re-entering it. */

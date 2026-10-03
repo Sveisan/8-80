@@ -1,6 +1,6 @@
 /** One outbound text. Nothing here is ever the commitment — see SCRIPT.md §13. */
-export interface Sms {
-  send(to: string, body: string): Promise<void>;
+export interface Sms extends TransportInfo {
+  send(to: string, body: string, options?: SendOptions): Promise<void | Receipt>;
 }
 
 /**
@@ -23,3 +23,4 @@ export class OptedOut extends Error {
 const OPT_OUT_CODES = new Set([21610]);
 
 export const isOptOutCode = (code: unknown): boolean => typeof code === 'number' && OPT_OUT_CODES.has(code);
+import type { Receipt, SendOptions, TransportInfo } from '../messages/types.ts';

@@ -1,7 +1,7 @@
 import { log } from '../log.ts';
 import type { ScriptLines } from '../script.ts';
 import type { Scheduler } from '../schedule/scheduler.ts';
-import type { Slot } from '../schedule/time.ts';
+import { describeAppointment, type Slot } from '../schedule/time.ts';
 import { moveTo, parseReply } from './reply.ts';
 import { OptedOut, type Sms } from './types.ts';
 
@@ -21,7 +21,7 @@ export async function textAfterMissedCall(
 ): Promise<boolean> {
   // Somebody else may already have sent it. Losing the race means sending
   // nothing, not sending a second one.
-  if (!(await deps.scheduler.claimNudge(attemptId))) return false;
+  if (!deps.sms.transactional && !(await deps.scheduler.claimNudge(attemptId))) return false;
   const template = deps.script.get('sms.missed');
   if (!template) return false;
   // Without a link there is nothing to act on, and a text that only says the
@@ -30,6 +30,7 @@ export async function textAfterMissedCall(
   try {
     await deps.sms.send(phone, template.replace('{{link}}', link));
   } catch (e) {
+    if (deps.sms.transactional) throw e;
     // The path that closes the hole. A carrier handles STOP before our webhook
     // ever sees it, so the first we learn of it is a rejected send — hours or
     // a week later, on the next missed call. Until this existed, that person
@@ -61,12 +62,13 @@ export async function textAfterFailedCall(
   deps: { sms: Sms; scheduler: Scheduler; script: ScriptLines },
   link?: string,
 ): Promise<boolean> {
-  if (!(await deps.scheduler.claimNudge(attemptId))) return false;
+  if (!deps.sms.transactional && !(await deps.scheduler.claimNudge(attemptId))) return false;
   const template = deps.script.get('sms.failed');
   if (!template || !link) return false;
   try {
     await deps.sms.send(phone, template.replace('{{link}}', link));
   } catch (e) {
+    if (deps.sms.transactional) throw e;
     if (e instanceof OptedOut) {
       await deps.scheduler.setPaused(phone, true);
       log('sms.stopped_by_carrier', { note: 'opted out at the carrier — calls paused' });
@@ -97,19 +99,21 @@ export async function textAfterFailedCall(
 export async function textAfterCall(
   attemptId: string,
   phone: string,
-  want: 'slot' | 'email',
+  want: 'slot' | 'email' | 'callback' | 'callback_unavailable',
   deps: { sms: Sms; scheduler: Scheduler; script: ScriptLines },
   link?: string,
+  next?: string,
 ): Promise<boolean> {
   // Without a link there is nothing to act on, and a text saying "you can't do
   // this here" with no elsewhere is worse than silence.
   if (!link) return false;
-  const template = deps.script.get(want === 'slot' ? 'sms.slot.link' : 'sms.email.ask');
+  const template = deps.script.get({ slot: 'sms.slot.link', email: 'sms.email.ask', callback: 'sms.callback', callback_unavailable: 'sms.callback.unavailable' }[want]);
   if (!template) return false;
-  if (!(await deps.scheduler.claimNudge(attemptId))) return false;
+  if (!deps.sms.transactional && !(await deps.scheduler.claimNudge(attemptId))) return false;
   try {
-    await deps.sms.send(phone, template.replace('{{link}}', link));
+    await deps.sms.send(phone, template.replace('{{link}}', link).replace('{{when}}', next ?? ''));
   } catch (e) {
+    if (deps.sms.transactional) throw e;
     if (e instanceof OptedOut) {
       await deps.scheduler.setPaused(phone, true);
       log('sms.stopped_by_carrier', { note: 'opted out at the carrier — calls paused' });
@@ -123,7 +127,7 @@ export async function textAfterCall(
 }
 
 export interface ReplyOutcome {
-  action: 'moved' | 'moved_always' | 'later' | 'skipped' | 'stopped' | 'started' | 'unread';
+  action: 'moved' | 'moved_always' | 'needs_time' | 'skipped' | 'unchanged' | 'stopped' | 'started' | 'unread';
   /** What we said back, so a caller always gets an answer from a person's system. */
   said: string;
 }
@@ -141,15 +145,16 @@ export async function handleReply(
   slot: Slot,
   deps: { sms: Sms; scheduler: Scheduler; script: ScriptLines },
   now = new Date(),
+  context: { skipAt?: Date; language?: string } = {},
 ): Promise<ReplyOutcome> {
   const reply = parseReply(text, now, slot.timezone);
   /**
    * Say it, and never let the saying undo the doing.
    *
-   * Every branch below writes to the scheduler first and acknowledges second,
-   * and a failed acknowledgement must not turn that write into a 500 — the
-   * carrier retries a 500, and a retried STOP is harmless while a retried
-   * "later" moves the call twice. It matters most on the branch it was written
+   * Scheduling changes are written before they are acknowledged, and a failed
+   * acknowledgement must not turn that write into a 500 — the
+   * carrier retries a 500, and a retried command can target a changed schedule.
+   * It matters most on the branch it was written
    * for: after a carrier handles a STOP, messages to that number are blocked,
    * so the confirmation is the one send guaranteed to fail, on the one action
    * that must never fail to take effect.
@@ -160,12 +165,15 @@ export async function handleReply(
     try {
       await deps.sms.send(phone, body);
     } catch (e) {
+    if (deps.sms.transactional) throw e;
       log('sms.reply_not_sent', { reason: (e as Error).message });
     }
     return body;
   };
 
   switch (reply.kind) {
+    case 'cancel_subscription':
+      return { action: 'unread', said: await say('sms.subscription.needs_verification') };
     case 'stop':
       // The calls stop before anything else happens, including being told
       // that they have. SCRIPT.md §13.
@@ -173,46 +181,42 @@ export async function handleReply(
       return { action: 'stopped', said: await say('sms.stopped') };
 
     case 'start': {
-      await deps.scheduler.setPaused(phone, false);
-      // Not just unpaused: a next_call_at left in the past would be read as a
-      // missed week the moment the tick saw it, so the slot is recomputed from
-      // now and they come back to the next real occurrence of their own time.
-      const back = await deps.scheduler.setSlot(phone, slot, now);
+      const back = await deps.scheduler.resumeIfEligible(phone, now);
+      if (!back) return { action: 'unchanged', said: await say('sms.start.inactive') };
       return {
         action: 'started',
         said: await say(
           'sms.started',
-          back.toLocaleString('en-GB', { timeZone: slot.timezone, weekday: 'long', hour: '2-digit', minute: '2-digit' }),
+          describeAppointment(back, slot.timezone, context.language),
         ),
       };
     }
 
-    case 'skip':
-      // The slot is untouched: skipping a week is not leaving.
-      return { action: 'skipped', said: await say('sms.skipped') };
-
-    case 'later': {
-      const evening = new Date(now.getTime() + 8 * 3600_000);
-      await deps.scheduler.callAgainAt(phone, evening);
-      return { action: 'later', said: await say('sms.later') };
+    case 'skip': {
+      const result = await deps.scheduler.skipCall(phone, now, context.skipAt);
+      if (result.kind === 'inactive') return { action: 'unchanged', said: await say('sms.skip.inactive') };
+      if (!result.next) return { action: 'skipped', said: await say(result.kind === 'skipped' && result.paidAccessEnded ? 'sms.skipped.paid_end' : 'sms.skipped.trial_end') };
+      return {
+        action: result.kind,
+        said: await say(
+          result.kind === 'skipped' ? 'sms.skipped' : 'sms.skip.unchanged',
+          describeAppointment(result.next, slot.timezone, context.language),
+        ),
+      };
     }
+
+    case 'later':
+      // “Later” is not permission to choose an hour, particularly overnight.
+      return { action: 'needs_time', said: await say('sms.later') };
 
     case 'move': {
       const at = moveTo(reply, slot.timezone, now);
-      const when = at.toLocaleString('en-GB', {
-        timeZone: slot.timezone,
-        weekday: 'long',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-      if (reply.always) {
-        await deps.scheduler.setSlot(phone, { weekday: reply.weekday, minute: reply.minute, timezone: slot.timezone }, now);
-        return { action: 'moved_always', said: await say('sms.moved.always', when) };
+      const when = describeAppointment(at, slot.timezone, context.language);
+      const weekly = reply.always ? { weekday: reply.weekday, minute: reply.minute, timezone: slot.timezone } : undefined;
+      if (!(await deps.scheduler.moveIfActive(phone, at, weekly))) {
+        return { action: 'unchanged', said: await say('sms.move.inactive') };
       }
-      // This week only. A day and a time after a missed call is not a request
-      // to rewrite a standing arrangement, and the escape hatch is in the reply.
-      await deps.scheduler.callAgainAt(phone, at);
-      return { action: 'moved', said: await say('sms.moved', when) };
+      return { action: reply.always ? 'moved_always' : 'moved', said: await say(reply.always ? 'sms.moved.always' : 'sms.moved', when) };
     }
 
     default:

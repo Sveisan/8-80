@@ -25,7 +25,7 @@ export interface Recap {
   parts: RecapPart[];
   /** The letterhead's date, carried through so the renderer needs only a Recap. */
   date?: string;
-  /** One link, for the one letter that carries one. The recap never does. */
+  /** The durable controls destination, or a billing action for a billing letter. */
   action?: { label: string; url: string };
   /**
    * Their own words and the day they named, kept apart.
@@ -41,6 +41,9 @@ export interface Recap {
 }
 
 export interface RecapContext {
+  trialEnds?: string;
+  /** A recoverable destination, with no bearer credential or personal data. */
+  controlUrl?: string;
   /** How the next call was referred to out loud, e.g. "Tuesday at nine". */
   nextSlot?: string;
   /**
@@ -118,6 +121,8 @@ export function composeRecap(outcome: CallOutcome, script: ScriptLines, ctx: Rec
       : [part('lead', fill(script.get('email.body.none')))]
   ).concat(part('quiet', fill(script.get(minutes === 1 ? 'email.body.logistics.one' : 'email.body.logistics'))));
 
+  if (ctx.trialEnds) paragraphs.push(part('quiet', (script.get('email.trial.reminder') ?? '').replace('{{when}}', ctx.trialEnds)));
+
   // Last, always, and never dropped by the empty-slot rule above: it has no
   // slots to be empty. An email that ends on "We spoke for eight minutes." is
   // the one that arrived reading as blank.
@@ -128,10 +133,13 @@ export function composeRecap(outcome: CallOutcome, script: ScriptLines, ctx: Rec
 
   const parts = paragraphs.filter((p): p is RecapPart => p !== undefined);
 
+  const label = script.get('email.controls');
+  const action = ctx.controlUrl && label ? { label, url: ctx.controlUrl } : undefined;
   return {
+    ...(action ? { action } : {}),
     // A commitment with no day reads "run three times, ." without the trim.
     subject: subject.replace(/[—–-]\s*$/, '').trim(),
-    body: parts.map((p) => p.text).join('\n\n'),
+    body: [...parts.map((p) => p.text), ...(action ? [`${action.label}: ${action.url}`] : [])].join('\n\n'),
     parts,
     ...(outcome.commitment
       ? {

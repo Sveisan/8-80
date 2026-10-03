@@ -1,0 +1,1 @@
+ALTER TABLE "callers" ADD COLUMN "feedback_opt_out" boolean DEFAULT false NOT NULL;

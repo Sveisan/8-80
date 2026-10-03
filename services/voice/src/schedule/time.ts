@@ -25,7 +25,7 @@ function formatter(timezone: string): Intl.DateTimeFormat {
   if (!f) {
     f = new Intl.DateTimeFormat('en-US', {
       timeZone: timezone,
-      hour12: false,
+      hourCycle: 'h23',
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
@@ -42,7 +42,7 @@ function formatter(timezone: string): Intl.DateTimeFormat {
 function wallClock(instant: Date, timezone: string): number {
   const parts = formatter(timezone).formatToParts(instant);
   const get = (type: string) => Number(parts.find((p) => p.type === type)?.value);
-  // Intl renders midnight as hour 24 in some engines; Date.UTC normalises it.
+  // h23 keeps midnight at 00, not 24 (which would advance the calendar date).
   return Date.UTC(get('year'), get('month') - 1, get('day'), get('hour'), get('minute'), get('second'));
 }
 
@@ -148,6 +148,19 @@ export function describeSlot(slot: Slot, language = 'en'): string {
   const hh = String(Math.floor(slot.minute / 60)).padStart(2, '0');
   const mm = String(slot.minute % 60).padStart(2, '0');
   return `${weekday} at ${hh}:${mm}`;
+}
+
+/** A specific appointment, including its date and the caller's local zone. */
+export function describeAppointment(at: Date, timezone: string, language = 'en'): string {
+  return new Intl.DateTimeFormat(language === 'en' ? 'en-GB' : language, {
+    timeZone: timezone,
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZoneName: 'short',
+  }).format(at);
 }
 
 /**
