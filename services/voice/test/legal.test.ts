@@ -142,6 +142,7 @@ test('the export is sent to the address on file and nowhere else', () => {
  */
 const COVERED: Record<string, RegExp> = {
   call_number: /how many calls|which call|call number/i,
+  first_name: /first\s+name/i,
   onboarding_progress: /onboarding progress/i,
   next_appointment: /next appointment/i,
   last_commitment: /last commitment/i,

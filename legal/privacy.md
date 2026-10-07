@@ -96,8 +96,8 @@ Four suppliers, each doing one job:
   number, which call number this is, your last commitment and the day you named
   for it, your eight and eighty answers, your goals for this year, your onboarding progress, your next appointment, your weekly
   slot, any assumption you are testing, and how many weeks in a row a commitment
-  has gone undone — because the mentor has to be able to ask about them. Not your name: the mentor never says it, so there
-  is no reason to hand it over. That is the whole list, and a test fails the
+  has gone undone — because the mentor has to be able to ask about them — and
+  your first name, so it can greet you; never your full name. That is the whole list, and a test fails the
   build if a new field starts going to them without appearing here.
 - **Twilio** send the texts. They receive your number.
 - **Resend** send the email. They receive your address.

@@ -182,7 +182,7 @@ test('a short line has to be said whole; a long one survives a changed word', ()
   assert.equal(carries('Which one of those?', 'Which day?'), false);
   assert.equal(carries('Right. Which day?', 'Which day?'), true);
   assert.equal(
-    carries("Let's start somewhere easy. What did you love doing when you were eight — something you'd do for no reason at all?", say('open.first.first_question')),
+    carries("So where am I catching you right now — at home, or out and about?", say('open.first.first_question')),
     true,
   );
 });

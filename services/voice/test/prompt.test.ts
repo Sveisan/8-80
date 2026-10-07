@@ -113,7 +113,7 @@ test('the first call runs from easy to real: eight, eighty, this year, then the 
   const p = buildInstructions(loadScript(), { callNumber: 1 });
   const at = (s: string) => p.indexOf(s);
   const order = [
-    "What did you love doing at eight",
+    'knocking on your door',
     "You're eighty, looking back",
     'this year. What would you like to move?',
     'Let me say it back.',
@@ -220,4 +220,22 @@ test('no prompt asks for, pins or expects a day for the one thing', () => {
     }
     assert.match(p, /Never ask which day/);
   }
+});
+
+test('the eight-year-old arrives by where they are: at the door if home, planted if out, not at all if driving', () => {
+  const p = buildInstructions(loadScript(), { callNumber: 1 });
+  assert.match(p, /Where am I catching you/);
+  assert.match(p, /knocking on your door right now/);
+  assert.match(p, /Next time you walk in your own front door/);
+  assert.match(p, /let's not do this at the wheel/);
+  assert.match(p, /Never ask them to close their eyes/);
+});
+
+test('a first name greets them when known, and leaves no gap when not', () => {
+  const s = loadScript();
+  assert.match(buildInstructions(s, { callNumber: 3, lastCommitment: 'x', firstName: 'Eirik' }), /"Hello again, Eirik\."/);
+  const anon = buildInstructions(s, { callNumber: 3, lastCommitment: 'x' });
+  assert.match(anon, /"Hello again\."/);
+  assert.ok(!anon.includes('Hello again, .'));
+  assert.match(buildInstructions(s, { callNumber: 1 }), /"Hello — it's your 8 and 80 call/);
 });

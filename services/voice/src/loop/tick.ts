@@ -189,6 +189,7 @@ export async function tick(deps: LoopDeps, now = new Date()): Promise<TickResult
  * feature would accumulate the rest; it stays off, and this is what replaces it.
  */
 export function variablesFor(caller: {
+  name?: string;
   lastCommitment?: string;
   lastCommitmentDay?: string;
   callNumber: number;
@@ -204,6 +205,9 @@ export function variablesFor(caller: {
 }): Record<string, string> {
   return {
     call_number: String(caller.callNumber),
+    // First name only, for the greeting. Empty when unknown: the console fills
+    // "Hello {{first_name}} —" with nothing, which reads as "Hello —".
+    first_name: firstName(caller.name),
     onboarding_progress: caller.onboarding ?? (caller.callNumber <= 1 ? 'pending' : 'legacy'),
     next_appointment: caller.nextSlot ?? NOTHING_RECORDED,
     // Their name is deliberately NOT here. The mentor never says it — the
@@ -240,4 +244,9 @@ export const NOTHING_RECORDED = '(nothing recorded)';
 async function bookedSlot(deps: LoopDeps, phone: string, language?: string): Promise<string | undefined> {
   const slot = await deps.scheduler.slotFor(phone).catch(() => undefined);
   return slot ? describeSlot(slot, language) : undefined;
+}
+
+/** The first word of whatever they typed as their name, and nothing more. */
+export function firstName(name: string | undefined): string {
+  return (name ?? '').trim().split(/\s+/)[0] ?? '';
 }

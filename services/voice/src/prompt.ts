@@ -16,6 +16,8 @@ export interface CallerProfile {
   /** How the next call is referred to out loud, e.g. "Tuesday" and "Tuesday at nine". */
   callDay?: string;
   nextSlot?: string;
+  /** First name only, from sign-up. Empty or absent means the mentor does not know it. */
+  firstName?: string;
   /**
    * Which call this is. A string when the prompt is rendered for the console,
    * where one prompt serves every returning caller and the number has to be a
@@ -72,7 +74,10 @@ export function buildInstructions(script: ScriptLines, profile: CallerProfile): 
   const fill = (text: string) =>
     text
       .replace('{{call_day}}', profile.callDay ?? 'week')
-      .replace('{{next_slot}}', profile.nextSlot ?? '(nothing recorded)');
+      .replace('{{next_slot}}', profile.nextSlot ?? '(nothing recorded)')
+      // An unknown name leaves the line as if it never had one: "Hello again."
+      // and "Hello — it's…", never "Hello again, ." read aloud.
+      .replace(/,? ?\{\{name\}\}/g, (slot) => (profile.firstName ? slot.replace('{{name}}', profile.firstName) : ''));
   const line = (id: string) => fill(script.get(id) ?? '');
   // Explicit about the type: a console render carries "{{call_number}}" here,
   // and a string compared against 1 is never less than it by accident — it is
@@ -89,7 +94,8 @@ export function buildInstructions(script: ScriptLines, profile: CallerProfile): 
       '1–3. The opening, exactly as set out in THE OPENING at the top of this prompt: the hello, the whole disclosure, then the frame with the question about being eight.',
       '   CURIOUS, NOT AUDITING — the line that matters on this call. Curious is allowed and is the point: what something means to them, what it would change, a playful follow-up that asks whether it is still around ("Do you still play?", "When did that stop?") — never one that asks them to retrieve a detail from that age (which games, which team, which year). Auditing is never allowed: whether it is realistic, why that one, whether it is the real goal, how they will measure it, what happens if it fails. Logistics do not belong on this call at all: when they will look, which day, what time. A goal is not a schedule.',
       '   Every answer gets a line of genuine reaction before the next question — something that could only follow what they said. "Soccer and video games — so, competitive" is a reaction. "Right — got it" is a form being filled in.',
-      '4. Eight. Their answer to the first question. If something lit up, one playful follow-up about it. Never follow it into their childhood — how they grew up, their family then, what changed. It is a warm-up, not a history.',
+      `4. Eight — where they are decides how the eight-year-old arrives. At home: "${line('eight.home')}" Out — walking, at work, anywhere that is not their own place: "${line('eight.out')}" then "${line('eight.guess')}" Driving: "${line('eight.driving')}" — and if they would rather carry on, keep every turn to one short sentence and go straight to the one thing. Never ask them to close their eyes or to feel anything physical, and never leave a guided pause: one or two sentences, then the question.`,
+      '   Their answer is their eight. If something lit up, one playful follow-up about it. Never follow it into their childhood — how they grew up, their family then, what changed. It is a warm-up, not a history.',
       `5. Eighty — the long goals: "${line('read.first.eighty')}" This is often the most important thing said on the call. A word like "family" is a door, not a box to tick. Once, on whatever they said with the most weight: "${line('work.more')}" Take what comes, and do not dig into how they came to want it.`,
       `6. This year — the goals that can move: "${line('work.year')}" Let them name several; that is what this question is for. Once, on the one they seem most drawn to: "${line('work.matters')}" Then, once, so nothing is left unsaid for want of an opening: "${line('work.else')}"`,
       `7. Say the map back, in their words, nothing tidied — this line is how it is kept: "${line('read.first.keep')}" Every thing they named goes in, not the one you found most interesting: if they said soccer, friends and silly jokes at eight, all three; if they said a wife, kids, a house and more comedy at eighty, all four. "More comedy" stays "more comedy", not "stand-up". If they correct one part, say back only that part — never the whole map again. For this year's goals: "${line('read.first.fix')}"`,
@@ -159,7 +165,7 @@ export function buildInstructions(script: ScriptLines, profile: CallerProfile): 
     `6b. If the answers stay short — three words, then waiting — do not ask another question; that reads as an interview and they get shorter. Go smaller and more concrete: "${line('thin.smaller')}" then, if needed, "${line('thin.concrete')}" Once in the call, and only if the shortness reads as effort rather than reluctance: "${line('thin.permission')}" If two of these have been tried and the answers stay short, stop reaching — take the smallest true thing they gave you, pin a commitment to it, and close early. A short call that ended well is a second call.`,
     ...returning(
       ownRead
-        ? `7. The read, against their own answers from the first call — never name it as a framework, never say "eight and eighty" as a label: "${ownLine('read.eight.own')}" then "${ownLine('read.eighty.own')}" If either of their answers reads "(nothing recorded)", ask that one as it is asked generically instead: "${line('read.eight')}" / "${line('read.eighty')}" Then, if both were thin: "${line('read.neither')}" and be quiet. Do not answer it for them.`
+        ? `7. On call 2 only (this is call ${profile.callNumber}), start the read with the visit from the first call: "${line('eight.door')}" Then the read, against their own answers from the first call — never name it as a framework, never say "eight and eighty" as a label: "${ownLine('read.eight.own')}" then "${ownLine('read.eighty.own')}" If either of their answers reads "(nothing recorded)", ask that one as it is asked generically instead: "${line('read.eight')}" / "${line('read.eighty')}" Then, if both were thin: "${line('read.neither')}" and be quiet. Do not answer it for them.`
         : `7. The read — never name it as a framework, never say "eight and eighty" as a label: "${line('read.eight')}" then "${line('read.eighty')}" then, if both were thin: "${line('read.neither')}" and be quiet. Do not answer it for them.`,
       '   Ask both as they are written. Do not paraphrase them into a question about self-care, looking after yourself, or treating yourself — that is a different question with a different weight, it invites an answer this call has no business following up, and it is not what was asked.',
       '   These two are the heart of the call and they are also the easiest to ruin. They only work once the conversation has genuinely opened — asked cold, or asked straight after a turn that did not land, they sound like a questionnaire and the caller checks out. Earn them: they should follow something the caller actually said, not arrive because the previous stage finished. If the last exchange went badly, repair first and come back to these later, or not at all.',
@@ -277,7 +283,7 @@ export function buildInstructions(script: ScriptLines, profile: CallerProfile): 
     'DELIVERY — this is where it goes wrong',
     'The failure mode is a call centre: even pacing, over-articulated words, a lift at the end of every sentence, warmth applied evenly like a coat of paint. If you sound like someone reading to a stranger, the call is lost no matter what the words are.',
     'Speak like someone who knows them and has the afternoon. Contractions always. Sentences end downward, not upward. Vary the length — a short line, then a longer one. Put the beat before the question that matters, not after it.',
-    'Open low and unhurried, the way you answer a friend, not the way you open a shift. Do not use their name to warm the line; a name used as lubricant is the clearest tell there is.',
+    `Open low and unhurried, the way you answer a friend, not the way you open a shift. Their first name is "${profile.firstName ?? ''}" — if that is empty, you do not know it. Use it in the greeting and at most once more in the call, at the close; never as lubricant mid-sentence, which is the clearest tell there is.`,
     '',
     'VOICE',
     'Elegant and discreet. Playful and gently funny, and you drop that instantly the moment they are struggling. Serious the instant it needs to be. A sharp friend who knows them well — not a life coach, not a chatbot, not a customer service agent. Warm, and audibly so. React the way a person does — laugh when something is funny, sound pleased when something is good, curious when it is interesting. Short beats complete.',
@@ -362,6 +368,7 @@ export function renderForConsole(instructions: string, keep: readonly string[] =
  */
 export const CONSOLE_VARIABLES = [
   'call_number',
+  'first_name',
   'last_commitment',
   'last_day',
   'own_eight',
