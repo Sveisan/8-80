@@ -91,6 +91,7 @@ const speechify = {
   SPEECHIFY_AGENT_ID: 'agent_returning',
   SPEECHIFY_FIRST_CALL_AGENT_ID: 'agent_first',
   SPEECHIFY_WEBHOOK_SECRET: 'whsec_a,whsec_b',
+  OPERATOR_PHONE: '+4790000001',
   DATABASE_URL: 'postgres://x',
   DATA_ENCRYPTION_KEY: 'k',
   PUBLIC_URL: 'https://8and80.me',
@@ -238,4 +239,11 @@ test('an organisation number is checked, not trusted', () => {
   assert.ok(!validOrgnr('abc065223'));
   assert.ok(fails({ ...speechify, COMPANY_ORGNR: '927 065 232' }).some((l) => l.includes('COMPANY_ORGNR')));
   assert.deepEqual(fails({ ...speechify, COMPANY_ORGNR: '927 065 223' }), []);
+});
+
+test('a deployment that would hold a flagged call with nobody told is refused', () => {
+  const without: NodeJS.ProcessEnv = { ...speechify };
+  delete without['OPERATOR_PHONE'];
+  assert.ok(fails(without).some((l) => l.includes('OPERATOR_PHONE')));
+  assert.ok(fails({ ...speechify, OPERATOR_PHONE: '90000001' }).some((l) => l.includes('OPERATOR_PHONE is not E.164')));
 });

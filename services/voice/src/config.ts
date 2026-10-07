@@ -356,6 +356,27 @@ export const config = {
   turnTaking: (process.env.TURN_TAKING ?? 'local') as 'local' | 'provider',
 
   language: process.env.CALL_LANGUAGE ?? 'en',
+  /**
+   * Crisis numbers the mentor offers when something serious is said. Norway's
+   * by default: Mental Helse's hjelpetelefon, and the medical emergency
+   * number. Configuration rather than script, so one wrong number is one
+   * change, and another country is an environment variable.
+   */
+  crisis: {
+    line: process.env['CRISIS_LINE'] ?? '116 123',
+    emergency: process.env['CRISIS_EMERGENCY'] ?? '113',
+  },
+  /**
+   * Who is told when a call is flagged for review. Tier 1 is texted the same
+   * evening; tier 2 is gathered into one text a day. Unset means nobody is
+   * told, which preflight refuses and every flagged call logs loudly.
+   */
+  operator: {
+    phone: (): string | undefined => process.env['OPERATOR_PHONE'] || undefined,
+    timezone: process.env['OPERATOR_TZ'] ?? 'Europe/Oslo',
+    /** Local hour after which the daily tier-2 digest goes out. */
+    digestHour: Number(process.env['OPERATOR_DIGEST_HOUR'] ?? 18),
+  },
   variants: {
     nothing: process.env.SCRIPT_VARIANT_NOTHING ?? 'nothing.c',
     nextAsk: process.env.SCRIPT_VARIANT_NEXT_ASK ?? 'next.ask.c',

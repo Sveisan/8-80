@@ -205,6 +205,17 @@ export function preflight(env: NodeJS.ProcessEnv = process.env): Check[] {
         detail: 'Must start with + and contain digits only — no spaces, dashes or brackets.',
       });
     }
+    // A flagged call holds the caller's next one. Somebody has to be told, or
+    // the hold is a silence nobody can explain and a crisis nobody hears of.
+    if (!env['OPERATOR_PHONE']) {
+      checks.push({
+        ok: false,
+        label: 'OPERATOR_PHONE is not set',
+        detail: 'A call flagged for safety review would be held with nobody told. Set it to the number that should get the text, in E.164.',
+      });
+    } else if (!E164.test(env['OPERATOR_PHONE'])) {
+      checks.push({ ok: false, label: 'OPERATOR_PHONE is not E.164', detail: 'Must start with + and contain digits only.' });
+    }
     if (!env['SPEECHIFY_FIRST_CALL_AGENT_ID']) {
       checks.push({
         ok: true,

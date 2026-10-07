@@ -11,7 +11,8 @@ import { resolveSpokenTime } from '../call/reschedule.ts';
 import { describeAppointment, letterDate } from '../schedule/time.ts';
 import type { LoopDeps } from './deps.ts';
 import { queued, dispatchMessage, enqueue } from '../messages/outbox.ts';
-import { Scheduler } from '../schedule/scheduler.ts';
+import { Scheduler, flagForReview } from '../schedule/scheduler.ts';
+import { safetyTier, alertText } from '../call/safety.ts';
 
 export interface Settled {
   handled: boolean;
@@ -70,6 +71,8 @@ export async function settleConversation(
     return answer;
   });
   for (const id of ids) await dispatchMessage(deps, id, now);
+  // After the commit, so a rolled-back settle cannot send a false alarm.
+  await alertIfUrgent(deps, attempt.id);
   return result;
 }
 
@@ -107,6 +110,13 @@ async function settleInside(
   }
 
   const outcome = settle(transcript, deps.script, now);
+  // Before anything else acts on the call. The flag is what every later step
+  // — the recap, the texts, the next call — reads and holds back for.
+  const finding = safetyTier(transcript.turns, deps.script);
+  if (finding) {
+    await flagForReview(deps.store.raw, attempt.id, finding.tier);
+    log('safety.finding', { tier: finding.tier, reasons: finding.reasons });
+  }
   // Fetched once: the recap promises when the next call is, and a reschedule
   // needs the same zone to resolve a spoken time into an instant.
   const slot = await deps.scheduler.slotFor(phone);
@@ -174,3 +184,27 @@ async function settleInside(
 
 /** exactOptionalPropertyTypes: an absent date is an absent key, not `undefined`. */
 const dated = (date: string | undefined): { date?: string } => (date ? { date } : {});
+
+/**
+ * Tier 1 reaches the operator the same evening, as a text with nothing from
+ * the call in it. Tier 2 waits for the daily digest (loop/digest.ts). A text
+ * that fails is logged as an error and does not fail the settle: the flag and
+ * the hold are already written, and those are what protect the caller.
+ */
+async function alertIfUrgent(deps: LoopDeps, attemptId: string): Promise<void> {
+  const [row] = await deps.store.raw<{ safety_tier: number | null; note: string | null }[]>`
+    select safety_tier, note from call_attempts where id = ${attemptId}
+  `;
+  if (row?.safety_tier !== 1) return;
+  const to = config.operator.phone();
+  if (!to) {
+    log('safety.unalerted', { attemptId, why: 'OPERATOR_PHONE is not set; a tier-1 call is waiting with nobody told' });
+    return;
+  }
+  try {
+    await deps.sms.send(to, alertText(1));
+    log('safety.alerted', { attemptId, tier: 1 });
+  } catch (e) {
+    log('safety.unalerted', { attemptId, why: (e as Error).message });
+  }
+}

@@ -5,6 +5,7 @@ import { CallNotPlaced } from '../agent/speechify.ts';
 import { Links } from '../link/token.ts';
 import { textAfterFailedCall, textAfterMissedCall } from '../sms/missed.ts';
 import type { LoopDeps } from './deps.ts';
+import { safetyDigest } from './digest.ts';
 import { needsOnboarding, type CallerRecord } from '../store/types.ts';
 import { describeAppointment, describeSlot } from '../schedule/time.ts';
 import { queued, dispatchMessage } from '../messages/outbox.ts';
@@ -116,6 +117,7 @@ async function textForMissedCall(
 }
 
 export async function tick(deps: LoopDeps, now = new Date()): Promise<TickResult> {
+  await safetyDigest(deps, now);
   const claims = await deps.scheduler.claimDue(now);
   const result: TickResult = { claimed: claims.length, placed: 0, failed: 0 };
 

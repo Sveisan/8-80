@@ -86,6 +86,12 @@ export const callers = pgTable(
     nextCallAt: timestamp('next_call_at', { withTimezone: true }),
     /** Their choice to stop, which is not the same as having no slot. */
     paused: boolean('paused').notNull().default(false),
+    /**
+     * A flagged call holds every later one until a person has reviewed it.
+     * Not `paused`: that is the caller's own decision to stop, and a review
+     * being cleared must never be what restarts somebody who said STOP.
+     */
+    heldForReview: boolean('held_for_review').notNull().default(false),
     smsOptOut: boolean('sms_opt_out').notNull().default(false),
 
     /*
@@ -206,12 +212,13 @@ export const callAttempts = pgTable(
      */
     smsSentAt: timestamp('sms_sent_at', { withTimezone: true }),
     /**
-     * 1 or 2 when the safety pipeline flags this call, null otherwise.
-     * DECISIONS.md: a flagged call is never auto-actioned. Nothing writes it
-     * yet — the pipeline does not exist — but everything that acts after a
-     * call reads it, so the day it is written it is already obeyed.
+     * 1 or 2 when the safety pipeline flags this call (call/safety.ts), null
+     * otherwise. DECISIONS.md: a flagged call is never auto-actioned —
+     * everything that acts after a call reads it and holds back.
      */
     safetyTier: integer('safety_tier'),
+    /** When a person reviewed the flagged call. Null means it is still waiting. */
+    safetyReviewedAt: timestamp('safety_reviewed_at', { withTimezone: true }),
   },
   (t) => [
     uniqueIndex('call_attempts_slot_key').on(t.phoneHash, t.scheduledFor),

@@ -47,6 +47,7 @@ const NEEDED: [string, string][] = [
   ['SPEECHIFY_AGENT_ID', 'No call can be placed.'],
   ['SPEECHIFY_WEBHOOK_SECRET', 'Every delivery is rejected with a 401, silently. One per agent, comma-separated.'],
   ['SPEECHIFY_FIRST_CALL_AGENT_ID', 'First calls are served the returning-call prompt.'],
+  ['OPERATOR_PHONE', 'A call flagged for safety review tells nobody. The next call is held, and nobody knows why.'],
   ['PUBLIC_URL', 'The missed-call text has no link, so no text is sent at all — and the recap loses its letterhead image.'],
   ['RESEND_API_KEY', 'Recaps are written to disk instead of sent.'],
   ['RECAP_FROM_ADDRESS', 'Goes with RESEND_API_KEY. One without the other sends nothing.'],

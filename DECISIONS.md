@@ -904,3 +904,24 @@ that stays spoken. The transfer to a US processor stays disclosed in writing —
 names it — and the consent for special-category data rests on sign-up, which therefore
 has to say it plainly and be agreed to before the first call. That is owed by the sign-up
 page; until it is there, the gap is ours.
+
+## A flagged call reaches a person, and holds the next one — 2026-10-07
+
+Until today `call_attempts.safety_tier` was read everywhere and written nowhere: the
+outbox withheld messages for flagged calls, and nothing ever flagged one. A serious
+call produced nothing anybody would see.
+
+Now `call/safety.ts` reads every settled transcript. Tier 1 — self-harm, suicide, not
+wanting to be here, or the mentor's own crisis acknowledgement (`safety.ack`, a fixed
+line so it can be found) — texts `OPERATOR_PHONE` once the settle has committed. Tier 2
+— abuse, violence, feeling unsafe, hopelessness — is counted into one text a day after
+`OPERATOR_DIGEST_HOUR`. Both set `held_for_review` on the caller, which `claimDue`
+skips: the agent does not ring cheerfully on schedule the day after. `enrol --review`
+lists what waits; `enrol --phone … --release` clears it and rejoins the next real slot
+without recording the held weeks as missed.
+
+The texts carry nothing from the call — not the reason, not a word, not a number —
+because a text sits on a lock screen. The patterns err wide on purpose: a false alarm
+costs one review, a miss costs more. They will still miss what is said obliquely,
+which is why the mentor's acknowledgement counts on its own. Preflight refuses a
+deployment without `OPERATOR_PHONE`.

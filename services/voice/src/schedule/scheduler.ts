@@ -68,6 +68,8 @@ export class Scheduler {
         select phone_hash, next_call_at, slot_weekday, slot_minute, timezone
         from callers
         where paused = false
+          -- A flagged call holds the next one until a person has looked.
+          and held_for_review = false
           -- Billing is a separate question from paused, and conflating them
           -- was the first design: paused is the caller's own decision to stop,
           -- and a subscription lapsing must not overwrite it, nor must a
@@ -380,6 +382,62 @@ export class Scheduler {
     `;
     return rows.map((r) => ({ id: r.id, phoneHash: r.phone_hash, status: r.status }));
   }
+}
+
+/**
+ * Flag a call for human review and hold the caller's next call.
+ *
+ * Both in one place because one without the other is the failure: a flag
+ * nobody acts on, or a hold nobody can explain. The tier never goes down — a
+ * second, milder signal on the same call does not soften the first.
+ */
+export async function flagForReview(sql: postgres.Sql, attemptId: string, tier: 1 | 2): Promise<void> {
+  await sql`
+    update call_attempts set safety_tier = least(coalesce(safety_tier, ${tier}), ${tier})
+    where id = ${attemptId}
+  `;
+  await sql`
+    update callers set held_for_review = true, updated_at = now()
+    where phone_hash = (select phone_hash from call_attempts where id = ${attemptId})
+  `;
+  log('safety.flagged', { attemptId, tier });
+}
+
+/** Flagged calls nobody has reviewed yet, oldest first. */
+export async function awaitingReview(
+  sql: postgres.Sql,
+): Promise<{ id: string; phoneHash: string; tier: number; endedAt: Date | null; conversationId: string | null; note: string | null }[]> {
+  const rows = await sql<{ id: string; phone_hash: string; safety_tier: number; ended_at: Date | null; provider_call_id: string | null; note: string | null }[]>`
+    select id, phone_hash, safety_tier, ended_at, provider_call_id, note from call_attempts
+    where safety_tier is not null and safety_reviewed_at is null
+    order by ended_at nulls last
+  `;
+  return rows.map((r) => ({ id: r.id, phoneHash: r.phone_hash, tier: r.safety_tier, endedAt: r.ended_at, conversationId: r.provider_call_id, note: r.note }));
+}
+
+/**
+ * A person has looked. Marks this caller's flagged calls reviewed and lifts
+ * the hold; their next call then rings at the next slot as usual.
+ */
+export async function releaseReview(sql: postgres.Sql, phoneHash: string, now = new Date()): Promise<number> {
+  const rows = await sql<{ id: string }[]>`
+    update call_attempts set safety_reviewed_at = now()
+    where phone_hash = ${phoneHash} and safety_tier is not null and safety_reviewed_at is null
+    returning id
+  `;
+  // Weeks spent on hold were not missed calls, and must not be recorded as
+  // them: rejoin at the next real slot rather than replaying the gap.
+  const [c] = await sql<{ next_call_at: Date | null; slot_weekday: number | null; slot_minute: number | null; timezone: string | null }[]>`
+    select next_call_at, slot_weekday, slot_minute, timezone from callers where phone_hash = ${phoneHash}
+  `;
+  const stale = c?.next_call_at && c.next_call_at.getTime() < now.getTime();
+  const next =
+    stale && c.slot_weekday !== null && c.slot_minute !== null && c.timezone
+      ? nextSlotAfter(now, { weekday: c.slot_weekday, minute: c.slot_minute, timezone: c.timezone })
+      : c?.next_call_at ?? null;
+  await sql`update callers set held_for_review = false, next_call_at = ${next}, updated_at = now() where phone_hash = ${phoneHash}`;
+  log('safety.released', { calls: rows.length });
+  return rows.length;
 }
 
 /**

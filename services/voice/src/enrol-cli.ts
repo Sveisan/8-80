@@ -1,5 +1,5 @@
 import { config } from './config.ts';
-import { Scheduler } from './schedule/scheduler.ts';
+import { Scheduler, awaitingReview, releaseReview } from './schedule/scheduler.ts';
 import { parseLocalTime, parseWeekday } from './schedule/time.ts';
 import { PostgresStore, phoneKey } from './store/postgres.ts';
 import { decrypt, hasKey } from './store/crypto.ts';
@@ -21,6 +21,8 @@ import { OptedOut } from './sms/types.ts';
  *   npm run enrol -- --phone +4790033575 --clear-commitment
  *   npm run enrol -- --phone +4790033575 --commitment "send the dinner invites"
  *                                                   # fix what next week opens on
+ *   npm run enrol -- --review                      # calls flagged for safety review
+ *   npm run enrol -- --phone +4790033575 --release # reviewed: lift the hold
  *   npm run enrol -- --list
  *
  * Giving somebody a slot for the first time texts them to say when the first
@@ -69,8 +71,8 @@ function safe(enc: string): string {
 try {
   if (has('list')) {
     const rows = await store.raw<
-      { phone_enc: string; call_number: number; timezone: string | null; slot_weekday: number | null; slot_minute: number | null; next_call_at: Date | null; paused: boolean; rehearse_first_call: boolean }[]
-    >`select phone_enc, call_number, timezone, slot_weekday, slot_minute, next_call_at, paused, rehearse_first_call from callers order by next_call_at`;
+      { phone_enc: string; call_number: number; timezone: string | null; slot_weekday: number | null; slot_minute: number | null; next_call_at: Date | null; paused: boolean; rehearse_first_call: boolean; held_for_review: boolean }[]
+    >`select phone_enc, call_number, timezone, slot_weekday, slot_minute, next_call_at, paused, rehearse_first_call, held_for_review from callers order by next_call_at`;
     if (!rows.length) console.log('Nobody is enrolled.');
     for (const r of rows) {
       const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -90,9 +92,24 @@ try {
       // the export this product refuses to build.
       const n = safe(r.phone_enc);
       console.log(
-        `${n}  call #${r.call_number}  ${slot}${r.paused ? '  (paused)' : ''}${r.rehearse_first_call ? '  (rehearsing the first call)' : ''}  next: ${r.next_call_at?.toISOString() ?? 'never'}`,
+        `${n}  call #${r.call_number}  ${slot}${r.paused ? '  (paused)' : ''}${r.rehearse_first_call ? '  (rehearsing the first call)' : ''}${r.held_for_review ? '  (HELD for safety review)' : ''}  next: ${r.next_call_at?.toISOString() ?? 'never'}`,
       );
     }
+    process.exit(0);
+  }
+
+  if (has('review')) {
+    // Flagged calls nobody has cleared. The transcript is in the Speechify
+    // console under the conversation id; nothing from it is printed here.
+    const waiting = await awaitingReview(store.raw);
+    if (!waiting.length) console.log('Nothing is waiting for review.');
+    for (const w of waiting) {
+      const [c] = await store.raw<{ phone_enc: string }[]>`select phone_enc from callers where phone_hash = ${w.phoneHash}`;
+      console.log(
+        `tier ${w.tier}  ${c ? safe(c.phone_enc) : '(deleted)'}  ended ${w.endedAt?.toISOString() ?? '?'}  conversation ${w.conversationId ?? '?'}  — next call on hold`,
+      );
+    }
+    if (waiting.length) console.log('\nRead each in Speechify, then clear one with: npm run enrol -- --phone +47… --release');
     process.exit(0);
   }
 
@@ -166,6 +183,15 @@ try {
       on
         ? 'The next call will be the first-call experience. Nothing else was changed.'
         : 'Rehearsal cleared. The next call is the ordinary one.',
+    );
+  }
+
+  if (has('release')) {
+    const cleared = await releaseReview(store.raw, phoneKey(phone));
+    console.log(
+      cleared
+        ? `Reviewed ${cleared} flagged call${cleared === 1 ? '' : 's'}. The hold is lifted; the next call rings at their usual slot.`
+        : 'Nothing was waiting for review for this number. Any hold is lifted.',
     );
   }
 

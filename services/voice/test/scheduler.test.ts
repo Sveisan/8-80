@@ -303,3 +303,26 @@ test('a displayed next call must be permitted when that appointment arrives', { 
   await (sql as postgres.Sql)`update callers set billing_status = 'active'`;
   assert.equal(await (sched as Scheduler).nextEligibleCallFor(phone, new Date('2026-09-09T12:00:00Z')), undefined);
 });
+
+test('a flagged call holds the next one until a person releases it', { skip: skip() }, async () => {
+  const { flagForReview, awaitingReview, releaseReview } = await import('../src/schedule/scheduler.ts');
+  await caller('+4790000090');
+  const [claim] = await (sched as Scheduler).claimDue(new Date('2026-09-08T06:00:00Z'));
+  assert.ok(claim);
+  await flagForReview(sql as postgres.Sql, claim.attemptId, 2);
+  await flagForReview(sql as postgres.Sql, claim.attemptId, 1);
+  await flagForReview(sql as postgres.Sql, claim.attemptId, 2);
+  const [waiting] = await awaitingReview(sql as postgres.Sql);
+  assert.equal(waiting?.tier, 1, 'a milder signal never softens the first');
+
+  assert.deepEqual(await (sched as Scheduler).claimDue(new Date('2026-09-15T06:00:00Z')), [], 'held: not rung next week');
+
+  // Released three weeks later, on a Thursday: the held weeks are not
+  // replayed as missed calls, and the next call is the next real Tuesday.
+  assert.equal(await releaseReview(sql as postgres.Sql, phoneKey('+4790000090'), new Date('2026-10-01T12:00:00Z')), 1);
+  assert.deepEqual(await awaitingReview(sql as postgres.Sql), []);
+  const [row] = await (sql as postgres.Sql)`select next_call_at from callers`;
+  assert.equal((row?.['next_call_at'] as Date).toISOString(), '2026-10-06T06:00:00.000Z');
+  const missed = await (sql as postgres.Sql)`select id from call_attempts where status = 'missed'`;
+  assert.equal(missed.length, 0, 'weeks on hold are not missed calls');
+});

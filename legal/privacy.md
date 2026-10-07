@@ -39,7 +39,12 @@ undone, and how many weeks in all it was done, partly done, or not — counts,
 not a record of which week was which.
 
 **A row per call attempt**: when it was scheduled, whether it connected, how
-long it ran, and a short note if it failed. Never anything you said.
+long it ran, and a short note if it failed. Never the words you said — with one
+exception that is a flag, not a record: if something said on a call suggests you
+might be at risk or unsafe, that call is marked (1 or 2) so a person reads it,
+your next call waits until they have, and no email or text goes out about that
+call. The person is told only that a call needs review; nothing from the call is
+sent to them.
 
 **Billing state**: whether you are on a trial and when it ends, the payment provider, subscription and customer ids, whether renewal is cancelled
 and the paid-period boundary returned by the provider. No card details ever reach us — they
