@@ -196,15 +196,18 @@ async function alertIfUrgent(deps: LoopDeps, attemptId: string): Promise<void> {
     select safety_tier, note from call_attempts where id = ${attemptId}
   `;
   if (row?.safety_tier !== 1) return;
-  const to = config.operator.phone();
-  if (!to) {
+  const to = config.operator.phones();
+  if (!to.length) {
     log('safety.unalerted', { attemptId, why: 'OPERATOR_PHONE is not set; a tier-1 call is waiting with nobody told' });
     return;
   }
-  try {
-    await deps.sms.send(to, alertText(1));
-    log('safety.alerted', { attemptId, tier: 1 });
-  } catch (e) {
-    log('safety.unalerted', { attemptId, why: (e as Error).message });
+  // Each separately: one number failing must not stop the other being told.
+  for (const phone of to) {
+    try {
+      await deps.sms.send(phone, alertText(1));
+      log('safety.alerted', { attemptId, tier: 1 });
+    } catch (e) {
+      log('safety.unalerted', { attemptId, why: (e as Error).message });
+    }
   }
 }

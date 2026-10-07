@@ -1,3 +1,4 @@
+import { config } from '../config.ts';
 import type { ScriptLines } from '../script.ts';
 import type { Turn } from './outcome.ts';
 
@@ -73,3 +74,22 @@ export function alertText(tier: SafetyTier, count = 1): string {
     ? '8&80: a call needs review tonight (tier 1). Their next call is on hold. On the server: npm run enrol -- --review'
     : `8&80: ${count} call${count === 1 ? '' : 's'} waiting for review (tier 2). Next calls are on hold. On the server: npm run enrol -- --review`;
 }
+
+export type CheckIn = 'crisis' | 'abuse';
+
+/**
+ * The text a person sends after reading a flagged call — SCRIPT.md §10. Never
+ * sent by the system on its own: deciding whether a text helps or exposes
+ * somebody needs the transcript read first.
+ */
+export function checkInText(kind: CheckIn, script: ScriptLines): string | undefined {
+  return script
+    .get(`safety.checkin.${kind}`)
+    ?.replace('{{crisis_line}}', config.crisis.line)
+    .replace('{{crisis_emergency}}', config.crisis.emergency)
+    .replace('{{abuse_line}}', config.crisis.abuse);
+}
+
+/** Somebody who was sent the check-in has written back. Again, no content. */
+export const replyAlertText =
+  '8&80: someone you checked in on has replied. Read it in the Twilio console (Messaging logs). Answer once with: npm run enrol -- --phone +47… --reply "…"';

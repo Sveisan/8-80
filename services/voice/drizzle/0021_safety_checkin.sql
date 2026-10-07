@@ -1,0 +1,1 @@
+ALTER TABLE "callers" ADD COLUMN "safety_checkin_at" timestamp with time zone;

@@ -17,8 +17,8 @@ const JOB = 'safety-digest';
  */
 export async function safetyDigest(deps: LoopDeps, now = new Date()): Promise<void> {
   try {
-    const to = config.operator.phone();
-    if (!to) return;
+    const to = config.operator.phones();
+    if (!to.length) return;
     const tz = config.operator.timezone;
     const hour = Number(new Intl.DateTimeFormat('en-GB', { hour: '2-digit', hour12: false, timeZone: tz }).format(now));
     if (hour < config.operator.digestHour) return;
@@ -29,7 +29,13 @@ export async function safetyDigest(deps: LoopDeps, now = new Date()): Promise<vo
 
     const waiting = await awaitingReview(deps.store.raw);
     if (waiting.length) {
-      await deps.sms.send(to, alertText(2, waiting.length));
+      for (const phone of to) {
+        try {
+          await deps.sms.send(phone, alertText(2, waiting.length));
+        } catch (e) {
+          log('safety.digest_failed', { reason: (e as Error).message });
+        }
+      }
       log('safety.digest', { waiting: waiting.length });
     }
     await beat(deps.store.raw, JOB, `${waiting.length} waiting`);

@@ -216,6 +216,9 @@ export function preflight(env: NodeJS.ProcessEnv = process.env): Check[] {
     } else if (!E164.test(env['OPERATOR_PHONE'])) {
       checks.push({ ok: false, label: 'OPERATOR_PHONE is not E.164', detail: 'Must start with + and contain digits only.' });
     }
+    if (env['OPERATOR_PHONE_BACKUP'] && !E164.test(env['OPERATOR_PHONE_BACKUP'])) {
+      checks.push({ ok: false, label: 'OPERATOR_PHONE_BACKUP is not E.164', detail: 'Must start with + and contain digits only.' });
+    }
     if (!env['SPEECHIFY_FIRST_CALL_AGENT_ID']) {
       checks.push({
         ok: true,

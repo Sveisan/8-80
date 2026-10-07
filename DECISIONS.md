@@ -925,3 +925,23 @@ because a text sits on a lock screen. The patterns err wide on purpose: a false 
 costs one review, a miss costs more. They will still miss what is said obliquely,
 which is why the mentor's acknowledgement counts on its own. Preflight refuses a
 deployment without `OPERATOR_PHONE`.
+
+## Safety handling sends people on; it does not hold them — 2026-10-07
+
+8&80 is coaching, not crisis support, and has no one on call to provide it. So
+after a flagged call the reviewer does one of three things, all in
+`docs/SAFETY-RUNBOOK.md`: release (nothing needed), send the check-in text
+(`enrol --check-in [crisis|abuse]`), or ring 113 when somebody is in danger now.
+
+The check-in text is a fixed line in SCRIPT.md §10, reviewed like every other
+line, and is only ever sent by a person who has read the transcript — whether a
+text helps or exposes somebody cannot be decided by a pattern. It names no reason,
+and the abuse version does not even name the line, because the person they talked
+about may see the phone. Sending it marks the flags reviewed but keeps the hold
+(`callers.safety_checkin_at`), as our hold rather than their STOP: `--release`
+lifts it, and never restarts somebody who stopped themselves.
+
+A reply from a checked-in caller is never answered by "didn't catch that": it
+alerts whoever is on call, who answers once with `enrol --reply`. STOP and START
+still work. `OPERATOR_PHONE_BACKUP` gets every alert too, as cover — both always,
+because a rota is one more thing to forget to switch.

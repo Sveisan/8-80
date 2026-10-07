@@ -1,5 +1,6 @@
 import { config } from './config.ts';
-import { Scheduler, awaitingReview, releaseReview } from './schedule/scheduler.ts';
+import { Scheduler, awaitingReview, checkIn, checkedIn, heldAfterCheckIn, releaseReview, timesFlagged } from './schedule/scheduler.ts';
+import { checkInText, type CheckIn } from './call/safety.ts';
 import { parseLocalTime, parseWeekday } from './schedule/time.ts';
 import { PostgresStore, phoneKey } from './store/postgres.ts';
 import { decrypt, hasKey } from './store/crypto.ts';
@@ -23,6 +24,11 @@ import { OptedOut } from './sms/types.ts';
  *                                                   # fix what next week opens on
  *   npm run enrol -- --review                      # calls flagged for safety review
  *   npm run enrol -- --phone +4790033575 --release # reviewed: lift the hold
+ *   npm run enrol -- --phone +4790033575 --check-in [crisis|abuse]
+ *                                                   # reviewed: text the helplines, keep holding
+ *   npm run enrol -- --phone +4790033575 --reply "Thank you for writing."
+ *                                                   # answer somebody who was checked in on
+ *   (docs/SAFETY-RUNBOOK.md says which, and when)
  *   npm run enrol -- --list
  *
  * Giving somebody a slot for the first time texts them to say when the first
@@ -105,11 +111,22 @@ try {
     if (!waiting.length) console.log('Nothing is waiting for review.');
     for (const w of waiting) {
       const [c] = await store.raw<{ phone_enc: string }[]>`select phone_enc from callers where phone_hash = ${w.phoneHash}`;
+      // The runbook caps repeats: past a second flag, a release is not the answer.
+      const times = await timesFlagged(store.raw, w.phoneHash);
       console.log(
-        `tier ${w.tier}  ${c ? safe(c.phone_enc) : '(deleted)'}  ended ${w.endedAt?.toISOString() ?? '?'}  conversation ${w.conversationId ?? '?'}  — next call on hold`,
+        `tier ${w.tier}  ${c ? safe(c.phone_enc) : '(deleted)'}  ended ${w.endedAt?.toISOString() ?? '?'}  conversation ${w.conversationId ?? '?'}  flagged ${times}×${times > 2 ? ' — REPEAT, see runbook' : ''}  — next call on hold`,
       );
     }
-    if (waiting.length) console.log('\nRead each in Speechify, then clear one with: npm run enrol -- --phone +47… --release');
+    if (waiting.length) {
+      console.log('\nRead each in Speechify, then for each number either:');
+      console.log('  npm run enrol -- --phone +47… --release             nothing needed; calls carry on');
+      console.log('  npm run enrol -- --phone +47… --check-in [abuse]    text the helplines, keep calls held');
+      console.log('Immediate danger: ring 113 first. docs/SAFETY-RUNBOOK.md');
+    }
+    for (const h of await heldAfterCheckIn(store.raw)) {
+      const [c] = await store.raw<{ phone_enc: string }[]>`select phone_enc from callers where phone_hash = ${h.phoneHash}`;
+      console.log(`checked in ${h.at.toISOString()}  ${c ? safe(c.phone_enc) : '(deleted)'}  — held until --release`);
+    }
     process.exit(0);
   }
 
@@ -193,6 +210,34 @@ try {
         ? `Reviewed ${cleared} flagged call${cleared === 1 ? '' : 's'}. The hold is lifted; the next call rings at their usual slot.`
         : 'Nothing was waiting for review for this number. Any hold is lifted.',
     );
+  }
+
+  if (has('check-in')) {
+    // Optional value: `--check-in` alone is the crisis text.
+    const v = flag('check-in');
+    const kind: CheckIn = v === 'abuse' ? 'abuse' : v === undefined || v.startsWith('--') || v === 'crisis' ? 'crisis' : fail(`--check-in ${v}: say crisis or abuse`);
+    const body = checkInText(kind, loadScript()) ?? fail(`SCRIPT.md has no safety.checkin.${kind} line.`);
+    // The hold first, so nothing can ring them while the text is in flight.
+    const cleared = await checkIn(store.raw, phoneKey(phone));
+    try {
+      await openSms().send(phone, body);
+      console.log(`Sent the ${kind} check-in. ${cleared} flagged call${cleared === 1 ? '' : 's'} marked reviewed; calls held until --release.`);
+    } catch (e) {
+      console.log(
+        e instanceof OptedOut
+          ? 'They have opted out of texts, so nothing was sent. Calls are held. If you are worried, the runbook says what next.'
+          : `The text did not go: ${(e as Error).message}. Calls are held. Try again, or follow the runbook.`,
+      );
+    }
+  }
+
+  const replyText = flag('reply');
+  if (replyText !== undefined) {
+    // Only to somebody who was checked in on: this is not a way to text callers.
+    if (!(await checkedIn(store.raw, phoneKey(phone)))) fail('Only for somebody who was sent the check-in and is still held.');
+    if (!replyText.trim() || replyText.startsWith('--')) fail('--reply needs the text, in quotes.');
+    await openSms().send(phone, replyText.trim());
+    console.log('Sent.');
   }
 
   if (flag('commitment') !== undefined || has('clear-commitment')) {

@@ -1026,6 +1026,31 @@ the call ends: the mentor never ends it itself, and never holds them on the line
 _The numbers are configuration, not lines in this file (`CRISIS_LINE`,
 `CRISIS_EMERGENCY`), so one wrong number is one change._
 
+### After the call — the check-in text
+
+_Sent by a person, never by the system: whoever reviews the flagged call reads the
+transcript first, then decides (docs/SAFETY-RUNBOOK.md). Sending it also holds their
+calls until somebody lifts the hold. Written to survive being read by someone else
+off a lock screen: nothing from the call, no diagnosis, nothing that says why._
+
+`safety.checkin.crisis`
+> "8&80 here. Thinking of you after our call. If things feel heavy, Mental Helse
+> answers day and night on {{crisis_line}} — and {{crisis_emergency}} if something's
+> happening right now. Your calls are paused for now. A person reads replies here."
+
+_For abuse, violence or not feeling safe at home. The line is not named, because the
+person they talked about may see the phone._
+
+`safety.checkin.abuse`
+> "8&80 here. Thinking of you after our call. If you ever want to talk to someone,
+> {{abuse_line}} is free and answers day and night — and {{crisis_emergency}} if
+> something's happening right now. Your calls are paused for now. A person reads
+> replies here."
+
+_If they write back, a person answers once, in their own words, short. No questions
+that assess, no promise of what happens next beyond the truth: the calls are paused,
+and they can say when they want them back._
+
 ---
 
 ## 11. Things the mentor never says

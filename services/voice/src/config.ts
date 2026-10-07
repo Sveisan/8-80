@@ -365,6 +365,8 @@ export const config = {
   crisis: {
     line: process.env['CRISIS_LINE'] ?? '116 123',
     emergency: process.env['CRISIS_EMERGENCY'] ?? '113',
+    /** Vold- og overgrepslinjen: violence and abuse, free, day and night. */
+    abuse: process.env['CRISIS_ABUSE_LINE'] ?? '116 006',
   },
   /**
    * Who is told when a call is flagged for review. Tier 1 is texted the same
@@ -373,6 +375,13 @@ export const config = {
    */
   operator: {
     phone: (): string | undefined => process.env['OPERATOR_PHONE'] || undefined,
+    /**
+     * Everybody the alerts go to: the operator and, when set, a second person
+     * as cover for when the first is away. Both get every alert — a rota
+     * would mean somebody has to remember to switch it.
+     */
+    phones: (): string[] =>
+      [process.env['OPERATOR_PHONE'], process.env['OPERATOR_PHONE_BACKUP']].filter((p): p is string => Boolean(p)),
     timezone: process.env['OPERATOR_TZ'] ?? 'Europe/Oslo',
     /** Local hour after which the daily tier-2 digest goes out. */
     digestHour: Number(process.env['OPERATOR_DIGEST_HOUR'] ?? 18),

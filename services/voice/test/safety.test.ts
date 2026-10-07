@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadScript } from '../src/script.ts';
-import { alertText, safetyTier } from '../src/call/safety.ts';
+import { alertText, checkInText, replyAlertText, safetyTier } from '../src/call/safety.ts';
 import { buildInstructions } from '../src/prompt.ts';
 import type { Turn } from '../src/call/outcome.ts';
 
@@ -55,4 +55,22 @@ test('the prompt acknowledges in the fixed line, offers the configured numbers, 
     assert.match(p, /Never call `end_call` after something serious/);
     assert.match(p, /Do not ask assessment questions/);
   }
+});
+
+test('the check-in texts carry the numbers and survive a lock screen', () => {
+  const crisis = checkInText('crisis', script) ?? '';
+  const abuse = checkInText('abuse', script) ?? '';
+  assert.match(crisis, /116 123/);
+  assert.match(crisis, /113/);
+  assert.match(abuse, /116 006/);
+  for (const t of [crisis, abuse]) {
+    assert.doesNotMatch(t, /\{\{/, 'every slot filled');
+    assert.doesNotMatch(t, /suicid|self-harm|abuse|violen|kill|safe/i, 'nothing that says why');
+    assert.ok(t.length <= 320, 'two SMS segments at most');
+  }
+});
+
+test('the reply alert says nothing about the message', () => {
+  assert.doesNotMatch(replyAlertText, /\{\{/);
+  assert.ok(!replyAlertText.includes('"…"') || replyAlertText.includes('--reply'));
 });

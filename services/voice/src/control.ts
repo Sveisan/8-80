@@ -12,7 +12,8 @@ import { loadScript } from './script.ts';
 import { openStore } from './store/index.ts';
 import { needsOnboarding } from './store/types.ts';
 import { PostgresStore, phoneKey } from './store/postgres.ts';
-import { Scheduler } from './schedule/scheduler.ts';
+import { Scheduler, checkedIn } from './schedule/scheduler.ts';
+import { replyAlertText } from './call/safety.ts';
 import { SpeechifyAgent } from './agent/speechify.ts';
 import { openMailer } from './recap/mailer.ts';
 import { openSms } from './sms/index.ts';
@@ -327,6 +328,17 @@ export function controlPlane(deps: LoopDeps, secret: string | readonly string[] 
         const caller = await deps.store.load(from);
         if (!caller.callNumber) return smsAck();
         const intent = parseReply(text);
+        // Somebody who was sent the safety check-in is answered by a person,
+        // never by "didn't catch that". Whoever is on call is told — with
+        // nothing from the message — and STOP, START and the rest still work.
+        if (await checkedIn(deps.store.raw, hash)) {
+          for (const to of config.operator.phones()) {
+            try { await deps.sms.send(to, replyAlertText); }
+            catch (e) { log('safety.reply_unalerted', { reason: (e as Error).message }); }
+          }
+          log('safety.reply', { kind: intent.kind });
+          if (intent.kind === 'unparsed') return smsAck();
+        }
         if (intent.kind === 'cancel_subscription') {
           let key: string;
           try { key = await cancelRenewal(deps, phoneKey(from)) === 'cancelled' ? 'sms.subscription.cancelled' : 'sms.subscription.none'; }

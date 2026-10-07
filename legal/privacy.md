@@ -42,9 +42,13 @@ not a record of which week was which.
 long it ran, and a short note if it failed. Never the words you said — with one
 exception that is a flag, not a record: if something said on a call suggests you
 might be at risk or unsafe, that call is marked (1 or 2) so a person reads it,
-your next call waits until they have, and no email or text goes out about that
-call. The person is told only that a call needs review; nothing from the call is
-sent to them.
+your next call waits until they have, and no automatic email or text goes out
+about that call. The person (or, when they are away, one named stand-in) is told
+only that a call needs review; nothing from the call is sent to them. After
+reading it, they may send you one short text with free helpline numbers, and keep
+your calls paused until you want them back; we store when that text was sent. If
+you reply, a person reads your reply in our text provider's message log and
+answers it — it is not read by the automatic replies.
 
 **Billing state**: whether you are on a trial and when it ends, the payment provider, subscription and customer ids, whether renewal is cancelled
 and the paid-period boundary returned by the provider. No card details ever reach us — they

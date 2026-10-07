@@ -92,6 +92,8 @@ export const callers = pgTable(
      * being cleared must never be what restarts somebody who said STOP.
      */
     heldForReview: boolean('held_for_review').notNull().default(false),
+    /** When somebody sent them the safety check-in text. Replies after it go to a person, not the parser. */
+    safetyCheckinAt: timestamp('safety_checkin_at', { withTimezone: true }),
     smsOptOut: boolean('sms_opt_out').notNull().default(false),
 
     /*

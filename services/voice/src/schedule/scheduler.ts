@@ -435,9 +435,48 @@ export async function releaseReview(sql: postgres.Sql, phoneHash: string, now = 
     stale && c.slot_weekday !== null && c.slot_minute !== null && c.timezone
       ? nextSlotAfter(now, { weekday: c.slot_weekday, minute: c.slot_minute, timezone: c.timezone })
       : c?.next_call_at ?? null;
-  await sql`update callers set held_for_review = false, next_call_at = ${next}, updated_at = now() where phone_hash = ${phoneHash}`;
+  await sql`update callers set held_for_review = false, safety_checkin_at = null, next_call_at = ${next}, updated_at = now() where phone_hash = ${phoneHash}`;
   log('safety.released', { calls: rows.length });
   return rows.length;
+}
+
+/**
+ * A person has read the call and sent the check-in text. The flags count as
+ * reviewed, but the hold stays: nobody is rung on schedule after a text like
+ * that. `releaseReview` lifts it when they are ready. Not `paused` — that is
+ * the caller's own STOP, and ours must not be confused with theirs.
+ */
+export async function checkIn(sql: postgres.Sql, phoneHash: string): Promise<number> {
+  const rows = await sql<{ id: string }[]>`
+    update call_attempts set safety_reviewed_at = now()
+    where phone_hash = ${phoneHash} and safety_tier is not null and safety_reviewed_at is null
+    returning id
+  `;
+  await sql`update callers set held_for_review = true, safety_checkin_at = now(), updated_at = now() where phone_hash = ${phoneHash}`;
+  log('safety.checked_in', { calls: rows.length });
+  return rows.length;
+}
+
+/** Whether this caller was sent the check-in and is still held after it. */
+export async function checkedIn(sql: postgres.Sql, phoneHash: string): Promise<boolean> {
+  const [row] = await sql<{ at: Date | null }[]>`select safety_checkin_at as at from callers where phone_hash = ${phoneHash}`;
+  return Boolean(row?.at);
+}
+
+/** Callers who were checked in on and are still held, for `--review`. */
+export async function heldAfterCheckIn(sql: postgres.Sql): Promise<{ phoneHash: string; at: Date }[]> {
+  const rows = await sql<{ phone_hash: string; at: Date }[]>`
+    select phone_hash, safety_checkin_at as at from callers where safety_checkin_at is not null order by safety_checkin_at
+  `;
+  return rows.map((r) => ({ phoneHash: r.phone_hash, at: r.at }));
+}
+
+/** How many of this caller's calls have ever been flagged, reviewed or not. */
+export async function timesFlagged(sql: postgres.Sql, phoneHash: string): Promise<number> {
+  const [row] = await sql<{ n: number }[]>`
+    select count(*)::int as n from call_attempts where phone_hash = ${phoneHash} and safety_tier is not null
+  `;
+  return row?.n ?? 0;
 }
 
 /**

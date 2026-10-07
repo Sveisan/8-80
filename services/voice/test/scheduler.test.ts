@@ -326,3 +326,24 @@ test('a flagged call holds the next one until a person releases it', { skip: ski
   const missed = await (sql as postgres.Sql)`select id from call_attempts where status = 'missed'`;
   assert.equal(missed.length, 0, 'weeks on hold are not missed calls');
 });
+
+test('a check-in marks the flag reviewed but keeps holding until release', { skip: skip() }, async () => {
+  const { flagForReview, awaitingReview, checkIn, checkedIn, releaseReview, timesFlagged } = await import('../src/schedule/scheduler.ts');
+  await caller('+4790000091');
+  const hash = phoneKey('+4790000091');
+  const [claim] = await (sched as Scheduler).claimDue(new Date('2026-09-08T06:00:00Z'));
+  assert.ok(claim);
+  await flagForReview(sql as postgres.Sql, claim.attemptId, 1);
+
+  assert.equal(await checkIn(sql as postgres.Sql, hash), 1);
+  assert.deepEqual(await awaitingReview(sql as postgres.Sql), [], 'reviewed: off the review list');
+  assert.equal(await checkedIn(sql as postgres.Sql, hash), true);
+  assert.deepEqual(await (sched as Scheduler).claimDue(new Date('2026-09-15T06:00:00Z')), [], 'still held after the text');
+  assert.equal(await timesFlagged(sql as postgres.Sql, hash), 1);
+
+  await releaseReview(sql as postgres.Sql, hash, new Date('2026-09-20T12:00:00Z'));
+  assert.equal(await checkedIn(sql as postgres.Sql, hash), false, 'release ends the check-in too');
+  const [row] = await (sql as postgres.Sql)`select held_for_review, paused from callers`;
+  assert.equal(row?.['held_for_review'], false);
+  assert.equal(row?.['paused'], false, 'our hold never becomes their STOP');
+});
