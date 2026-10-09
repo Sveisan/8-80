@@ -100,7 +100,7 @@ test('the browser that signed up lands on its own page, and it says done', { ski
     const res = await fetch(`${base}/me`, withCookie(cookie));
     assert.equal(res.status, 200);
     const body = await res.text();
-    assert.ok(body.includes((script.get('signup.done.title') ?? '').split('{{when}}')[0] as string), 'says it is done');
+    assert.ok(body.includes(script.get('page.booked') ?? ''), 'says it is done');
     assert.match(body, /Tuesday/);
     // The time and the address, and the calm version of the page.
     assert.ok(body.includes('name="weekday"') && body.includes('name="time"'), 'the time can be changed here');

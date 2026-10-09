@@ -41,7 +41,7 @@ test('booking explains the AI call and free month; wrong codes and early resend 
   const booking = signup();
   await serve(async base => {
     const landing = await (await fetch(`${base}/start`)).text();
-    assert.match(landing, /weekly phone conversation with an AI/);
+    assert.match(landing, /Weekly AI calls\. Short email recaps\./);
     assert.match(landing, /30 days free, no card required/);
     assert.match(landing, /name="name"[\s\S]*?autocomplete="given-name"/);
     const request = await fetch(`${base}/start`, post({ ...booking, weekday: '4', time: '16:30', minute: '990' }));

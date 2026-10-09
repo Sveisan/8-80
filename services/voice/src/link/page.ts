@@ -105,28 +105,31 @@ export function reschedulePage(
   const when = `${days[slot.weekday]} ${clock(slot.minute)}`;
   const time = clock(slot.minute);
 
+  const appointment = arranging ? first ?? view.next : undefined;
+  const locale = language === 'en' ? 'en-GB' : language;
+  const appointmentDate = appointment ? new Intl.DateTimeFormat(locale, {
+    weekday: 'long', day: 'numeric', month: 'long', timeZone: slot.timezone,
+  }).format(appointment) : '';
+  const appointmentTime = appointment ? new Intl.DateTimeFormat(locale, {
+    hour: '2-digit', minute: '2-digit', timeZone: slot.timezone, timeZoneName: 'short',
+  }).formatToParts(appointment) : [];
+  const appointmentClock = appointmentTime.filter(part => part.type !== 'timeZoneName').map(part => part.value).join('').trim();
+  const appointmentZone = appointmentTime.find(part => part.type === 'timeZoneName')?.value ?? '';
+
   const head = state?.paused
     ? `<h1>${say('page.stopped')}</h1><p class="now">${say('page.paused.detail')}</p>`
     : state?.onHold
       ? `<h1>${say('page.held')}</h1><p class="now">${say('page.held.detail')}</p>`
     : state && !state.canCall
       ? `<h1>${say('page.ended')}</h1><p class="now">${say('page.ended.detail')}</p>`
-      : first
-    ? view.fresh
-      ? `<h1>${esc((script.get('signup.done.title') ?? '').replace('{{when}}', whenOf(first, slot.timezone, language)))}</h1>
-    <p class="now">${say('signup.done.detail')}</p>`
-      : `<h1>${esc((script.get('page.first') ?? '').replace('{{when}}', whenOf(first, slot.timezone, language)))}</h1>
-    <p class="now">${say('page.first.detail')}</p>`
-    : `<h1>${say('page.title')}</h1>
-    ${view.next ? `<p class="now">${esc((script.get('page.next') ?? '').replace('{{when}}', describeAppointment(view.next, slot.timezone, language)))}</p>` : ''}
-    <p class="hint">${esc((script.get('page.usually') ?? '').replace('{{when}}', when))}</p>`;
+      : `<h1>${say(first && view.fresh ? 'page.booked' : 'page.title')}</h1>`;
 
-  // Above the time, not below it: before the first call this is the one thing
-  // on the page worth doing, and the rest is only there if the time is wrong.
+  // Before the first call, offer caller recognition above the time picker.
+  // Keep it a secondary link so the appointment and reschedule control stand out.
   const contact = view.contact && arranging
     ? `
-    <a class="save" href="/contact.vcf" download="8and80.vcf">${say('page.contact')}</a>
-    <p class="hint centre">${say('page.contact.detail')}</p>`
+    <a class="contact-link" href="/contact.vcf" download="8and80.vcf">${say('page.contact')}</a>
+    <p class="hint">${say('page.contact.detail')}</p>`
     : '';
 
   // Before the first call a new time is the booking, so "every week" is not
@@ -185,14 +188,18 @@ export function reschedulePage(
     `
     ${MARK}
     ${head}
-    ${billing}
-    <section class="account-section" aria-labelledby="call-heading">
-      <h2 id="call-heading">${say('page.section.call')}</h2>
+    <section class="account-section call-overview" aria-labelledby="call-heading">
+      <h2 id="call-heading">${say(booking ? 'page.first' : 'page.section.call')}</h2>
       ${view.scheduleNote ? `<p role="status">${say(view.scheduleNote)}</p>` : ''}
-      ${arranging && !view.next ? `<p class="now">${say(state?.trialEnds ? 'page.no_next.trial' : 'page.no_next')}</p>` : ''}
+      ${appointment ? `<time class="appointment" datetime="${esc(appointment.toISOString())}" aria-label="${esc(describeAppointment(appointment, slot.timezone, language))}">
+        <span class="appointment-date">${esc(appointmentDate)}</span>
+        <span class="appointment-time">${esc(appointmentClock)} <small>${esc(appointmentZone)}</small></span>
+      </time>` : ''}
+      ${arranging ? `<p class="hint usual-time">${esc((script.get('page.usually') ?? '').replace('{{when}}', when))}</p>` : ''}
+      ${arranging && !appointment ? `<p class="now">${say(state?.trialEnds ? 'page.no_next.trial' : 'page.no_next')}</p>` : ''}
       ${resume}
       ${contact}
-      ${arranging ? `<details id="move-call" class="change-time">
+      ${arranging ? `<details id="move-call" class="change-time reschedule">
         <summary>${say(booking ? 'page.move.open.first' : 'page.move.open')}</summary>
         <form method="post" class="move">
           <fieldset>
@@ -214,9 +221,10 @@ export function reschedulePage(
           </fieldset>
           ${always}
           ${booking ? '' : `<p class="hint">${say('page.move.detail')}</p>`}
-          <button name="action" value="move"${first && view.contact ? '' : ' class="primary"'}>${busyLabel(say('page.move'))}</button>
+          <button name="action" value="move" class="primary">${busyLabel(say('page.move'))}</button>
         </form>
       </details>` : ''}
+      ${first ? `<p class="hint">${say(view.fresh ? 'signup.done.detail' : 'page.first.detail')}</p>` : ''}
       ${!arranging || booking || !view.next ? '' : `<form method="post" class="skip">
         <input type="hidden" name="skip_at" value="${esc(view.next.toISOString())}" />
         <button name="action" value="skip">${say('page.skip')}</button>
@@ -235,6 +243,7 @@ export function reschedulePage(
 
     ${state ? `<section class="account-section" aria-labelledby="plan-heading">
       <h2 id="plan-heading">${say('page.section.plan')}</h2>
+      ${billing}
       ${renewal}
       ${billingControls}
       ${support}
@@ -290,11 +299,6 @@ function zoneLine(timezone: string, script: ScriptLines): string {
 
 /** A line added to the goals from the page. Long enough for a sentence or two, not an essay. */
 export const GOALS_MAX = 400;
-
-/** The actual first appointment, including its calendar date and local zone. */
-function whenOf(at: Date, timezone: string, language: string): string {
-  return describeAppointment(at, timezone, language);
-}
 
 /**
  * The Forever mark, still. brand/assets/mark.svg, inlined so the page makes
@@ -461,9 +465,18 @@ export function shell(body: string, language = 'en'): string {
   h2 { font-size: 1.05rem; font-weight: 600; margin: 0 0 .9rem; }
   .account-section { border-top: 1px solid var(--line); padding-top: 1.25rem; margin-top: 1.5rem; }
   .account-section .move { border-top: 0; padding-top: 0; margin-top: 1rem; }
+  .call-overview { border: 1px solid var(--line); border-top: 3px solid var(--accent); border-radius: 1rem; padding: 1.25rem; margin-top: 1.25rem; }
+  .call-overview h2 { margin-bottom: .65rem; }
+  .appointment { display: block; }
+  .appointment-date { display: block; font-size: 1.5rem; font-weight: 600; line-height: 1.3; letter-spacing: -.02em; }
+  .appointment-time { display: block; margin-top: .25rem; font-size: 3rem; font-weight: 600; line-height: 1.2; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+  .appointment-time small { font-size: 1rem; font-weight: 400; letter-spacing: 0; }
+  .call-overview .usual-time { margin: .5rem 0 1.25rem; }
+  .contact-link { display: inline-block; font-weight: 600; }
   .change-time { margin-bottom: 1rem; }
   .change-time summary { padding: .85rem 1rem; border: 1px solid var(--line); border-radius: .5rem; cursor: pointer; }
   .change-time summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .reschedule summary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
   .now { color: var(--quiet); margin: 0 0 2rem; }
   form { margin: 0 0 1rem; }
   .row { display: flex; gap: .5rem; margin: .4rem 0 .75rem; }

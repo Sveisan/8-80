@@ -1336,7 +1336,7 @@ whoever is holding the phone, so the page is built for a stranger to find boring
 > "Choose another time"
 
 `page.move`
-> "Move it"
+> "Save new time"
 
 `page.always`
 > "Every week from now on"
@@ -1808,10 +1808,10 @@ which stay behind a link from a text, because a laptop in a shared kitchen is no
 enough of who is asking to have everything sent or destroyed._
 
 `page.first`
-> "First call {{when}}."
+> "Your first call"
 
-_Shown instead of `page.title` until there has been a call. "Move this week's call" is the
-page for somebody who missed one; before the first call there is nothing to have missed._
+_Labels the appointment card until there has been a call. The dated appointment is
+shown beneath it, with the time larger than the surrounding account information._
 
 `page.first.detail`
 > "Nothing to do before then. If the time's wrong, change it here."
@@ -2146,7 +2146,7 @@ Interrupted introductions keep their progress; availability-only calls do not ad
 > "I couldn't book that callback. Please check your call status and choose a time here: {{link}}"
 
 `signup.summary`
-> "A weekly phone conversation with an AI. About ten minutes for the first call, shorter after that, with a short email recap. Choose your usual weekly time below."
+> "Weekly AI calls. Short email recaps."
 
 `signup.verify.detail`
 > "First, we’ll text you a code. After you confirm it, we’ll call at the time you choose."
@@ -2357,6 +2357,9 @@ Interrupted introductions keep their progress; availability-only calls do not ad
 `page.section.call`
 > "Your next call"
 
+`page.booked`
+> "All set."
+
 `page.section.notes`
 > "Your notes"
 
@@ -2370,7 +2373,7 @@ Interrupted introductions keep their progress; availability-only calls do not ad
 > "Your data"
 
 `page.move.open`
-> "Move your next call"
+> "Reschedule next call"
 
 `page.move.detail`
 > "Leave this unchecked to move only your next call."
@@ -2379,7 +2382,7 @@ Interrupted introductions keep their progress; availability-only calls do not ad
 > "Your notes are private. Verify your phone to review or correct them."
 
 `page.move.open.first`
-> "Change your first call time"
+> "Reschedule first call"
 
 `open.return.no_action`
 > "How has your week been?"
