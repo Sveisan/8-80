@@ -422,6 +422,7 @@ function shell(body: string, language = 'en'): string {
   form { margin: 0 0 1rem; }
   fieldset { border: 0; padding: 0; min-width: 0; }
   fieldset legend { margin-top: 0; }
+  #when legend, #when .zone { width: 100%; text-align: center; }
   /* Which clock, directly under the question, quiet enough not to be a second question. */
   .zone { margin: -.2rem 0 .5rem; font-size: .85rem; color: var(--quiet); }
   label, legend { display: block; font-size: .95rem; color: var(--quiet); margin: 1rem 0 .35rem; padding: 0; }
