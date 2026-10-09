@@ -84,6 +84,8 @@ export const callers = pgTable(
     slotMinute: integer('slot_minute'),
     /** When the slot next comes round, derived from the three fields above. */
     nextCallAt: timestamp('next_call_at', { withTimezone: true }),
+    /** A callback continues this weekly conversation instead of creating a new one. */
+    nextCallCycle: text('next_call_cycle'),
     /** Their choice to stop, which is not the same as having no slot. */
     paused: boolean('paused').notNull().default(false),
     /**
@@ -197,6 +199,7 @@ export const callAttempts = pgTable(
     phoneHash: text('phone_hash').notNull(),
     /** The slot instant this attempt is for — not when it was placed. */
     scheduledFor: timestamp('scheduled_for', { withTimezone: true }).notNull(),
+    cycleKey: text('cycle_key'),
     claimedAt: timestamp('claimed_at', { withTimezone: true }).notNull().defaultNow(),
     /** claimed → placed → (completed | silent | failed). */
     status: text('status').notNull().default('claimed'),
@@ -404,5 +407,13 @@ export const journeyEvents = pgTable('journey_events', {
   id: text('id').primaryKey(),
   phoneHash: text('phone_hash').notNull(),
   event: text('event').notNull(),
+  cycleKey: text('cycle_key'),
   at: timestamp('at', { withTimezone: true }).notNull().defaultNow(),
 }, t => [index('journey_events_phone_at_idx').on(t.phoneHash, t.at), index('journey_events_at_idx').on(t.at)]);
+
+
+/** Global instrumentation date, without customer identifiers or content. */
+export const journeyTracking = pgTable('journey_tracking', {
+  event: text('event').primaryKey(),
+  startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+});

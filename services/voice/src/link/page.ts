@@ -98,7 +98,8 @@ export function reschedulePage(
   const short = dayNames(language, 'short');
   const via = view.via ?? 'link';
   const state = view.account;
-  const arranging = !state || (state.canCall && !state.paused);
+  const active = !state || (state.canCall && !state.paused);
+  const arranging = active && !state?.onHold;
   const first = arranging ? view.first : undefined;
   const booking = view.beforeFirst ?? !!first;
   const when = `${days[slot.weekday]} ${clock(slot.minute)}`;
@@ -106,6 +107,8 @@ export function reschedulePage(
 
   const head = state?.paused
     ? `<h1>${say('page.stopped')}</h1><p class="now">${say('page.paused.detail')}</p>`
+    : state?.onHold
+      ? `<h1>${say('page.held')}</h1><p class="now">${say('page.held.detail')}</p>`
     : state && !state.canCall
       ? `<h1>${say('page.ended')}</h1><p class="now">${say('page.ended.detail')}</p>`
       : first
@@ -134,13 +137,15 @@ export function reschedulePage(
 
   const goals = view.goals && arranging
     ? `
+    <details class="change-time"${view.goalsNote ? ' open' : ''}>
+    <summary>${say('page.goals.open')}</summary>
     <form method="post" class="move">
       <label for="goals">${say('page.goals.label')}</label>
       <textarea id="goals" name="goals" rows="3" maxlength="${GOALS_MAX}" required></textarea>
       <p class="hint">${say('page.goals.detail')}</p>
       <button name="action" value="goals">${busyLabel(say('page.goals.save'))}</button>
       ${view.goalsNote ? `<p class="now said">${say(view.goalsNote)}</p>` : ''}
-    </form>`
+    </form></details>`
     : '';
 
   const rest =
@@ -171,7 +176,7 @@ export function reschedulePage(
       : `<p><a href="/access">${say('page.billing.verify')}</a></p>`
     : ['trialing', 'trial_ended', 'ended'].includes(state.billing) ? checkoutLink('availability-check') ? `<form method="post"><button name="action" value="checkout"${!state.canCall ? ' class="primary"' : ''}>${say('page.billing.continue')}</button></form><p class="hint">${say('page.billing.price')}</p>` : `<p class="hint">${say('page.billing.unavailable')}</p>` : '' : '';
   const billing = state ? `<p class="hint">${esc((script.get(billingKey) ?? '').replace('{{when}}', trialDate ?? ''))}</p>` : '';
-  const resume = state?.paused && state.canCall
+  const resume = state?.paused && state.canCall && !state.onHold
     ? `<form method="post"><button name="action" value="start" class="primary">${say('page.stopped.back')}</button></form>` : '';
   const support = state
     ? `<p><a${!state.canCall ? ' class="save"' : ''} href="mailto:${esc(config.company.supportEmail() || 'hei@8and80.me')}">${say('page.support')}</a></p>` : '';
@@ -181,79 +186,93 @@ export function reschedulePage(
     ${MARK}
     ${head}
     ${billing}
-    ${renewal}
-    ${billingControls}
-    ${view.scheduleNote ? `<p role="status">${say(view.scheduleNote)}</p>` : ''}
-    ${arranging && !view.next ? `<p class="now">${say(state?.trialEnds ? 'page.no_next.trial' : 'page.no_next')}</p>` : ''}
-    ${resume}
-    ${support}
-    ${contact}
-
-    ${arranging ? `<form method="post" class="move">
-      <fieldset>
-        <legend>${say(booking ? 'page.first.pick' : 'page.pick')}</legend>
-        <p class="zone">${esc(zoneLine(slot.timezone, script))}</p>
-        <div class="days">
-          ${WEEK.map(
-            (i) => `<label class="pick">
-            <input type="radio" name="weekday" value="${i}"${i === slot.weekday ? ' checked' : ''} />
-            <span aria-hidden="true">${esc(short[i] as string)}</span><span class="sr">${esc(days[i] as string)}</span>
-          </label>`,
-          ).join('')}
-        </div>
-        <div class="times" id="times">
-          ${timesFor(slot.minute)
-            .map(
-              (t) =>
+    <section class="account-section" aria-labelledby="call-heading">
+      <h2 id="call-heading">${say('page.section.call')}</h2>
+      ${view.scheduleNote ? `<p role="status">${say(view.scheduleNote)}</p>` : ''}
+      ${arranging && !view.next ? `<p class="now">${say(state?.trialEnds ? 'page.no_next.trial' : 'page.no_next')}</p>` : ''}
+      ${resume}
+      ${contact}
+      ${arranging ? `<details id="move-call" class="change-time">
+        <summary>${say(booking ? 'page.move.open.first' : 'page.move.open')}</summary>
+        <form method="post" class="move">
+          <fieldset>
+            <legend>${say(booking ? 'page.first.pick' : 'page.pick')}</legend>
+            <p class="zone">${esc(zoneLine(slot.timezone, script))}</p>
+            <div class="days">
+              ${WEEK.map(
+                (i) => `<label class="pick">
+                <input type="radio" name="weekday" value="${i}"${i === slot.weekday ? ' checked' : ''} />
+                <span aria-hidden="true">${esc(short[i] as string)}</span><span class="sr">${esc(days[i] as string)}</span>
+              </label>`,
+              ).join('')}
+            </div>
+            <div class="times" id="times">
+              ${timesFor(slot.minute).map((t) =>
                 `<label class="pick"><input type="radio" name="time" value="${t}"${t === time ? ' checked' : ''} /><span>${t}</span></label>`,
-            )
-            .join('')}
-        </div>
-      </fieldset>
-      ${always}
-      <button name="action" value="move"${first && view.contact ? '' : ' class="primary"'}>${busyLabel(say('page.move'))}</button>
-    </form>` : ''}
-    ${goals}
+              ).join('')}
+            </div>
+          </fieldset>
+          ${always}
+          ${booking ? '' : `<p class="hint">${say('page.move.detail')}</p>`}
+          <button name="action" value="move"${first && view.contact ? '' : ' class="primary"'}>${busyLabel(say('page.move'))}</button>
+        </form>
+      </details>` : ''}
+      ${!arranging || booking || !view.next ? '' : `<form method="post" class="skip">
+        <input type="hidden" name="skip_at" value="${esc(view.next.toISOString())}" />
+        <button name="action" value="skip">${say('page.skip')}</button>
+      </form>`}
+      ${active ? `<form method="post" class="stop">
+        <button name="action" value="stop">${say('page.stop')}</button>
+      </form>` : ''}
+    </section>
 
-    <form method="post" class="move">
-      <label for="email">${say('page.email.label')}</label>
+    <section class="account-section" aria-labelledby="notes-heading">
+      <h2 id="notes-heading">${say('page.section.notes')}</h2>
+      ${goals}
+      <p class="hint">${say('page.notes.detail')}</p>
+      <p><a href="/memory">${say('memory.title')}</a></p>
+    </section>
+
+    ${state ? `<section class="account-section" aria-labelledby="plan-heading">
+      <h2 id="plan-heading">${say('page.section.plan')}</h2>
+      ${renewal}
+      ${billingControls}
+      ${support}
+    </section>` : ''}
+
+    <section class="account-section" aria-labelledby="preferences-heading">
+      <h2 id="preferences-heading">${say('page.section.preferences')}</h2>
       <p class="hint">${email ? esc((script.get('page.email.current') ?? '').replace('{{email}}', maskEmail(email))) : say('page.email.none')}</p>
-      <div class="row">
-        <input type="email" id="email" name="email" value="" placeholder="you@example.com"
-               autocomplete="email" autocapitalize="off" spellcheck="false" />
-      </div>
-      <button name="action" value="email">${busyLabel(say('page.email.save'))}</button>
-      ${note ? `<p class="now said">${say(note)}</p>` : ''}
-    </form>
+      <details class="change-time"${note ? ' open' : ''}>
+        <summary>${say('page.email.open')}</summary>
+      <form method="post">
+        <label for="email">${say('page.email.label')}</label>
+        <div class="row">
+          <input type="email" id="email" name="email" value="" placeholder="you@example.com"
+                 autocomplete="email" autocapitalize="off" spellcheck="false" />
+        </div>
+        <button name="action" value="email">${busyLabel(say('page.email.save'))}</button>
+        ${note ? `<p class="now said">${say(note)}</p>` : ''}
+      </form></details>
+      ${state ? `<form method="post"><p class="hint">${say('page.feedback.detail')}</p><button name="action" value="${state.feedbackOptOut ? 'feedback-on' : 'feedback-off'}">${say(state.feedbackOptOut ? 'page.feedback.on' : 'page.feedback.off')}</button></form>` : ''}
+    </section>
 
-    ${
-      // Target the occurrence this page showed, never whichever call is next
-      // when an old form is submitted for a second time.
-      !arranging || booking || !view.next
-        ? ''
-        : `<form method="post" class="skip">
-      <input type="hidden" name="skip_at" value="${esc(view.next.toISOString())}" />
-      <button name="action" value="skip" class="quiet">${say('page.skip')}</button>
-    </form>`
-    }
-
-    ${arranging ? `<form method="post" class="stop${first ? ' first' : ''}">
-      <button name="action" value="stop" class="quiet">${say('page.stop')}</button>
-    </form>` : ''}
-    ${state ? `<form method="post"><p class="hint">${say('page.feedback.detail')}</p><button name="action" value="${state.feedbackOptOut ? 'feedback-on' : 'feedback-off'}">${say(state.feedbackOptOut ? 'page.feedback.on' : 'page.feedback.off')}</button></form>` : ''}
-    ${rest}
-    <p class="hint centre"><a href="/memory">${say('memory.title')}</a></p>
+    <section class="account-section" aria-labelledby="data-heading">
+      <h2 id="data-heading">${say('page.section.data')}</h2>
+      ${rest}
+    </section>
     <script>
-      // Brings the chosen time to the middle of its row, as on the sign-up
-      // page. The form works without it: the row scrolls by hand.
       try {
         var row = document.getElementById('times');
+        var move = document.getElementById('move-call');
         var centre = function (el, smooth) {
           var box = el.getBoundingClientRect(), track = row.getBoundingClientRect();
           row.scrollTo({ left: row.scrollLeft + box.left - track.left - (row.clientWidth - box.width) / 2, behavior: smooth ? 'smooth' : 'auto' });
         };
-        var on = row.querySelector('input:checked');
-        if (on) centre(on.parentNode, false);
+        move.addEventListener('toggle', function () {
+          var on = row.querySelector('input:checked');
+          if (move.open && on) centre(on.parentNode, false);
+        });
         row.addEventListener('change', function (e) { centre(e.target.parentNode, true); });
       } catch (e) {}
     </script>
@@ -439,6 +458,12 @@ export function shell(body: string, language = 'en'): string {
   }
   main { width: 100%; max-width: 26rem; }
   h1 { font-size: 1.5rem; font-weight: 600; margin: 0 0 .35rem; letter-spacing: -0.01em; }
+  h2 { font-size: 1.05rem; font-weight: 600; margin: 0 0 .9rem; }
+  .account-section { border-top: 1px solid var(--line); padding-top: 1.25rem; margin-top: 1.5rem; }
+  .account-section .move { border-top: 0; padding-top: 0; margin-top: 1rem; }
+  .change-time { margin-bottom: 1rem; }
+  .change-time summary { padding: .85rem 1rem; border: 1px solid var(--line); border-radius: .5rem; cursor: pointer; }
+  .change-time summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .now { color: var(--quiet); margin: 0 0 2rem; }
   form { margin: 0 0 1rem; }
   .row { display: flex; gap: .5rem; margin: .4rem 0 .75rem; }

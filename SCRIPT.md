@@ -1217,10 +1217,10 @@ second, and why a confirmation that fails to send is not allowed to undo anythin
 > "Back on. Next call {{when}}."
 
 `sms.start.inactive`
-> "Calls have not restarted: your next weekly slot falls outside your current access. Open your account controls to review continuation or contact support."
+> "Calls have not restarted. Open your account controls to check your call status and access, or contact support."
 
 `sms.move.inactive`
-> "That time could not be booked. Calls may be paused or the time may fall outside your current access. Your schedule is unchanged; open your account controls to review it."
+> "That time could not be booked. Your schedule is unchanged. Open your account controls to check your call status and access, or contact support."
 
 `sms.skipped.paid_end`
 > "Skipped. There are no further calls scheduled before your paid access ends. Renewal stays cancelled."
@@ -1321,7 +1321,7 @@ commitment, no history. The link may sit in a message thread for years and be op
 whoever is holding the phone, so the page is built for a stranger to find boring._
 
 `page.title`
-> "Change your call"
+> "Your calls"
 
 `page.next`
 > "Next call {{when}}."
@@ -1482,7 +1482,7 @@ promise kept one screen later rather than a bait._
 > "I need something to call you."
 
 `signup.error.number`
-> "That doesn't look like a phone number. With the country code, like +47 900 33 575."
+> "Enter eight digits for Norway, or include the country code, like +47 900 33 575."
 
 `signup.error.email`
 > "That address doesn't look right."
@@ -1853,7 +1853,7 @@ _The note field of the card. Nobody reads it until they wonder, a month in, who 
 number is and how to change it — which is exactly when it should answer._
 
 `page.goals.label`
-> "Anything to add to this year's list?"
+> "Anything to add to your three-month goals?"
 
 `page.goals.detail`
 > "It goes to the next call, not onto this page — this page opens for whoever has the link."
@@ -2013,7 +2013,7 @@ permissions. Neither screen displays stored commitments, goals or other private 
 > "Use the phone number you signed up with. We’ll text a code to confirm it’s you."
 
 `access.phone.detail`
-> "Include your country code. Norwegian numbers can use eight digits."
+> "For Norway, enter eight digits. We add +47. For other countries, include the country code."
 
 `access.send`
 > "Text me a code"
@@ -2151,6 +2151,9 @@ Interrupted introductions keep their progress; availability-only calls do not ad
 `signup.summary`
 > "A weekly phone conversation with an AI. About ten minutes for the first call, shorter after that, with a short email recap. Choose your usual weekly time below."
 
+`signup.verify.detail`
+> "First, we’ll text you a code. After you confirm it, we’ll call at the time you choose."
+
 `signup.terms.summary`
 > "30 days free, no card required. Calls stop when the free month ends unless you choose to continue. Any paid plan and its price are shown before you pay."
 
@@ -2185,7 +2188,7 @@ Interrupted introductions keep their progress; availability-only calls do not ad
 > "Your current commitment"
 
 `memory.goals`
-> "Your goals for this year"
+> "Your goals for the next three months"
 
 `memory.empty`
 > "Leave a field empty to remove it from the next call’s notes."
@@ -2332,3 +2335,69 @@ Interrupted introductions keep their progress; availability-only calls do not ad
 
 `sms.subscription.needs_verification`
 > "To cancel subscription renewal, open your call controls and verify your phone. Stopping calls alone does not cancel renewal."
+
+
+## Booking date and account navigation
+
+`signup.appointment`
+> "First call: {{when}}"
+
+`signup.appointment.pending`
+> "Checking your first call date…"
+
+`signup.appointment.unavailable`
+> "Check the date below before booking."
+
+`signup.appointment.check`
+> "Check first call date"
+
+`signup.appointment.check.detail`
+> "Check the date for your chosen day and time. If you change either, check again before booking."
+
+`signup.appointment.detail`
+> "Your weekly call uses this time. Confirm your number before the appointment to keep this first date."
+
+`page.section.call`
+> "Your next call"
+
+`page.section.notes`
+> "Your notes"
+
+`page.section.plan`
+> "Your plan"
+
+`page.section.preferences`
+> "Contact and preferences"
+
+`page.section.data`
+> "Your data"
+
+`page.move.open`
+> "Move your next call"
+
+`page.move.detail`
+> "Leave this unchecked to move only your next call."
+
+`page.notes.detail`
+> "Your notes are private. Verify your phone to review or correct them."
+
+`page.move.open.first`
+> "Change your first call time"
+
+`open.return.no_action`
+> "How has your week been?"
+
+`next.none`
+> "We can leave it there this week."
+
+`page.goals.open`
+> "Add a goal"
+
+`page.email.open`
+> "Change recap email"
+
+`page.held`
+> "Your calls are on hold"
+
+`page.held.detail`
+> "We need to review your call arrangement before scheduling the next call. Contact us about your account below."

@@ -63,9 +63,9 @@ export class Scheduler {
   async claimDue(now = new Date(), limit = 50, graceMs = GRACE_MS): Promise<Claim[]> {
     return await transaction(this.sql, async (tx) => {
       const due = await tx<
-        { phone_hash: string; next_call_at: Date; slot_weekday: number; slot_minute: number; timezone: string }[]
+        { phone_hash: string; next_call_at: Date; slot_weekday: number; slot_minute: number; timezone: string; next_call_cycle: string | null }[]
       >`
-        select phone_hash, next_call_at, slot_weekday, slot_minute, timezone
+        select phone_hash, next_call_at, slot_weekday, slot_minute, timezone, next_call_cycle
         from callers
         where paused = false
           -- A flagged call holds the next one until a person has looked.
@@ -95,6 +95,7 @@ export class Scheduler {
         const slot: Slot = { weekday: row.slot_weekday, minute: row.slot_minute, timezone: row.timezone };
         let due_ = row.next_call_at;
         let missed = 0;
+        let cycleKey = row.next_call_cycle;
 
         // Slots that went by while nobody was listening are recorded and not
         // called. A fortnight of downtime must not become a fortnight of calls
@@ -107,6 +108,7 @@ export class Scheduler {
             on conflict (phone_hash, scheduled_for) do nothing
           `;
           missed++;
+          cycleKey = null;
           if (missed >= MAX_MISSED) {
             // Past the cap we stop counting weeks and rejoin the present. The
             // cap must move the slot as well as stop the writing: leaving it in
@@ -121,15 +123,15 @@ export class Scheduler {
         // next_call_at left in the past brings us back here every tick.
         const stillDue = due_.getTime() <= now.getTime();
         const next = stillDue ? nextSlotAfter(due_, slot) : due_;
-        await tx`update callers set next_call_at = ${next}, updated_at = now() where phone_hash = ${row.phone_hash}`;
+        await tx`update callers set next_call_at = ${next}, next_call_cycle = null, updated_at = now() where phone_hash = ${row.phone_hash}`;
 
         if (missed) log('schedule.missed', { slots: missed, upTo: due_.toISOString() });
         if (!stillDue) continue;
 
         const attemptId = randomUUID();
         const inserted = await tx<{ id: string }[]>`
-          insert into call_attempts (id, phone_hash, scheduled_for)
-          values (${attemptId}, ${row.phone_hash}, ${due_})
+          insert into call_attempts (id, phone_hash, scheduled_for, cycle_key)
+          values (${attemptId}, ${row.phone_hash}, ${due_}, ${cycleKey ?? attemptId})
           on conflict (phone_hash, scheduled_for) do nothing
           returning id
         `;
@@ -157,6 +159,7 @@ export class Scheduler {
           slot_weekday = ${slot.weekday},
           slot_minute = ${slot.minute},
           next_call_at = ${next},
+          next_call_cycle = null,
           paused = false,
           updated_at = now()
       where phone_hash = ${phoneKey(phone)}
@@ -189,7 +192,7 @@ export class Scheduler {
   async nextEligibleCallFor(phone: string, now = new Date()): Promise<Date | undefined> {
     const [row] = await this.sql<{ next_call_at: Date }[]>`
       select next_call_at from callers
-      where phone_hash = ${phoneKey(phone)} and paused = false and next_call_at > ${now}
+      where phone_hash = ${phoneKey(phone)} and paused = false and held_for_review = false and next_call_at > ${now}
         and (not cancel_at_period_end or paid_until > next_call_at)
         and (billing_status in ('comped', 'active', 'past_due')
           or (billing_status = 'trialing' and (trial_ends_at is null or trial_ends_at > next_call_at)))
@@ -198,13 +201,14 @@ export class Scheduler {
   }
 
   /** A move cannot undo a concurrent pause or book beyond eligible access. */
-  async moveIfActive(phone: string, at: Date, weekly?: Slot): Promise<boolean> {
+  async moveIfActive(phone: string, at: Date, weekly?: Slot, continuation?: string): Promise<boolean> {
     const changed = await this.sql<{ phone_hash: string }[]>`
       update callers set next_call_at = ${at},
+        next_call_cycle = case when ${!!weekly} then null else coalesce(${continuation ?? null}, next_call_cycle) end,
         slot_weekday = coalesce(${weekly?.weekday ?? null}, slot_weekday),
         slot_minute = coalesce(${weekly?.minute ?? null}, slot_minute),
         timezone = coalesce(${weekly?.timezone ?? null}, timezone), updated_at = now()
-      where phone_hash = ${phoneKey(phone)} and paused = false
+      where phone_hash = ${phoneKey(phone)} and paused = false and held_for_review = false
         and (not cancel_at_period_end or paid_until > ${at})
         and (billing_status in ('comped', 'active', 'past_due')
           or (billing_status = 'trialing' and (trial_ends_at is null or trial_ends_at > ${at})))
@@ -218,15 +222,15 @@ export class Scheduler {
     return await transaction(this.sql, async tx => {
       const [row] = await tx<{
         slot_weekday: number | null; slot_minute: number | null; timezone: string | null;
-        billing_status: string; trial_ends_at: Date | null; cancel_at_period_end: boolean; paid_until: Date | null;
-      }[]>`select slot_weekday, slot_minute, timezone, billing_status, trial_ends_at, cancel_at_period_end, paid_until
+        billing_status: string; trial_ends_at: Date | null; cancel_at_period_end: boolean; paid_until: Date | null; held_for_review: boolean;
+      }[]>`select slot_weekday, slot_minute, timezone, billing_status, trial_ends_at, cancel_at_period_end, paid_until, held_for_review
         from callers where phone_hash = ${phoneKey(phone)} for update`;
-      if (!row || row.slot_weekday === null || row.slot_minute === null || !row.timezone) return undefined;
+      if (!row || row.held_for_review || row.slot_weekday === null || row.slot_minute === null || !row.timezone) return undefined;
       const next = nextSlotAfter(now, { weekday: row.slot_weekday, minute: row.slot_minute, timezone: row.timezone });
       const eligible = ['comped', 'active', 'past_due'].includes(row.billing_status)
         || (row.billing_status === 'trialing' && (!row.trial_ends_at || row.trial_ends_at > next));
       if (!eligible || (row.cancel_at_period_end && (!row.paid_until || row.paid_until <= next))) return undefined;
-      await tx`update callers set paused = false, next_call_at = ${next}, updated_at = now() where phone_hash = ${phoneKey(phone)}`;
+      await tx`update callers set paused = false, next_call_at = ${next}, next_call_cycle = null, updated_at = now() where phone_hash = ${phoneKey(phone)}`;
       return next;
     });
   }
@@ -270,7 +274,7 @@ export class Scheduler {
         after = new Date(weekEnd.getTime() - 1);
       }
       const next = nextSlotAfter(after, slot);
-      await tx`update callers set next_call_at = ${next}, updated_at = now() where phone_hash = ${phoneKey(phone)}`;
+      await tx`update callers set next_call_at = ${next}, next_call_cycle = null, updated_at = now() where phone_hash = ${phoneKey(phone)}`;
       return { kind: 'skipped' as const, ...(row.trial_until && next >= row.trial_until ? { paidAccessEnded: row.cancel_at_period_end } : { next }) };
     });
   }
@@ -283,14 +287,14 @@ export class Scheduler {
   /** The attempt a webhook is about, found by the id the platform gave us. */
   async attemptForConversation(
     conversationId: string,
-  ): Promise<{ id: string; phoneHash: string; status: string } | undefined> {
-    const rows = await this.sql<{ id: string; phone_hash: string; status: string }[]>`
-      select id, phone_hash, status from call_attempts
+  ): Promise<{ id: string; phoneHash: string; status: string; cycleKey: string } | undefined> {
+    const rows = await this.sql<{ id: string; phone_hash: string; status: string; cycle_key: string | null }[]>`
+      select id, phone_hash, status, cycle_key from call_attempts
       where provider_call_id = ${conversationId}
       limit 1
     `;
     const row = rows[0];
-    return row ? { id: row.id, phoneHash: row.phone_hash, status: row.status } : undefined;
+    return row ? { id: row.id, phoneHash: row.phone_hash, status: row.status, cycleKey: row.cycle_key ?? row.id } : undefined;
   }
 
   /**
@@ -435,7 +439,8 @@ export async function releaseReview(sql: postgres.Sql, phoneHash: string, now = 
     stale && c.slot_weekday !== null && c.slot_minute !== null && c.timezone
       ? nextSlotAfter(now, { weekday: c.slot_weekday, minute: c.slot_minute, timezone: c.timezone })
       : c?.next_call_at ?? null;
-  await sql`update callers set held_for_review = false, safety_checkin_at = null, next_call_at = ${next}, updated_at = now() where phone_hash = ${phoneHash}`;
+  await sql`update callers set held_for_review = false, safety_checkin_at = null, next_call_at = ${next},
+    next_call_cycle = case when ${!!stale} then null else next_call_cycle end, updated_at = now() where phone_hash = ${phoneHash}`;
   log('safety.released', { calls: rows.length });
   return rows.length;
 }

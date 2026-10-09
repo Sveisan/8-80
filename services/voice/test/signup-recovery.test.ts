@@ -171,3 +171,25 @@ test('verification throttling explains the verification wait and keeps the booki
     assert.equal(hidden(html, 'draft'), challenge.id);
   });
 });
+
+test('checking the first date needs no contact details and sends no verification message', options, async () => {
+  await serve(async base => {
+    const preview = await fetch(`${base}/start/appointment?weekday=2&time=08%3A00&timezone=Europe%2FOslo`);
+    assert.equal(preview.status, 200);
+    assert.match(preview.headers.get('content-type') ?? '', /application\/json/);
+    const answer = await preview.json() as { when: string };
+    assert.match(answer.when, /Tuesday.*\d.*08:00/);
+    const invalid = await fetch(`${base}/start/appointment?weekday=2&time=08%3A00&timezone=Not%2FAZone`);
+    assert.equal(invalid.status, 400);
+    assert.deepEqual(await invalid.json(), { error: 'invalid slot' });
+    const checked = await fetch(`${base}/start/preview`, post({ phone: '900 33 575', email: 'unfinished', weekday: '2', time: '08:00', timezone: 'Europe/Oslo' }));
+    assert.equal(checked.status, 200);
+    const html = await checked.text();
+    assert.match(html, /<noscript>[\s\S]*First call: Tuesday/);
+    assert.match(html, /value="900 33 575"/);
+    assert.match(html, /value="unfinished"/);
+    assert.equal(texts.length, 0);
+    assert.equal((await db!.sql`select * from signups`).length, 0);
+    assert.equal((await db!.sql`select * from callers`).length, 0);
+  });
+});

@@ -135,7 +135,8 @@ for up to 30 days, then removed by the scheduled cleanup job.
 
 We keep daily booking/control request counts without visitor identifiers, IPs or
 tracking cookies. Account-linked service milestones contain only a lookup key,
-a fixed event name and time, not what you said. These measurements are removed
+a fixed event name and time, and an opaque conversation-cycle reference when
+needed to distinguish weekly calls from callbacks, not what you said. These measurements are removed
 after 60 days by the cleanup job, or with the account. They help us see where the
 service fails; they do not tell us whether a conversation was useful.
 

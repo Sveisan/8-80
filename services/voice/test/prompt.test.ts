@@ -239,3 +239,14 @@ test('a first name greets them when known, and leaves no gap when not', () => {
   assert.ok(!anon.includes('Hello again, .'));
   assert.match(buildInstructions(s, { callNumber: 1 }), /"Hello — it's your 8 and 80 call/);
 });
+
+
+test('a return without a previous action has a conversational opening and does not create an undone week', () => {
+  const script = loadScript();
+  const text = buildInstructions(script, { callNumber: 2, onboardingProgress: 'complete', lastCommitment: '(nothing recorded)' });
+  assert.ok(text.includes(script.get('open.return.no_action')!));
+  assert.match(text, /Skip stages 3–5/);
+  assert.match(text, /choosing no action is not an unfinished commitment/);
+  assert.ok(text.includes(script.get('next.none')!));
+  assert.match(text, /overrides prompts to pick, propose, make concrete or pin a commitment/);
+});
