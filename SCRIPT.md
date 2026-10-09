@@ -1455,7 +1455,7 @@ requirement was always that nobody can reach the end of this page without having
 to read it, not that it sit in any particular place._
 
 `signup.name`
-> "First name"
+> "What shall we call you?"
 
 `signup.phone`
 > "Your number"
