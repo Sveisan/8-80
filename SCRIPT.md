@@ -1482,7 +1482,7 @@ promise kept one screen later rather than a bait._
 > "I need something to call you."
 
 `signup.error.number`
-> "Enter eight digits for Norway, or include the country code, like +47 900 33 575."
+> "Enter a phone number with its country code, like +47 900 33 575."
 
 `signup.error.email`
 > "That address doesn't look right."
@@ -2011,9 +2011,6 @@ permissions. Neither screen displays stored commitments, goals or other private 
 
 `access.detail`
 > "Use the phone number you signed up with. We’ll text a code to confirm it’s you."
-
-`access.phone.detail`
-> "For Norway, enter eight digits. We add +47. For other countries, include the country code."
 
 `access.send`
 > "Text me a code"

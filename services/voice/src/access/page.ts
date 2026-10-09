@@ -1,15 +1,14 @@
 import type { ScriptLines } from '../script.ts';
 import { esc, shell } from '../link/page.ts';
 
-export function accessPage(script: ScriptLines, phone = '', note?: string, memory = false): string {
+export function accessPage(script: ScriptLines, phone = '+47 ', note?: string, memory = false): string {
   const say = (key: string): string => esc(script.get(key) ?? '');
   return shell(`<h1>${say(memory ? 'memory.title' : 'access.title')}</h1><p class="now">${say(memory ? 'access.memory.detail' : 'access.detail')}</p>
     ${note ? `<p role="alert">${say(note)}</p>` : ''}
     <form method="post" action="/access">
       ${memory ? '<input type="hidden" name="intent" value="memory" />' : ''}
       <label for="phone">${say('signup.phone')}</label>
-      <input id="phone" type="tel" name="phone" autocomplete="tel" inputmode="tel" aria-describedby="phone-detail" required maxlength="32" value="${esc(phone)}" />
-      <p class="hint" id="phone-detail">${say('access.phone.detail')}</p>
+      <input id="phone" type="tel" name="phone" autocomplete="tel" inputmode="tel" required maxlength="32" value="${esc(phone)}" />
       <button class="primary">${say('access.send')}</button>
     </form><p class="hint">${say('access.help')} <a href="/privacy">${say('access.privacy')}</a></p>
     <a href="/">${say('access.home')}</a>`);

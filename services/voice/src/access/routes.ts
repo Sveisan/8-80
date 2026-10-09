@@ -18,7 +18,7 @@ export async function accessRoutes(req: IncomingMessage, url: URL, deps: LoopDep
   if (url.pathname !== '/access' && url.pathname !== '/access/verify') return undefined;
   const { script } = deps;
   let memory = url.searchParams.get('for') === 'memory';
-  const page = (status: number, note?: string, phone = ''): Answer => ({ status, body: accessPage(script, phone, note, memory) });
+  const page = (status: number, note?: string, phone?: string): Answer => ({ status, body: accessPage(script, phone, note, memory) });
   if (req.method === 'GET') return page(200);
   if (req.method !== 'POST') return page(405);
   if (crossSite(req)) return page(403, 'access.tryagain');
@@ -32,7 +32,7 @@ export async function accessRoutes(req: IncomingMessage, url: URL, deps: LoopDep
   const form = new URLSearchParams(Buffer.concat(chunks).toString('utf8'));
   memory = form.get('intent') === 'memory';
   const phone = readPhone(form.get('phone') ?? '');
-  if (!phone) return page(400, 'signup.error.number');
+  if (!phone) return page(400, 'signup.error.number', form.get('phone') ?? '');
   const codes = new AccessCodes(deps.store.raw);
   const id = (form.get('id') ?? '').slice(0, 36);
   const limited = (): Answer => /^[0-9a-f-]{36}$/.test(id)

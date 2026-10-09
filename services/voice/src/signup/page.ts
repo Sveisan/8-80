@@ -131,10 +131,10 @@ export function signupPage(
   const second = script.get('signup.headline.second') ? `<span>${say('signup.headline.second')}</span>` : '';
 
   const field = (name: string, label: string, type: string, extra = ''): string => {
-    const describedBy = [name === 'phone' ? 'phone-detail' : '', wrong.has(name) ? `${name}-wrong` : ''].filter(Boolean).join(' ');
+    const describedBy = wrong.has(name) ? `${name}-wrong` : '';
     return `
       <label for="${name}">${label}</label>
-      <input id="${name}" name="${name}" type="${type}" value="${esc(v[name as keyof typeof v] ?? '')}"
+      <input id="${name}" name="${name}" type="${type}" value="${esc(v[name as keyof typeof v] ?? (name === 'phone' ? '+47 ' : ''))}"
              ${wrong.has(name) ? 'class="bad" aria-invalid="true"' : ''}
              ${describedBy ? `aria-describedby="${describedBy}"` : ''} ${extra} />
       ${note(name)}`;
@@ -153,7 +153,6 @@ export function signupPage(
     <form method="post" action="/start" novalidate>
       <div class="fields">
         ${field('phone', say('signup.phone'), 'tel', 'autocomplete="tel" inputmode="tel" enterkeyhint="next" required')}
-        <p class="quiet small phone-hint" id="phone-detail">${say('access.phone.detail')}</p>
         ${field('email', say(script.get('signup.email.short') ? 'signup.email.short' : 'signup.email'), 'email', 'autocomplete="email" autocapitalize="off" spellcheck="false" enterkeyhint="done" required')}
       </div>
 
@@ -446,7 +445,6 @@ function shell(body: string, language = 'en'): string {
   .fields .wrong { padding: 0 1rem .75rem; margin: 0; }
   .appointment { margin-top: .75rem; font-weight: 600; }
   [hidden] { display: none !important; }
-  .fields .phone-hint { padding: 0 1rem .9rem; margin: 0; }
   input::placeholder { color: var(--quiet); opacity: 1; }
 
   /*

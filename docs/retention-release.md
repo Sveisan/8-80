@@ -4,7 +4,7 @@ Prepared 9 October 2026 on top of merged commit `46fde7f`. The earlier first-mon
 
 ## What changes
 
-- Booking and access explain Norwegian eight-digit input and explicit international country codes. Phone/email labels remain visible after entry.
+- Booking and access prefill an editable `+47` country code. People enter their Norwegian number after it or replace it for another country, without an explanatory paragraph. Phone/email labels remain visible after entry, and submitted values survive validation errors.
 - Booking previews the actual first date and local zone using the same `nextSlotAfter` calculation as enrollment. Changing a slot refreshes the date; the server check-date button preserves choices and works without JavaScript. Date checking does not enroll someone or send an SMS. The code-entry page also shows a dated appointment.
 - Returning controls are grouped into next call, notes, plan, contact/preferences and data. Time, goal and email editing expand when needed. Skip, pause, cancellation and data actions remain discoverable. Sensitive actions retain their existing proof requirements.
 - Returning prompts handle a missing previous action with an ordinary check-in, skip the completion/undone-week questions, and explicitly accept declining an action. Introduction completion remains independent of choosing an action. Recent three-month wording is preserved and aligned in goal-editing labels.
