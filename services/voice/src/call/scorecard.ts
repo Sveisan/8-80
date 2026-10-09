@@ -280,7 +280,7 @@ function scoreGoal(script: ScriptLines, turns: TimedTurn[]): Finding[] {
   const asked = (id: string) => indexOfLine(window, script.get(id)) >= 0;
   for (const [check, id, what] of [
     ['map.eighty', 'read.first.eighty', 'asked what they want to have done by eighty'],
-    ['map.year', 'work.year', "asked for this year's goals"],
+    ['map.year', 'work.year', "asked for the three-month goals"],
     ['map.readback', 'read.first.keep', 'said the map back'],
   ] as const) {
     out.push({ check, severity: asked(id) ? 'ok' : 'fail', detail: asked(id) ? what : `never ${what}` });

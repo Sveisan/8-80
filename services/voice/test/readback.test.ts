@@ -9,14 +9,14 @@ const script = loadScript();
 
 test('their eight and eighty come out of the read-back, in their words', () => {
   const found = readBack(
-    ['Mm.', 'Let me say it back. At eight, building dens in the woods. By eighty, a family. And this year, the apartment and a stand-up set. Have I got that right?', 'Which one?'],
+    ['Mm.', 'Let me say it back. At eight, building dens in the woods. By eighty, a family. And in the next three months, the apartment and a stand-up set. Have I got that right?', 'Which one?'],
     script.get('read.first.keep'),
   );
   assert.deepEqual(found, { eight: 'building dens in the woods', eighty: 'a family', goals: 'the apartment and a stand up set' });
 });
 
 test('a read-back that dropped its closing words still counts, inside its own turn', () => {
-  const found = readBack(['Let me say it back. At eight, building dens. By eighty, a family. And this year, stand-up.', 'Anyway.'], script.get('read.first.keep'));
+  const found = readBack(['Let me say it back. At eight, building dens. By eighty, a family. And in the next three months, stand-up.', 'Anyway.'], script.get('read.first.keep'));
   assert.deepEqual(found, { eight: 'building dens', eighty: 'a family', goals: 'stand up' });
 });
 
@@ -82,9 +82,9 @@ test('a correction to this year says back only that part, and the correction is 
       providerCallId: 'c4',
       durationMs: 600_000,
       turns: [
-        { speaker: 'agent', text: 'Let me say it back. At eight, making people laugh. By eighty, a family. And this year, lobbying for my main job. Have I got that right?' },
+        { speaker: 'agent', text: 'Let me say it back. At eight, making people laugh. By eighty, a family. And in the next three months, lobbying for my main job. Have I got that right?' },
         { speaker: 'caller', text: 'Being part of Operators.' },
-        { speaker: 'agent', text: 'So this year: being part of Operators. Got it.' },
+        { speaker: 'agent', text: 'So the next three months: being part of Operators. Got it.' },
       ],
     },
     script,

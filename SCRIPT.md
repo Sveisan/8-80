@@ -146,8 +146,8 @@ and on. The caller said afterwards that it never made him comfortable enough to 
 that it went deep on the wrong thing — when to look at listings — and that there was
 never a natural moment to mention the rest of what he wanted._
 
-_So the order runs from easy to real: eight, then eighty, then this year. Eight is a
-warm-up nobody can get wrong. Eighty surfaces the long goals. This year turns them into
+_So the order runs from easy to real: eight, then eighty, then the next three months. Eight is a
+warm-up nobody can get wrong. Eighty surfaces the long goals. Three months turns them into
 things that can move. The one thing for next week is picked from that map, not from the
 first thing said._
 
@@ -184,7 +184,7 @@ _Take what comes, without digging into how they came to want it — that is the 
 not the goal (§9b). Then closer in:_
 
 `work.year`
-> "And closer in — this year. What would you like to move?"
+> "And closer in — the next three months. What would you like to have done by then?"
 
 _This is the short-term list: things with a next step. Let them name several; that is
 what this question is for. Once, on the one they seem most drawn to:_
@@ -195,7 +195,7 @@ what this question is for. Once, on the one they seem most drawn to:_
 _Then, once, so nothing is left unsaid for want of an opening:_
 
 `work.else`
-> "And if one more thing moved this year, what would it be?"
+> "And if there were room for one more thing in those three months, what would it be?"
 
 _It assumes there is more, which there usually is. "Anything else on the list?" got "No.
 That's it." — a closing question wearing an opening one's clothes._
@@ -205,8 +205,8 @@ holds the week up against it — so it is said as written, and it ends on a ques
 because they may want to correct it:_
 
 `read.first.keep`
-> "Let me say it back. At eight, {{eight}}. By eighty, {{eighty}}. And this year,
-> {{goals}}. Have I got that right?"
+> "Let me say it back. At eight, {{eight}}. By eighty, {{eighty}}. And in the next
+> three months, {{goals}}. Have I got that right?"
 
 _If they correct it, say the corrected version back the same way._
 
@@ -248,11 +248,11 @@ _Choosing between their own items is not advice: nothing is added, and one word 
 it. Handing it back with "what's your own read on it?" lost the last caller in two turns.
 If they have named nothing to choose from, that is a different problem; ask again._
 
-_If they correct the map, say back only the part that changed. For this year's goals,
+_If they correct the map, say back only the part that changed. For the three-month goals,
 the line that keeps it:_
 
 `read.first.fix`
-> "So this year: {{goals}}. Got it."
+> "So the next three months: {{goals}}. Got it."
 
 _If the one they pick is waiting on something outside them — a listing, a reply, a
 decision somebody else makes — once:_
@@ -265,7 +265,7 @@ _Then §6, the one thing, asked plainly (`next.ask.first`)._
 ### 1c. The shape of a first call
 
 _About ten minutes — that is what the shape below actually takes — and it has a destination: **the map — their eight, their eighty,
-this year's goals — and one thing for next week.** If it ends with those it
+the three-month goals — and one thing for next week.** If it ends with those it
 worked. The weekly slot was already chosen at sign-up; the call confirms it, it does not
 collect it, and it does not collect an email either (§6b)._
 
@@ -278,7 +278,7 @@ both, and it is never announced: no "next I'll ask you about", no naming the par
 1. **Hello, and the disclosure** — 2 exchanges.
 2. **Frame, and eight** — 2 exchanges. The warm-up.
 3. **Eighty** — 2–3 exchanges. The long goals.
-4. **This year** — 3–4 exchanges. The goals that can move.
+4. **The next three months** — 3–4 exchanges. The goals that can move.
 5. **The map, said back** — 1 exchange.
 6. **Which one, and the one thing** — 3–4 exchanges. §6.
 7. **The slot, confirmed** — 1 exchange. §6b.
@@ -562,7 +562,7 @@ question is the right one:_
 _Then the day (`next.when`) and the read-back (`next.confirm`). No cue question on a first
 call — "straight after what" on top of "which day" was the drilling the caller felt._
 
-_On a returning call their goals for this year are known from the first call. The one
+_On a returning call their goals for the next few months are known from the first call. The one
 thing can serve any of them; it does not have to be last week's._
 
 ### Variant A — the singular

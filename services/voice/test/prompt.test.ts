@@ -115,7 +115,7 @@ test('the first call runs from easy to real: eight, eighty, this year, then the 
   const order = [
     'knocking on your door',
     "You're eighty, looking back",
-    'this year. What would you like to move?',
+    'the next three months. What would you like to have done by then?',
     'Let me say it back.',
     'Which one would you most like to see move',
     "What's one thing you'll do on it",
@@ -147,7 +147,7 @@ test('the first call reads their eight and eighty back, which is how they are ke
   const p = buildInstructions(loadScript(), { callNumber: 1 });
   assert.match(p, /At eight, \{\{eight\}\}/);
   assert.match(p, /By eighty, \{\{eighty\}\}/);
-  assert.match(p, /this year, \{\{goals\}\}/);
+  assert.match(p, /three months, \{\{goals\}\}/);
 });
 
 test('a returning call reads against their own answers, and never repeats an assumption', () => {
