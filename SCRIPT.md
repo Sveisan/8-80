@@ -184,7 +184,7 @@ _Take what comes, without digging into how they came to want it — that is the 
 not the goal (§9b). Then closer in:_
 
 `work.year`
-> "And closer in — the next three months. What would you like to have done by then?"
+> "And closer in — the next three months. What would you like to have achieved by then?"
 
 _This is the short-term list: things with a next step. Let them name several; that is
 what this question is for. Once, on the one they seem most drawn to:_

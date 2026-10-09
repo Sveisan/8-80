@@ -115,7 +115,7 @@ test('the first call runs from easy to real: eight, eighty, this year, then the 
   const order = [
     'knocking on your door',
     "You're eighty, looking back",
-    'the next three months. What would you like to have done by then?',
+    'the next three months. What would you like to have achieved by then?',
     'Let me say it back.',
     'Which one would you most like to see move',
     "What's one thing you'll do on it",
