@@ -18,7 +18,7 @@ const texts: string[] = [];
 let fail = false;
 let client = 0;
 let number = 0;
-const signup = () => ({ phone: `+47940000${String(++number).padStart(2, '0')}`, name: '', email: 'booking@example.com', weekday: 4, minute: 990, timezone: 'America/New_York' });
+const signup = () => ({ phone: `+47940000${String(++number).padStart(2, '0')}`, name: 'Mina', email: 'booking@example.com', weekday: 4, minute: 990, timezone: 'America/New_York' });
 const hidden = (html: string, name: string): string => { const value = new RegExp(`name="${name}" value="([^"]+)"`).exec(html)?.[1]; assert.ok(value); return value; };
 const post = (body: Record<string, string>): RequestInit => ({ method: 'POST', body: new URLSearchParams(body), redirect: 'manual', headers: { 'content-type': 'application/x-www-form-urlencoded', 'x-forwarded-for': `203.0.113.${++client}` } });
 async function serve(body: (base: string) => Promise<void>): Promise<void> {
@@ -43,7 +43,7 @@ test('booking explains the AI call and free month; wrong codes and early resend 
     const landing = await (await fetch(`${base}/start`)).text();
     assert.match(landing, /weekly phone conversation with an AI/);
     assert.match(landing, /30 days free, no card required/);
-    assert.doesNotMatch(landing, /name="name"/);
+    assert.match(landing, /name="name"[\s\S]*?autocomplete="given-name"/);
     const request = await fetch(`${base}/start`, post({ ...booking, weekday: '4', time: '16:30', minute: '990' }));
     assert.equal(request.status, 200);
     const html = await request.text();
@@ -60,7 +60,7 @@ test('booking explains the AI call and free month; wrong codes and early resend 
     const edit = await fetch(`${base}/start/edit`, post({ draft }));
     assert.equal(edit.status, 200);
     const fields = await edit.text();
-    for (const expected of [booking.phone, booking.email, '16:30', 'America/New_York']) assert.ok(fields.includes(expected));
+    for (const expected of [booking.name, booking.phone, booking.email, '16:30', 'America/New_York']) assert.ok(fields.includes(expected));
     assert.match(fields, /data-preserved="1"/);
     assert.deepEqual(await new Pending(db!.sql).draft(draft), booking);
     assert.equal(await db!.store.phoneFor(phoneKey(booking.phone)), undefined);
@@ -149,7 +149,9 @@ test('a failed welcome still lands a verified new caller on a usable confirmatio
     const page = await fetch(`${base}/me?welcome=unavailable`, { headers: { cookie } });
     assert.equal(page.status, 200);
     assert.match(await page.text(), /could not confirm delivery of the welcome text/);
-    assert.equal((await db!.store.load(booking.phone)).onboarding, 'pending');
+    const caller = await db!.store.load(booking.phone);
+    assert.equal(caller.onboarding, 'pending');
+    assert.equal(caller.name, booking.name);
   });
 });
 
@@ -182,10 +184,11 @@ test('checking the first date needs no contact details and sends no verification
     const invalid = await fetch(`${base}/start/appointment?weekday=2&time=08%3A00&timezone=Not%2FAZone`);
     assert.equal(invalid.status, 400);
     assert.deepEqual(await invalid.json(), { error: 'invalid slot' });
-    const checked = await fetch(`${base}/start/preview`, post({ phone: '900 33 575', email: 'unfinished', weekday: '2', time: '08:00', timezone: 'Europe/Oslo' }));
+    const checked = await fetch(`${base}/start/preview`, post({ name: 'Mina', phone: '900 33 575', email: 'unfinished', weekday: '2', time: '08:00', timezone: 'Europe/Oslo' }));
     assert.equal(checked.status, 200);
     const html = await checked.text();
     assert.match(html, /<noscript>[\s\S]*First call: Tuesday/);
+    assert.match(html, /value="Mina"/);
     assert.match(html, /value="900 33 575"/);
     assert.match(html, /value="unfinished"/);
     assert.equal(texts.length, 0);

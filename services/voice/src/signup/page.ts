@@ -90,7 +90,7 @@ export interface SignupFormState {
 /**
  * The only page a stranger sees.
  *
- * A headline, a service summary, two fields, a day and a time. The fields keep visible labels after entry, the day is one tap, and the time is a row you
+ * A headline, a service summary, contact fields, a day and a time. The fields keep visible labels after entry, the day is one tap, and the time is a row you
  * swipe and tap — nothing opens a picker. Everything else the page could say
  * waits in the questions at the bottom for whoever wants it.
  *
@@ -152,6 +152,7 @@ export function signupPage(
 
     <form method="post" action="/start" novalidate>
       <div class="fields">
+        ${field('name', say('signup.name'), 'text', 'autocomplete="given-name" autocapitalize="words" maxlength="80" enterkeyhint="next"')}
         ${field('phone', say('signup.phone'), 'tel', 'autocomplete="tel" inputmode="tel" enterkeyhint="next" required')}
         ${field('email', say(script.get('signup.email.short') ? 'signup.email.short' : 'signup.email'), 'email', 'autocomplete="email" autocapitalize="off" spellcheck="false" enterkeyhint="done" required')}
       </div>
@@ -434,7 +435,7 @@ function shell(body: string, language = 'en'): string {
   input.bad { border-color: var(--bad); }
   input.code { font-size: 1.75rem; letter-spacing: .35em; text-align: center; font-variant-numeric: tabular-nums; }
 
-  /* Two fields as one card, so the form reads as one thing to fill in. */
+  /* Contact fields as one card, so the form reads as one thing to fill in. */
   .fields { border: 1px solid var(--line); border-radius: 1.1rem; overflow: hidden; background: var(--card); }
   .fields input { border: 0; border-radius: 0; min-height: 3.4rem; padding: .9rem 1rem; }
   .fields label { margin: 0; padding: .7rem 1rem 0; font-size: .85rem; }

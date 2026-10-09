@@ -210,10 +210,8 @@ export function variablesFor(caller: {
     first_name: firstName(caller.name),
     onboarding_progress: caller.onboarding ?? (caller.callNumber <= 1 ? 'pending' : 'legacy'),
     next_appointment: caller.nextSlot ?? NOTHING_RECORDED,
-    // Their name is deliberately NOT here. The mentor never says it — the
-    // returning greeting is "Hello again." on purpose — so sending it would
-    // hand a name to a voice platform for nothing, and a model that has one
-    // in context will find a use for it that the script forbids.
+    // The full stored name stays out of the provider variables; only the first
+    // name above is available for the greeting and close.
 
     // Always sent, even empty — a platform that substitutes a prompt does it
     // blindly, and a missing variable becomes "Last week you said you'd . What

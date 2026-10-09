@@ -1455,7 +1455,7 @@ requirement was always that nobody can reach the end of this page without having
 to read it, not that it sit in any particular place._
 
 `signup.name`
-> "What should I call you?"
+> "First name"
 
 `signup.phone`
 > "Your number"
@@ -1559,9 +1559,9 @@ message that reads like a sentence._
 
 ### The page, shortened
 
-_Updated 2 October 2026: the headline is followed by the visible AI-call summary.
+_Updated 9 October 2026: the headline is followed by the visible AI-call summary.
 Free-month terms are visible beside the booking action. The questions below provide
-more detail. The form asks for a number and recap address; a name is no longer required._
+more detail. The form asks for a first name, number and recap address; a name remains optional._
 
 `signup.headline`
 > "Two mentors."

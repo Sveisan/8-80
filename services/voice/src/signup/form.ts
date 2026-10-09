@@ -67,7 +67,7 @@ export function readSignup(
   if (!EMAIL.test(email)) errors.push({ field: 'email', why: 'email' });
 
   const name = get('name').slice(0, 80);
-  // The voice deliberately never uses a name; new signups need not provide it.
+  // Optional first name for the greeting; booking also works without one.
 
   const slot = readBookingSlot(form, now);
   if (!slot.ok) errors.push(...slot.errors);
