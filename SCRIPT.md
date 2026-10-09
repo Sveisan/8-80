@@ -1559,7 +1559,7 @@ message that reads like a sentence._
 
 ### The page, shortened
 
-_Updated 9 October 2026: the headline is followed by the visible AI-call summary.
+_Updated 9 October 2026: the headline is followed by a one-sentence accountability-call summary.
 Free-month terms are visible beside the booking action. The questions below provide
 more detail. The form asks for a first name, number and recap address; a name remains optional._
 
@@ -2146,7 +2146,7 @@ Interrupted introductions keep their progress; availability-only calls do not ad
 > "I couldn't book that callback. Please check your call status and choose a time here: {{link}}"
 
 `signup.summary`
-> "Weekly AI calls. Short email recaps."
+> "A weekly accountability call with your eight- and eighty-year-old selves."
 
 `signup.verify.detail`
 > "First, we’ll text you a code. After you confirm it, we’ll call at the time you choose."

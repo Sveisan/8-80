@@ -37,11 +37,11 @@ beforeEach(async () => {
 });
 after(async () => { await db?.close(); });
 
-test('booking explains the AI call and free month; wrong codes and early resend preserve all choices', options, async () => {
+test('booking explains the call and free month; wrong codes and early resend preserve all choices', options, async () => {
   const booking = signup();
   await serve(async base => {
     const landing = await (await fetch(`${base}/start`)).text();
-    assert.match(landing, /Weekly AI calls\. Short email recaps\./);
+    assert.match(landing, /A weekly accountability call with your eight- and eighty-year-old selves\./);
     assert.match(landing, /30 days free, no card required/);
     assert.match(landing, /name="name"[\s\S]*?autocomplete="given-name"/);
     const request = await fetch(`${base}/start`, post({ ...booking, weekday: '4', time: '16:30', minute: '990' }));
