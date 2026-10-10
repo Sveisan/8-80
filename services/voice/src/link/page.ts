@@ -143,10 +143,10 @@ export function reschedulePage(
     <summary>${say('page.goals.open')}</summary>
     <form method="post" class="move">
       <label for="goals">${say('page.goals.label')}</label>
-      <textarea id="goals" name="goals" rows="3" maxlength="${GOALS_MAX}" required></textarea>
-      <p class="hint">${say('page.goals.detail')}</p>
+      <textarea id="goals" name="goals" rows="3" maxlength="${GOALS_MAX}" placeholder="${say('page.goals.example')}" aria-describedby="goals-detail" required></textarea>
+      <p class="hint" id="goals-detail">${say('page.goals.detail')}</p>
       <button name="action" value="goals">${busyLabel(say('page.goals.save'))}</button>
-      ${view.goalsNote ? `<p class="now said">${say(view.goalsNote)}</p>` : ''}
+      ${view.goalsNote ? `<p role="status" class="now said">${say(view.goalsNote)}</p>` : ''}
     </form></details>`
     : '';
 
@@ -239,7 +239,7 @@ export function reschedulePage(
       <h2 id="notes-heading">${say('page.section.notes')}</h2>
       ${goals}
       <p class="hint">${say('page.notes.detail')}</p>
-      <p><a href="/memory">${say('memory.title')}</a></p>
+      <p><a href="/memory">${say('page.notes.review')}</a></p>
     </section>
 
     ${state ? `<section class="account-section" aria-labelledby="plan-heading">
@@ -538,6 +538,7 @@ export function shell(body: string, language = 'en'): string {
     display: block; width: 100%; margin: .4rem 0 0; padding: .7rem .75rem; font: inherit; color: var(--ink);
     background: transparent; border: 1px solid var(--line); border-radius: .5rem; resize: vertical;
   }
+  #goals::placeholder { color: var(--quiet); opacity: 1; }
   a { color: var(--ink); }
   input[type=tel], input[type=text] { display: block; width: 100%; margin: .4rem 0 1rem; }
   input[type=email], input[type=tel], input[type=text] {

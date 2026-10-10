@@ -1853,10 +1853,13 @@ _The note field of the card. Nobody reads it until they wonder, a month in, who 
 number is and how to change it — which is exactly when it should answer._
 
 `page.goals.label`
-> "Anything to add to your three-month goals?"
+> "What would you like to work towards?"
 
 `page.goals.detail`
-> "It goes to the next call, not onto this page — this page opens for whoever has the link."
+> "A sentence is enough. We'll include your goal in the next call."
+
+`page.goals.example`
+> "For example: run 5 km without stopping."
 
 _Added to, never shown back. The page is built for a stranger to find boring (§14), and a
 list of what somebody wants from their year is the least boring thing about them. The
@@ -1867,16 +1870,16 @@ goals that can move" — and that call asks fresh rather than reading anything w
 before it, so a field before the first call would take words and lose them._
 
 `page.goals.save`
-> "Add it"
+> "Add to my goals"
 
 `page.goals.saved`
-> "Added. It'll be there on the next call."
+> "Added to your goals for the next call."
 
 `page.goals.full`
-> "That list is long enough to be getting on with. Bring the rest to the call."
+> "Your goals list is full. Review or edit your saved goals to make room."
 
-_The list goes into the call whole, so it has an end. Dry rather than an error: they have
-done nothing wrong by having a lot they want._
+_The list goes into the call whole, so it has an end. Say plainly why the new goal
+was not saved and point to the verified review link below._
 
 `page.browser.rest`
 > "To get a copy of your data or delete it, open a recent text link or verify your phone again."
@@ -2366,7 +2369,7 @@ Interrupted introductions keep their progress; availability-only calls do not ad
 > "All set."
 
 `page.section.notes`
-> "Your notes"
+> "Your goals"
 
 `page.section.plan`
 > "Your plan"
@@ -2384,7 +2387,10 @@ Interrupted introductions keep their progress; availability-only calls do not ad
 > "Leave this unchecked to move only your next call."
 
 `page.notes.detail`
-> "Your notes are private. Verify your phone to review or correct them."
+> "Verify your phone to view or edit your saved goals."
+
+`page.notes.review`
+> "Review or edit my goals"
 
 `page.move.open.first`
 > "Reschedule first call"
@@ -2396,7 +2402,7 @@ Interrupted introductions keep their progress; availability-only calls do not ad
 > "We can leave it there this week."
 
 `page.goals.open`
-> "Add a goal"
+> "Add to your three-month goals"
 
 `page.email.open`
 > "Change recap email"
