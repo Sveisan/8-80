@@ -6,9 +6,10 @@ import { Links } from '../link/token.ts';
 import { phoneKey } from '../store/postgres.ts';
 import { enqueue, queued, dispatchMessage } from '../messages/outbox.ts';
 import { Scheduler } from '../schedule/scheduler.ts';
+import { describeAppointment, nextSlotAfter } from '../schedule/time.ts';
 import { textBeforeFirstCall } from '../sms/welcome.ts';
 import type { LoopDeps } from '../loop/deps.ts';
-import { readSignup, type Signup } from './form.ts';
+import { readBookingSlot, readSignup, type Signup } from './form.ts';
 import { Limiter } from './limit.ts';
 import { Pending } from './pending.ts';
 import { codePage, signupPage, type SignupFormState } from './page.ts';
@@ -44,23 +45,34 @@ export async function signupRoutes(req: IncomingMessage, url: URL, deps: LoopDep
   const { script, store } = deps;
   const pending = new Pending(store.raw);
   const page = (status: number, state: SignupFormState = {}): Answer => ({ status, body: signupPage(script, state, 'en', now) });
+  if (req.method === 'GET' && url.pathname === '/start/appointment') {
+    if (!config.signup.open()) return undefined;
+    const read = readBookingSlot(url.searchParams, now);
+    return { status: read.ok ? 200 : 400, headers: { 'content-type': 'application/json; charset=utf-8' },
+      body: JSON.stringify(read.ok ? { when: describeAppointment(nextSlotAfter(now, read.slot), read.slot.timezone) } : { error: 'invalid slot' }) };
+  }
   if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/start')) {
     if (!config.signup.open()) return undefined;
     await countRequest(store.raw, 'booking_view', now);
     return page(200);
   }
-  if (req.method !== 'POST' || !['/start', '/start/verify', '/start/resend', '/start/edit'].includes(url.pathname)) return undefined;
+  if (req.method !== 'POST' || !['/start', '/start/preview', '/start/verify', '/start/resend', '/start/edit'].includes(url.pathname)) return undefined;
   if (crossSite(req)) return page(403, { note: 'signup.code.tryagain' });
-  if (url.pathname === '/start' && !config.signup.open()) return undefined;
+  if (['/start', '/start/preview'].includes(url.pathname) && !config.signup.open()) return undefined;
   const form = await body(req);
   if (!form) return page(413, { note: 'signup.code.tryagain' });
+  if (url.pathname === '/start/preview') {
+    const read = readBookingSlot(form, now);
+    const values = Object.fromEntries(['name', 'phone', 'email', 'weekday', 'time', 'timezone'].map(k => [k, form.get(k) ?? '']));
+    return page(read.ok ? 200 : 400, { values, ...(read.ok ? { appointmentChecked: true } : { errors: read.errors }) });
+  }
   const id = (form.get('draft') ?? '').slice(0, 36);
   const saved = id ? await pending.draft(id, now) : undefined;
   const draft = saved ? { id, signup: saved } : undefined;
 
   if (url.pathname === '/start/verify') {
     const phone = (form.get('phone') ?? '').trim();
-    if (!verifyClient.take(client, +now)) return { status: 429, body: codePage(phone, script, 'signup.code.verifylimited', 'en', draft) };
+    if (!verifyClient.take(client, +now)) return { status: 429, body: codePage(phone, script, 'signup.code.verifylimited', 'en', draft, now) };
     let browser = '';
     const messageIds: string[] = [];
     const verdict = await pending.verify(phone, form.get('code') ?? '', now, id || undefined, async (tx, signup) => {
@@ -84,7 +96,7 @@ export async function signupRoutes(req: IncomingMessage, url: URL, deps: LoopDep
     });
     if (!verdict.ok) {
       const key = { unknown: 'signup.code.unknown', expired: 'signup.code.expired', wrong: 'signup.code.wrong', 'too many': 'signup.code.toomany' }[verdict.why];
-      return { status: 400, body: codePage(phone, script, key, 'en', draft) };
+      return { status: 400, body: codePage(phone, script, key, 'en', draft, now) };
     }
     let notice = '';
     for (const id of messageIds) if (await dispatchMessage(deps, id, now) !== 'accepted') notice = '?welcome=unavailable';
@@ -111,7 +123,7 @@ export async function signupRoutes(req: IncomingMessage, url: URL, deps: LoopDep
   const hash = phoneKey(signup.phone);
   if (!perClient.take(client, +now) || !resendDelay.take(hash, +now) || !perNumber.take(hash, +now)) {
     return draft
-      ? { status: 429, body: codePage(signup.phone, script, 'signup.code.limited', 'en', draft) }
+      ? { status: 429, body: codePage(signup.phone, script, 'signup.code.limited', 'en', draft, now) }
       : page(429, { values: valuesOf(signup), note: 'signup.code.limited' });
   }
   let messageId = '';
@@ -123,7 +135,7 @@ export async function signupRoutes(req: IncomingMessage, url: URL, deps: LoopDep
   const delivery = await dispatchMessage(deps, messageId, now);
   if (delivery !== 'accepted') {
     if (delivery === 'failed' || delivery === 'suppressed') await pending.invalidate(challenge.id, now);
-    return { status: 503, body: codePage(signup.phone, script, delivery === 'failed' || delivery === 'suppressed' ? 'signup.code.notsent' : 'signup.code.deliverypending', 'en', nextDraft) };
+    return { status: 503, body: codePage(signup.phone, script, delivery === 'failed' || delivery === 'suppressed' ? 'signup.code.notsent' : 'signup.code.deliverypending', 'en', nextDraft, now) };
   }
-  return { status: 200, body: codePage(signup.phone, script, undefined, 'en', nextDraft) };
+  return { status: 200, body: codePage(signup.phone, script, undefined, 'en', nextDraft, now) };
 }

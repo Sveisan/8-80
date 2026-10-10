@@ -1,6 +1,6 @@
 # Privacy
 
-Draft updated 3 October 2026; operational wording requires review before release.
+Draft updated 9 October 2026; operational wording requires review before release.
 
 {{company}}{{orgnr_clause}}, at {{address}}, is the data controller. Write to
 {{support_email}} about anything on this page.
@@ -17,8 +17,10 @@ deterministic, which is the point and also its limit — anybody already holding
 your number could confirm it is in here, which is true of any system that can
 recognise you.
 
-**Your email address**, encrypted. **Your name**, if supplied in an older signup or by an operator, is not
-encrypted. New signup forms do not ask for it and the mentor does not use it.
+**Your email address**, encrypted. **Your name**, if supplied, is not encrypted.
+Signup asks for your first name. It is optional and is passed to our voice provider
+for the greeting and close. Older signups or an operator may have supplied a fuller
+name; only the first name is passed to the voice provider.
 
 **What you said you would do** — the one commitment from each call, in your own
 words, encrypted, and only the most recent one. The day you named is kept in
@@ -135,7 +137,8 @@ for up to 30 days, then removed by the scheduled cleanup job.
 
 We keep daily booking/control request counts without visitor identifiers, IPs or
 tracking cookies. Account-linked service milestones contain only a lookup key,
-a fixed event name and time, not what you said. These measurements are removed
+a fixed event name and time, and an opaque conversation-cycle reference when
+needed to distinguish weekly calls from callbacks, not what you said. These measurements are removed
 after 60 days by the cleanup job, or with the account. They help us see where the
 service fails; they do not tell us whether a conversation was useful.
 

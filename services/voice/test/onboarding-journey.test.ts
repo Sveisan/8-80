@@ -68,6 +68,9 @@ test('a 25-second callback keeps first-call routing and sends only the dated boo
   assert.equal(texts.length, 1, 'duplicate provider callbacks cannot send another booking');
   await tick(deps(), new Date('2026-09-08T15:30:00Z'));
   assert.equal(placed[1]?.firstCall, true);
+  const cycles = await db!.sql`select cycle_key from call_attempts order by scheduled_for`;
+  assert.equal(cycles.length, 2);
+  assert.equal(cycles[0]?.['cycle_key'], cycles[1]?.['cycle_key'], 'the callback continues the original cycle');
 });
 
 test('an unfinished map is retained; a confirmed map without an action completes the introduction', options, async () => {
@@ -90,6 +93,11 @@ test('an unfinished map is retained; a confirmed map without an action completes
   assert.equal(complete.lastCommitment, undefined);
   await tick(deps(), new Date('2026-09-22T06:00:00Z'));
   assert.equal(placed[2]?.firstCall, false);
+  await settleConversation(payload('journey_3', [agent('How has the week been?'), caller('It helped to have space to reflect. No action this week.')]), deps(), undefined, new Date('2026-09-22T06:10:00Z'));
+  const conversations = await db!.sql`select cycle_key from journey_events where event = 'conversation_completed'`;
+  assert.equal(conversations.length, 2, 'completed no-action conversations count');
+  assert.equal(new Set(conversations.map(row => row['cycle_key'])).size, 2);
+  assert.equal((await db!.sql`select * from journey_events where event = 'action_read_back'`).length, 0);
 });
 
 test('completion needs both the map and a later confirmation marker after the caller speaks', () => {
@@ -168,4 +176,15 @@ test('the upgrade preserves established callers without declaring past onboardin
   assert.equal(rows[0]?.['onboarding'], 'pending');
   assert.equal(rows[1]?.['onboarding'], 'legacy');
   assert.equal(rows[1]?.['onboarding_completed_at'], null);
+});
+
+
+test('an expired callback does not make the next weekly call a continuation', options, async () => {
+  await enrol();
+  await tick(deps(), now);
+  await settleConversation(payload('journey_1', [agent('Hello'), caller('Later, please'), agent(callback)], 25_000), deps(), undefined, now);
+  await tick(deps(), new Date('2026-09-15T06:00:00Z'));
+  const attempts = await db!.sql`select id, cycle_key from call_attempts where status = 'placed' order by scheduled_for`;
+  assert.equal(attempts.length, 1);
+  assert.equal(attempts[0]?.['cycle_key'], attempts[0]?.['id'], 'the weekly call starts its own cycle');
 });

@@ -22,7 +22,8 @@ async function write(tx: postgres.TransactionSql, row: Row, sub: Subscription, n
   await tx`update callers set billing_status = ${sub.standing}, billing_provider = ${sub.provider},
     ls_subscription_id = ${sub.subscriptionId}, ls_customer_id = ${sub.customerId},
     cancel_at_period_end = ${sub.cancelAtPeriodEnd}, paid_until = ${sub.endsAt ? new Date(sub.endsAt) : null},
-    next_call_at = ${next}, updated_at = now() where phone_hash = ${row.phone_hash}`;
+    next_call_at = ${next},
+    next_call_cycle = case when ${next?.getTime() !== row.next_call_at?.getTime()} then null else next_call_cycle end, updated_at = now() where phone_hash = ${row.phone_hash}`;
 }
 
 /** Read current provider state under the caller lock: delayed events cannot replay old payment status. */

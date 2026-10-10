@@ -1,4 +1,4 @@
-import { parseLocalTime, parseWeekday } from '../schedule/time.ts';
+import { parseLocalTime, parseWeekday, type Slot } from '../schedule/time.ts';
 
 export interface Signup {
   phone: string;
@@ -67,22 +67,29 @@ export function readSignup(
   if (!EMAIL.test(email)) errors.push({ field: 'email', why: 'email' });
 
   const name = get('name').slice(0, 80);
-  // The voice deliberately never uses a name; new signups need not provide it.
+  // Optional first name for the greeting; booking also works without one.
 
-  const weekday = parseWeekday(get('weekday'));
-  if (weekday === undefined) errors.push({ field: 'weekday', why: 'weekday' });
+  const slot = readBookingSlot(form, now);
+  if (!slot.ok) errors.push(...slot.errors);
 
-  const minute = parseLocalTime(get('time'));
-  if (minute === undefined) errors.push({ field: 'minute', why: 'time' });
-
-  const timezone = get('timezone') || 'Europe/Oslo';
-  if (!isZone(timezone, now)) errors.push({ field: 'timezone', why: 'timezone' });
-
-  if (errors.length) return { ok: false, errors };
+  if (errors.length || !slot.ok) return { ok: false, errors };
   return {
     ok: true,
-    signup: { phone, email, name, weekday: weekday as number, minute: minute as number, timezone },
+    signup: { phone, email, name, ...slot.slot },
   };
+}
+
+/** Preview a date without collecting, validating or storing contact details. */
+export function readBookingSlot(form: URLSearchParams, now = new Date()): { ok: true; slot: Slot } | { ok: false; errors: Invalid[] } {
+  const errors: Invalid[] = [];
+  const weekday = parseWeekday((form.get('weekday') ?? '').trim());
+  const minute = parseLocalTime((form.get('time') ?? '').trim());
+  const timezone = (form.get('timezone') ?? '').trim() || 'Europe/Oslo';
+  if (weekday === undefined) errors.push({ field: 'weekday', why: 'weekday' });
+  if (minute === undefined) errors.push({ field: 'minute', why: 'time' });
+  if (!isZone(timezone, now)) errors.push({ field: 'timezone', why: 'timezone' });
+  if (errors.length) return { ok: false, errors };
+  return { ok: true, slot: { weekday: weekday as number, minute: minute as number, timezone } };
 }
 
 /**

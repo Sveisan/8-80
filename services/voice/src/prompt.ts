@@ -111,7 +111,7 @@ export function buildInstructions(script: ScriptLines, profile: CallerProfile): 
       `0. YOUR FIRST SENTENCE IS EXACTLY: "${line('open.return.greet')}" — nothing before it, nothing added to it. THIS IS NOT THE FIRST CALL. It is call number ${profile.callNumber}. You have spoken before, they know what this is, and they know who you are. Do NOT introduce yourself. Do NOT explain how this works or what happens next week. Do NOT ask whether now is a good time. Do NOT say the name of this call. Start at 1.`,
       `1. Open: "${line('open.return.greet')}"`,
       `2. One beat, then ask about last week, quoting their own words back: "${line('open.return.callback').replace('{{commitment}}', profile.lastCommitment ?? 'the thing you named')}"`,
-      '   If what you have for last week reads "(nothing recorded)", then nothing was written down and there is nothing to quote. Do not say the line, and do not pretend to remember. Ask what they ended up working on instead, and carry on from their answer.',
+      `   If last week's action is blank or reads "(nothing recorded)", there is no previous action to check. Instead of the callback line ask: "${line('open.return.no_action')}" Then listen and continue from what they say. Skip stages 3–5 about completion and undone weeks; choosing no action is not an unfinished commitment. Do not invent a previous action, and do not pretend to remember.`,
       `3. If they did it: "${line('last.did')}" If partly: "${line('last.partial')}" Say whichever it is as written: which one you say is how the week is recorded, done or partly or not, and a paraphrase records nothing.`,
       ...(profile.belief !== undefined
         ? [
@@ -162,6 +162,7 @@ export function buildInstructions(script: ScriptLines, profile: CallerProfile): 
   const returning = (...lines: string[]) => (first ? [] : lines);
 
   stages.push(
+    `CHOOSING NO ACTION: if they explicitly decline an action, say "${line('next.none')}" and proceed to the close. This applies on first and returning calls and overrides prompts to pick, propose, make concrete or pin a commitment. Do not record the absence of an action as an undone week.`,
     `6b. If the answers stay short — three words, then waiting — do not ask another question; that reads as an interview and they get shorter. Go smaller and more concrete: "${line('thin.smaller')}" then, if needed, "${line('thin.concrete')}" Once in the call, and only if the shortness reads as effort rather than reluctance: "${line('thin.permission')}" If two of these have been tried and the answers stay short, stop reaching — take the smallest true thing they gave you, pin a commitment to it, and close early. A short call that ended well is a second call.`,
     ...returning(
       ownRead

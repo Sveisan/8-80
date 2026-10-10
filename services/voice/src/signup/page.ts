@@ -1,5 +1,6 @@
 import type { ScriptLines } from '../script.ts';
-import type { Invalid, Signup } from './form.ts';
+import { readBookingSlot, type Invalid, type Signup } from './form.ts';
+import { describeAppointment, nextSlotAfter } from '../schedule/time.ts';
 import { BUSY, BUSY_CSS, MOTION, busyLabel, mascot } from './mascot.ts';
 
 const esc = (s: string): string =>
@@ -82,14 +83,14 @@ const ERROR_KEY: Record<Invalid['why'], string> = {
 export interface SignupFormState {
   errors?: Invalid[];
   note?: string;
+  appointmentChecked?: boolean;
   values?: Partial<Record<'name' | 'phone' | 'email' | 'weekday' | 'time' | 'timezone', string>>;
 }
 
 /**
  * The only page a stranger sees.
  *
- * A headline, a service summary, two fields, a day and a time. The fields carry their names
- * inside them rather than above, the day is one tap, and the time is a row you
+ * A headline, a service summary, contact fields, a day and a time. The fields keep visible labels after entry, the day is one tap, and the time is a row you
  * swipe and tap — nothing opens a picker. Everything else the page could say
  * waits in the questions at the bottom for whoever wants it.
  *
@@ -119,6 +120,9 @@ export function signupPage(
   const start = startingPoint(now);
   const weekday = v.weekday || start.weekday;
   const time = TIMES.includes(v.time ?? '') ? (v.time as string) : start.time;
+  const selection = readBookingSlot(new URLSearchParams({ weekday, time, timezone: v.timezone || HOME }), now);
+  const appointment = selection.ok ? describeAppointment(nextSlotAfter(now, selection.slot), selection.slot.timezone, language) : '';
+  const appointmentLine = (script.get('signup.appointment') ?? '').replace('{{when}}', appointment);
   const faq = FAQ.filter(([q, a]) => script.get(q) && script.get(a));
   const inFaq = (answer: string): boolean => faq.some(([, a]) => a === answer);
   const headline = script.get('signup.headline') ? 'signup.headline' : 'signup.title';
@@ -126,12 +130,15 @@ export function signupPage(
   // it the headline is one line, which is what `signup.title` still is.
   const second = script.get('signup.headline.second') ? `<span>${say('signup.headline.second')}</span>` : '';
 
-  const field = (name: string, label: string, type: string, extra = ''): string => `
-      <label for="${name}" class="sr">${label}</label>
-      <input id="${name}" name="${name}" type="${type}" value="${esc(v[name as keyof typeof v] ?? '')}"
-             placeholder="${label}"
-             ${wrong.has(name) ? `class="bad" aria-invalid="true" aria-describedby="${name}-wrong"` : ''} ${extra} />
+  const field = (name: string, label: string, type: string, extra = ''): string => {
+    const describedBy = wrong.has(name) ? `${name}-wrong` : '';
+    return `
+      <label for="${name}">${label}</label>
+      <input id="${name}" name="${name}" type="${type}" value="${esc(v[name as keyof typeof v] ?? (name === 'phone' ? '+47 ' : ''))}"
+             ${wrong.has(name) ? 'class="bad" aria-invalid="true"' : ''}
+             ${describedBy ? `aria-describedby="${describedBy}"` : ''} ${extra} />
       ${note(name)}`;
+  };
 
   return shell(
     `
@@ -145,6 +152,7 @@ export function signupPage(
 
     <form method="post" action="/start" novalidate>
       <div class="fields">
+        ${field('name', say('signup.name'), 'text', 'autocomplete="given-name" autocapitalize="words" maxlength="80" enterkeyhint="next"')}
         ${field('phone', say('signup.phone'), 'tel', 'autocomplete="tel" inputmode="tel" enterkeyhint="next" required')}
         ${field('email', say(script.get('signup.email.short') ? 'signup.email.short' : 'signup.email'), 'email', 'autocomplete="email" autocapitalize="off" spellcheck="false" enterkeyhint="done" required')}
       </div>
@@ -170,11 +178,26 @@ export function signupPage(
       </fieldset>
 
       <input type="hidden" name="timezone" id="tz" value="${esc(v.timezone || HOME)}"${v.timezone ? ' data-preserved="1"' : ''} />
-      <button class="primary">${busyLabel(say('signup.submit'))}</button>
+      <p class="quiet small appointment" id="first-appointment" aria-live="polite"
+         data-format="${say('signup.appointment')}" data-pending="${say('signup.appointment.pending')}"
+         data-unavailable="${say('signup.appointment.unavailable')}">${esc(appointmentLine)}</p>
+      <noscript><style>#first-appointment { display: none; }</style>
+        ${state.appointmentChecked && appointment ? `<p class="quiet small">${esc(appointmentLine)}</p>` : ''}
+      </noscript>
+      <div id="appointment-check">
+        <p class="quiet small">${say('signup.appointment.check.detail')}</p>
+        <button type="submit" formaction="/start/preview" formnovalidate>${say('signup.appointment.check')}</button>
+      </div>
+      <p class="quiet small">${say('signup.appointment.detail')}</p>
+      <p class="quiet small" id="signup-verify">${say('signup.verify.detail')}</p>
+      <button class="primary" aria-describedby="signup-verify">${busyLabel(say('signup.submit'))}</button>
       ${inFaq('signup.free') ? '' : `<p class="quiet small centre">${say('signup.free')}</p>`}
       <p class="quiet small centre">${say('signup.terms.summary')}</p>
     </form>
-    <p class="quiet small centre"><a href="/access">${say('access.returning')}</a></p>
+    <div class="returning">
+      <p>${say('access.returning')}</p>
+      <a href="/access">${say('access.title')} <span aria-hidden="true">&rarr;</span></a>
+    </div>
 
     ${
       faq.length
@@ -212,6 +235,38 @@ export function signupPage(
           }
         }
       } catch (e) {}
+      // The server uses the same next-slot calculation as verified enrollment.
+      // Only the slot travels in this request; contact details stay in the form.
+      try {
+        var preview = document.getElementById('first-appointment');
+        var check = document.getElementById('appointment-check');
+        var version = 0;
+        var updateAppointment = function () {
+          var request = ++version;
+          var query = new URLSearchParams({
+            weekday: document.querySelector('input[name=weekday]:checked').value,
+            time: document.querySelector('input[name=time]:checked').value,
+            timezone: document.getElementById('tz').value
+          });
+          preview.textContent = preview.getAttribute('data-pending');
+          fetch('/start/appointment?' + query.toString(), { cache: 'no-store' })
+            .then(function (response) { if (!response.ok) throw new Error('date unavailable'); return response.json(); })
+            .then(function (answer) {
+              if (request !== version) return;
+              preview.textContent = preview.getAttribute('data-format').replace('{{when}}', answer.when);
+              check.hidden = true;
+            })
+            .catch(function () {
+              if (request !== version) return;
+              preview.textContent = preview.getAttribute('data-unavailable');
+              check.hidden = false;
+            });
+        };
+        document.getElementById('when').addEventListener('change', updateAppointment);
+        updateAppointment();
+        setInterval(function () { if (!document.hidden) updateAppointment(); }, 60000);
+        document.addEventListener('visibilitychange', function () { if (!document.hidden) updateAppointment(); });
+      } catch (e) {}
       try {
         var row = document.getElementById('times');
         var centre = function (el, smooth) {
@@ -229,7 +284,7 @@ export function signupPage(
 }
 
 /** After the form, before the caller exists. The code is the whole page. */
-export function codePage(phone: string, script: ScriptLines, wrong?: string, language = 'en', draft?: { id: string; signup: Signup }): string {
+export function codePage(phone: string, script: ScriptLines, wrong?: string, language = 'en', draft?: { id: string; signup: Signup }, now = new Date()): string {
   const say = (id: string): string => esc(script.get(id) ?? '');
   const notice = !draft && ['signup.code.expired', 'signup.code.toomany'].includes(wrong ?? '') ? 'signup.code.restart' : wrong;
   return shell(
@@ -237,7 +292,7 @@ export function codePage(phone: string, script: ScriptLines, wrong?: string, lan
     <header class="lockup">${mascot('nudge')}</header>
     <h1>${say('signup.code.title')}</h1>
     <p class="quiet">${esc((script.get(wrong ? 'signup.code.pending' : 'signup.code.detail') ?? '').replace('{{phone}}', phone))}</p>
-    ${draft ? `<p class="quiet">${esc((script.get('signup.code.booking') ?? '').replace('{{when}}', `${dayNames(language, 'long')[draft.signup.weekday]} ${clock(draft.signup.minute)} · ${draft.signup.timezone}`))}</p>` : ''}
+    ${draft ? `<p class="quiet">${esc((script.get('signup.code.booking') ?? '').replace('{{when}}', describeAppointment(nextSlotAfter(now, draft.signup), draft.signup.timezone, language)))}</p>` : ''}
     ${notice ? `<p class="wrong">${say(notice)}</p>` : ''}
     <form method="post" action="/start/verify" id="verify">
       <input type="hidden" name="phone" value="${esc(phone)}" />
@@ -370,6 +425,7 @@ function shell(body: string, language = 'en'): string {
   form { margin: 0 0 1rem; }
   fieldset { border: 0; padding: 0; min-width: 0; }
   fieldset legend { margin-top: 0; }
+  #when legend, #when .zone { width: 100%; text-align: center; }
   /* Which clock, directly under the question, quiet enough not to be a second question. */
   .zone { margin: -.2rem 0 .5rem; font-size: .85rem; color: var(--quiet); }
   label, legend { display: block; font-size: .95rem; color: var(--quiet); margin: 1rem 0 .35rem; padding: 0; }
@@ -383,14 +439,17 @@ function shell(body: string, language = 'en'): string {
   input.bad { border-color: var(--bad); }
   input.code { font-size: 1.75rem; letter-spacing: .35em; text-align: center; font-variant-numeric: tabular-nums; }
 
-  /* Two fields as one card, so the form reads as one thing to fill in. */
+  /* Contact fields as one card, so the form reads as one thing to fill in. */
   .fields { border: 1px solid var(--line); border-radius: 1.1rem; overflow: hidden; background: var(--card); }
   .fields input { border: 0; border-radius: 0; min-height: 3.4rem; padding: .9rem 1rem; }
-  .fields label + input { border-top: 1px solid var(--line); }
-  .fields label:first-child + input { border-top: 0; }
+  .fields label { margin: 0; padding: .7rem 1rem 0; font-size: .85rem; }
+  .fields label:not(:first-child) { border-top: 1px solid var(--line); }
+  .fields input { padding-top: .35rem; }
   .fields input:focus-visible { outline: 0; box-shadow: inset 3px 0 0 var(--accent); }
   .fields input.bad { box-shadow: inset 3px 0 0 var(--bad); }
   .fields .wrong { padding: 0 1rem .75rem; margin: 0; }
+  .appointment { margin-top: .75rem; font-weight: 600; }
+  [hidden] { display: none !important; }
   input::placeholder { color: var(--quiet); opacity: 1; }
 
   /*
@@ -437,6 +496,15 @@ function shell(body: string, language = 'en'): string {
   button.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
   button.quiet { border: 0; color: var(--quiet); margin-top: .25rem; font-weight: 400; }
   form + .quiet, button.primary + .quiet { margin-top: .75rem; }
+  .returning { margin-top: 1.75rem; text-align: center; }
+  .returning p { margin: 0 0 .6rem; color: var(--quiet); font-size: .85rem; }
+  .returning a {
+    display: inline-flex; align-items: center; justify-content: center; gap: .6rem;
+    min-height: 2.75rem; padding: .65rem 1.25rem; border: 1px solid var(--line); border-radius: .6rem;
+    background: transparent; color: var(--ink); font-size: .9rem; font-weight: 600; text-decoration: none;
+  }
+  .returning a:hover { background: var(--card); border-color: var(--ink); }
+  .returning a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
   /* Named, not hidden. A sign-up page that does not say where its terms are is
      a sign-up page hoping nobody looks. */
   .legal { margin-top: 2rem; }

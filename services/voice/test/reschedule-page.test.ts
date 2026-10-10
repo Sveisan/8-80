@@ -230,3 +230,23 @@ test('setting an address does not disturb the slot', { skip: skip() }, async () 
 
   assert.deepEqual(await (sched as Scheduler).slotFor(phone), before);
 });
+
+
+test('a review hold is visible without promising or resuming a blocked appointment', { skip: skip() }, async () => {
+  const phone = '+4790000089';
+  const token = await enrolled(phone);
+  await sql!`update callers set held_for_review = true where phone_hash = ${phoneKey(phone)}`;
+  assert.equal(await sched!.nextEligibleCallFor(phone), undefined);
+  assert.equal(await sched!.moveIfActive(phone, new Date(Date.now() + 86400_000)), false);
+  await serving(async base => {
+    const html = await (await fetch(`${base}/r/${token}`)).text();
+    assert.match(html, /Your calls are on hold/);
+    assert.match(html, /name="action" value="stop"/);
+    assert.doesNotMatch(html, /name="action" value="move"/);
+    assert.doesNotMatch(html, /Next call Tuesday/);
+  });
+  await sched!.setPaused(phone, true);
+  assert.equal(await sched!.resumeIfEligible(phone), undefined);
+  const [state] = await sql!`select paused from callers where phone_hash = ${phoneKey(phone)}`;
+  assert.equal(state?.['paused'], true);
+});

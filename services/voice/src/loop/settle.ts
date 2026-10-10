@@ -125,7 +125,7 @@ async function settleInside(
   let callbackBooked = false;
   if (outcome.callAgain && slot) {
     const at = resolveSpokenTime(outcome.callAgain, slot.timezone, now);
-    callbackBooked = await deps.scheduler.moveIfActive(phone, at);
+    callbackBooked = await deps.scheduler.moveIfActive(phone, at, undefined, attempt.cycleKey);
     log('settle.call_again', { booked: callbackBooked, at: at.toISOString() });
   }
   const next = await deps.scheduler.nextEligibleCallFor(phone, now);
@@ -141,6 +141,11 @@ async function settleInside(
     if (outcome.outcome.onboardingComplete) await milestone(deps.store.raw, attempt.phoneHash, 'onboarding_complete', attempt.phoneHash, now);
     if (outcome.outcome.commitment) await milestone(deps.store.raw, attempt.phoneHash, 'action_read_back', attempt.id, now);
     const caller = await deps.store.load(phone);
+    // The existing transcript classifier verifies caller participation. This
+    // operational signal includes no-action calls; it does not claim usefulness.
+    if (['complete', 'legacy'].includes(caller.onboarding ?? '')) {
+      await milestone(deps.store.raw, attempt.phoneHash, 'conversation_completed', attempt.id, now, attempt.cycleKey);
+    }
     const publicUrl = config.link.publicUrl().replace(/\/$/, '');
     const account = await accountState(deps.store.raw, attempt.phoneHash, now);
     const recap = composeRecap(outcome.outcome, deps.script, {

@@ -98,32 +98,37 @@ export function reschedulePage(
   const short = dayNames(language, 'short');
   const via = view.via ?? 'link';
   const state = view.account;
-  const arranging = !state || (state.canCall && !state.paused);
+  const active = !state || (state.canCall && !state.paused);
+  const arranging = active && !state?.onHold;
   const first = arranging ? view.first : undefined;
   const booking = view.beforeFirst ?? !!first;
   const when = `${days[slot.weekday]} ${clock(slot.minute)}`;
   const time = clock(slot.minute);
 
+  const appointment = arranging ? first ?? view.next : undefined;
+  const locale = language === 'en' ? 'en-GB' : language;
+  const appointmentDate = appointment ? new Intl.DateTimeFormat(locale, {
+    weekday: 'long', day: 'numeric', month: 'long', timeZone: slot.timezone,
+  }).format(appointment) : '';
+  const appointmentClock = appointment ? new Intl.DateTimeFormat(locale, {
+    hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: slot.timezone,
+  }).format(appointment) : '';
+  const appointmentZone = zoneLine(slot.timezone, script);
+
   const head = state?.paused
     ? `<h1>${say('page.stopped')}</h1><p class="now">${say('page.paused.detail')}</p>`
+    : state?.onHold
+      ? `<h1>${say('page.held')}</h1><p class="now">${say('page.held.detail')}</p>`
     : state && !state.canCall
       ? `<h1>${say('page.ended')}</h1><p class="now">${say('page.ended.detail')}</p>`
-      : first
-    ? view.fresh
-      ? `<h1>${esc((script.get('signup.done.title') ?? '').replace('{{when}}', whenOf(first, slot.timezone, language)))}</h1>
-    <p class="now">${say('signup.done.detail')}</p>`
-      : `<h1>${esc((script.get('page.first') ?? '').replace('{{when}}', whenOf(first, slot.timezone, language)))}</h1>
-    <p class="now">${say('page.first.detail')}</p>`
-    : `<h1>${say('page.title')}</h1>
-    ${view.next ? `<p class="now">${esc((script.get('page.next') ?? '').replace('{{when}}', describeAppointment(view.next, slot.timezone, language)))}</p>` : ''}
-    <p class="hint">${esc((script.get('page.usually') ?? '').replace('{{when}}', when))}</p>`;
+      : `<h1>${say(first && view.fresh ? 'page.booked' : 'page.title')}</h1>`;
 
-  // Above the time, not below it: before the first call this is the one thing
-  // on the page worth doing, and the rest is only there if the time is wrong.
+  // Before the first call, offer caller recognition above the time picker.
+  // Keep it a secondary link so the appointment and reschedule control stand out.
   const contact = view.contact && arranging
     ? `
-    <a class="save" href="/contact.vcf" download="8and80.vcf">${say('page.contact')}</a>
-    <p class="hint centre">${say('page.contact.detail')}</p>`
+    <a class="contact-link" href="/contact.vcf" download="8and80.vcf">${say('page.contact')}</a>
+    <p class="hint">${say('page.contact.detail')}</p>`
     : '';
 
   // Before the first call a new time is the booking, so "every week" is not
@@ -134,13 +139,15 @@ export function reschedulePage(
 
   const goals = view.goals && arranging
     ? `
+    <details class="change-time"${view.goalsNote ? ' open' : ''}>
+    <summary>${say('page.goals.open')}</summary>
     <form method="post" class="move">
       <label for="goals">${say('page.goals.label')}</label>
-      <textarea id="goals" name="goals" rows="3" maxlength="${GOALS_MAX}" required></textarea>
-      <p class="hint">${say('page.goals.detail')}</p>
+      <textarea id="goals" name="goals" rows="3" maxlength="${GOALS_MAX}" placeholder="${say('page.goals.example')}" aria-describedby="goals-detail" required></textarea>
+      <p class="hint" id="goals-detail">${say('page.goals.detail')}</p>
       <button name="action" value="goals">${busyLabel(say('page.goals.save'))}</button>
-      ${view.goalsNote ? `<p class="now said">${say(view.goalsNote)}</p>` : ''}
-    </form>`
+      ${view.goalsNote ? `<p role="status" class="now said">${say(view.goalsNote)}</p>` : ''}
+    </form></details>`
     : '';
 
   const rest =
@@ -171,7 +178,7 @@ export function reschedulePage(
       : `<p><a href="/access">${say('page.billing.verify')}</a></p>`
     : ['trialing', 'trial_ended', 'ended'].includes(state.billing) ? checkoutLink('availability-check') ? `<form method="post"><button name="action" value="checkout"${!state.canCall ? ' class="primary"' : ''}>${say('page.billing.continue')}</button></form><p class="hint">${say('page.billing.price')}</p>` : `<p class="hint">${say('page.billing.unavailable')}</p>` : '' : '';
   const billing = state ? `<p class="hint">${esc((script.get(billingKey) ?? '').replace('{{when}}', trialDate ?? ''))}</p>` : '';
-  const resume = state?.paused && state.canCall
+  const resume = state?.paused && state.canCall && !state.onHold
     ? `<form method="post"><button name="action" value="start" class="primary">${say('page.stopped.back')}</button></form>` : '';
   const support = state
     ? `<p><a${!state.canCall ? ' class="save"' : ''} href="mailto:${esc(config.company.supportEmail() || 'hei@8and80.me')}">${say('page.support')}</a></p>` : '';
@@ -179,81 +186,122 @@ export function reschedulePage(
   return shell(
     `
     ${MARK}
+    <nav class="page-nav"><a href="/start"><span aria-hidden="true">&larr;</span> ${say('access.home')}</a></nav>
     ${head}
-    ${billing}
-    ${renewal}
-    ${billingControls}
-    ${view.scheduleNote ? `<p role="status">${say(view.scheduleNote)}</p>` : ''}
-    ${arranging && !view.next ? `<p class="now">${say(state?.trialEnds ? 'page.no_next.trial' : 'page.no_next')}</p>` : ''}
-    ${resume}
-    ${support}
-    ${contact}
-
-    ${arranging ? `<form method="post" class="move">
-      <fieldset>
-        <legend>${say(booking ? 'page.first.pick' : 'page.pick')}</legend>
-        <p class="zone">${esc(zoneLine(slot.timezone, script))}</p>
-        <div class="days">
-          ${WEEK.map(
-            (i) => `<label class="pick">
-            <input type="radio" name="weekday" value="${i}"${i === slot.weekday ? ' checked' : ''} />
-            <span aria-hidden="true">${esc(short[i] as string)}</span><span class="sr">${esc(days[i] as string)}</span>
-          </label>`,
-          ).join('')}
-        </div>
-        <div class="times" id="times">
-          ${timesFor(slot.minute)
-            .map(
-              (t) =>
+    <section class="account-section call-overview" aria-labelledby="call-heading">
+      <h2 id="call-heading">${say(booking ? 'page.first' : 'page.section.call')}</h2>
+      ${view.scheduleNote ? `<p role="status">${say(view.scheduleNote)}</p>` : ''}
+      ${appointment ? `<time class="appointment" datetime="${esc(appointment.toISOString())}" aria-label="${esc(describeAppointment(appointment, slot.timezone, language))}"
+        data-timezone="${esc(slot.timezone)}" data-locale="${esc(locale)}" data-home="${say('time.zone.home')}" data-other="${say('time.zone.other')}">
+        <span class="appointment-date">${esc(appointmentDate)}</span>
+        <span class="appointment-time"><span class="appointment-clock">${esc(appointmentClock)}</span> <small class="appointment-zone">${esc(appointmentZone)}</small></span>
+      </time>` : ''}
+      ${arranging ? `<p class="hint usual-time">${esc((script.get('page.usually') ?? '').replace('{{when}}', when).replace('{{zone}}', appointmentZone))}</p>` : ''}
+      ${arranging && !appointment ? `<p class="now">${say(state?.trialEnds ? 'page.no_next.trial' : 'page.no_next')}</p>` : ''}
+      ${resume}
+      ${contact}
+      ${arranging ? `<details id="move-call" class="change-time reschedule">
+        <summary>${say(booking ? 'page.move.open.first' : 'page.move.open')}</summary>
+        <form method="post" class="move">
+          <fieldset>
+            <legend>${say(booking ? 'page.first.pick' : 'page.pick')}</legend>
+            <p class="zone">${esc(zoneLine(slot.timezone, script))}</p>
+            <div class="days">
+              ${WEEK.map(
+                (i) => `<label class="pick">
+                <input type="radio" name="weekday" value="${i}"${i === slot.weekday ? ' checked' : ''} />
+                <span aria-hidden="true">${esc(short[i] as string)}</span><span class="sr">${esc(days[i] as string)}</span>
+              </label>`,
+              ).join('')}
+            </div>
+            <div class="times" id="times">
+              ${timesFor(slot.minute).map((t) =>
                 `<label class="pick"><input type="radio" name="time" value="${t}"${t === time ? ' checked' : ''} /><span>${t}</span></label>`,
-            )
-            .join('')}
-        </div>
-      </fieldset>
-      ${always}
-      <button name="action" value="move"${first && view.contact ? '' : ' class="primary"'}>${busyLabel(say('page.move'))}</button>
-    </form>` : ''}
-    ${goals}
+              ).join('')}
+            </div>
+          </fieldset>
+          ${always}
+          ${booking ? '' : `<p class="hint">${say('page.move.detail')}</p>`}
+          <button name="action" value="move" class="primary">${busyLabel(say('page.move'))}</button>
+        </form>
+      </details>` : ''}
+      ${first ? `<p class="hint">${say(view.fresh ? 'signup.done.detail' : 'page.first.detail')}</p>` : ''}
+      ${!arranging || booking || !view.next ? '' : `<form method="post" class="skip">
+        <input type="hidden" name="skip_at" value="${esc(view.next.toISOString())}" />
+        <button name="action" value="skip">${say('page.skip')}</button>
+      </form>`}
+      ${active ? `<form method="post" class="stop">
+        <button name="action" value="stop">${say('page.stop')}</button>
+      </form>` : ''}
+    </section>
 
-    <form method="post" class="move">
-      <label for="email">${say('page.email.label')}</label>
+    <section class="account-section" aria-labelledby="notes-heading">
+      <h2 id="notes-heading">${say('page.section.notes')}</h2>
+      ${goals}
+      <p class="hint">${say('page.notes.detail')}</p>
+      <p><a href="/memory">${say('page.notes.review')}</a></p>
+    </section>
+
+    ${state ? `<section class="account-section" aria-labelledby="plan-heading">
+      <h2 id="plan-heading">${say('page.section.plan')}</h2>
+      ${billing}
+      ${renewal}
+      ${billingControls}
+      ${support}
+    </section>` : ''}
+
+    <section class="account-section" aria-labelledby="preferences-heading">
+      <h2 id="preferences-heading">${say('page.section.preferences')}</h2>
       <p class="hint">${email ? esc((script.get('page.email.current') ?? '').replace('{{email}}', maskEmail(email))) : say('page.email.none')}</p>
-      <div class="row">
-        <input type="email" id="email" name="email" value="" placeholder="you@example.com"
-               autocomplete="email" autocapitalize="off" spellcheck="false" />
-      </div>
-      <button name="action" value="email">${busyLabel(say('page.email.save'))}</button>
-      ${note ? `<p class="now said">${say(note)}</p>` : ''}
-    </form>
+      <details class="change-time"${note ? ' open' : ''}>
+        <summary>${say('page.email.open')}</summary>
+      <form method="post">
+        <label for="email">${say('page.email.label')}</label>
+        <div class="row">
+          <input type="email" id="email" name="email" value="" placeholder="you@example.com"
+                 autocomplete="email" autocapitalize="off" spellcheck="false" />
+        </div>
+        <button name="action" value="email">${busyLabel(say('page.email.save'))}</button>
+        ${note ? `<p class="now said">${say(note)}</p>` : ''}
+      </form></details>
+      ${state ? `<form method="post"><p class="hint">${say('page.feedback.detail')}</p><button name="action" value="${state.feedbackOptOut ? 'feedback-on' : 'feedback-off'}">${say(state.feedbackOptOut ? 'page.feedback.on' : 'page.feedback.off')}</button></form>` : ''}
+    </section>
 
-    ${
-      // Target the occurrence this page showed, never whichever call is next
-      // when an old form is submitted for a second time.
-      !arranging || booking || !view.next
-        ? ''
-        : `<form method="post" class="skip">
-      <input type="hidden" name="skip_at" value="${esc(view.next.toISOString())}" />
-      <button name="action" value="skip" class="quiet">${say('page.skip')}</button>
-    </form>`
-    }
-
-    ${arranging ? `<form method="post" class="stop${first ? ' first' : ''}">
-      <button name="action" value="stop" class="quiet">${say('page.stop')}</button>
-    </form>` : ''}
-    ${state ? `<form method="post"><p class="hint">${say('page.feedback.detail')}</p><button name="action" value="${state.feedbackOptOut ? 'feedback-on' : 'feedback-off'}">${say(state.feedbackOptOut ? 'page.feedback.on' : 'page.feedback.off')}</button></form>` : ''}
-    ${rest}
-    <p class="hint centre"><a href="/memory">${say('memory.title')}</a></p>
+    <section class="account-section" aria-labelledby="data-heading">
+      <h2 id="data-heading">${say('page.section.data')}</h2>
+      ${rest}
+    </section>
     <script>
-      // Brings the chosen time to the middle of its row, as on the sign-up
-      // page. The form works without it: the row scrolls by hand.
+      // Display the booked instant on the viewer's clock. The stored weekly
+      // slot and its picker keep their explicitly labelled booking timezone.
+      // Without JavaScript or a usable local zone, the server-rendered booking
+      // timezone remains readable (Oslo is the booking default).
+      try {
+        var appointment = document.querySelector('time.appointment');
+        if (appointment) {
+          var at = new Date(appointment.getAttribute('datetime'));
+          var locale = appointment.getAttribute('data-locale');
+          var zone = Intl.DateTimeFormat().resolvedOptions().timeZone || appointment.getAttribute('data-timezone') || 'Europe/Oslo';
+          var date = new Intl.DateTimeFormat(locale, { weekday: 'long', day: 'numeric', month: 'long', timeZone: zone }).format(at);
+          var time = new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: zone }).format(at);
+          var label = zone === 'Europe/Oslo' ? appointment.getAttribute('data-home') : appointment.getAttribute('data-other').replace('{{zone}}', zone.split('/').pop().replace(/_/g, ' '));
+          appointment.querySelector('.appointment-date').textContent = date;
+          appointment.querySelector('.appointment-clock').textContent = time;
+          appointment.querySelector('.appointment-zone').textContent = label;
+          appointment.setAttribute('aria-label', date + ' ' + time + ' ' + label);
+        }
+      } catch (e) {}
       try {
         var row = document.getElementById('times');
+        var move = document.getElementById('move-call');
         var centre = function (el, smooth) {
           var box = el.getBoundingClientRect(), track = row.getBoundingClientRect();
           row.scrollTo({ left: row.scrollLeft + box.left - track.left - (row.clientWidth - box.width) / 2, behavior: smooth ? 'smooth' : 'auto' });
         };
-        var on = row.querySelector('input:checked');
-        if (on) centre(on.parentNode, false);
+        move.addEventListener('toggle', function () {
+          var on = row.querySelector('input:checked');
+          if (move.open && on) centre(on.parentNode, false);
+        });
         row.addEventListener('change', function (e) { centre(e.target.parentNode, true); });
       } catch (e) {}
     </script>
@@ -271,11 +319,6 @@ function zoneLine(timezone: string, script: ScriptLines): string {
 
 /** A line added to the goals from the page. Long enough for a sentence or two, not an essay. */
 export const GOALS_MAX = 400;
-
-/** The actual first appointment, including its calendar date and local zone. */
-function whenOf(at: Date, timezone: string, language: string): string {
-  return describeAppointment(at, timezone, language);
-}
 
 /**
  * The Forever mark, still. brand/assets/mark.svg, inlined so the page makes
@@ -439,6 +482,21 @@ export function shell(body: string, language = 'en'): string {
   }
   main { width: 100%; max-width: 26rem; }
   h1 { font-size: 1.5rem; font-weight: 600; margin: 0 0 .35rem; letter-spacing: -0.01em; }
+  h2 { font-size: 1.05rem; font-weight: 600; margin: 0 0 .9rem; }
+  .account-section { border-top: 1px solid var(--line); padding-top: 1.25rem; margin-top: 1.5rem; }
+  .account-section .move { border-top: 0; padding-top: 0; margin-top: 1rem; }
+  .call-overview { border: 1px solid var(--line); border-top: 3px solid var(--accent); border-radius: 1rem; padding: 1.25rem; margin-top: 1.25rem; }
+  .call-overview h2 { margin-bottom: .65rem; }
+  .appointment { display: block; }
+  .appointment-date { display: block; font-size: 1.5rem; font-weight: 600; line-height: 1.3; letter-spacing: -.02em; }
+  .appointment-time { display: flex; flex-wrap: wrap; align-items: baseline; gap: .15rem .65rem; margin-top: .25rem; font-size: 3rem; font-weight: 600; line-height: 1.2; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+  .appointment-time small { font-size: 1rem; font-weight: 400; letter-spacing: 0; }
+  .call-overview .usual-time { margin: .5rem 0 1.25rem; }
+  .contact-link { display: inline-block; font-weight: 600; }
+  .change-time { margin-bottom: 1rem; }
+  .change-time summary { padding: .85rem 1rem; border: 1px solid var(--line); border-radius: .5rem; cursor: pointer; }
+  .change-time summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .reschedule summary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
   .now { color: var(--quiet); margin: 0 0 2rem; }
   form { margin: 0 0 1rem; }
   .row { display: flex; gap: .5rem; margin: .4rem 0 .75rem; }
@@ -472,10 +530,15 @@ export function shell(body: string, language = 'en'): string {
   .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .lockup { display: flex; justify-content: center; margin: 0 0 1.75rem; }
   .mark { width: 3rem; height: auto; display: block; }
+  .page-nav { margin: 0 0 .75rem; }
+  .page-nav a { display: inline-flex; align-items: center; gap: .4rem; min-height: 44px; font-size: .9rem; text-decoration: none; border-radius: .25rem; }
+  .page-nav a:hover { text-decoration: underline; }
+  .page-nav a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
   textarea {
     display: block; width: 100%; margin: .4rem 0 0; padding: .7rem .75rem; font: inherit; color: var(--ink);
     background: transparent; border: 1px solid var(--line); border-radius: .5rem; resize: vertical;
   }
+  #goals::placeholder { color: var(--quiet); opacity: 1; }
   a { color: var(--ink); }
   input[type=tel], input[type=text] { display: block; width: 100%; margin: .4rem 0 1rem; }
   input[type=email], input[type=tel], input[type=text] {

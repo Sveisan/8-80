@@ -2,6 +2,8 @@
 
 Prepared 3 October 2026 for `codex/first-month-journey`. This describes the implementation proposed in the PR, not a verified production deployment. Read the [original audit](first-month-audit.md), [original message inventory](first-month-sendouts-baseline.md), [implementation record](first-month-improvement-plan.md) and [delivery runbook](message-delivery.md) alongside it.
 
+9 October follow-up: [retention improvements and release checks](retention-release.md) add booking-date previews, grouped controls, honest review-hold status and mature-cohort reporting. The merged voice prompt now uses three-month goals. Newer operator alerts and check-ins are covered in the [review runbook](SAFETY-RUNBOOK.md).
+
 ## The month in one view
 
 ```mermaid
@@ -99,7 +101,7 @@ Decision log to fill during the workshop:
 | Decision | Current implementation / working assumption | Owner / decision / date |
 | --- | --- | --- |
 | Audience and value | Weekly reflective accountability for adults; user response unvalidated | Unassigned / open |
-| Activation | Map confirmed plus an action the caller chose; read-back is a measurable proxy | Unassigned / open |
+| Activation | Caller-confirmed map; action remains voluntary. Read-back is an observable proxy | Unassigned / open |
 | Continuity | Accurate recall and a useful next step; repeat read-back alone cannot prove it | Unassigned / open |
 | Trial | 30 elapsed days, no card; no guaranteed conversation count | Unassigned / open |
 | First appointment | Uses the recurring time; one-off moves remain available | Unassigned / open |
@@ -118,7 +120,7 @@ For each task record completion without help, wrong turns, elapsed time, the per
 
 ## Measurement and verification
 
-`npm run journey` is a read-only 30-day retained-data report. Daily counters contain no visitor identifiers, cookies, IPs or form values. Milestones contain only account hash, a fixed event name and time; they are deleted with the account and pruned after 60 days. Message diagnostics last 30 days. The report exposes no account hashes or personal content.
+`npm run journey` includes rolling 30-day operations and completed first-month cohorts within the 60-day retained-data window. Conversation tracking begins when the retention migration is applied; older enrollments are reported separately rather than backfilled. Daily counters contain no visitor identifiers, cookies, IPs or form values. Milestones contain only account hash, a fixed event name, time and an opaque cycle reference where needed; they are deleted with the account and pruned after 60 days. Message diagnostics last 30 days. The report exposes no account hashes or personal content.
 
 Observed: booking page requests/submissions; new-account phone verification; call-attempt states; onboarding confirmation marker; action read-back events and repeat events; accepted/delivered/failed recaps; control page loads/submissions and selected applied/not-applied actions; trial end and first active subscription state. The cohort report includes median verification-to-first-read-back time.
 
