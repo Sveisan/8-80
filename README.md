@@ -108,6 +108,8 @@ after every endpointing change — that is what it is for.
 
 ### Changing what the mentor says
 
+For Speechify-hosted agents, [Speechify API sync](docs/speechify-api-sync.md) uploads the repository's prompts and variable declarations. `npm run speechify:sync` previews its plan locally; `--apply` updates the selected agents without placing a call. It covers the original first/returning pair and the separate Beliefs agents.
+
 Edit [SCRIPT.md](SCRIPT.md). It is parsed at runtime, so the next call uses your words
 with no code change. To see exactly what the model will be told:
 

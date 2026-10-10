@@ -17,6 +17,7 @@
     "preflight": "tsx src/preflight.ts",
     "numbers": "tsx src/numbers-cli.ts",
     "prompt": "tsx src/prompt-cli.ts",
+    "speechify:sync": "node --import tsx src/speechify-sync-cli.ts",
     "recap": "tsx src/recap-cli.ts",
     "replay": "tsx src/replay-cli.ts",
     "runs": "tsx src/runs-cli.ts",

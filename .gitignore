@@ -36,6 +36,7 @@ runs/
 .DS_Store
 coverage/
 .turbo/
+.speechify-sync/
 
 # local tooling downloaded into the repo dir
 cloudflared

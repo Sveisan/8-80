@@ -128,7 +128,8 @@ test('customer copy describes one purchase, never a monthly Beliefs renewal, and
   const p=prepared();p.outcome='<script>alert(1)</script>';
   const html=beliefPage('account',{practice:p,paid:true,price:'NOK example',preview:true});
   assert.ok(html.includes('One payment, no renewal'));assert.ok(!html.includes('<script>alert(1)</script>'));assert.ok(!html.includes('Cancel Beliefs'));
-  const landing=beliefPage('landing',{price:'NOK example'});assert.ok(landing.includes('One payment'));assert.ok(!landing.includes('per month'));
+  const landing=beliefPage('landing',{price:'NOK example'});assert.ok(landing.includes('NOK example once.'));assert.ok(landing.includes('No subscription.'));assert.ok(!landing.includes('per month'));
+  assert.ok(beliefPage('landing',{preview:true}).includes('One payment. No subscription.'));
 });
 function stripeFixture(patch:Record<string,unknown>={}):Record<string,unknown> {
   return {id:'cs_one',mode:'payment',subscription:null,amount_subtotal:1000,currency:'nok',client_reference_id:'beliefs:account',payment_status:'paid',line_items:{data:[{quantity:1,price:{id:'price_beliefs',recurring:null,unit_amount:1000,currency:'nok'}}]},payment_intent:{id:'pi_one',status:'succeeded',latest_charge:{paid:true,refunded:false,disputed:false,amount_refunded:0}},...patch};

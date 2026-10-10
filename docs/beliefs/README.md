@@ -65,6 +65,8 @@ Every private screen has a clear route back. Private responses have no-store cac
 
 `npm run beliefs:prompt -- onboarding`, `daily` or `weekly` prints the original review scripts. Their exact spoken wording is in the corresponding files in this folder.
 
+`npm run speechify:sync -- --group beliefs --apply` uploads these prompts and declares their variables through the API. It can create missing private agents, preserves existing voices, reads back saved settings and creates private restore points. Tool provisioning and real-call verification remain separate. See [Speechify API sync](../speechify-api-sync.md) for server commands, recovery and routing-ID setup; `--group weekly` covers the original two 8&80 agents.
+
 `npm run check` checks types, lint and ordinary tests. `npm run test:db` runs a temporary PostgreSQL cluster and makes database failures required instead of skipped. Test data is synthetic and does not reuse the owner's private documents.
 
 ## Live release gates
