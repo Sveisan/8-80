@@ -1,4 +1,5 @@
 import { log } from '../log.ts';
+import { closeBeliefSession } from '../beliefs/runtime.ts';
 import type { LoopDeps } from './deps.ts';
 import { enqueue, dispatchMessage } from '../messages/outbox.ts';
 import { config } from '../config.ts';
@@ -19,6 +20,7 @@ import { Scheduler } from '../schedule/scheduler.ts';
 export async function sweep(deps: LoopDeps, olderThanMs = 60 * 60_000, now = new Date()): Promise<number> {
   const stale = await deps.scheduler.stale(olderThanMs, now);
   for (const attempt of stale) {
+    if (await closeBeliefSession(deps, attempt.id, now)) continue;
     const id = await deps.store.raw.begin(async tx => {
       const [caller] = await tx`select phone_hash from callers where phone_hash = ${attempt.phoneHash} for update`;
       const [current] = await tx`select status, scheduled_for from call_attempts where id = ${attempt.id} for update`;

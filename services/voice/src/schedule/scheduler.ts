@@ -67,7 +67,7 @@ export class Scheduler {
       >`
         select phone_hash, next_call_at, slot_weekday, slot_minute, timezone, next_call_cycle
         from callers
-        where paused = false
+        where paused = false and all_calls_stopped = false
           -- A flagged call holds the next one until a person has looked.
           and held_for_review = false
           -- Billing is a separate question from paused, and conflating them
@@ -192,7 +192,7 @@ export class Scheduler {
   async nextEligibleCallFor(phone: string, now = new Date()): Promise<Date | undefined> {
     const [row] = await this.sql<{ next_call_at: Date }[]>`
       select next_call_at from callers
-      where phone_hash = ${phoneKey(phone)} and paused = false and held_for_review = false and next_call_at > ${now}
+      where phone_hash = ${phoneKey(phone)} and paused = false and all_calls_stopped = false and held_for_review = false and next_call_at > ${now}
         and (not cancel_at_period_end or paid_until > next_call_at)
         and (billing_status in ('comped', 'active', 'past_due')
           or (billing_status = 'trialing' and (trial_ends_at is null or trial_ends_at > next_call_at)))
@@ -208,7 +208,7 @@ export class Scheduler {
         slot_weekday = coalesce(${weekly?.weekday ?? null}, slot_weekday),
         slot_minute = coalesce(${weekly?.minute ?? null}, slot_minute),
         timezone = coalesce(${weekly?.timezone ?? null}, timezone), updated_at = now()
-      where phone_hash = ${phoneKey(phone)} and paused = false and held_for_review = false
+      where phone_hash = ${phoneKey(phone)} and paused = false and all_calls_stopped = false and held_for_review = false
         and (not cancel_at_period_end or paid_until > ${at})
         and (billing_status in ('comped', 'active', 'past_due')
           or (billing_status = 'trialing' and (trial_ends_at is null or trial_ends_at > ${at})))

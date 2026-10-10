@@ -40,7 +40,7 @@ after(async () => {
 });
 
 beforeEach(async () => {
-  if (sql) await sql`truncate table message_attempts, message_outbox, callers, call_attempts, links, feedback`;
+  if (sql) await sql`truncate belief_sessions, belief_enrollments, message_attempts, message_outbox, callers, call_attempts, links, feedback`;
   process.env['DATA_ENCRYPTION_KEY'] = KEY;
   process.env['PUBLIC_URL'] = 'https://8and80.me';
   delete process.env['FEEDBACK_AFTER_CALL'];
@@ -102,7 +102,7 @@ test('a short call or one that ended early waits for the next call', { skip: ski
   await caller('+4790000203');
   await call('+4790000203', now, 20 * MIN, { minutes: 2 });
   assert.equal(await sendDueFeedback(deps(), now), 0);
-  await sql`truncate table message_attempts, message_outbox, call_attempts`;
+  await sql`truncate belief_sessions, message_attempts, message_outbox, call_attempts`;
   await call('+4790000203', now, 20 * MIN, { note: 'moved during the call' });
   assert.equal(await sendDueFeedback(deps(), now), 0);
   assert.equal((await sql`select 1 from feedback`).length, 0, 'not written off, only deferred');

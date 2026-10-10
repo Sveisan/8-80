@@ -69,7 +69,7 @@ export async function cancelRenewal(deps: LoopDeps, hash: string): Promise<'canc
 export async function deleteAccount(deps: LoopDeps, phone: string, hash: string): Promise<boolean> {
   // The request to leave stops future calls even when the provider is down.
   // Keep this outside the erasure transaction so a failed cancellation cannot undo it.
-  await deps.store.raw`update callers set paused = true, updated_at = now() where phone_hash = ${hash}`;
+  await deps.store.raw`update callers set paused = true, all_calls_stopped = true, updated_at = now() where phone_hash = ${hash}`;
   return await deps.store.raw.begin(async tx => {
     const [row] = await tx<Row[]>`select * from callers where phone_hash = ${hash} for update`;
     if (!row) return false;

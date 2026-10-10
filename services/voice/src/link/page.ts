@@ -1,5 +1,6 @@
 import { checkoutLink } from '../billing/notice.ts';
 import { config } from '../config.ts';
+import { beliefConfig } from '../beliefs/config.ts';
 import { maskEmail, type AccountState } from './account.ts';
 import type { ScriptLines } from '../script.ts';
 import { describeAppointment, type Slot } from '../schedule/time.ts';
@@ -248,6 +249,12 @@ export function reschedulePage(
       ${renewal}
       ${billingControls}
       ${support}
+    </section>` : ''}
+
+    ${beliefConfig().enabled ? `<section class="account-section" aria-labelledby="beliefs-heading">
+      <h2 id="beliefs-heading">Belief practice</h2>
+      <p class="hint">Short daily calls to work through the doubts that hold you back. A separate one-time purchase.</p>
+      <p><a href="/beliefs">Explore belief practice</a></p>
     </section>` : ''}
 
     <section class="account-section" aria-labelledby="preferences-heading">
