@@ -110,11 +110,10 @@ export function reschedulePage(
   const appointmentDate = appointment ? new Intl.DateTimeFormat(locale, {
     weekday: 'long', day: 'numeric', month: 'long', timeZone: slot.timezone,
   }).format(appointment) : '';
-  const appointmentTime = appointment ? new Intl.DateTimeFormat(locale, {
-    hour: '2-digit', minute: '2-digit', timeZone: slot.timezone, timeZoneName: 'short',
-  }).formatToParts(appointment) : [];
-  const appointmentClock = appointmentTime.filter(part => part.type !== 'timeZoneName').map(part => part.value).join('').trim();
-  const appointmentZone = appointmentTime.find(part => part.type === 'timeZoneName')?.value ?? '';
+  const appointmentClock = appointment ? new Intl.DateTimeFormat(locale, {
+    hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: slot.timezone,
+  }).format(appointment) : '';
+  const appointmentZone = zoneLine(slot.timezone, script);
 
   const head = state?.paused
     ? `<h1>${say('page.stopped')}</h1><p class="now">${say('page.paused.detail')}</p>`
@@ -191,11 +190,12 @@ export function reschedulePage(
     <section class="account-section call-overview" aria-labelledby="call-heading">
       <h2 id="call-heading">${say(booking ? 'page.first' : 'page.section.call')}</h2>
       ${view.scheduleNote ? `<p role="status">${say(view.scheduleNote)}</p>` : ''}
-      ${appointment ? `<time class="appointment" datetime="${esc(appointment.toISOString())}" aria-label="${esc(describeAppointment(appointment, slot.timezone, language))}">
+      ${appointment ? `<time class="appointment" datetime="${esc(appointment.toISOString())}" aria-label="${esc(describeAppointment(appointment, slot.timezone, language))}"
+        data-timezone="${esc(slot.timezone)}" data-locale="${esc(locale)}" data-home="${say('time.zone.home')}" data-other="${say('time.zone.other')}">
         <span class="appointment-date">${esc(appointmentDate)}</span>
-        <span class="appointment-time">${esc(appointmentClock)} <small>${esc(appointmentZone)}</small></span>
+        <span class="appointment-time"><span class="appointment-clock">${esc(appointmentClock)}</span> <small class="appointment-zone">${esc(appointmentZone)}</small></span>
       </time>` : ''}
-      ${arranging ? `<p class="hint usual-time">${esc((script.get('page.usually') ?? '').replace('{{when}}', when))}</p>` : ''}
+      ${arranging ? `<p class="hint usual-time">${esc((script.get('page.usually') ?? '').replace('{{when}}', when).replace('{{zone}}', appointmentZone))}</p>` : ''}
       ${arranging && !appointment ? `<p class="now">${say(state?.trialEnds ? 'page.no_next.trial' : 'page.no_next')}</p>` : ''}
       ${resume}
       ${contact}
@@ -271,6 +271,25 @@ export function reschedulePage(
       ${rest}
     </section>
     <script>
+      // Display the booked instant on the viewer's clock. The stored weekly
+      // slot and its picker keep their explicitly labelled booking timezone.
+      // Without JavaScript or a usable local zone, the server-rendered booking
+      // timezone remains readable (Oslo is the booking default).
+      try {
+        var appointment = document.querySelector('time.appointment');
+        if (appointment) {
+          var at = new Date(appointment.getAttribute('datetime'));
+          var locale = appointment.getAttribute('data-locale');
+          var zone = Intl.DateTimeFormat().resolvedOptions().timeZone || appointment.getAttribute('data-timezone') || 'Europe/Oslo';
+          var date = new Intl.DateTimeFormat(locale, { weekday: 'long', day: 'numeric', month: 'long', timeZone: zone }).format(at);
+          var time = new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: zone }).format(at);
+          var label = zone === 'Europe/Oslo' ? appointment.getAttribute('data-home') : appointment.getAttribute('data-other').replace('{{zone}}', zone.split('/').pop().replace(/_/g, ' '));
+          appointment.querySelector('.appointment-date').textContent = date;
+          appointment.querySelector('.appointment-clock').textContent = time;
+          appointment.querySelector('.appointment-zone').textContent = label;
+          appointment.setAttribute('aria-label', date + ' ' + time + ' ' + label);
+        }
+      } catch (e) {}
       try {
         var row = document.getElementById('times');
         var move = document.getElementById('move-call');
@@ -469,7 +488,7 @@ export function shell(body: string, language = 'en'): string {
   .call-overview h2 { margin-bottom: .65rem; }
   .appointment { display: block; }
   .appointment-date { display: block; font-size: 1.5rem; font-weight: 600; line-height: 1.3; letter-spacing: -.02em; }
-  .appointment-time { display: block; margin-top: .25rem; font-size: 3rem; font-weight: 600; line-height: 1.2; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+  .appointment-time { display: flex; flex-wrap: wrap; align-items: baseline; gap: .15rem .65rem; margin-top: .25rem; font-size: 3rem; font-weight: 600; line-height: 1.2; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
   .appointment-time small { font-size: 1rem; font-weight: 400; letter-spacing: 0; }
   .call-overview .usual-time { margin: .5rem 0 1.25rem; }
   .contact-link { display: inline-block; font-weight: 600; }

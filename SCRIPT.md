@@ -1327,7 +1327,7 @@ whoever is holding the phone, so the page is built for a stranger to find boring
 > "Next call {{when}}."
 
 `page.usually`
-> "Usually {{when}}."
+> "Usually {{when}} · {{zone}}."
 
 `page.later`
 > "Choose another time"
@@ -1908,6 +1908,11 @@ London's. Owner's call: say it, plainly, every time the times are shown._
 
 _`{{zone}}` is the place in the zone's name — "London", "New York" — which is how people
 say it. "Central European Summer Time" is correct and nobody has ever said it out loud._
+
+_The next-call card displays the booked instant in the viewer's device timezone.
+Its fallback is the caller's saved booking timezone, which defaults to Oslo. The
+usual weekly slot and reschedule picker retain the saved timezone and say whose
+clock they use; viewing a call while travelling does not change the appointment._
 
 ---
 
