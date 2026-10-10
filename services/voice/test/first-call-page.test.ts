@@ -164,6 +164,14 @@ test('the bare address goes to their page; /start is still the form', { skip: sk
       assert.equal(home.status, 303);
       assert.equal(home.headers.get('location'), '/me');
 
+      // The explicit way out must bypass that remembered-browser redirect.
+      const account = await (await fetch(`${base}/me`, withCookie(`browser=${code}`))).text();
+      const back = /<nav class="page-nav">[\s\S]*?<a href="([^"]+)"/.exec(account)?.[1];
+      assert.ok(back, 'the call page has a visible way back');
+      const welcome = await fetch(`${base}${back}`, withCookie(`browser=${code}`));
+      assert.equal(welcome.status, 200, 'going back must not redirect to the call page again');
+      assert.match(await welcome.text(), /action="\/start"/);
+
       // Somebody else on the same browser can still sign themselves up.
       const start = await fetch(`${base}/start`, withCookie(`browser=${code}`));
       assert.equal(start.status, 200);

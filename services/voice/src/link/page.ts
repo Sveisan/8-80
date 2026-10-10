@@ -186,6 +186,7 @@ export function reschedulePage(
   return shell(
     `
     ${MARK}
+    <nav class="page-nav"><a href="/start"><span aria-hidden="true">&larr;</span> ${say('access.home')}</a></nav>
     ${head}
     <section class="account-section call-overview" aria-labelledby="call-heading">
       <h2 id="call-heading">${say(booking ? 'page.first' : 'page.section.call')}</h2>
@@ -529,6 +530,10 @@ export function shell(body: string, language = 'en'): string {
   .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .lockup { display: flex; justify-content: center; margin: 0 0 1.75rem; }
   .mark { width: 3rem; height: auto; display: block; }
+  .page-nav { margin: 0 0 .75rem; }
+  .page-nav a { display: inline-flex; align-items: center; gap: .4rem; min-height: 44px; font-size: .9rem; text-decoration: none; border-radius: .25rem; }
+  .page-nav a:hover { text-decoration: underline; }
+  .page-nav a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
   textarea {
     display: block; width: 100%; margin: .4rem 0 0; padding: .7rem .75rem; font: inherit; color: var(--ink);
     background: transparent; border: 1px solid var(--line); border-radius: .5rem; resize: vertical;
