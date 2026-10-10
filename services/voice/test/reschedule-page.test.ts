@@ -36,7 +36,7 @@ after(async () => {
 });
 
 beforeEach(async () => {
-  if (sql) await sql`truncate table message_attempts, message_outbox, callers, call_attempts, links`;
+  if (sql) await sql`truncate belief_sessions, belief_enrollments, message_attempts, message_outbox, callers, call_attempts, links`;
   process.env['DATA_ENCRYPTION_KEY'] = KEY;
 });
 

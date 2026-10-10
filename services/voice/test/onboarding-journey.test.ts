@@ -43,7 +43,7 @@ const classify = (turns: Turn[], durationMs = 300_000) => settle({ providerCallI
 beforeEach(async () => {
   process.env['DATA_ENCRYPTION_KEY'] = Buffer.alloc(32, 4).toString('base64');
   process.env['PUBLIC_URL'] = 'https://8and80.example';
-  if (db) await db.sql`truncate journey_events, journey_counts, message_attempts, message_outbox, callers, call_attempts, links`;
+  if (db) await db.sql`truncate belief_sessions, belief_enrollments, journey_events, journey_counts, message_attempts, message_outbox, callers, call_attempts, links`;
   placed.length = emails.length = texts.length = 0;
 });
 after(async () => { await db?.close(); });

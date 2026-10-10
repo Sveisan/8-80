@@ -28,7 +28,7 @@ const add = (channel: 'email' | 'sms' = 'sms', eventKey = 'event') => enqueue(db
 beforeEach(async () => {
   process.env['DATA_ENCRYPTION_KEY'] = Buffer.alloc(32, 9).toString('base64');
   process.env['PUBLIC_URL'] = 'https://8and80.example';
-  if (db) { await db.sql`truncate journey_events, journey_counts, message_attempts, message_outbox, callers, call_attempts, links, feedback, signups, access_codes`; await db.store.upsertProfile(phone, {email:'test@example.com'}); }
+  if (db) { await db.sql`truncate belief_sessions, belief_enrollments, journey_events, journey_counts, message_attempts, message_outbox, callers, call_attempts, links, feedback, signups, access_codes`; await db.store.upsertProfile(phone, {email:'test@example.com'}); }
   sent = [];
 });
 after(async () => { await db?.close(); });

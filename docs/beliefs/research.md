@@ -1,0 +1,22 @@
+# Research, language and claims
+
+These scripts are original. They do not reproduce a proprietary discovery checklist or three-column worksheet, copy a podcast script or imply author endorsement. The owner's personal worksheets and pocket card must never enter a prompt, call transcript, fixture, email, seed or product record.
+
+| Source reviewed | Useful observation | Boundary |
+| --- | --- | --- |
+| [Episode 004 official conversation transcript](https://davidbayer.com/podcast/episode-004/) | Ask about a concrete event, reflect the person's own meaning, follow with one short question; let the story lead into a chosen next step | One conversational episode, not a representative corpus. Do not transfer its personal stories, sweeping claims or therapeutic language into product calls |
+| [David Bayer, episode 008 companion article](https://davidbayer.com/podcast/episode-008/) | Belief, chosen decision and personal counterexamples give a useful conversation progression | A companion article is not a verified spoken transcript |
+| [Episode 023 companion article](https://davidbayer.com/podcast/episode-023/) | Leave room for recurring old patterns rather than demanding immediate certainty | Do not import broad transformation promises |
+| [Episode 271 companion article](https://davidbayer.com/podcast/episode-271/) | Existing AI assessment context; this product's proposed distinction is repeated phone practice | No claim of novelty or endorsement |
+| [Host-published interview transcript with Bayer](https://myersdetox.com/transcript526/) | Patient questioning and personal counterexamples, in the person's words | This is an interview on another programme, not a transcript of the requested A Changed Mind podcast |
+| [Wood, Perunovic and Lee, 2009](https://pubmed.ncbi.nlm.nih.gov/19493324/) | Positive self-statements can have different effects depending on the person and context; avoid forcing an implausible assertion | This does not establish that every daily both/and is scientifically mandatory or that this module avoids harm |
+| [Beck Institute on collaborative cognitive work](https://beckinstitute.org/blog/why-cbt-therapists-dont-challenge-clients-cognitions-and-why-it-matters/) | Help people arrive at their own conclusions; respect real circumstances | A commercial AI call is not therapist-delivered CBT |
+| [Lally et al., habit formation](https://onlinelibrary.wiley.com/doi/abs/10.1002/ejsp.674) | Consistent context and repetition are relevant to routine formation | Habit research does not validate belief reprogramming, retirement thresholds or a daily-call treatment dose |
+
+Language direction: outcome first; short invitations; patient silence; caller-owned conclusions; concrete experiences; acknowledge what remains hard. No absolutes, spiritual explanations of circumstances, trauma claims, invented counterexamples or imitation of an author's voice.
+
+The requested source archive is [A Changed Mind](https://davidbayer.com/podcast/), also listed on [Spotify](https://open.spotify.com/show/5zmdjuDWOk3saOeD8qmydI) and [Apple Podcasts](https://podcasts.apple.com/vc/podcast/a-changed-mind-mindset-that-matters/id993988537). Episode 004 is explicitly presented as a transcript on the author's site and was reviewed as such. The other episode pages above are companion articles. A representative multi-episode transcript corpus has **not** been obtained; do not describe this review as that corpus or as clinical validation.
+
+Original adaptations from the episode 004 transcript: move from lived event to its meaning; briefly reflect before the next question; use concrete follow-ups rather than a read-out checklist; make room for an ambivalent answer. These are editorial inferences, not a validated protocol or author endorsement. The drafts use short invitations such as “When does that thought tend to appear?” and “What still feels difficult, alongside that?” The module does not adopt the transcript's spiritual causation, addiction comparisons, or claims that mindset alone determines outcomes. Final spoken pacing, silence and appropriateness need provider tests and reviewer approval.
+
+Product hypotheses to test: two concurrent decisions, 60–90-second calls, daily flat frequency, two consecutive 0–1 weekly scores, automatic backlog ordering, and one-time economics. Existing short AI calls do not demonstrate that three complete exercises will fit the target or deliver benefit. Measure caller speech, meaningful coverage and opt-out behavior as well as duration.

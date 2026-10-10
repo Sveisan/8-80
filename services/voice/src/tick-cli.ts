@@ -4,6 +4,7 @@ import { AccessCodes } from './access/codes.ts';
 import { log } from './log.ts';
 import { openDeps } from './control.ts';
 import { tick } from './loop/tick.ts';
+import { tickBeliefs } from './beliefs/runtime.ts';
 import { sweep } from './loop/sweep.ts';
 import { expireTrials } from './billing/trials.ts';
 import { beat } from './schedule/scheduler.ts';
@@ -22,6 +23,8 @@ import { dispatchMessages } from './messages/outbox.ts';
 const deps = openDeps();
 try {
   const result = await tick(deps);
+  const beliefs = await tickBeliefs(deps);
+  if (beliefs.claimed) log('beliefs.tick', beliefs);
   await new AccessCodes(deps.store.raw).prune();
   await new Pending(deps.store.raw).prune();
   // Hourly would be tidier, but a sweep that only runs from its own schedule is

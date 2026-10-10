@@ -88,6 +88,8 @@ export const callers = pgTable(
     nextCallCycle: text('next_call_cycle'),
     /** Their choice to stop, which is not the same as having no slot. */
     paused: boolean('paused').notNull().default(false),
+    /** STOP/delete applies to every product; pausing a weekly slot does not. */
+    allCallsStopped: boolean('all_calls_stopped').notNull().default(false),
     /**
      * A flagged call holds every later one until a person has reviewed it.
      * Not `paused`: that is the caller's own decision to stop, and a review
@@ -153,6 +155,7 @@ export const signups = pgTable(
   'signups',
   {
     id: text('id').primaryKey(),
+    product: text('product').notNull().default('weekly'),
     /** Deterministic, so a second attempt from the same number replaces the first. */
     phoneHash: text('phone_hash').notNull(),
     phoneEnc: text('phone_enc').notNull(),
@@ -172,7 +175,7 @@ export const signups = pgTable(
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [uniqueIndex('signups_phone_key').on(t.phoneHash), index('signups_expiry_idx').on(t.expiresAt)],
+  (t) => [uniqueIndex('signups_phone_key').on(t.phoneHash, t.product), index('signups_expiry_idx').on(t.expiresAt)],
 );
 
 export type SignupRow = typeof signups.$inferSelect;
@@ -416,4 +419,28 @@ export const journeyEvents = pgTable('journey_events', {
 export const journeyTracking = pgTable('journey_tracking', {
   event: text('event').primaryKey(),
   startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Independent paid product; private practice content is encrypted as one versioned aggregate. */
+export const beliefEnrollments = pgTable('belief_enrollments', {
+  phoneHash: text('phone_hash').primaryKey().references(() => callers.phoneHash, { onDelete: 'cascade' }),
+  practiceEnc: text('practice_enc').notNull(), revision: integer('revision').notNull().default(0),
+  consentVersion: text('consent_version').notNull(), consentAt: timestamp('consent_at', { withTimezone: true }).notNull(),
+  timezone: text('timezone').notNull().default('Europe/Oslo'), dailyMinute: integer('daily_minute'),
+  weeklyWeekday: integer('weekly_weekday'), weeklyMinute: integer('weekly_minute'),
+  onboardingAt: timestamp('onboarding_at', { withTimezone: true }), nextDailyAt: timestamp('next_daily_at', { withTimezone: true }),
+  nextWeeklyAt: timestamp('next_weekly_at', { withTimezone: true }), reviewOrigin: timestamp('review_origin', { withTimezone: true }),
+  standing: text('standing').notNull().default('awaiting_payment'),
+  provider: text('provider'), purchaseId: text('purchase_id').unique(), paymentId: text('payment_id').unique(), customerId: text('customer_id'),
+  paidAt: timestamp('paid_at', { withTimezone: true }), amountMinor: integer('amount_minor'), currency: text('currency'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(), updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Uses the shared call-attempt/safety review infrastructure without advancing the base call cycle. */
+export const beliefSessions = pgTable('belief_sessions', {
+  id: text('id').primaryKey().references(() => callAttempts.id, { onDelete: 'cascade' }),
+  phoneHash: text('phone_hash').notNull().references(() => beliefEnrollments.phoneHash, { onDelete: 'cascade' }),
+  kind: text('kind').notNull(), week: integer('week'), snapshotEnc: text('snapshot_enc').notNull(),
+  complete: boolean('complete').notNull().default(false), coverageEnc: text('coverage_enc'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
