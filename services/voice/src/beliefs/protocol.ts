@@ -31,6 +31,18 @@ export function capture(snapshot: Snapshot, kind: Kind, week: number|null, input
   switch(type) {
     case 'outcome': if(kind!=='onboarding')throw new PracticeError('command_not_allowed');command={type,outcome:quoted(callerText,c?.['outcome'])};break;
     case 'queue': if(kind!=='onboarding')throw new PracticeError('command_not_allowed');command={type,belief:quoted(callerText,c?.['belief']),trigger:quoted(callerText,c?.['trigger'])};break;
+    case 'reorder': {
+      if(kind!=='onboarding' || snapshot.practice.understood)throw new PracticeError('command_not_allowed');
+      confirmation();
+      if(!Array.isArray(c?.['ids']))throw new PracticeError('order_invalid');
+      const ids=c['ids'].map(id=>wording(id,100));let rest=' '+normalise(callerText)+' ';
+      for(const id of ids){
+        const b=snapshot.practice.beliefs.find(b=>b.id===id);if(!b)throw new PracticeError('belief_unknown');
+        const words=' '+normalise(b.belief)+' ';const at=rest.indexOf(words);
+        if(at<0)throw new PracticeError('caller_words_required');rest=rest.slice(at+words.length-1);
+      }
+      command={type,ids};break;
+    }
     case 'prepare': {
       if(kind==='daily')throw new PracticeError('command_not_allowed');
       const evidence=c?.['evidence'];if(!Array.isArray(evidence))throw new PracticeError('evidence_required');

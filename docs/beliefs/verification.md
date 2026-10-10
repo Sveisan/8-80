@@ -4,12 +4,12 @@ This is a locally implemented, tested product draft. It has not been deployed or
 
 | Check | Result |
 | --- | --- |
-| Complete suite with a disposable PostgreSQL cluster | **620 passed, 0 failed, 0 skipped** |
+| Complete suite with a disposable PostgreSQL cluster | **621 passed, 0 failed, 0 skipped** |
 | TypeScript | Passed |
 | ESLint | Passed |
 | Patch whitespace | Passed |
 | Local preview API journey | Verified signup, verification, scheduling, simulated purchase, outcome/backlog, two caller-authored decisions, understanding, daily reflection, two weekly periods, retirement, preparation, pause/resume and CSRF rejection |
-| Voice onboarding reconciliation | Verified discovered belief IDs survive signed transcript confirmation; aggregate and daily/weekly start save atomically |
+| Voice onboarding reconciliation | Verified discovered belief IDs survive signed transcript confirmation; aggregate and daily/weekly start save atomically; selection follows the caller-confirmed order |
 | Private memory | Verified caller transcript matching, idempotent saves, altered retry rejection, closed-session minimisation and base-memory isolation |
 | Scheduling | Verified concurrent claim exclusion, missed-slot handling, STOP/hold/payment/pause, Oslo DST and human coverage windows |
 | Account privacy | Verified scoped credential expiry, product-specific OTP, optional email, complete private export, exclusion from older weekly exports and cascading erasure |

@@ -40,6 +40,7 @@ const prepared = (b: Belief): boolean => !!(b.confirmed && b.decision && b.evide
 
 function fill(p: Practice): void {
   let vacancies = p.cap - activeBeliefs(p).length;
+  for (const b of p.beliefs) if(b.status==='preparing')b.status='queued';
   for (const b of p.beliefs) {
     if (vacancies <= 0) break;
     if (b.status !== 'queued' && b.status !== 'preparing') continue;
@@ -116,7 +117,9 @@ export function applyCommand(current: Practice, command: Command, eventId: strin
     }
     case 'reorder': {
       if (command.ids.length !== p.beliefs.length || new Set(command.ids).size !== p.beliefs.length) fail('order_invalid');
-      p.beliefs = command.ids.map(item); break;
+      p.beliefs = command.ids.map(item);
+      if(!p.understood)for(const b of p.beliefs)if(b.status==='active')b.status='queued';
+      fill(p); break;
     }
     case 'pause': p.state = 'paused'; break;
     case 'resume': p.state = p.understood ? 'active' : 'onboarding'; fill(p); break;

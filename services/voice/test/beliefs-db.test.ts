@@ -123,14 +123,16 @@ test('voice onboarding preserves provisional belief IDs and starts the daily rhy
   let result:Record<string,unknown>={};
   for(let i=0;i<3;i++)result=await save(`Synthetic thought ${i}. Synthetic situation ${i}.`,{type:'queue',belief:`Synthetic thought ${i}`,trigger:`Synthetic situation ${i}`});
   const mapped=(result['practice'] as Practice).beliefs;
-  for(const [i,belief] of mapped.slice(0,2).entries())await save(`Yes. My decision ${i}. My genuine experience ${i}. Some uncertainty remains. My chosen step.`,
+  const chosen=[mapped[2]!,mapped[0]!,mapped[1]!];
+  await save('Yes. Synthetic thought 2, then Synthetic thought 0, then Synthetic thought 1.',{type:'reorder',ids:chosen.map(b=>b.id),confirmed:true});
+  for(const [i,belief] of chosen.slice(0,2).entries())await save(`Yes. My decision ${i}. My genuine experience ${i}. Some uncertainty remains. My chosen step.`,
     {type:'prepare',id:belief.id,decision:`My decision ${i}`,evidence:[`My genuine experience ${i}`],balance:'Some uncertainty remains',opportunity:'My chosen step',confirmed:true});
   await save('Yes, I understand this practice.',{type:'understood',confirmed:true});
   assert.equal((await repo().load(hash))!.practice.beliefs.length,0);
   assert.equal((await settleBeliefs(payload('onboarding_voice',spoken.join(' ')),deps(),undefined,now))!.status,'completed');
   const saved=(await repo().load(hash))!;
   assert.equal(saved.practice.understood,true);
-  assert.deepEqual(saved.practice.beliefs.map(b=>b.id),mapped.map(b=>b.id));
+  assert.deepEqual(saved.practice.beliefs.map(b=>b.id),chosen.map(b=>b.id));
   assert.equal(saved.practice.beliefs.filter(b=>b.status==='active').length,2);
   assert.ok(saved.enrollment.next_daily_at!>now);assert.ok(saved.enrollment.next_weekly_at!>now);
   assert.equal(saved.enrollment.onboarding_at,null);

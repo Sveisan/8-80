@@ -90,6 +90,23 @@ test('future call pause needs the caller’s explicit read-back confirmation',()
   const next=capture(s,'daily',null,{event_id:'pause',caller_text:'Yes, pause my belief calls.',command:{type:'pause',confirmed:true}});
   assert.equal(next.practice.state,'paused');
 });
+test('onboarding selection follows the caller-confirmed order, not discovery order',()=>{
+  let p=emptyPractice();for(let i=0;i<3;i++)p=run(p,{type:'queue',belief:'Synthetic belief '+i,trigger:'Synthetic situation'});
+  const s:Snapshot={revision:p.revision,initial:p,practice:p,receipts:[],coverage:{}};
+  const ids=[p.beliefs[2]!.id,p.beliefs[0]!.id,p.beliefs[1]!.id];
+  const input={event_id:'order',caller_text:'Yes, Synthetic belief 2 then Synthetic belief 0 then Synthetic belief 1.',command:{type:'reorder',ids,confirmed:true}};
+  const next=capture(s,'onboarding',null,input);
+  assert.deepEqual(next.practice.beliefs.slice(0,2).map(b=>b.id),ids.slice(0,2));
+  assert.equal(next.practice.beliefs[2]!.status,'queued');
+  assert.throws(()=>capture(s,'onboarding',null,{...input,command:{...input.command,ids:[...ids].reverse()}}),PracticeError);
+  assert.throws(()=>capture(s,'daily',null,input),PracticeError);
+  let preparedBeforeCall=p;
+  for(const b of p.beliefs.slice(0,2))preparedBeforeCall=run(preparedBeforeCall,{type:'prepare',id:b.id,decision:'My decision',evidence:['My experience'],balance:'Still uncertain',opportunity:'My step',confirmed:true});
+  const changed=run(preparedBeforeCall,{type:'reorder',ids});
+  assert.equal(changed.beliefs[0]!.status,'preparing');
+  assert.equal(changed.beliefs[1]!.status,'active');
+  assert.equal(changed.beliefs[2]!.status,'queued');
+});
 test('weekly score uses server week and caller confirmation; session tokens are isolated',()=>{
   const s=snapshot();const b=s.practice.beliefs[0]!;
   const next=capture(s,'weekly',4,{event_id:'w1',caller_text:'Yes. One. My reflection.',command:{type:'review',id:b.id,score:1,week:999,reflection:'My reflection',confirmed:true}});
