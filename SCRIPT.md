@@ -2022,7 +2022,7 @@ permissions. Neither screen displays stored commitments, goals or other private 
 > "Back to 8&80"
 
 `access.returning`
-> "Already getting calls? Open your calls"
+> "Already getting calls?"
 
 `access.verify`
 > "Verify your phone"

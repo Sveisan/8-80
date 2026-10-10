@@ -194,7 +194,10 @@ export function signupPage(
       ${inFaq('signup.free') ? '' : `<p class="quiet small centre">${say('signup.free')}</p>`}
       <p class="quiet small centre">${say('signup.terms.summary')}</p>
     </form>
-    <p class="quiet small centre"><a href="/access">${say('access.returning')}</a></p>
+    <div class="returning">
+      <p>${say('access.returning')}</p>
+      <a href="/access">${say('access.title')} <span aria-hidden="true">&rarr;</span></a>
+    </div>
 
     ${
       faq.length
@@ -493,6 +496,15 @@ function shell(body: string, language = 'en'): string {
   button.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
   button.quiet { border: 0; color: var(--quiet); margin-top: .25rem; font-weight: 400; }
   form + .quiet, button.primary + .quiet { margin-top: .75rem; }
+  .returning { margin-top: 1.75rem; text-align: center; }
+  .returning p { margin: 0 0 .6rem; color: var(--quiet); font-size: .85rem; }
+  .returning a {
+    display: inline-flex; align-items: center; justify-content: center; gap: .6rem;
+    min-height: 2.75rem; padding: .65rem 1.25rem; border: 1px solid var(--line); border-radius: .6rem;
+    background: transparent; color: var(--ink); font-size: .9rem; font-weight: 600; text-decoration: none;
+  }
+  .returning a:hover { background: var(--card); border-color: var(--ink); }
+  .returning a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
   /* Named, not hidden. A sign-up page that does not say where its terms are is
      a sign-up page hoping nobody looks. */
   .legal { margin-top: 2rem; }
