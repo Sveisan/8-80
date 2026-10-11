@@ -36,7 +36,9 @@ cd /opt/8-80
 npm run speechify:sync -- --group beliefs --apply
 ```
 
-This configures the separate onboarding, daily and weekly roles. Their prompts come from the three scripts in `docs/beliefs`. It declares `belief_context`, `call_kind`, `session_id` and `session_token`, disables provider long-term memory and audio recording, enables voicemail/unavailable hang-up, and sets the completion callback to `PUBLIC_URL/webhooks/speechify`. The AMD object includes all three routing branches: voicemail and unavailable hang up; IVR uses the provider's `proceed` behaviour. Speechify replaces AMD wholesale on update, so sync and restore send complete routing objects.
+This configures the separate onboarding, daily and weekly roles. Their prompts come from the three scripts in `docs/beliefs`; their fixed opening messages come from `BELIEF_GREETINGS` in `prompt-pack.ts`. Beliefs sync deliberately updates and verifies `first_message` so a stale opening cannot ask a large reflection question before the new introduction. The two original weekly 8&80 agents keep their existing greetings.
+
+It declares `belief_context`, `call_kind`, `session_id` and `session_token`, disables provider long-term memory and audio recording, enables voicemail/unavailable hang-up, and sets the completion callback to `PUBLIC_URL/webhooks/speechify`. The AMD object includes all three routing branches: voicemail and unavailable hang up; IVR uses the provider's `proceed` behaviour. Speechify replaces AMD wholesale on update, so sync and restore send complete routing objects.
 
 The command updates configured `BELIEFS_*_AGENT_ID` values or reuses IDs from its private state. If an ID is missing, it creates a private agent with a temporary prompt, saves the ID, declares variables, then uploads the real prompt. Creation needs an existing returning agent's voice or `SPEECHIFY_SETUP_VOICE_ID`, a credential-free HTTPS `PUBLIC_URL`, and `SPEECHIFY_WEBHOOK_SECRET` for signed callbacks. The optional voice ID must come from Speechify's Agents voice catalog, rather than its Build TTS catalog. Existing voices are never replaced.
 
@@ -62,7 +64,7 @@ To restore an existing agent's saved prompt/variable configuration, use the file
 npm run speechify:sync -- --restore BACKUP_FILENAME
 ```
 
-Replace `BACKUP_FILENAME` with that reported `backup-….json` filename. Restore reads the file from the private directory, never deletes agents and does not restore routing IDs or phone assignments. Speechify may reject a restore if its beta schema changes; success is reported only after read-back verification. A manually changed flow, tool, voice or phone assignment is outside this restore's scope.
+Replace `BACKUP_FILENAME` with that reported `backup-….json` filename. Restore reads the file from the private directory, never deletes agents and does not restore routing IDs or phone assignments. New Beliefs restore points include the previous fixed greeting. Older restore points that did not capture a greeting leave the current greeting unchanged. Speechify may reject a restore if its beta schema changes; success is reported only after read-back verification. A manually changed flow, tool, voice or phone assignment is outside this restore's scope.
 
 Creation uses a durable request key, but the available documentation did not establish idempotency support for agent creation. An uncertain create is therefore **never replayed automatically**. Find the private setup agent with the reported role's expected name in Speechify, set that role's agent-ID key on the server, and rerun. The command checks its name and private status before continuing. Do not delete saved state or create a duplicate to bypass this check. A confirmed ID is saved before subsequent uploads, so an interrupted prompt upload can resume normally.
 

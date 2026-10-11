@@ -20,3 +20,16 @@ The requested source archive is [A Changed Mind](https://davidbayer.com/podcast/
 Original adaptations from the episode 004 transcript: move from lived event to its meaning; briefly reflect before the next question; use concrete follow-ups rather than a read-out checklist; make room for an ambivalent answer. These are editorial inferences, not a validated protocol or author endorsement. The drafts use short invitations such as “When does that thought tend to appear?” and “What still feels difficult, alongside that?” The module does not adopt the transcript's spiritual causation, addiction comparisons, or claims that mindset alone determines outcomes. Final spoken pacing, silence and appropriateness need provider tests and reviewer approval.
 
 Product hypotheses to test: two concurrent decisions, 60–90-second calls, daily flat frequency, two consecutive 0–1 weekly scores, automatic backlog ordering, and one-time economics. Existing short AI calls do not demonstrate that three complete exercises will fit the target or deliver benefit. Measure caller speech, meaningful coverage and opt-out behavior as well as duration.
+
+## Phone rapport and conversation repair — 11 October 2026
+
+The revised call approach is documented in [call-experience.md](call-experience.md). These sources inform conversational design; human clinical communication findings do not establish effectiveness for an AI belief programme or identify a universally best opening sentence.
+
+| Primary source | Learning applied | Boundary |
+| --- | --- | --- |
+| [RCGP audio-consultation guidance](https://www.rcgp.org.uk/mrcgp-exams/simulated-consultation-assessment/toolkit-data-gathering) | Clear introduction, freedom to speak, attentive voice, and room to finish before personal questions | Professional clinical guidance; use the communication principles, not diagnostic techniques or its broad numerical claims about nonverbal communication |
+| [Taxonomy and effectiveness of agenda-setting questions](https://pmc.ncbi.nlm.nih.gov/articles/PMC12628284/) | Invite the caller's agenda directly rather than relying on a general wellbeing question | Observational human consultation study; some question categories had small samples. Our exact opening remains a product hypothesis |
+| [MINT training manual, 2020](https://motivationalinterviewing.org/sites/default/files/tnt_manual_rev_2020.pdf) | Reflective listening, shared focus, matching pace, respecting response latency and avoiding the question-answer trap | Training guidance; no rigid reflection quota, simulated human intimacy, or claim that this AI delivers motivational interviewing treatment |
+| [NHS thought-record guidance](https://www.nhs.uk/every-mind-matters/mental-wellbeing-tips/self-help-cbt-techniques/thought-record/) | Start with a situation, consider evidence fairly, and develop a credible balanced alternative | Do not reverse practical facts or present selective positive evidence as proof of a future outcome |
+
+The owner's private rehearsal informed the questions and repair rules. Its personal content, transcript, phone number and provider identifiers are not reproduced in reusable prompts, fixtures or this repository. Text alone cannot establish the duration of pauses, audio quality, overlap or interruption behaviour. Those remain provider-test observations.

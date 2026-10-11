@@ -135,6 +135,32 @@ test('Beliefs settings disable provider memory and voicemail content without cha
   assert.deepEqual((p.agents['agent_return']!['amd'] as { on_ivr: unknown }).on_ivr, { action: 'proceed' });
   assert.equal(env.BELIEFS_LIVE_CALLS, 'false');
 });
+test('Beliefs sync replaces an obsolete fixed opening, verifies it, skips repeats and can restore it', async () => {
+  const p = provider(); let backup: Backup | undefined;
+  const opts = options({ specs: [{ ...spec, role: 'belief-onboarding', firstMessage: 'A new arrival greeting' }], env: { BELIEFS_ONBOARDING_AGENT_ID: 'agent_return', PUBLIC_URL: 'https://example.com' }, saveBackup: async (b: Backup) => { backup = b; } });
+  const before = structuredClone(p.agents['agent_return']);
+  await syncAgents(p.api, opts);
+  assert.equal(p.agents['agent_return']!['first_message'], 'A new arrival greeting');
+  assert.equal(backup!.agents[0]!.agent['first_message'], 'Existing greeting');
+  assert.deepEqual(p.agents['agent_return']!['tts'], before!['tts']);
+  assert.deepEqual(p.agents['agent_return']!['tools'], before!['tools']);
+  const restorePoint = structuredClone(backup);
+  const start = p.requests.length;
+  await syncAgents(p.api, { ...opts, apply: false });
+  await syncAgents(p.api, opts);
+  assert.ok(p.requests.slice(start).every(r => r.method === 'GET'));
+  assert.equal(await restoreAgents(p.api, restorePoint), 1);
+  assert.deepEqual(p.agents['agent_return'], before);
+});
+test('an older backup without a greeting preserves the greeting during restore', async () => {
+  const p = provider(); let backup: Backup | undefined;
+  const opts = options({ specs: [{ ...spec, role: 'belief-onboarding', firstMessage: 'A new arrival greeting' }], env: { BELIEFS_ONBOARDING_AGENT_ID: 'agent_return', PUBLIC_URL: 'https://example.com' }, saveBackup: async (b: Backup) => { backup = b; } });
+  await syncAgents(p.api, opts);
+  delete backup!.agents[0]!.agent['first_message'];
+  assert.equal(await restoreAgents(p.api, backup), 1);
+  assert.equal(p.agents['agent_return']!['first_message'], 'A new arrival greeting');
+  assert.ok(!Object.hasOwn(p.requests.filter(r => r.method === 'PATCH').at(-1)!.body!, 'first_message'));
+});
 test('rollback restores the old prompt and variable catalog in a valid order', async () => {
   const p = provider(); let backup: Backup | undefined; const old = structuredClone(p.agents['agent_return']);
   await syncAgents(p.api, options({ saveBackup: async (b: Backup) => { backup = b; } }));
@@ -162,6 +188,7 @@ test('the real incomplete-AMD failure is rejected, while all three Beliefs creat
     const create = p.requests.find(r => r.method === 'POST' && r.body?.['name'] === pack.find(s => s.role === report.role)!.name)!;
     assert.ok(validAmd(create.body!['amd'])); assert.equal(create.body!['is_public'], false);
     assert.equal(p.agents[report.id]!['prompt'], pack.find(s => s.role === report.role)!.prompt);
+    assert.equal(p.agents[report.id]!['first_message'], pack.find(s => s.role === report.role)!.firstMessage);
     assert.ok(p.requests.findIndex(r => r.method === 'PUT' && r.path.includes(report.id)) < p.requests.findIndex(r => r.method === 'PATCH' && r.path.includes(report.id)));
   }
 });

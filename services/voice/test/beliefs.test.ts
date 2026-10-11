@@ -61,6 +61,20 @@ test('empty backlog ends the paid programme and prevents indefinite new discover
   assert.throws(()=>run(p,{type:'reactivate',id:b.id}),PracticeError);
 });
 function snapshot():Snapshot {const p=prepared();return {revision:p.revision,initial:p,practice:p,receipts:[],coverage:{}};}
+test('brief confirmation can prepare caller-authored content across turns without a recital',()=>{
+  const p=run(emptyPractice(),{type:'queue',belief:'I freeze when speaking',trigger:'At a group discussion'});
+  const s:Snapshot={revision:p.revision,initial:p,practice:p,receipts:[],coverage:{}};
+  const turns=['Preparation helps me speak clearly.', 'I gave a presentation last Thursday.', 'Let me think for a moment.', 'I still feel nervous.', 'I can practise at the next group discussion.', 'Yes, that is right.'];
+  const command={type:'prepare',id:p.beliefs[0]!.id,decision:'Preparation helps me speak clearly',evidence:['I gave a presentation last Thursday'],balance:'I still feel nervous',opportunity:'I can practise at the next group discussion',confirmed:true};
+  const callerText=turns.join(' ');
+  const next=capture(s,'onboarding',null,{event_id:'brief-confirmation',caller_text:callerText,command});
+  assert.equal(next.practice.beliefs[0]!.decision,command.decision);
+  assert.deepEqual(verifiedPractice(next,callerText),next.practice);
+  const omitted=turns.filter((_,i)=>i!==2).join(' ');
+  const incomplete=capture(s,'onboarding',null,{event_id:'omitted-turn',caller_text:omitted,command});
+  assert.throws(()=>verifiedPractice(incomplete,callerText),PracticeError);
+  assert.throws(()=>capture(s,'onboarding',null,{event_id:'agent-wording',caller_text:'Yes, that is right.',command}),PracticeError);
+});
 test('daily tool requires spoken decision, evidence and balanced reflection; pass is not completion',()=>{
   const s=snapshot();const b=s.practice.beliefs[0]!;
   const input={event_id:'d1',caller_text:b.decision+' I recall an experience. It is still difficult.',command:{type:'practice',id:b.id,evidence:'I recall an experience',balance:'It is still difficult'}};
