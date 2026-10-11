@@ -10,6 +10,7 @@ export interface SyncReport { role: AgentRole; id: string; changed: boolean; cre
 export interface SyncOptions {
   specs: PromptSpec[]; env: NodeJS.ProcessEnv; state: SyncState; apply: boolean;
   saveState: (state: SyncState) => Promise<void>; saveBackup: (backup: Backup) => Promise<void>; now?: Date;
+  onReport?: (report: SyncReport) => void;
 }
 const record = (v: unknown): Json => {
   if (!v || typeof v !== 'object' || Array.isArray(v)) throw new Error('Speechify returned an unexpected response shape.');
@@ -30,7 +31,37 @@ export function parseState(v: unknown): SyncState {
   if (pending && (!Object.hasOwn(agentKeys, String(pending['role'])) || typeof pending['key'] !== 'string' || !/^[0-9a-f-]{36}$/.test(pending['key']) || !/^[0-9a-f]{64}$/.test(String(pending['hash'])) || !Number.isFinite(Date.parse(String(pending['since']))))) throw new Error('Invalid pending Speechify setup.');
   return { version: 1, ids, ...(pending ? { pending: { role: pending['role'] as AgentRole, key: pending['key'] as string, since: pending['since'] as string, hash: pending['hash'] as string } } : {}) };
 }
-/** Never include provider errors/bodies, request headers, prompts or variable values in diagnostics. */
+const validationFields = new Set(['name', 'kind', 'prompt', 'slug', 'tts', 'voice_id', 'language', 'first_message', 'is_public', 'webhook_url', 'webhook_secret', 'memory', 'enabled', 'retention_days', 'amd', 'on_voicemail', 'on_ivr', 'on_unavailable', 'action', 'message', 'save_audio_recording', 'variables', 'key', 'type', 'default', 'description']);
+/** Emit only known schema paths, never provider messages, inputs or unknown keys. */
+function safeValidationFields(value: unknown): string[] {
+  const fields = new Set<string>();
+  function visit(v: unknown, depth: number): void {
+    if (depth > 8 || !v || typeof v !== 'object') return;
+    if (Array.isArray(v)) { for (const child of v.slice(0, 100)) visit(child, depth + 1); return; }
+    const item = v as Json;
+    for (const key of ['loc', 'path', 'field']) {
+      const path = item[key];
+      const parts = Array.isArray(path) ? path : typeof path === 'string' ? path.split('.') : [];
+      const names = parts.filter(p => p !== 'body' && typeof p !== 'number');
+      if (names.length && names.every(p => typeof p === 'string' && validationFields.has(p))) fields.add(names.join('.'));
+    }
+    for (const key of ['error', 'errors', 'details', 'detail', 'issues']) visit(item[key], depth + 1);
+  }
+  visit(value, 0); return [...fields].sort();
+}
+export class SpeechifySettingsError extends Error {
+  constructor(readonly status: number, method: string, path: string, value: unknown) {
+    const endpoint = path === '/v1/agents' ? path : path.endsWith('/variables') ? '/v1/agents/{id}/variables' : '/v1/agents/{id}';
+    const fields = safeValidationFields(value);
+    const v = value && typeof value === 'object' && !Array.isArray(value) ? value as Json : {};
+    const error = v['error'] && typeof v['error'] === 'object' && !Array.isArray(v['error']) ? v['error'] as Json : v;
+    // Speechify also uses this exact generic message for nested schema failures.
+    const validation = error['message'] === 'Request body is not valid JSON' ? '; request body failed validation' : '';
+    super(`Speechify rejected ${method} ${endpoint} (HTTP ${status}${validation})${fields.length ? `; validation fields: ${fields.join(', ')}` : ''}. No provider response body was printed.`);
+    this.name = 'SpeechifySettingsError';
+  }
+}
+/** Never include raw provider errors/bodies, request headers, prompts or variable values in diagnostics. */
 export class SpeechifySettingsApi {
   constructor(private readonly key: string, private readonly fetcher: typeof fetch = fetch) {
     if (!key || /[\r\n]/.test(key)) throw new Error('SPEECHIFY_API_KEY is missing or invalid.');
@@ -45,7 +76,10 @@ export class SpeechifySettingsApi {
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       });
     } catch { throw new Error('Speechify settings request was not confirmed. Rerun with the saved setup state; do not create a second agent manually.'); }
-    if (!response.ok) throw new Error(`Speechify refused the settings request (HTTP ${response.status}). No provider response body was printed.`);
+    if (!response.ok) {
+      let value: unknown; try { value = await response.json(); } catch { /* Non-JSON errors are deliberately withheld. */ }
+      throw new SpeechifySettingsError(response.status, method, path, value);
+    }
     if (response.status === 204) return {};
     try { return await response.json(); } catch { throw new Error('Speechify returned an unreadable settings response.'); }
   }
@@ -80,7 +114,8 @@ function restorePatch(before: Json, current: Json): Json {
   return Object.fromEntries([...new Set([...Object.keys(before), ...Object.keys(current)])].map(key => {
     if (!Object.hasOwn(before, key)) return [key, null];
     const value = before[key]; const got = current[key];
-    return [key, value && typeof value === 'object' && !Array.isArray(value) && got && typeof got === 'object' && !Array.isArray(got) ? restorePatch(value as Json, got as Json) : value];
+    // AMD is replaced wholesale by Speechify, unlike memory's merge-patch semantics.
+    return [key, key !== 'amd' && value && typeof value === 'object' && !Array.isArray(value) && got && typeof got === 'object' && !Array.isArray(got) ? restorePatch(value as Json, got as Json) : value];
   }));
 }
 function restoredFieldsMatch(actual: Json, before: Json): boolean {
@@ -121,7 +156,8 @@ export async function syncAgents(api: SpeechifySettingsApi, options: SyncOptions
     const currentVariables = id ? await api.variables(id) : [];
     const variables = mergeVariables(currentVariables, spec.variables);
     const wanted: Json = { prompt: spec.prompt };
-    if (beliefs) Object.assign(wanted, { memory: { enabled: false }, amd: { enabled: true, on_voicemail: { action: 'hangup' }, on_unavailable: { action: 'hangup' } }, save_audio_recording: false, webhook_url: privateUrl(env['PUBLIC_URL']) });
+    // All three routing branches are required, even when only voicemail/unavailable behaviour changes.
+    if (beliefs) Object.assign(wanted, { memory: { enabled: false }, amd: { enabled: true, on_voicemail: { action: 'hangup' }, on_ivr: { action: 'proceed' }, on_unavailable: { action: 'hangup' } }, save_audio_recording: false, webhook_url: privateUrl(env['PUBLIC_URL']) });
     let create: Json | undefined;
     if (!id) {
       if (typeof voice !== 'string' || !voice) throw new Error('New agents need SPEECHIFY_SETUP_VOICE_ID or an existing SPEECHIFY_AGENT_ID with a voice.');
@@ -145,12 +181,17 @@ export async function syncAgents(api: SpeechifySettingsApi, options: SyncOptions
     const variablesChanged = !isDeepStrictEqual(entry.currentVariables, variables);
     const settingsChanged = !entry.agent || !fieldsMatch(entry.agent, wanted);
     const changed = settingsChanged || variablesChanged;
-    if (!apply) { reports.push({ role: spec.role, id: id ?? '', changed, created: !id, tools: entry.agent && toolsPresent(entry.agent, spec.role.startsWith('belief-')) ? 'present' : 'unverified' }); continue; }
+    if (!apply) {
+      const report: SyncReport = { role: spec.role, id: id ?? '', changed, created: !id, tools: entry.agent && toolsPresent(entry.agent, spec.role.startsWith('belief-')) ? 'present' : 'unverified' };
+      reports.push(report); options.onReport?.(report); continue;
+    }
     if (!id) {
       const hash = createHash('sha256').update(JSON.stringify(entry.create)).digest('hex');
       const pending = { role: spec.role, key: randomUUID(), since: now.toISOString(), hash };
       state.pending = pending; await options.saveState(state);
-      const result = record(await api.request('POST', '/v1/agents', entry.create, pending.key));
+      let result: Json;
+      try { result = record(await api.request('POST', '/v1/agents', entry.create, pending.key)); }
+      catch (error) { if (error instanceof SpeechifySettingsError) throw new Error(`${spec.role}: ${error.message}`); throw error; }
       id = resourceId(result['id']); state.ids[spec.role] = id; delete state.pending; await options.saveState(state); created = true;
     }
     // Declare variables first: the provider rejects prompts referring to missing keys.
@@ -159,7 +200,8 @@ export async function syncAgents(api: SpeechifySettingsApi, options: SyncOptions
     const actual = await api.agent(id); const actualVariables = await api.variables(id);
     if (!fieldsMatch(actual, wanted) || variables.some(v => !actualVariables.some(a => fieldsMatch(a, v)))) throw new Error('Speechify did not retain the requested settings. A private backup is available; routing IDs were not written.');
     state.ids[spec.role] = id; await options.saveState(state);
-    reports.push({ role: spec.role, id, changed, created, tools: toolsPresent(actual, spec.role.startsWith('belief-')) ? 'present' : 'unverified' });
+    const report: SyncReport = { role: spec.role, id, changed, created, tools: toolsPresent(actual, spec.role.startsWith('belief-')) ? 'present' : 'unverified' };
+    reports.push(report); options.onReport?.(report);
   }
   return reports;
 }
