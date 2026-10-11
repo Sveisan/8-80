@@ -44,7 +44,7 @@ after(async () => {
 });
 
 beforeEach(async () => {
-  if (sql) await sql`truncate table message_attempts, message_outbox, callers, call_attempts, links, signups`;
+  if (sql) await sql`truncate belief_sessions, belief_enrollments, message_attempts, message_outbox, callers, call_attempts, links, signups`;
   process.env['DATA_ENCRYPTION_KEY'] = KEY;
   for (const k of ['TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN', 'SMS_FROM_NUMBER']) delete process.env[k];
 });

@@ -39,6 +39,10 @@ import { accountState } from './link/account.ts';
 import { readMemory, correctMemory } from './memory/context.ts';
 import { memoryPage } from './memory/page.ts';
 import { accessRoutes } from './access/routes.ts';
+import { beliefRoutes } from './beliefs/routes.ts';
+import { beliefTool } from './beliefs/runtime.ts';
+import { syncBeliefPurchase } from './beliefs/billing.ts';
+import { PracticeError } from './beliefs/model.ts';
 import { signupRoutes } from './signup/routes.ts';
 import { ANSWER_MAX, isPreview, openFeedback, saveFeedback } from './feedback/feedback.ts';
 import { feedbackGonePage, feedbackPage, feedbackThanksPage } from './feedback/page.ts';
@@ -194,6 +198,18 @@ export function controlPlane(deps: LoopDeps, secret: string | readonly string[] 
         if (answer) return html(res, answer.status, answer.body, answer.headers);
       }
 
+      if (req.method === 'POST' && url.pathname === '/beliefs/tool') {
+        try {
+          const body = await rawBody(req);
+          if (body.length > 24000) return send(res, 413, { error: 'request too large' });
+          return send(res, 200, await beliefTool(deps, JSON.parse(body.toString('utf8'))));
+        } catch (error) { return send(res, error instanceof PracticeError && error.code === 'unauthorized' ? 401 : 409, { error: error instanceof PracticeError ? error.code : 'tool unavailable' }); }
+      }
+      if (url.pathname === '/beliefs' || url.pathname.startsWith('/beliefs/')) {
+        const answer = await beliefRoutes(req, url, deps, clientOf(req));
+        if (answer) return html(res, answer.status, answer.body, answer.headers);
+      }
+
       if (url.pathname === '/' || url.pathname.startsWith('/start')) {
         const answer = await signupRoutes(req, url, deps, clientOf(req));
         if (answer) return html(res, answer.status, answer.body, answer.headers);
@@ -284,6 +300,10 @@ export function controlPlane(deps: LoopDeps, secret: string | readonly string[] 
         } catch {
           return send(res, 400, { error: 'not json' });
         }
+        try {
+          const module = await syncBeliefPurchase(deps, payload, req.headers);
+          if (module !== undefined) return send(res, 200, { handled: module });
+        } catch { return send(res, 503, { error: 'payment confirmation pending' }); }
         const read = vendor.read(req.headers, payload);
         if (!read.ok) {
           // Ignore unrelated events without logging customer data.
@@ -328,6 +348,9 @@ export function controlPlane(deps: LoopDeps, secret: string | readonly string[] 
         const caller = await deps.store.load(from);
         if (!caller.callNumber) return smsAck();
         const intent = parseReply(text);
+        // Carrier STOP applies to every product, even an account without a base weekly slot.
+        if (intent.kind === 'stop' || intent.kind === 'start') await deps.store.raw`update callers set
+          all_calls_stopped = ${intent.kind === 'stop'}, sms_opt_out = ${intent.kind === 'stop'} where phone_hash = ${hash}`;
         // Somebody who was sent the safety check-in is answered by a person,
         // never by "didn't catch that". Whoever is on call is told — with
         // nothing from the message — and STOP, START and the rest still work.

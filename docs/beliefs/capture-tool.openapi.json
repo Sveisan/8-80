@@ -1,0 +1,150 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "8&80 Beliefs capture tool",
+    "version": "1.0.0",
+    "description": "Provisional caller-owned capture. Server reconciles against signed completion transcript; never speak session credentials."
+  },
+  "servers": [
+    {
+      "url": "https://YOUR_PUBLIC_ORIGIN"
+    }
+  ],
+  "paths": {
+    "/beliefs/tool": {
+      "post": {
+        "operationId": "capture_belief",
+        "summary": "Check caller words for a safety hold and stage a permitted Beliefs command",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "session_id",
+                  "session_token",
+                  "caller_text"
+                ],
+                "properties": {
+                  "session_id": {
+                    "type": "string",
+                    "description": "Per-call session_id dynamic variable"
+                  },
+                  "session_token": {
+                    "type": "string",
+                    "description": "Private per-call session_token dynamic variable; never spoken"
+                  },
+                  "event_id": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "description": "Stable unique ID for this save; required with a command"
+                  },
+                  "caller_text": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 16000,
+                    "description": "Verbatim consecutive caller turns joined in order. No agent paraphrase."
+                  },
+                  "command": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "type"
+                    ],
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "outcome",
+                          "queue",
+                          "reorder",
+                          "prepare",
+                          "understood",
+                          "practice",
+                          "review",
+                          "pause"
+                        ]
+                      },
+                      "outcome": {
+                        "type": "string"
+                      },
+                      "belief": {
+                        "type": "string"
+                      },
+                      "trigger": {
+                        "type": "string"
+                      },
+                      "id": {
+                        "type": "string"
+                      },
+                      "decision": {
+                        "type": "string"
+                      },
+                      "evidence": {
+                        "oneOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "minItems": 1,
+                            "maxItems": 20
+                          }
+                        ]
+                      },
+                      "balance": {
+                        "type": "string"
+                      },
+                      "opportunity": {
+                        "type": "string"
+                      },
+                      "confirmed": {
+                        "type": "boolean"
+                      },
+                      "passed": {
+                        "type": "boolean"
+                      },
+                      "score": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 10
+                      },
+                      "reflection": {
+                        "type": "string"
+                      },
+                      "ids": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "minItems": 1,
+                        "maxItems": 50,
+                        "description": "All saved belief IDs in the caller-confirmed order; onboarding only."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Staged practice/IDs or held:true. Not proof of canonical persistence."
+          },
+          "401": {
+            "description": "Invalid scoped session credential"
+          },
+          "409": {
+            "description": "Invalid caller words, wrong call type, closed/stale session or changed account"
+          }
+        }
+      }
+    }
+  }
+}

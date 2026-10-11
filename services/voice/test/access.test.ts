@@ -54,7 +54,7 @@ async function serve(body: (base: string) => Promise<void>): Promise<void> {
   finally { await new Promise<void>(r => server.close(() => r())); }
 }
 beforeEach(async () => {
-  if (db) await db.sql`truncate journey_events, journey_counts, message_attempts, message_outbox, callers, links, signups, access_codes, call_attempts`;
+  if (db) await db.sql`truncate belief_sessions, belief_enrollments, journey_events, journey_counts, message_attempts, message_outbox, callers, links, signups, access_codes, call_attempts`;
   process.env['DATA_ENCRYPTION_KEY'] = Buffer.alloc(32, 9).toString('base64');
   process.env['PUBLIC_URL'] = 'https://8and80.example';
   process.env['SIGNUP_OPEN'] = '0';

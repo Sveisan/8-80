@@ -1,4 +1,5 @@
 import { milestone } from '../journey/measure.ts';
+import { settleBeliefs } from '../beliefs/runtime.ts';
 import { accountState } from '../link/account.ts';
 import { log } from '../log.ts';
 import { settle } from '../call/outcome.ts';
@@ -51,6 +52,8 @@ const NOT_ANSWERED = /no[_ -]?answer|unanswered|voicemail|machine|busy|rejected|
 export async function settleConversation(
   payload: unknown, deps: LoopDeps, headerEvent?: string, now = new Date(),
 ): Promise<Settled> {
+  const module = await settleBeliefs(payload, deps, headerEvent, now);
+  if (module) return module;
   const transcript = toTranscript(payload);
   const attempt = await deps.scheduler.attemptForConversation(transcript.providerCallId);
   if (!attempt) return { handled: false, why: 'no attempt for this conversation' };

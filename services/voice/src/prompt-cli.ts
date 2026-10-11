@@ -1,6 +1,7 @@
 import { loadScript } from './script.ts';
 import { buildInstructions, renderForConsole, CONSOLE_VARIABLES } from './prompt.ts';
 import { config } from './config.ts';
+import { weeklyPrompt } from './agent/prompt-pack.ts';
 
 /**
  * npm run prompt                      — a returning call
@@ -54,7 +55,7 @@ if (console_) {
   // Bare, so the whole of stdout is the thing to paste. Everything else goes to
   // stderr, where a pipe will not pick it up.
   process.stderr.write(`SCRIPT.md: ${script.size} keyed lines · rendered for the Speechify console\n`);
-  const text = renderForConsole(buildInstructions(script, profile), forConsole ? CONSOLE_VARIABLES : []);
+  const text = arg === 'third' ? renderForConsole(buildInstructions(script, profile), CONSOLE_VARIABLES) : weeklyPrompt(arg === 'first');
   if (forConsole) {
     const used = [...new Set([...text.matchAll(/\{\{([^}]+)\}\}/g)].map((m) => m[1]))];
     process.stderr.write(

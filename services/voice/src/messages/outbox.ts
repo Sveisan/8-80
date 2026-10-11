@@ -8,7 +8,7 @@ import { OptedOut } from '../sms/types.ts';
 import type { Mailer } from '../recap/mailer.ts';
 import { SendFailure } from './types.ts';
 
-export type MessageKind = 'call' | 'welcome' | 'recap' | 'billing' | 'trial' | 'feedback' | 'access' | 'signup' | 'reply' | 'export';
+export type MessageKind = 'call' | 'welcome' | 'recap' | 'billing' | 'trial' | 'feedback' | 'access' | 'signup' | 'reply' | 'export' | 'beliefs' | 'safety';
 export interface Message {
   eventKey: string; phoneHash: string; channel: 'sms' | 'email'; kind: MessageKind;
   to: string; body: string | Recap; reference?: string; expiresAt?: Date;
@@ -55,7 +55,7 @@ export async function recoverMessages(deps: LoopDeps, now = new Date()): Promise
 /** Suppression is rechecked under the same caller lock used by deletion and controls. */
 async function suppression(sql: Database, row: Row, now: Date): Promise<string | undefined> {
   if (row.expires_at <= now) return 'expired';
-  const [caller] = await sql`select email_enc, next_call_at, paused, sms_opt_out, feedback_opt_out, billing_status, cancel_at_period_end, ls_subscription_id from callers where phone_hash = ${row.phone_hash} for update`;
+  const [caller] = await sql`select email_enc, next_call_at, paused, held_for_review, sms_opt_out, feedback_opt_out, billing_status, cancel_at_period_end, ls_subscription_id from callers where phone_hash = ${row.phone_hash} for update`;
   if (row.kind === 'signup' || row.kind === 'access') {
     const valid = row.kind === 'signup'
       ? await sql`select id from signups where phone_hash = ${row.phone_hash} and id = ${row.reference} and expires_at > ${now} for update`
@@ -64,9 +64,10 @@ async function suppression(sql: Database, row: Row, now: Date): Promise<string |
   } else if (!caller) return 'account_deleted';
   const payload = row.payload_enc ? JSON.parse(decrypt(row.payload_enc)) as { appointment?: string | null } : undefined;
   if (payload && 'appointment' in payload && payload.appointment !== (caller?.['next_call_at']?.toISOString() ?? null)) return 'appointment_changed';
-  if (row.channel === 'email' && row.recipient_enc && (!caller?.['email_enc'] || decrypt(row.recipient_enc) !== decrypt(caller['email_enc']))) return 'address_changed';
-  if (row.channel === 'sms' && caller?.['sms_opt_out']) return 'carrier_opt_out';
+  if (row.kind !== 'safety' && row.channel === 'email' && row.recipient_enc && (!caller?.['email_enc'] || decrypt(row.recipient_enc) !== decrypt(caller['email_enc']))) return 'address_changed';
+  if (row.kind !== 'safety' && row.channel === 'sms' && caller?.['sms_opt_out']) return 'carrier_opt_out';
   if (['call', 'welcome', 'feedback'].includes(row.kind) && caller?.['paused']) return 'calls_paused';
+  if (row.kind === 'beliefs' && caller?.['held_for_review']) return 'human_review';
   if (row.kind === 'trial' && (caller?.['billing_status'] !== 'ended' || caller?.['ls_subscription_id'])) return 'trial_state_changed';
   if (row.kind === 'billing' && row.reference !== `${caller?.['billing_status']}:${caller?.['cancel_at_period_end']}`) return 'billing_state_changed';
   if (row.kind === 'call' && row.reference) {
@@ -126,8 +127,8 @@ export async function dispatchMessage(deps: LoopDeps, id: string, now = new Date
       if (row.channel === 'sms' && row.kind === 'call' && row.reference) await tx`update call_attempts set sms_sent_at = ${now} where id = ${row.reference}`;
       return finish('accepted');
     } catch (error) {
-      if (error instanceof OptedOut) {
-        await tx`update callers set paused = true, sms_opt_out = true where phone_hash = ${row.phone_hash}`;
+      if (error instanceof OptedOut && row.kind !== 'safety') {
+        await tx`update callers set paused = true, all_calls_stopped = true, sms_opt_out = true where phone_hash = ${row.phone_hash}`;
         return finish('suppressed', 'carrier_opt_out');
       }
       const disposition = error instanceof SendFailure ? error.disposition : transport.retryWindowMs ? 'retry' : 'uncertain';

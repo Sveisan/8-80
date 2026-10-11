@@ -53,7 +53,7 @@ async function serve(body: (base: string) => Promise<void>): Promise<void> {
   finally { server.closeAllConnections(); await new Promise<void>(r => server.close(() => r())); }
 }
 beforeEach(async () => {
-  if (db) await db.sql`truncate journey_events, journey_counts, message_attempts, message_outbox, callers, call_attempts, links, feedback, webhook_deliveries, signups, access_codes`;
+  if (db) await db.sql`truncate belief_sessions, belief_enrollments, journey_events, journey_counts, message_attempts, message_outbox, callers, call_attempts, links, feedback, webhook_deliveries, signups, access_codes`;
   process.env['DATA_ENCRYPTION_KEY'] = Buffer.alloc(32, 8).toString('base64');
   process.env['PUBLIC_URL'] = 'https://8and80.example';
   process.env['BILLING_PROVIDER'] = 'stripe'; process.env['STRIPE_WEBHOOK_SECRET'] = 'billing_secret';

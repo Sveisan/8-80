@@ -29,7 +29,7 @@ async function serve(body: (base: string) => Promise<void>): Promise<void> {
   finally { server.closeAllConnections(); await new Promise<void>(r => server.close(() => r())); }
 }
 beforeEach(async () => {
-  if (db) await db.sql`truncate journey_events, journey_counts, message_attempts, message_outbox, callers, links, signups, call_attempts`;
+  if (db) await db.sql`truncate belief_sessions, belief_enrollments, journey_events, journey_counts, message_attempts, message_outbox, callers, links, signups, call_attempts`;
   process.env['DATA_ENCRYPTION_KEY'] = Buffer.alloc(32, 6).toString('base64');
   process.env['PUBLIC_URL'] = 'https://8and80.example'; process.env['SIGNUP_OPEN'] = '1';
   process.env['TWILIO_ACCOUNT_SID'] = 'test'; process.env['TWILIO_AUTH_TOKEN'] = 'test'; process.env['SMS_FROM_NUMBER'] = '+4794000000';

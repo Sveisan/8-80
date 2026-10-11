@@ -18,7 +18,11 @@ export async function composeExport(
   store: PostgresStore,
   phone: string,
   script: ScriptLines,
+  options: { includeBeliefs?: boolean } = {},
 ): Promise<Recap | undefined> {
+  // Older weekly bearer links must not expose the new private programme.
+  // Only fresh, scoped Beliefs access can request the complete download.
+  const includeBeliefs = options.includeBeliefs === true;
   const line = (key: string): string => script.get(key) ?? '';
   const subject = line('email.export.subject');
   const lead = line('email.export.lead');
@@ -28,6 +32,7 @@ export async function composeExport(
   const rows = await store.raw<{ scheduled_for: Date; status: string; duration_ms: number | null }[]>`
     select scheduled_for, status, duration_ms
     from call_attempts where phone_hash = ${phoneKey(phone)}
+      and (${includeBeliefs} or id not in (select id from belief_sessions where phone_hash = ${phoneKey(phone)}))
     order by scheduled_for desc
   `;
   const meta = await store.raw<
@@ -95,16 +100,22 @@ export async function composeExport(
   const hash = phoneKey(phone);
   const [profile] = await store.raw`select * from callers where phone_hash = ${hash}`;
   if (!profile) return undefined;
-  const attempts = await store.raw`select * from call_attempts where phone_hash = ${hash} order by scheduled_for`;
+  const attempts = await store.raw`select * from call_attempts where phone_hash = ${hash}
+    and (${includeBeliefs} or id not in (select id from belief_sessions where phone_hash = ${hash})) order by scheduled_for`;
   const feedbackRows = await store.raw`select * from feedback where phone_hash = ${hash}`;
   const deliveries = await store.raw`select event, received_at, verdict, body_enc from webhook_deliveries where conversation_id in (
-    select provider_call_id from call_attempts where phone_hash = ${hash} and provider_call_id is not null) order by received_at`;
+    select provider_call_id from call_attempts where phone_hash = ${hash} and provider_call_id is not null
+      and (${includeBeliefs} or id not in (select id from belief_sessions where phone_hash = ${hash}))) order by received_at`;
   const credentials = await store.raw`select purpose, created_at, expires_at from links where phone_hash = ${hash}`;
   const pendingSignup = await store.raw`select phone_enc, email_enc, name, timezone, slot_weekday, slot_minute, attempts, expires_at, created_at from signups where phone_hash = ${hash}`;
   const recovery = await store.raw`select attempts, consumed, expires_at, window_at, sent_at, sends from access_codes where phone_hash = ${hash}`;
   const journey = await store.raw`select event, at from journey_events where phone_hash = ${hash} order by at`;
   const messageRows = await store.raw`select * from message_outbox where phone_hash = ${hash} order by created_at`;
   const messageAttempts = await store.raw`select a.* from message_attempts a join message_outbox m on m.id = a.message_id where m.phone_hash = ${hash} order by a.started_at`;
+  const beliefEnrollments = includeBeliefs ? await store.raw`select * from belief_enrollments where phone_hash = ${hash}` : [];
+  const beliefSessions = includeBeliefs ? await store.raw`select * from belief_sessions where phone_hash = ${hash} order by created_at` : [];
+  const [privateProgramme] = includeBeliefs ? [] : await store.raw`select phone_hash from belief_enrollments where phone_hash = ${hash}`;
+  if (privateProgramme) parts.push({role:'body',text:'Your private Beliefs programme is available through fresh phone verification at /beliefs/access. Its account download includes your complete 8&80 record.'});
   const messages = messageRows.map(({ payload_enc, recipient_enc, ...meta }) => ({ ...meta,
     recipient: recipient_enc ? decrypt(recipient_enc) : null,
     // Codes and bearer links are credentials; copies of previous exports would
@@ -112,8 +123,20 @@ export async function composeExport(
     payload: ['access', 'signup', 'export'].includes(meta['kind']) ? '[credential or duplicate export payload omitted]'
       : payload_enc ? JSON.parse(decrypt(payload_enc).replace(/(https?:\/\/[^\s"<>]+\/(?:r|f)\/)[a-z0-9-]+/gi, '$1[credential omitted]')) : null,
   }));
+  const redact = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(redact);
+    if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([key,entry]) => [key, /^(session_token|csrf|authorization|api_key)$/i.test(key) ? '[credential omitted]' : redact(entry)]));
+    return value;
+  };
+  const safeDelivery = (row: Record<string,unknown>): Record<string,unknown> => {
+    const {body_enc,...metadata}=row;
+    if (typeof body_enc !== 'string') return {...metadata,body:null};
+    const body=decrypt(body_enc);
+    try { return {...metadata,body:redact(JSON.parse(body))}; }
+    catch { return {...metadata,body}; }
+  };
   const unseal = (row: Record<string, unknown>): Record<string, unknown> => Object.fromEntries(Object.entries(row).map(([key, value]) => [key.endsWith('_enc') ? key.slice(0, -4) : key, key.endsWith('_enc') && typeof value === 'string' ? decrypt(value) : value]));
-  parts.push({ role: 'body', text: JSON.stringify({ profile: unseal(profile), callAttempts: attempts, feedback: feedbackRows.map(unseal), retainedCallDeliveries: deliveries.map(unseal), accessExpiry: credentials, pendingSignup: pendingSignup.map(unseal), recovery, journey, messages, messageAttempts }, null, 2) });
+  parts.push({ role: 'body', text: JSON.stringify({ profile: unseal(profile), callAttempts: attempts, beliefs: beliefEnrollments.map(unseal), beliefSessions: beliefSessions.map(unseal), feedback: feedbackRows.map(unseal), retainedCallDeliveries: deliveries.map(safeDelivery), accessExpiry: credentials, pendingSignup: pendingSignup.map(unseal), recovery, journey, messages, messageAttempts }, null, 2) });
   const quiet = line('email.export.quiet');
   if (quiet) parts.push({ role: 'quiet', text: quiet });
   const signoff = script.get('email.signoff');

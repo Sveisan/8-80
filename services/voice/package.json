@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "beliefs:preview": "node --import tsx src/beliefs/preview-cli.ts",
     "animate-mark": "tsx src/animate-mark-cli.ts",
     "audition": "tsx src/audition-cli.ts",
     "checkurl": "tsx src/checkurl.ts",
@@ -16,6 +17,7 @@
     "preflight": "tsx src/preflight.ts",
     "numbers": "tsx src/numbers-cli.ts",
     "prompt": "tsx src/prompt-cli.ts",
+    "speechify:sync": "node --import tsx src/speechify-sync-cli.ts",
     "recap": "tsx src/recap-cli.ts",
     "replay": "tsx src/replay-cli.ts",
     "runs": "tsx src/runs-cli.ts",
@@ -26,7 +28,9 @@
     "typecheck": "tsc --noEmit",
     "voices": "tsx src/voices-cli.ts",
     "messages": "tsx src/messages-cli.ts",
-    "journey": "tsx src/journey-cli.ts"
+    "journey": "tsx src/journey-cli.ts",
+    "beliefs:doctor": "node --import tsx src/beliefs/doctor-cli.ts",
+    "beliefs:prompt": "node --import tsx src/beliefs/prompt-cli.ts"
   },
   "dependencies": {
     "dotenv": "^16.4.5",

@@ -15,7 +15,7 @@ let sequence = 0;
 beforeEach(async () => {
   process.env['DATA_ENCRYPTION_KEY'] = Buffer.alloc(32, 9).toString('base64');
   if (db) {
-    await db.sql`truncate journey_events, journey_counts, callers`;
+    await db.sql`truncate belief_sessions, belief_enrollments, journey_events, journey_counts, callers`;
     await db.sql`update journey_tracking set started_at = ${start} where event = 'conversation_completed'`;
   }
   sequence = 0;
