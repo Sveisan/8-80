@@ -36,7 +36,7 @@ cd /opt/8-80
 npm run speechify:sync -- --group beliefs --apply
 ```
 
-This configures the separate onboarding, daily and weekly roles. Their prompts come from the three scripts in `docs/beliefs`. It declares `belief_context`, `call_kind`, `session_id` and `session_token`, disables provider long-term memory and audio recording, enables voicemail/unavailable hang-up, and sets the completion callback to `PUBLIC_URL/webhooks/speechify`.
+This configures the separate onboarding, daily and weekly roles. Their prompts come from the three scripts in `docs/beliefs`. It declares `belief_context`, `call_kind`, `session_id` and `session_token`, disables provider long-term memory and audio recording, enables voicemail/unavailable hang-up, and sets the completion callback to `PUBLIC_URL/webhooks/speechify`. The AMD object includes all three routing branches: voicemail and unavailable hang up; IVR uses the provider's `proceed` behaviour. Speechify replaces AMD wholesale on update, so sync and restore send complete routing objects.
 
 The command updates configured `BELIEFS_*_AGENT_ID` values or reuses IDs from its private state. If an ID is missing, it creates a private agent with a temporary prompt, saves the ID, declares variables, then uploads the real prompt. Creation needs an existing returning agent's voice or `SPEECHIFY_SETUP_VOICE_ID`, a credential-free HTTPS `PUBLIC_URL`, and `SPEECHIFY_WEBHOOK_SECRET` for signed callbacks. The optional voice ID must come from Speechify's Agents voice catalog, rather than its Build TTS catalog. Existing voices are never replaced.
 
@@ -52,9 +52,9 @@ npm run speechify:sync -- --group beliefs --apply --write-ids
 
 ## Failure and restore
 
-All selected roles, variable limits and required creation settings are checked before the first provider write. A private restore point is saved and its filename reported before uploads start. Each upload is read back before success is reported. A later failure can leave earlier roles updated; the operation is not a multi-agent transaction. Rerun it to finish a confirmed configuration, or use the reported restore point.
+All selected roles, variable limits and required creation settings are checked before the first provider write. A private restore point is saved and its filename reported before uploads start. Each upload is read back and reported immediately, so a later role's failure does not hide completed uploads. A later failure can leave earlier roles updated; the operation is not a multi-agent transaction. Rerun it to finish a confirmed configuration, or use the reported restore point.
 
-The directory `.speechify-sync` is ignored by Git and restricted to its owner; its state and backups use mode 0600. Backups can contain prompts, personal variable defaults and an old `.env`. **Do not paste their contents.** Only configuration status, prompt hashes and backup filenames are printed; provider error bodies, credentials and caller values are omitted.
+The directory `.speechify-sync` is ignored by Git and restricted to its owner; its state and backups use mode 0600. Backups can contain prompts, personal variable defaults and an old `.env`. **Do not paste their contents.** Configuration status, prompt hashes, backup filenames, failed HTTP operation/status and recognised validation field paths may be printed. Agent IDs in diagnostic endpoint paths are replaced with `{id}`. Raw provider error bodies/messages, credentials, unknown field names and caller values are omitted.
 
 To restore an existing agent's saved prompt/variable configuration, use the filename printed by your run:
 
@@ -70,7 +70,11 @@ If an interrupted process leaves `.speechify-sync/lock`, check that process has 
 
 ## Verification boundary and references
 
-The implementation is tested with a fake provider, including defaults, ordering, repeats, uncertain creates, recovery, restore and redacted diagnostics. No real Speechify account was accessed during development. A server-side `--check` is the first real-account verification, followed by a controlled upload and call test.
+The implementation is tested with a fake provider, including defaults, ordering, repeats, uncertain creates, recovery, restore and redacted diagnostics. The provider fixture rejects incomplete AMD objects on both creation and update, and models AMD replacement separately from merge-patch fields.
+
+Real-account verification on 11 October 2026 isolated the initial HTTP 400: an AMD object missing `on_ivr` was rejected on both POST and PATCH with the generic message “Request body is not valid JSON.” The same creation request with the IVR branch included returned HTTP 201 for the daily and weekly agents. The onboarding agent was created with a minimal request, then configured and checked separately. All five source prompts and required variable declarations matched on read-back; the three Beliefs agents were private, memory/recording were disabled, all AMD branches matched, and signed completion callbacks were configured. Their IDs were saved only in private setup state. The tracked server checkout stayed clean, no calls/messages were sent, the web service remained active, and scheduled calls remained paused.
+
+This verifies agent provisioning and stored settings. It does not verify the capture tool, published flows or real call behaviour, and does not enable Beliefs launch flags or save new routing IDs to `.env`.
 
 Speechify Agents is a beta API, so unexpected response shapes stop the operation. Read-back verifies stored base prompts and variables; published conversation phases can override a base prompt. Check any existing flow overrides in Speechify before treating an upload as the effective live script.
 

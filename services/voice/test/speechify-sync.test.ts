@@ -1,34 +1,45 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SpeechifySettingsApi, syncAgents, parseState, mergeVariables, mergeAgentIds, restoreAgents, type SyncState, type Backup, type Variable } from '../src/agent/speechify-sync.ts';
+import { SpeechifySettingsApi, SpeechifySettingsError, syncAgents, parseState, mergeVariables, mergeAgentIds, restoreAgents, type SyncState, type Backup, type Variable, type SyncReport } from '../src/agent/speechify-sync.ts';
 import { promptPack, type PromptSpec } from '../src/agent/prompt-pack.ts';
 
 const spec: PromptSpec = { role: 'return', name: 'Weekly', prompt: 'New {{call_number}}', variables: ['call_number'] };
 const state = (): SyncState => ({ version: 1, ids: {} });
 const now = new Date('2026-10-11T12:00:00Z');
+const defaultAmd = () => ({ enabled: false, on_voicemail: { action: 'hangup' }, on_ivr: { action: 'proceed' }, on_unavailable: { action: 'hangup' } });
+function validAmd(value: unknown): boolean {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const amd = value as Record<string, unknown>;
+  return typeof amd['enabled'] === 'boolean' && ['on_voicemail', 'on_ivr', 'on_unavailable'].every(key => {
+    const branch = amd[key]; return !!branch && typeof branch === 'object' && typeof (branch as Record<string, unknown>)['action'] === 'string';
+  });
+}
 function mergePatch(target: Record<string, unknown>, patch: Record<string, unknown>): Record<string, unknown> {
   const result = { ...target };
   for (const [key, value] of Object.entries(patch)) {
     if (value === null) delete result[key];
+    else if (key === 'amd') result[key] = structuredClone(value);
     else if (value && typeof value === 'object' && !Array.isArray(value)) result[key] = mergePatch((result[key] && typeof result[key] === 'object' && !Array.isArray(result[key]) ? result[key] : {}) as Record<string, unknown>, value as Record<string, unknown>);
     else result[key] = value;
   }
   return result;
 }
 function provider() {
-  const agents: Record<string, Record<string, unknown>> = { agent_return: { id: 'agent_return', prompt: 'Old', tts: { voice_id: 'voice_original', speed: 0.8 }, first_message: 'Existing greeting', language: 'en', memory: { enabled: true }, tools: [{ name: 'end_call', kind: 'builtin', config: { builtin: 'end_call' } }] } };
+  const agents: Record<string, Record<string, unknown>> = { agent_return: { id: 'agent_return', prompt: 'Old', tts: { voice_id: 'voice_original', speed: 0.8 }, first_message: 'Existing greeting', language: 'en', memory: { enabled: true }, amd: defaultAmd(), tools: [{ name: 'end_call', kind: 'builtin', config: { builtin: 'end_call' } }] } };
   const variables: Record<string, Variable[]> = { agent_return: [{ key: 'custom', type: 'number', default: 7, description: 'Existing default' }] };
   const requests: { method: string; path: string; body?: Record<string, unknown>; key: string | null }[] = [];
-  let ignorePrompt = false; let creationUncertain = false;
+  let ignorePrompt = false; let creationUncertain = false; let rejectCreation = false;
   const idsByKey = new Map<string, string>();
   const fetcher: typeof fetch = async (url, init) => {
     const path = new URL(String(url)).pathname; const method = init?.method ?? 'GET'; const headers = new Headers(init?.headers);
     const body = init?.body ? JSON.parse(String(init.body)) as Record<string, unknown> : undefined;
     requests.push({ method, path, body, key: headers.get('Idempotency-Key') });
     assert.equal(new URL(String(url)).origin, 'https://api.speechify.ai'); assert.equal(init?.redirect, 'error');
+    // The real API rejects incomplete AMD on both POST and PATCH with this generic error.
+    if ((body && Object.hasOwn(body, 'amd') && !validAmd(body['amd'])) || (method === 'POST' && rejectCreation)) return Response.json({ error: { code: 'bad_request', message: 'Request body is not valid JSON' } }, { status: 400 });
     if (method === 'POST') {
       const key = headers.get('Idempotency-Key')!; let id = idsByKey.get(key);
-      if (!id) { id = 'agent_created_' + idsByKey.size; idsByKey.set(key, id); agents[id] = { ...body, id }; variables[id] = []; }
+      if (!id) { id = 'agent_created_' + idsByKey.size; idsByKey.set(key, id); agents[id] = { amd: defaultAmd(), ...body, id }; variables[id] = []; }
       if (creationUncertain) { creationUncertain = false; throw new Error('Uncertain network error containing secret-fake-api-key'); }
       return Response.json({ id });
     }
@@ -48,7 +59,7 @@ function provider() {
     }
     return Response.json(agents[id]);
   };
-  return { api: new SpeechifySettingsApi('secret-fake-api-key', fetcher), agents, variables, requests, idsByKey, ignorePrompt: () => { ignorePrompt = true; }, uncertain: () => { creationUncertain = true; } };
+  return { api: new SpeechifySettingsApi('secret-fake-api-key', fetcher), agents, variables, requests, idsByKey, ignorePrompt: () => { ignorePrompt = true; }, uncertain: () => { creationUncertain = true; }, rejectCreate: () => { rejectCreation = true; } };
 }
 function options(overrides = {}) { return { specs: [spec], env: { SPEECHIFY_AGENT_ID: 'agent_return' }, state: state(), apply: true, now, saveState: async () => {}, saveBackup: async () => {}, ...overrides }; }
 
@@ -121,6 +132,7 @@ test('Beliefs settings disable provider memory and voicemail content without cha
   await syncAgents(p.api, options({ specs: [{ ...spec, role: 'belief-daily' }], env }));
   assert.equal((p.agents['agent_return']!['memory'] as { enabled: boolean }).enabled, false);
   assert.equal(((p.agents['agent_return']!['amd'] as { on_voicemail: { action: string } }).on_voicemail.action), 'hangup');
+  assert.deepEqual((p.agents['agent_return']!['amd'] as { on_ivr: unknown }).on_ivr, { action: 'proceed' });
   assert.equal(env.BELIEFS_LIVE_CALLS, 'false');
 });
 test('rollback restores the old prompt and variable catalog in a valid order', async () => {
@@ -130,10 +142,47 @@ test('rollback restores the old prompt and variable catalog in a valid order', a
 });
 test('Beliefs rollback removes introduced settings and nested keys rather than leaving them behind', async () => {
   const p = provider(); let backup: Backup | undefined;
-  p.agents['agent_return']!['amd'] = { enabled: false, tuning: { timeout_seconds: 6 } };
+  p.agents['agent_return']!['amd'] = { ...defaultAmd(), tuning: { timeout_seconds: 6 } };
   const old = structuredClone(p.agents['agent_return']);
   await syncAgents(p.api, options({ specs: [{ ...spec, role: 'belief-daily' }], env: { BELIEFS_DAILY_AGENT_ID: 'agent_return', PUBLIC_URL: 'https://example.com' }, saveBackup: async (b: Backup) => { backup = b; } }));
   assert.equal(await restoreAgents(p.api, backup), 1); assert.deepEqual(p.agents['agent_return'], old);
+  assert.deepEqual(p.requests.filter(r => r.method === 'PATCH').at(-1)!.body!['amd'], old!['amd']);
+});
+test('the real incomplete-AMD failure is rejected, while all three Beliefs creates use complete routing', async () => {
+  const p = provider();
+  await assert.rejects(p.api.request('POST', '/v1/agents', { amd: { enabled: true, on_voicemail: { action: 'hangup' }, on_unavailable: { action: 'hangup' } } }), e => e instanceof SpeechifySettingsError && e.status === 400);
+  const before = structuredClone(p.agents['agent_return']);
+  await assert.rejects(p.api.request('PATCH', '/v1/agents/agent_return', { amd: { enabled: true, on_voicemail: { action: 'hangup' }, on_unavailable: { action: 'hangup' } } }), e => e instanceof SpeechifySettingsError && e.status === 400);
+  assert.deepEqual(p.agents['agent_return'], before);
+  assert.equal(p.idsByKey.size, 0);
+  const saved = state(); const pack = promptPack('beliefs');
+  const reports = await syncAgents(p.api, options({ specs: pack, state: saved, env: { SPEECHIFY_AGENT_ID: 'agent_return', SPEECHIFY_WEBHOOK_SECRET: 'fake-signing-secret', PUBLIC_URL: 'https://example.com' } }));
+  assert.equal(reports.length, 3); assert.equal(new Set(reports.map(r => r.id)).size, 3); assert.equal(saved.pending, undefined);
+  for (const report of reports) {
+    const create = p.requests.find(r => r.method === 'POST' && r.body?.['name'] === pack.find(s => s.role === report.role)!.name)!;
+    assert.ok(validAmd(create.body!['amd'])); assert.equal(create.body!['is_public'], false);
+    assert.equal(p.agents[report.id]!['prompt'], pack.find(s => s.role === report.role)!.prompt);
+    assert.ok(p.requests.findIndex(r => r.method === 'PUT' && r.path.includes(report.id)) < p.requests.findIndex(r => r.method === 'PATCH' && r.path.includes(report.id)));
+  }
+});
+test('completed roles are reported before a later create fails, and the pending request remains protected', async () => {
+  const p = provider(); p.rejectCreate(); const saved = state(); const reports: SyncReport[] = [];
+  const opts = options({ specs: [spec, { ...spec, role: 'belief-daily' as const }], state: saved, env: { SPEECHIFY_AGENT_ID: 'agent_return', SPEECHIFY_WEBHOOK_SECRET: 'fake-signing-secret', PUBLIC_URL: 'https://example.com' }, onReport: (r: SyncReport) => reports.push(r) });
+  await assert.rejects(syncAgents(p.api, opts), /belief-daily: Speechify rejected POST \/v1\/agents \(HTTP 400; request body failed validation\)/);
+  assert.deepEqual(reports.map(r => r.role), ['return']); assert.equal(saved.pending!.role, 'belief-daily');
+  await assert.rejects(syncAgents(p.api, opts), /no second create/);
+  assert.equal(p.requests.filter(r => r.method === 'POST').length, 1);
+});
+test('validation diagnostics show only known schema paths and never echo inputs, messages, unknown paths or agent IDs', async () => {
+  const p = new SpeechifySettingsApi('secret-fake-api-key', async () => Response.json({ error: {
+    message: 'secret-fake-api-key private prompt fake-signing-secret',
+    details: [{ loc: ['body', 'amd', 'on_ivr'], input: 'fake-signing-secret' }, { path: ['variables', 0, 'default'], message: 'personal value' }, { path: ['private-custom-key'] }, { path: ['prompt', 'private-custom-key'] }],
+  } }, { status: 400 }));
+  await assert.rejects(p.request('PATCH', '/v1/agents/agent_private_identifier', { prompt: 'private prompt' }), e => {
+    assert.ok(e instanceof SpeechifySettingsError);
+    assert.match(e.message, /PATCH \/v1\/agents\/\{id\}/); assert.match(e.message, /amd.on_ivr/); assert.match(e.message, /variables.default/);
+    assert.doesNotMatch(e.message, /secret-fake|private prompt|fake-signing|personal value|private-custom-key|agent_private_identifier/); return true;
+  });
 });
 test('settings diagnostics cannot echo credentials or provider bodies, and unsupported hosts/paths cannot receive the key', async () => {
   const p = new SpeechifySettingsApi('secret-fake-api-key', async () => new Response('secret-fake-api-key fake-signing-secret personal prompt', { status: 422 }));

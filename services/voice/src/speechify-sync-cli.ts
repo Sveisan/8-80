@@ -56,8 +56,8 @@ async function main(): Promise<void> {
     const reports = await syncAgents(api, { specs, env: process.env, state, apply: mode === 'apply',
       saveState: async value => privateWrite(resolve(dir, 'state.json'), JSON.stringify(value, null, 2)),
       saveBackup: async value => { lastBackup = `backup-${Date.now()}-${randomUUID()}.json`; await privateWrite(resolve(dir, lastBackup), JSON.stringify(value, null, 2)); console.log(`Private restore point: ${lastBackup} (inside .speechify-sync; do not paste its contents).`); },
+      onReport: report => console.log(`${report.role}: ${mode === 'apply' ? 'uploaded and read back' : report.created ? 'needs creation' : report.changed ? 'update needed' : 'matches source'}; required tools ${report.tools === 'present' ? 'listed (call test still required)' : 'not verified'}.`),
     });
-    for (const report of reports) console.log(`${report.role}: ${mode === 'apply' ? 'uploaded and read back' : report.created ? 'needs creation' : report.changed ? 'update needed' : 'matches source'}; required tools ${report.tools === 'present' ? 'listed (call test still required)' : 'not verified'}.`);
     if (mode === 'apply' && writeIds) {
       if (reports.some(r => process.env[agentKeys[r.role]]?.trim() !== r.id && r.tools !== 'present')) throw new Error('New routing IDs were not saved: required tools are not verified. Agent IDs remain in the private setup state for the next run.');
       const path = resolve(repoRoot, '.env'); const source = await readFile(path, 'utf8');
