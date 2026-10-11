@@ -108,7 +108,7 @@ function fieldsMatch(actual: Json, wanted: Json): boolean {
     return value && typeof value === 'object' && !Array.isArray(value) ? !!got && typeof got === 'object' && !Array.isArray(got) && fieldsMatch(got as Json, value as Json) : isDeepStrictEqual(got, value);
   });
 }
-const ownedFields = ['prompt', 'webhook_url', 'memory', 'amd', 'save_audio_recording'] as const;
+const ownedFields = ['prompt', 'first_message', 'webhook_url', 'memory', 'amd', 'save_audio_recording'] as const;
 /** JSON Merge Patch needs nulls to remove settings introduced after a snapshot. */
 function restorePatch(before: Json, current: Json): Json {
   return Object.fromEntries([...new Set([...Object.keys(before), ...Object.keys(current)])].map(key => {
@@ -157,7 +157,7 @@ export async function syncAgents(api: SpeechifySettingsApi, options: SyncOptions
     const variables = mergeVariables(currentVariables, spec.variables);
     const wanted: Json = { prompt: spec.prompt };
     // All three routing branches are required, even when only voicemail/unavailable behaviour changes.
-    if (beliefs) Object.assign(wanted, { memory: { enabled: false }, amd: { enabled: true, on_voicemail: { action: 'hangup' }, on_ivr: { action: 'proceed' }, on_unavailable: { action: 'hangup' } }, save_audio_recording: false, webhook_url: privateUrl(env['PUBLIC_URL']) });
+    if (beliefs) Object.assign(wanted, { first_message: spec.firstMessage ?? '', memory: { enabled: false }, amd: { enabled: true, on_voicemail: { action: 'hangup' }, on_ivr: { action: 'proceed' }, on_unavailable: { action: 'hangup' } }, save_audio_recording: false, webhook_url: privateUrl(env['PUBLIC_URL']) });
     let create: Json | undefined;
     if (!id) {
       if (typeof voice !== 'string' || !voice) throw new Error('New agents need SPEECHIFY_SETUP_VOICE_ID or an existing SPEECHIFY_AGENT_ID with a voice.');
@@ -172,7 +172,7 @@ export async function syncAgents(api: SpeechifySettingsApi, options: SyncOptions
     if (!recovered?.id || recovered.agent?.['name'] !== recovered.spec.name || recovered.agent?.['is_public'] !== false) throw new Error('The supplied recovery ID does not identify the expected private setup agent. No configuration was changed.');
   }
   // Read and validate every selected agent before the first provider write.
-  if (apply) await options.saveBackup({ version: 1, at: now.toISOString(), agents: entries.flatMap(e => e.id && e.agent ? [{ role: e.spec.role, id: e.id, agent: Object.fromEntries(ownedFields.filter(k => Object.hasOwn(e.agent!, k)).map(k => [k, e.agent![k]])), variables: e.currentVariables }] : []) });
+  if (apply) await options.saveBackup({ version: 1, at: now.toISOString(), agents: entries.flatMap(e => e.id && e.agent ? [{ role: e.spec.role, id: e.id, agent: Object.fromEntries(ownedFields.filter(k => Object.hasOwn(e.agent!, k) && (k !== 'first_message' || e.spec.role.startsWith('belief-'))).map(k => [k, e.agent![k]])), variables: e.currentVariables }] : []) });
   if (apply && state.pending) { delete state.pending; await options.saveState(state); }
   const reports: SyncReport[] = [];
   for (const entry of entries) {
@@ -218,12 +218,14 @@ export async function restoreAgents(api: SpeechifySettingsApi, input: unknown): 
   for (const entry of entries) originals.push(await api.agent(entry.id));
   let index = 0;
   for (const { id, settings, variables } of entries) {
+    // Older restore points predate managed greetings: they cannot restore an unknown greeting.
+    const fields = ownedFields.filter(k => k !== 'first_message' || Object.hasOwn(settings, k));
     // The old prompt's variables still exist in the merged catalog until this restore.
-    const current = Object.fromEntries(ownedFields.filter(k => Object.hasOwn(originals[index]!, k)).map(k => [k, originals[index]![k]])); index++;
+    const current = Object.fromEntries(fields.filter(k => Object.hasOwn(originals[index]!, k)).map(k => [k, originals[index]![k]])); index++;
     await api.request('PATCH', `/v1/agents/${id}`, restorePatch(settings, current));
     await api.request('PUT', `/v1/agents/${id}/variables`, { variables });
     const agent = await api.agent(id); const catalog = await api.variables(id);
-    const restored = Object.fromEntries(ownedFields.filter(k => Object.hasOwn(agent, k)).map(k => [k, agent[k]]));
+    const restored = Object.fromEntries(fields.filter(k => Object.hasOwn(agent, k)).map(k => [k, agent[k]]));
     if (!restoredFieldsMatch(restored, settings) || catalog.length !== variables.length || variables.some(v => !catalog.some(a => fieldsMatch(a, v)))) throw new Error('Speechify restore was not verified.');
   }
   return entries.length;

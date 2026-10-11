@@ -10,7 +10,12 @@ export const agentKeys: Record<AgentRole, string> = {
   first: 'SPEECHIFY_FIRST_CALL_AGENT_ID', return: 'SPEECHIFY_AGENT_ID',
   'belief-onboarding': 'BELIEFS_ONBOARDING_AGENT_ID', 'belief-daily': 'BELIEFS_DAILY_AGENT_ID', 'belief-weekly': 'BELIEFS_WEEKLY_AGENT_ID',
 };
-export interface PromptSpec { role: AgentRole; name: string; prompt: string; variables: string[]; }
+export interface PromptSpec { role: AgentRole; name: string; prompt: string; variables: string[]; firstMessage?: string; }
+export const BELIEF_GREETINGS = {
+  onboarding: 'Hi, it’s 8&80 Beliefs. Is now still a good time to talk?',
+  daily: 'Hi, it’s 8&80 Beliefs. Let’s take a moment for your decisions.',
+  weekly: 'Hi, it’s 8&80 Beliefs. Is now still a good time for your weekly review?',
+} as const;
 
 /** The same source and rendering used by `npm run prompt -- first console`. */
 export function weeklyPrompt(first: boolean): string {
@@ -33,6 +38,7 @@ export function promptPack(group: AgentGroup): PromptSpec[] {
     role: `belief-${kind}`, name: `8&80 Beliefs · ${kind}`,
     prompt: readFileSync(resolve(repoRoot, `docs/beliefs/${kind}-script.md`), 'utf8'),
     variables: ['belief_context', 'call_kind', 'session_id', 'session_token'],
+    firstMessage: BELIEF_GREETINGS[kind],
   });
   for (const spec of pack) {
     const declared = new Set(spec.variables);
