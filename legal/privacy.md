@@ -1,6 +1,6 @@
 # Privacy
 
-Draft updated 9 October 2026; operational wording requires review before release.
+Draft updated 15 October 2026; operational wording requires review before release.
 
 {{company}}{{orgnr_clause}}, at {{address}}, is the data controller. Write to
 {{support_email}} about anything on this page.
@@ -118,7 +118,7 @@ transfer data under the European Commission's standard contractual clauses.
 
 ## How long
 
-Your record stays until you delete it or ask us to. Transcripts, fourteen days.
+Your weekly-service record stays until you delete it or ask us to. Beliefs programme content has the separate retention rules below. Transcripts, fourteen days.
 A verification code works for ten minutes. An unverified booking draft can be
 recovered for one hour after the latest code request and is removed by the next
 scheduled cleanup. A reschedule link lasts a week. The cookie on the browser you signed up with, a week.
@@ -184,3 +184,43 @@ If this page changes in a way that matters, we will email you.
 You can review and correct your saved commitment and goals from “Correct what I remember”
 on your call page. This requires a fresh phone code and opens a 15-minute session. Finishing
 that session closes access to the notes. Ordinary call-control links do not display them.
+
+
+## Separate Beliefs programmes
+
+Each programme has its own identifier, chosen outcome, caller-authored beliefs,
+prepared decisions, supporting experiences, remaining difficulty, opportunities,
+weekly scores and prior decision versions. Personal practice content is encrypted.
+We keep consent, schedule, payment references, refund requests, completion and
+included-check-in status separately. Programme activity does not overwrite weekly
+8&80 memories or its subscription. Fresh Beliefs phone verification is required
+for private history and the complete account export.
+
+An unfinished purchase and its progress do not expire merely through inactivity.
+Completed practice history is scheduled for deletion 12 months after completion.
+We send a content-free reminder 30 days before the planned date. Your private
+account offers export, immediate programme-history deletion and an explicit later
+date you choose (shown as a UTC date). An extension is never automatic.
+Automatic cleanup also allows at least 30 days after a delivered reminder or your
+explicit acknowledgment. Failed or opted-out reminders require support follow-up;
+cleanup waits for that opportunity to export or choose. Your account shows the
+planned date even when a text cannot be delivered.
+
+Programme-history deletion removes its personal practice and retained application
+transcript content. It preserves another programme's history, unfinished progress,
+weekly-service data and the minimum record of any unused included return check-in.
+Necessary financial records are handled separately under applicable recordkeeping
+requirements. A payment record is not a reason to retain personal belief content.
+Whole-account deletion remains a distinct action covering both services.
+
+Speechify receives the selected programme's practice context and preferred name
+for its calls; support email is excluded from voice context. A signed, timestamped
+caller turn supported by reconciled caller-owned capture can establish connection
+for the refund clock. We do not treat outbound acceptance, a schedule or voicemail
+as proof that you received a call. Unknown historical connection timing requires
+support review and does not shorten the voluntary guarantee.
+
+Our application cleanup does not establish erasure at independent providers or in
+backups. The controller must verify provider retention/deletion, backup expiry,
+financial-record periods and the operational handling of failed notices before
+publishing the paid programme. These operational details remain under review.

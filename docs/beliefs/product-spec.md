@@ -1,6 +1,8 @@
 # 8&80 Beliefs — consolidated specification
 
-Local continuation edition, 13 October 2026. This specification describes the existing product plus this reviewable diff. It is not a launch approval. Read [current verification](continuation-verification.md), [audit](gap-report.md), [journey](first-month-map.md), [contracts](contracts.md), [script packs](call-experience.md) and [operating handoff](launch.md) together.
+Policy follow-up edition, 15 October 2026. This specification describes the existing product plus this reviewable diff. It is not a launch approval. Read [current verification](continuation-verification.md), [audit](gap-report.md), [journey](first-month-map.md), [contracts](contracts.md), [script packs](call-experience.md) and [operating handoff](launch.md) together.
+
+**Owner decisions, 15 October 2026:** [Approved policies and follow-up build](approved-policy-follow-up.md) resolves pricing, flexible start, queue removal, programme scope/return, voluntary refunds and history retention. These rules are implemented in this follow-up. Read [policy verification and operations](policy-verification.md); historical evidence in the earlier verification report remains scoped to PR #6.
 
 ## Purpose
 
@@ -16,16 +18,15 @@ The existing private Beliefs account is sufficient; no new account hierarchy is 
 
 | Decision | Current baseline | Outstanding owner action |
 | --- | --- | --- |
-| Purchase | One separate payment; no renewal. Equal amount/currency to one base monthly payment, checked against authoritative provider data | Confirm this replaces the expired subscription proposal before live sales |
-| Amount | No real amount/currency is invented here. Public configured label must match provider product and tax presentation | Operating company approves actual amount, tax-inclusive/exclusive presentation, terms and receipt |
-| Coverage | All genuine beliefs mapped in this enrollment; completion can take longer than 30 days | Measure delivery/support cost; no silent duration cap or expiry |
-| Pause | Stops practice calls, retains private data and entitlement, no charge or renewal | Explain long holds and operational support honestly |
-| Unfinished onboarding | Paid entitlement remains; genuine verified partial stages are retained; customer can book a continuation | Decide remedy if insufficient genuine material or the method does not fit; no fabricated backlog or automatic refund promise |
-| Refund/dispute | Authoritative provider state changes standing to `payment_hold`; no placement; private data remains accessible | Approve withdrawal/refund policy and person-led handling; software pause/completion does not issue money movements |
-| Completion | All mapped items retired; future appointment pointers cleared; private history stays available; no renewal | Approve retention duration and future return policy. A completed enrollment cannot be silently reopened or sold again |
-| Backlog fit | Two initial active decisions; hard cap three; discovery requires more genuine items than cap | Any relaxation for fewer relevant beliefs needs a direct product decision |
-| Outdated queued item | Leave slot vacant, keep preparation unfinished, show support route | Decide an explicit removal/replacement policy before adding an agent command |
-| Safety | Existing absolute ban on urgent spoken human guidance remains unresolved; local scripts are not an urgent protocol | Qualified review, named operator/backup, response and failure escalation before real participants |
+| Purchase | One separate payment equal to one base monthly payment, same currency; no renewal | Verify provider amount, tax and receipt before sales |
+| Scope | One outcome and related beliefs; no fixed expiry; later related additions | Measure delivery/support cost; no silent expiry |
+| Pause | Free unfinished resume; STOP/safety/payment controls continue | Provide support for prolonged holds |
+| Starting | One or two genuinely prepared decisions, maximum three active; no required backlog | Verify real voice coverage |
+| Queue | Explicit Remove from queue preserves earlier history; removal is not retirement | No agent removal without an allowed command |
+| Refund | Full voluntary guarantee before first call or within 14 days of first verified connection; human processing | Review statutory rights and provider refund process |
+| Completion | All material retired or explicitly removed; future daily/weekly pointers clear | One explicit included brief check-in; correction is free; further full programme requires a separate purchase |
+| History | Twelve months after completion; 30-day delivered notice/acknowledgment; explicit extension/export/delete | Confirm backups, provider erasure and minimal financial retention |
+| Safety | Local scripts are not an approved urgent protocol | Qualified review, operator/backup and staffed coverage before participants |
 
 Hosted payment is provider-owned. Redirecting back is not proof of payment. The app verifies a distinct non-recurring product, quantity, monthly reference price, paid state, amount/currency and refund/dispute state. Provider receipt is the invoice; application confirmation is a separate neutral SMS. There is no routine Beliefs email campaign or daily recap.
 
@@ -39,7 +40,7 @@ Queued items wait until a practice slot is available. When selected, check fit a
 
 | Call | Experience | Durable result |
 | --- | --- | --- |
-| Onboarding / continuation | Recognisable availability greeting; purpose/duration/rhythm before reflection; choose outcome; map/order genuine beliefs; fully prepare two; explain use and verified next booking | Signed caller-word reconciliation saves complete or genuine partial stages. Understanding starts daily/weekly scheduling only when the outcome, two prepared decisions and genuine backlog exist |
+| Onboarding / continuation | Recognisable availability greeting; purpose/duration/rhythm before reflection; choose outcome; map/order genuine beliefs; fully prepare one or two; explain use and verified next booking | Signed caller-word reconciliation saves complete or genuine partial stages. Understanding starts daily/weekly scheduling only when the outcome and at least one fully prepared decision exist; no backlog is required |
 | Daily | One scheduled call, flat frequency; initially two decisions, cap three; identify topic then decision, real experience (older allowed), balanced reflection; may pass | Complete exercise coverage is distinct from passed/incomplete coverage. No discovery, preparation, score, sales or catch-up ringing. No prepared active items means no daily placement |
 | Weekly | Separate review; improvement, no change or poor fit are equally valid; reflect on each item active at start; caller chooses/explicitly confirms 0–10 score; prepare next ordered backlog item if it still fits | Server-owned period, one score per item/period. Two consecutive periods at 0–1 retire. Missing period, higher score or changed decision breaks sequence. Newly prepared/revised items cannot score in this call |
 | Around day 28 | Natural usefulness, concrete change, burden and rhythm questions in a weekly review | Server `first_month_review` context identifies period 3. Confirmed answers can enter ordinary reflections; there is no separate automated benefit score or additional scheduled call |

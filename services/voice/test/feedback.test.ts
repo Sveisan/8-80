@@ -40,7 +40,7 @@ after(async () => {
 });
 
 beforeEach(async () => {
-  if (sql) await sql`truncate belief_sessions, belief_enrollments, message_attempts, message_outbox, callers, call_attempts, links, feedback`;
+  if (sql) await sql`truncate belief_sessions, belief_refund_requests, belief_enrollments, message_attempts, message_outbox, callers, call_attempts, links, feedback`;
   process.env['DATA_ENCRYPTION_KEY'] = KEY;
   process.env['PUBLIC_URL'] = 'https://8and80.me';
   delete process.env['FEEDBACK_AFTER_CALL'];

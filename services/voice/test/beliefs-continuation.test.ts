@@ -69,10 +69,10 @@ test('an unresolved numeric range cannot become a weekly score or retirement',()
   assert.throws(()=>capture(s,'weekly',4,{...input,caller_text:'One or two. My reflection. I would not choose one. Yes, correct.'}),PracticeError);
   assert.equal(s.practice.beliefs[0]!.reviews.length,0);
 });
-test('two prepared decisions without a genuine backlog stay unfinished',()=>{
+test('prepared decisions can start without inventing a backlog',()=>{
   const p=ready();const incomplete={...p,understood:false,state:'onboarding' as const,beliefs:p.beliefs.slice(0,2)};
-  assert.throws(()=>run(incomplete,{type:'understood',confirmed:true}),PracticeError);
-  assert.ok(beliefPage('prepare',{practice:incomplete}).includes('never need to invent another thought'));
+  assert.equal(run(incomplete,{type:'understood',confirmed:true}).state,'active');
+  assert.ok(!beliefPage('prepare',{practice:incomplete}).includes('onboarding remains unfinished'));
 });
 test('queued material waits for a vacant slot and old preparation is never activated implicitly',()=>{
   let p=ready();const queued=p.beliefs[2]!;

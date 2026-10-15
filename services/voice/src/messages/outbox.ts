@@ -8,7 +8,7 @@ import { OptedOut } from '../sms/types.ts';
 import type { Mailer } from '../recap/mailer.ts';
 import { SendFailure } from './types.ts';
 
-export type MessageKind = 'call' | 'welcome' | 'recap' | 'billing' | 'trial' | 'feedback' | 'access' | 'signup' | 'reply' | 'export' | 'beliefs' | 'safety';
+export type MessageKind = 'call' | 'welcome' | 'recap' | 'billing' | 'trial' | 'feedback' | 'access' | 'signup' | 'reply' | 'export' | 'beliefs' | 'safety' | 'operator';
 export interface Message {
   eventKey: string; phoneHash: string; channel: 'sms' | 'email'; kind: MessageKind;
   to: string; body: string | Recap; reference?: string; expiresAt?: Date;
@@ -64,10 +64,14 @@ async function suppression(sql: Database, row: Row, now: Date): Promise<string |
   } else if (!caller) return 'account_deleted';
   const payload = row.payload_enc ? JSON.parse(decrypt(row.payload_enc)) as { appointment?: string | null } : undefined;
   if (payload && 'appointment' in payload && payload.appointment !== (caller?.['next_call_at']?.toISOString() ?? null)) return 'appointment_changed';
-  if (row.kind !== 'safety' && row.channel === 'email' && row.recipient_enc && (!caller?.['email_enc'] || decrypt(row.recipient_enc) !== decrypt(caller['email_enc']))) return 'address_changed';
-  if (row.kind !== 'safety' && row.channel === 'sms' && caller?.['sms_opt_out']) return 'carrier_opt_out';
+  if (!['safety','operator'].includes(row.kind) && row.channel === 'email' && row.recipient_enc && (!caller?.['email_enc'] || decrypt(row.recipient_enc) !== decrypt(caller['email_enc']))) return 'address_changed';
+  if (!['safety','operator'].includes(row.kind) && row.channel === 'sms' && caller?.['sms_opt_out']) return 'carrier_opt_out';
   if (['call', 'welcome', 'feedback'].includes(row.kind) && caller?.['paused']) return 'calls_paused';
   if (row.kind === 'beliefs' && caller?.['held_for_review']) return 'human_review';
+  if(row.kind==='beliefs' && row.event_key.startsWith('beliefs:retention:')){
+    const [e]=await sql`select history_delete_at,history_deleted_at from belief_enrollments where id=${row.reference}`;
+    if(!e || e['history_deleted_at'] || !e['history_delete_at'] || row.event_key!==`beliefs:retention:${row.reference}:${e['history_delete_at'].toISOString()}`)return 'history_notice_changed';
+  }
   if (row.kind === 'trial' && (caller?.['billing_status'] !== 'ended' || caller?.['ls_subscription_id'])) return 'trial_state_changed';
   if (row.kind === 'billing' && row.reference !== `${caller?.['billing_status']}:${caller?.['cancel_at_period_end']}`) return 'billing_state_changed';
   if (row.kind === 'call' && row.reference) {
@@ -127,7 +131,7 @@ export async function dispatchMessage(deps: LoopDeps, id: string, now = new Date
       if (row.channel === 'sms' && row.kind === 'call' && row.reference) await tx`update call_attempts set sms_sent_at = ${now} where id = ${row.reference}`;
       return finish('accepted');
     } catch (error) {
-      if (error instanceof OptedOut && row.kind !== 'safety') {
+      if (error instanceof OptedOut && !['safety','operator'].includes(row.kind)) {
         await tx`update callers set paused = true, all_calls_stopped = true, sms_opt_out = true where phone_hash = ${row.phone_hash}`;
         return finish('suppressed', 'carrier_opt_out');
       }

@@ -15,16 +15,29 @@ export function commandFrom(form: URLSearchParams, week?: number): Command {
       return { type:'review',id,week,score:Number(text('score')),reflection:text('reflection'),confirmed };
     case 'pause': return { type:'pause' };
     case 'resume': return { type:'resume' };
+    case 'remove': return {type:'remove',id};
+    case 'correct_completion': return {type:'correct_completion',id,confirmed};
     case 'reactivate': return { type:'reactivate',id };
     default: throw new PracticeError('command_unknown');
   }
 }
 export const messages: Record<string,string> = {
+  outcome_locked:'Your purchase covers your chosen outcome. Add related beliefs here, or finish this programme before choosing a new paid programme.',
+  unfinished_programme:'Your unfinished programme remains available under its existing purchase. Resume it without paying again.',
+  newer_programme_exists:'Contact support to correct an older completed programme while another programme is open. No extra payment is required for a correction.',
+  new_purchase_confirmation_required:'Confirm that this is a new programme with a separate one-time payment.',
+  completion_confirmation_required:'Confirm that completion was a mistake and choose the decision to restore.',
+  checkin_unavailable:'The included check-in is unavailable or already used. Contact support if a previous call was not delivered.',
+  refund_request_invalid:'Choose a request type for this paid programme. Contact support for other payment questions.',
+  retention_date_invalid:'Choose a valid date after the current deletion date.',
+  history_deleted:'This programme’s personal history has been deleted. Its unused check-in remains available; support can help with payment records.',
+  history_confirmation_required:'Type DELETE HISTORY to delete only this completed programme’s history.',
+  queue_item_required:'Only queued material can be removed. Your earlier practice history stays available.',
   wording_required:'Please use your own words to complete the question.',
   evidence_required:'Add at least one genuine experience that supports your decision.',
   preparation_not_due:'We prepare a queued belief when a practice slot becomes available. Your current decisions stay in daily practice.',
   caller_confirmation_required:'Please confirm that these are your words and your choice.',
-  onboarding_incomplete:'Map at least three beliefs, prepare two decisions and confirm you understand the practice.',
+  onboarding_incomplete:'Prepare at least one decision with genuine supporting experiences, then confirm you understand the practice.',
   discovery_complete:'Your programme follows the beliefs you mapped during onboarding.',
   programme_complete:'Your enrolled programme is complete. You can still revisit your decisions here.',
   deletion_confirmation_required:'Type DELETE to confirm erasing your entire 8&80 account.',

@@ -1,6 +1,6 @@
 import { randomUUID, createHash } from 'node:crypto';
 
-export type BeliefStatus = 'queued' | 'preparing' | 'active' | 'retired';
+export type BeliefStatus = 'queued' | 'preparing' | 'active' | 'retired' | 'removed';
 export interface Evidence { text: string; at: string; }
 export interface Review { week: number; score: number; at: string; reflection: string; }
 export interface DecisionVersion {
@@ -20,6 +20,7 @@ export interface Practice {
   contact?: { name: string; email: string };
 }
 export type Command =
+  | { type: 'checkin'; reflection: string; confirmed: boolean }
   | { type: 'outcome'; outcome: string }
   | { type: 'queue'; belief: string; trigger: string }
   | { type: 'prepare'; id: string; decision: string; evidence: string[]; balance: string; opportunity: string; confirmed: boolean }
@@ -27,6 +28,8 @@ export type Command =
   | { type: 'practice'; id: string; evidence?: string; balance?: string; passed?: boolean }
   | { type: 'review'; id: string; week: number; score: number; reflection: string; confirmed: boolean }
   | { type: 'reactivate'; id: string }
+  | { type: 'remove'; id: string }
+  | { type: 'correct_completion'; id: string; confirmed: boolean }
   | { type: 'reorder'; ids: string[] }
   | { type: 'pause' | 'resume' };
 
@@ -46,8 +49,9 @@ export const activeBeliefs = (p: Practice): Belief[] => p.beliefs.filter(b => b.
 export function voicePractice(p:Practice):Omit<Practice,'contact'> {
   const result=structuredClone(p);delete result.contact;return result;
 }
-export function nextPracticeAppointment(p:Practice, times:{daily?:Date|null;weekly?:Date|null;onboarding?:Date|null}, now=new Date()):{kind:'daily'|'weekly'|'onboarding';at:Date}|undefined {
-  if(['paused','completed'].includes(p.state))return undefined;
+export function nextPracticeAppointment(p:Practice, times:{daily?:Date|null;weekly?:Date|null;onboarding?:Date|null;checkin?:Date|null}, now=new Date()):{kind:'daily'|'weekly'|'onboarding'|'checkin';at:Date}|undefined {
+  if(p.state==='completed')return times.checkin && times.checkin>now?{kind:'checkin',at:times.checkin}:undefined;
+  if(p.state==='paused')return undefined;
   const candidates=p.understood?[...(activeBeliefs(p).length?[{kind:'daily' as const,at:times.daily}]:[]),{kind:'weekly' as const,at:times.weekly}]:[{kind:'onboarding' as const,at:times.onboarding}];
   return candidates.filter((item):item is {kind:'daily'|'weekly'|'onboarding';at:Date}=>!!item.at && item.at>now).sort((a,b)=>+a.at-+b.at)[0];
 }
@@ -66,8 +70,8 @@ function fill(p: Practice, freshlyConfirmed: string[] = []): void {
     b.status = prepared(b) && freshlyConfirmed.includes(b.id) ? 'active' : 'preparing';
     vacancies--;
   }
-  if (p.understood && activeBeliefs(p).length) p.state = 'active';
-  if (p.beliefs.length && p.beliefs.every(b => b.status === 'retired')) p.state = 'completed';
+  if (p.understood && activeBeliefs(p).length && p.state!=='paused') p.state = 'active';
+  if (p.understood && p.beliefs.length && p.beliefs.every(b => b.status === 'retired' || b.status === 'removed')) p.state = 'completed';
 }
 
 /** Pure transitions; the repository serialises them under the account lock. */
@@ -79,12 +83,17 @@ export function applyCommand(current: Practice, command: Command, eventId: strin
     return current;
   }
   const p = structuredClone(current);
-  if (p.state === 'paused' && !['resume', 'reorder', 'outcome'].includes(command.type)) fail('practice_paused');
+  if (p.state === 'completed' && !['correct_completion','checkin'].includes(command.type)) fail('programme_complete');
+  if (p.state === 'paused' && !['resume', 'reorder', 'outcome','queue','remove'].includes(command.type)) fail('practice_paused');
   const item = (id: string): Belief => p.beliefs.find(b => b.id === id) ?? fail('belief_unknown');
   switch (command.type) {
-    case 'outcome': p.outcome = wording(command.outcome); break;
+    case 'checkin':
+      if(p.state!=='completed' || command.confirmed!==true)fail('caller_confirmation_required');
+      wording(command.reflection);break;
+    case 'outcome':
+      if (p.understood) fail('outcome_locked');
+      p.outcome = wording(command.outcome); break;
     case 'queue': {
-      if (p.understood) fail('discovery_complete');
       if (p.beliefs.length >= 50) fail('backlog_full');
       p.beliefs.push({ id: randomUUID(), version: 1, belief: wording(command.belief), trigger: wording(command.trigger),
         status: 'queued', decision: '', evidence: [], balance: '', opportunity: '', confirmed: false, reviews: [] });
@@ -93,7 +102,7 @@ export function applyCommand(current: Practice, command: Command, eventId: strin
     }
     case 'prepare': {
       const b = item(command.id);
-      if (b.status === 'retired') fail('reactivation_required');
+      if (b.status === 'retired' || b.status === 'removed') fail('reactivation_required');
       if (b.status === 'queued') fail('preparation_not_due');
       if (command.confirmed !== true) fail('caller_confirmation_required');
       if (!Array.isArray(command.evidence) || !command.evidence.length || command.evidence.length > 20) fail('evidence_required');
@@ -104,7 +113,7 @@ export function applyCommand(current: Practice, command: Command, eventId: strin
       b.confirmed = true; fill(p,[b.id]); break;
     }
     case 'understood':
-      if (command.confirmed !== true || !p.outcome || activeBeliefs(p).length < 2 || p.beliefs.length <= p.cap) fail('onboarding_incomplete');
+      if (command.confirmed !== true || !p.outcome || activeBeliefs(p).length < 1) fail('onboarding_incomplete');
       p.understood = true; fill(p); break;
     case 'practice': {
       const b = item(command.id);
@@ -136,6 +145,18 @@ export function applyCommand(current: Practice, command: Command, eventId: strin
       if (b.status !== 'retired') fail('belief_not_retired');
       archive(b); b.status = 'queued'; b.version++; b.reviews = [];
       fill(p,[b.id]); break;
+    }
+    case 'remove': {
+      const b = item(command.id);
+      if (!['queued','preparing'].includes(b.status)) fail('queue_item_required');
+      b.status = 'removed'; fill(p); break;
+    }
+    case 'correct_completion': {
+      if (p.state !== 'completed' || command.confirmed !== true) fail('completion_confirmation_required');
+      const b = item(command.id);
+      if (!['retired','removed'].includes(b.status)) fail('belief_not_retired');
+      archive(b); b.status='queued'; b.version++; b.reviews=[];
+      p.state='active'; fill(p); break;
     }
     case 'reorder': {
       if (command.ids.length !== p.beliefs.length || new Set(command.ids).size !== p.beliefs.length) fail('order_invalid');

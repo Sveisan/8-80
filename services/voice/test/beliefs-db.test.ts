@@ -40,7 +40,7 @@ async function enroll(active=true) {
 const token=(id:string)=>sessionToken(id,'t'.repeat(40));
 function payload(id:string,said:string|string[]){return {type:'conversation.completed',data:{conversation_id:id,duration_ms:60000,messages:(typeof said==='string'?[said]:said).map(content=>({role:'user',content}))}};}
 beforeEach(async()=>{
-  if(db)await db.sql`truncate belief_sessions,belief_enrollments,callers,call_attempts,links,signups,access_codes,message_outbox,message_attempts,feedback,journey_events,journey_tracking,journey_counts,webhook_deliveries,heartbeats`;
+  if(db)await db.sql`truncate belief_refund_requests,belief_sessions,belief_enrollments,callers,call_attempts,links,signups,access_codes,message_outbox,message_attempts,feedback,journey_events,journey_tracking,journey_counts,webhook_deliveries,heartbeats`;
   process.env['DATA_ENCRYPTION_KEY']=Buffer.alloc(32,12).toString('base64');
   process.env['BELIEFS_TOOL_SECRET']='t'.repeat(40);process.env['PUBLIC_URL']='https://8and80.example';process.env['OPERATOR_PHONE']='+4791000000';
   process.env['BILLING_PROVIDER']='stripe';process.env['BELIEFS_PRODUCT_ID']='price_module';process.env['BELIEFS_BASE_PRICE_ID']='price_month';process.env['STRIPE_SECRET_KEY']='test-key';
@@ -169,10 +169,10 @@ test('export contains encrypted module history decoded, and erasure removes it',
   assert.equal((await db!.sql`select * from belief_enrollments`).length,0);assert.equal((await db!.sql`select * from belief_sessions`).length,0);
 });
 test('one-time confirmation is independent and duplicate callbacks create one notice',options,async()=>{
-  await enroll(false);const before=await db!.store.load(phone);
-  const session={id:'cs_beliefs',mode:'payment',amount_subtotal:1000,currency:'nok',client_reference_id:'beliefs:'+hash,payment_status:'paid',line_items:{data:[{quantity:1,price:{id:'price_module',unit_amount:1000,currency:'nok'}}]},payment_intent:{id:'pi_module',status:'succeeded',latest_charge:{paid:true,refunded:false,disputed:false,amount_refunded:0}}};
+  await enroll(false);const before=await db!.store.load(phone);const reference=(await repo().load(hash))!.enrollment.checkout_reference;
+  const session={id:'cs_beliefs',mode:'payment',amount_subtotal:1000,currency:'nok',client_reference_id:reference,payment_status:'paid',line_items:{data:[{quantity:1,price:{id:'price_module',unit_amount:1000,currency:'nok'}}]},payment_intent:{id:'pi_module',status:'succeeded',latest_charge:{paid:true,refunded:false,disputed:false,amount_refunded:0}}};
   const fetcher:typeof fetch=async url=>new Response(JSON.stringify(String(url).includes('/prices/')?{unit_amount:1000,currency:'nok',recurring:{interval:'month',interval_count:1}}:session));
-  const webhook={type:'checkout.session.completed',data:{object:{object:'checkout.session',id:'cs_beliefs',client_reference_id:'beliefs:'+hash}}};
+  const webhook={type:'checkout.session.completed',data:{object:{object:'checkout.session',id:'cs_beliefs',client_reference_id:reference}}};
   assert.equal(await syncBeliefPurchase(deps(),webhook,{},fetcher),true);assert.equal(await syncBeliefPurchase(deps(),webhook,{},fetcher),true);
   assert.equal((await repo().load(hash))!.enrollment.standing,'active');assert.equal((await db!.sql`select count(*)::int as count from message_outbox where kind='beliefs'`)[0]!['count'],1);
   assert.deepEqual(await db!.store.load(phone),before);
@@ -273,9 +273,9 @@ test('failed tier-two digest remains in the outbox for recovery rather than wait
   assert.equal(await dispatchMessage(deps(),messages[0]!['id'],new Date(+evening+60001)),'accepted');
 });
 test('reordered payment events re-read authoritative state and cannot undo a refund/dispute',options,async()=>{
-  await enroll(false);let paid=true;let disputed=false;let refunded=false;
-  const fetcher:typeof fetch=async url=>new Response(JSON.stringify(String(url).includes('/prices/')?{unit_amount:1000,currency:'nok',recurring:{interval:'month',interval_count:1}}:{id:'cs_ordered',mode:'payment',amount_subtotal:1000,currency:'nok',client_reference_id:'beliefs:'+hash,payment_status:paid?'paid':'unpaid',line_items:{data:[{quantity:1,price:{id:'price_module',unit_amount:1000,currency:'nok'}}]},payment_intent:{id:'pi_ordered',status:paid?'succeeded':'processing',latest_charge:{paid,disputed,refunded,amount_refunded:refunded?1000:0}}}));
-  const completed={type:'checkout.session.completed',data:{object:{object:'checkout.session',id:'cs_ordered',client_reference_id:'beliefs:'+hash}}};
+  await enroll(false);const reference=(await repo().load(hash))!.enrollment.checkout_reference;let paid=true;let disputed=false;let refunded=false;
+  const fetcher:typeof fetch=async url=>new Response(JSON.stringify(String(url).includes('/prices/')?{unit_amount:1000,currency:'nok',recurring:{interval:'month',interval_count:1}}:{id:'cs_ordered',mode:'payment',amount_subtotal:1000,currency:'nok',client_reference_id:reference,payment_status:paid?'paid':'unpaid',line_items:{data:[{quantity:1,price:{id:'price_module',unit_amount:1000,currency:'nok'}}]},payment_intent:{id:'pi_ordered',status:paid?'succeeded':'processing',latest_charge:{paid,disputed,refunded,amount_refunded:refunded?1000:0}}}));
+  const completed={type:'checkout.session.completed',data:{object:{object:'checkout.session',id:'cs_ordered',client_reference_id:reference}}};
   paid=false;await syncBeliefPurchase(deps(),completed,{},fetcher);assert.equal((await repo().load(hash))!.enrollment.standing,'payment_hold');
   paid=true;await syncBeliefPurchase(deps(),completed,{},fetcher);assert.equal((await repo().load(hash))!.enrollment.standing,'active');
   for(const type of ['charge.dispute.created','charge.refunded']){
@@ -348,14 +348,14 @@ test('combined-account signup preferences stay encrypted and support email never
   assert.equal((result['practice'] as Practice).contact,undefined);assert.deepEqual(await db!.store.load(phone),before);
 });
 test('Lemon Squeezy one-time purchase and reordered refund remain isolated from weekly billing',options,async()=>{
-  await enroll(false);const before=await db!.store.load(phone);process.env['BILLING_PROVIDER']='lemonsqueezy';process.env['BELIEFS_PRODUCT_ID']='100';process.env['BELIEFS_BASE_PRICE_ID']='200';process.env['LEMONSQUEEZY_API_KEY']='synthetic';
+  await enroll(false);const before=await db!.store.load(phone);const reference=(await repo().load(hash))!.enrollment.checkout_reference;process.env['BILLING_PROVIDER']='lemonsqueezy';process.env['BELIEFS_PRODUCT_ID']='100';process.env['BELIEFS_BASE_PRICE_ID']='200';process.env['LEMONSQUEEZY_API_KEY']='synthetic';
   let refunded=false;let wrongProduct=false;
   const fetcher:typeof fetch=async url=>{
     const path=String(url);
     const data=path.includes('/orders/')?{id:'123',attributes:{first_order_item:{variant_id:wrongProduct?999:100,price:1000},subtotal:1000,currency:'NOK',store_id:1,status:'paid',refunded,refunded_amount:refunded?1000:0},relationships:{'order-items':{data:[{id:'item'}]}}}:path.includes('/variants/100')?{attributes:{is_subscription:false,price:1000}}:path.includes('/variants/200')?{attributes:{is_subscription:true,interval:'month',interval_count:1,price:1000}}:{attributes:{currency:'NOK'}};
     return new Response(JSON.stringify({data}));
   };
-  const event=(name:string)=>({meta:{event_name:name,custom_data:{phone_hash:'beliefs:'+hash}},data:{type:'orders',id:'123'}});
+  const event=(name:string)=>({meta:{event_name:name,custom_data:{phone_hash:reference}},data:{type:'orders',id:'123'}});
   wrongProduct=true;await assert.rejects(()=>syncBeliefPurchase(deps(),event('order_created'),{},fetcher));assert.equal((await repo().load(hash))!.enrollment.standing,'awaiting_payment');
   wrongProduct=false;await syncBeliefPurchase(deps(),event('order_created'),{},fetcher);await syncBeliefPurchase(deps(),event('order_created'),{},fetcher);
   assert.equal((await repo().load(hash))!.enrollment.standing,'active');
