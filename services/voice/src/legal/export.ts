@@ -117,13 +117,15 @@ export async function composeExport(
   const [privateProgramme] = includeBeliefs ? [] : await store.raw`select phone_hash from belief_enrollments where phone_hash = ${hash}`;
   if (privateProgramme) parts.push({role:'body',text:'Your private Beliefs programme is available through fresh phone verification at /beliefs/access. Its account download includes your complete 8&80 record.'});
   const messages = messageRows.map(({ payload_enc, recipient_enc, ...meta }) => ({ ...meta,
-    recipient: recipient_enc ? decrypt(recipient_enc) : null,
+    recipient: meta['kind']==='safety' ? '[operator contact omitted]' : recipient_enc ? decrypt(recipient_enc) : null,
     // Codes and bearer links are credentials; copies of previous exports would
     // recursively duplicate these records rather than add a new data category.
-    payload: ['access', 'signup', 'export'].includes(meta['kind']) ? '[credential or duplicate export payload omitted]'
+    payload: meta['kind']==='safety' ? '[internal operator notification omitted]' : ['access', 'signup', 'export'].includes(meta['kind']) ? '[credential or duplicate export payload omitted]'
       : payload_enc ? JSON.parse(decrypt(payload_enc).replace(/(https?:\/\/[^\s"<>]+\/(?:r|f)\/)[a-z0-9-]+/gi, '$1[credential omitted]')) : null,
   }));
   const redact = (value: unknown): unknown => {
+    // Providers can serialize tool arguments as JSON inside a JSON string.
+    if(typeof value==='string' && (value.trim().startsWith('{') || value.trim().startsWith('['))){try{return JSON.stringify(redact(JSON.parse(value)));}catch{return value;}}
     if (Array.isArray(value)) return value.map(redact);
     if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([key,entry]) => [key, /^(session_token|csrf|authorization|api_key)$/i.test(key) ? '[credential omitted]' : redact(entry)]));
     return value;

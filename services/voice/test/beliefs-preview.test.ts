@@ -16,6 +16,7 @@ test('preview completes the journey locally, enforces CSRF, and retires without 
   };
   try{
     await get('/beliefs/join');
+    assert.ok(cookie.startsWith('beliefs_preview_'));
     const rejected=await fetch(base+'/beliefs/join',{method:'POST',headers:{cookie},body:new URLSearchParams({csrf:'bad',phone:'+4791000008',consent:'yes'}),redirect:'manual'});assert.equal(rejected.status,403);
     await post('/beliefs/join',{phone:'+4791000008',name:'Synthetic tester',consent:'yes'});
     assert.ok(html.includes('000000'));
@@ -33,7 +34,9 @@ test('preview completes the journey locally, enforces CSRF, and retires without 
     const first=hidden('id');await post('/beliefs/action',{action:'review',id:first,score:'1',reflection:'Synthetic progress',confirmed:'yes'});
     await post('/beliefs/action',{action:'nextweek'});
     await post('/beliefs/action',{action:'review',id:first,score:'0',reflection:'Synthetic progress continues',confirmed:'yes'});
-    assert.ok(html.includes('ready to prepare'));assert.ok(html.includes('Synthetic thought 2'));assert.equal((html.match(/class="decision">Synthetic decision/g)??[]).length,1);
+    assert.ok(html.includes('awaiting preparation'));assert.ok(html.includes('Synthetic thought 2'));
+    const activeSection=html.split('<h2>Decisions you’re practising</h2>')[1]!.split('<h2>Queued beliefs</h2>')[0]!;
+    assert.equal((activeSection.match(/class="decision">Synthetic decision/g)??[]).length,1);
     await post('/beliefs/action',{action:'pause'});assert.ok(html.includes('Your belief calls are paused'));assert.ok(!html.includes('Your next call</span>'));
     await post('/beliefs/action',{action:'resume'});assert.ok(html.includes('Try a daily check-in'));
   }finally{await new Promise<void>(r=>server.close(()=>r()));}

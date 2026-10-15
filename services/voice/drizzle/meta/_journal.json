@@ -176,6 +176,13 @@
       "when": 1791666406899,
       "tag": "0024_material_odin",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1791886887938,
+      "tag": "0025_old_polaris",
+      "breakpoints": true
     }
   ]
 }

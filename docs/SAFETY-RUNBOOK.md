@@ -1,5 +1,7 @@
 # When a call is flagged
 
+This is the existing weekly 8&80 operating runbook. Beliefs shares detection, holds and operator delivery, but its urgent spoken response remains unresolved and is not approved by adopting this document. See [Beliefs operating handoff](beliefs/launch.md); qualified procedure review, named coverage/backup and actual response evidence are required before real participants.
+
 8&80 is coaching, not crisis support. The job here is to read, then send people on
 to those who do this properly — not to counsel them ourselves.
 

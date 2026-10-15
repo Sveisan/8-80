@@ -430,6 +430,7 @@ export const beliefEnrollments = pgTable('belief_enrollments', {
   weeklyWeekday: integer('weekly_weekday'), weeklyMinute: integer('weekly_minute'),
   onboardingAt: timestamp('onboarding_at', { withTimezone: true }), nextDailyAt: timestamp('next_daily_at', { withTimezone: true }),
   nextWeeklyAt: timestamp('next_weekly_at', { withTimezone: true }), reviewOrigin: timestamp('review_origin', { withTimezone: true }),
+  dailyResumeAt: timestamp('daily_resume_at', { withTimezone: true }), weeklyResumeAt: timestamp('weekly_resume_at', { withTimezone: true }),
   standing: text('standing').notNull().default('awaiting_payment'),
   provider: text('provider'), purchaseId: text('purchase_id').unique(), paymentId: text('payment_id').unique(), customerId: text('customer_id'),
   paidAt: timestamp('paid_at', { withTimezone: true }), amountMinor: integer('amount_minor'), currency: text('currency'),

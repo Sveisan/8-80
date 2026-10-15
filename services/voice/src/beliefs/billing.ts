@@ -5,11 +5,12 @@ import { obj, str } from '../billing/types.ts';
 import type { LoopDeps } from '../loop/deps.ts';
 import { enqueue } from '../messages/outbox.ts';
 import { beliefConfig } from './config.ts';
+import { beliefReadiness } from './readiness.ts';
 import type { Enrollment } from './repository.ts';
 
 export function beliefCheckout(hash: string): string {
   const c = beliefConfig();
-  if (!c.enabled || !c.price || !c.productId || !c.basePriceId || !c.checkout || !c.safetyReady || !c.priceApproved) return '';
+  if (beliefReadiness().length) return '';
   try { return payments().checkout(providerUrl(c.checkout, config.billing.provider()), `beliefs:${hash}`); }
   catch { return ''; }
 }

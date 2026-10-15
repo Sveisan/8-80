@@ -1,6 +1,10 @@
 # 8&80 Beliefs
 
-Implemented locally on an isolated branch, `codex/belief-module`, based on `57910c6`. The weekly 8&80 checkout, account and caller memory retain their existing semantics. This is a reviewable implementation with live enrollment/calls disabled by default; it is not a claim of validated outcomes or a production release.
+The initial implementation was based on `57910c6`. The 13 October continuation uses the existing clean `codex/beliefs-call-rapport` checkout at `8cee2a0` and leaves a reviewable local diff. The separate weekly 8&80 checkout and preview retain their existing semantics. This is not a claim of validated outcomes or a production release.
+
+The expired continuation was recovered on **15 October** in the same checkout. An unresolved-score-range guard and the local verification helper were finished; fresh typecheck/lint/disposable-database verification passed **673 tests without failures or skips**. See [current verification](continuation-verification.md) for today's evidence separately from the historical run. The completed package is prepared for review on `codex/beliefs-continuation`; it is not deployed or approved for live use.
+
+Start with the [consolidated product specification](product-spec.md). Supporting deliverables: [initial gap report](gap-report.md), [first-month navigation/sendouts/recovery](first-month-map.md), [implemented data/event/tool contracts](contracts.md), [original synthetic text rehearsals](rehearsal.md), [current verification](continuation-verification.md), [source/claims ledger](research.md), and [launch/rollback handoff](launch.md). The three source packs are [onboarding](onboarding-script.md), [daily](daily-script.md) and [weekly](weekly-script.md).
 
 ## Product decision
 
@@ -9,6 +13,8 @@ Implemented locally on an isolated branch, `codex/belief-module`, based on `5791
 One independent, opt-in **one-time purchase**, priced at the same amount and currency as one monthly payment for weekly 8&80. No subscription, renewal, taper or bundled base membership. The purchase covers the beliefs mapped during this enrollment. Discovery closes after onboarding; completion stops calls and keeps the decisions available privately. Pausing does not incur a renewal or expire the purchase.
 
 The base paid amount is not present in checked-in configuration. Do not invent an amount or copy credentials into chat. The payment adapter retrieves the provider's base monthly price and verifies that the module is a distinct non-recurring product with the same amount and currency. Tax presentation, receipts, refunds and withdrawal terms need provider test-mode and operating-company review.
+
+Verified signup preferences for a new programme are encrypted separately from the existing weekly profile. The chosen Beliefs name reaches the voice guide; its optional support email does not enter voice context or tool responses. Preview cookies are isolated by listener port so parallel synthetic previews do not overwrite one another's sessions.
 
 ## The connection to 8&80
 
@@ -35,7 +41,7 @@ No module callback increments the weekly call count, rewrites singular base beli
 | Every day | 60–90-second target, two decisions by default, cap three; say decision, evidence, balanced reflection | No routine daily recap/SMS; incomplete call gets one neutral recovery notice |
 | Every week | Separate 10–15-minute full reflection and caller-confirmed score | One neutral saved-review notice to the private access route |
 | Low scores | Two consecutive server weekly periods at 0–1 retire one belief; prepare next ordered backlog item before activation | Reflected in weekly review/account; no extra sales message |
-| Programme complete | Future calls stop; private decisions remain, no renewal or charge | Weekly completion is reflected in the account |
+| Programme complete | Future calls stop; private decisions/history remain, no renewal or charge | One content-free completion notice replaces the normal weekly review notice |
 | Missed/unconfirmed | No repeated ringing, no accumulated late catch-up calls; missed onboarding needs a new slot | One recovery notice; no claim that an unconfirmed call definitely rang |
 | Safety keyword | Immediate shared hold; practice stops; human review required | Content-free tier-1 operator SMS via durable outbox; existing tier-2 digest |
 | Pause / resume | Private account; global STOP continues to override module resume | On-screen confirmation |
@@ -70,6 +76,8 @@ Every private screen has a clear route back. Private responses have no-store cac
 `npm run check` checks types, lint and ordinary tests. `npm run test:db` runs a temporary PostgreSQL cluster and makes database failures required instead of skipped. Test data is synthetic and does not reuse the owner's private documents.
 
 ## Live release gates
+
+For an owner-friendly local rerun, `bash scripts/check-beliefs-local.sh` keeps output in a private temporary log and prints only fixed status lines. It discards inherited TEST_DATABASE_URL and uses the repository's disposable-database runner. Node 22+, local PostgreSQL tools and an available test port are prerequisites; on this Mac it can restore an expired test bundle from the exact existing npm cache, privately and without network or installation. It does not change provider settings or launch flags. The separate preview was restarted on 15 October at port 8773; restarting any preview clears only that preview's synthetic data.
 
 See [launch and operations](launch.md). Required external work: human safety coverage and approved urgent-call procedure, approved original scripts, three separately configured/verified Speechify agents, one-time provider product matching the base monthly price, provider test-mode payment/refund/return checks, consent/privacy/refund terms and a measured pilot.
 

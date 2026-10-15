@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import type { IncomingMessage } from 'node:http';
 import { config } from '../config.ts';
+import { displayHash } from './display.ts';
 
 export const csrfFor = (token: string): string => createHash('sha256').update(`beliefs:csrf:${token}`).digest('hex');
 export function practiceCookie(token: string, preview = false): string {
@@ -19,5 +20,5 @@ export async function readForm(req: IncomingMessage): Promise<URLSearchParams> {
 export const pageHeaders = {
   'content-type':'text/html; charset=utf-8', 'cache-control':'no-store', 'referrer-policy':'no-referrer',
   'x-content-type-options':'nosniff',
-  'content-security-policy':"default-src 'none'; style-src 'unsafe-inline'; form-action 'self' https://buy.stripe.com https://checkout.stripe.com https://*.lemonsqueezy.com; base-uri 'none'; frame-ancestors 'none'",
+  'content-security-policy':`default-src 'none'; style-src 'unsafe-inline'; script-src 'sha256-${displayHash}'; form-action 'self' https://buy.stripe.com https://checkout.stripe.com https://*.lemonsqueezy.com; base-uri 'none'; frame-ancestors 'none'`,
 };
