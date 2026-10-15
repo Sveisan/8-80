@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "8&80 Beliefs capture tool",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "description": "Provisional caller-owned capture. Server reconciles against signed completion transcript; never speak session credentials."
   },
   "servers": [
@@ -48,87 +48,266 @@
                     "description": "Verbatim consecutive caller turns joined in order. No agent paraphrase."
                   },
                   "command": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "required": [
-                      "type"
-                    ],
-                    "properties": {
-                      "type": {
-                        "type": "string",
-                        "enum": [
-                          "outcome",
-                          "queue",
-                          "reorder",
-                          "prepare",
-                          "understood",
-                          "practice",
-                          "review",
-                          "pause"
-                        ]
-                      },
-                      "outcome": {
-                        "type": "string"
-                      },
-                      "belief": {
-                        "type": "string"
-                      },
-                      "trigger": {
-                        "type": "string"
-                      },
-                      "id": {
-                        "type": "string"
-                      },
-                      "decision": {
-                        "type": "string"
-                      },
-                      "evidence": {
-                        "oneOf": [
-                          {
-                            "type": "string"
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "required": [
+                          "type",
+                          "outcome"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                          "type": {
+                            "const": "outcome"
                           },
-                          {
-                            "type": "array",
-                            "items": {
-                              "type": "string"
-                            },
-                            "minItems": 1,
-                            "maxItems": 20
+                          "outcome": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 2000
                           }
-                        ]
+                        }
                       },
-                      "balance": {
-                        "type": "string"
+                      {
+                        "type": "object",
+                        "required": [
+                          "type",
+                          "belief",
+                          "trigger"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                          "type": {
+                            "const": "queue"
+                          },
+                          "belief": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 2000
+                          },
+                          "trigger": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 2000
+                          }
+                        }
                       },
-                      "opportunity": {
-                        "type": "string"
+                      {
+                        "type": "object",
+                        "required": [
+                          "type",
+                          "ids",
+                          "confirmed"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                          "type": {
+                            "const": "reorder"
+                          },
+                          "ids": {
+                            "type": "array",
+                            "minItems": 1,
+                            "maxItems": 50,
+                            "uniqueItems": true,
+                            "items": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 100
+                            }
+                          },
+                          "confirmed": {
+                            "const": true
+                          }
+                        }
                       },
-                      "confirmed": {
-                        "type": "boolean"
+                      {
+                        "type": "object",
+                        "required": [
+                          "type",
+                          "id",
+                          "decision",
+                          "evidence",
+                          "balance",
+                          "opportunity",
+                          "confirmed"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                          "type": {
+                            "const": "prepare"
+                          },
+                          "id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 100
+                          },
+                          "decision": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 2000
+                          },
+                          "evidence": {
+                            "type": "array",
+                            "minItems": 1,
+                            "maxItems": 20,
+                            "items": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 2000
+                            }
+                          },
+                          "balance": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 2000
+                          },
+                          "opportunity": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 2000
+                          },
+                          "confirmed": {
+                            "const": true
+                          }
+                        }
                       },
-                      "passed": {
-                        "type": "boolean"
+                      {
+                        "type": "object",
+                        "required": [
+                          "type",
+                          "confirmed"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                          "type": {
+                            "const": "understood"
+                          },
+                          "confirmed": {
+                            "const": true
+                          }
+                        }
                       },
-                      "score": {
-                        "type": "integer",
-                        "minimum": 0,
-                        "maximum": 10
+                      {
+                        "type": "object",
+                        "required": [
+                          "type",
+                          "id",
+                          "evidence",
+                          "balance"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                          "type": {
+                            "const": "practice"
+                          },
+                          "id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 100
+                          },
+                          "evidence": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 2000
+                          },
+                          "balance": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 2000
+                          },
+                          "passed": {
+                            "const": false
+                          }
+                        }
                       },
-                      "reflection": {
-                        "type": "string"
+                      {
+                        "type": "object",
+                        "required": [
+                          "type",
+                          "id",
+                          "passed"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                          "type": {
+                            "const": "practice"
+                          },
+                          "id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 100
+                          },
+                          "passed": {
+                            "const": true
+                          }
+                        }
                       },
-                      "ids": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        },
-                        "minItems": 1,
-                        "maxItems": 50,
-                        "description": "All saved belief IDs in the caller-confirmed order; onboarding only."
+                      {
+                        "type": "object",
+                        "required": [
+                          "type",
+                          "id",
+                          "score",
+                          "reflection",
+                          "confirmed"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                          "type": {
+                            "const": "review"
+                          },
+                          "id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 100
+                          },
+                          "score": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 10
+                          },
+                          "reflection": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 2000
+                          },
+                          "confirmed": {
+                            "const": true
+                          }
+                        }
+                      },
+                      {
+                        "type": "object",
+                        "required": [
+                          "type",
+                          "confirmed"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                          "type": {
+                            "const": "pause"
+                          },
+                          "confirmed": {
+                            "const": true
+                          }
+                        }
                       }
+                    ]
+                  }
+                },
+                "allOf": [
+                  {
+                    "if": {
+                      "required": [
+                        "command"
+                      ]
+                    },
+                    "then": {
+                      "required": [
+                        "event_id"
+                      ]
                     }
                   }
-                }
+                ]
               }
             }
           }
@@ -142,6 +321,9 @@
           },
           "409": {
             "description": "Invalid caller words, wrong call type, closed/stale session or changed account"
+          },
+          "413": {
+            "description": "Request exceeds application body limit"
           }
         }
       }

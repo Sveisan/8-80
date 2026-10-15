@@ -21,12 +21,29 @@ export function containsWords(haystack: string, needle: string): boolean {
 function quoted(text: string, value: unknown): string {
   const words=wording(value); if(!containsWords(text,words))throw new PracticeError('caller_words_required'); return words;
 }
+const englishScores=['zero','one','two','three','four','five','six','seven','eight','nine','ten'];
+const norwegianScores=['null','en','to','tre','fire','fem','seks','sju','åtte','ni','ti'];
+const scoreAliases=(score:number):string[]=>[String(score),englishScores[score]??'',norwegianScores[score]??'',...(score===1?['ett']:score===7?['syv']:[])].filter(Boolean);
+/** A number mentioned in an unresolved range is not a caller-selected rating. */
+function unambiguousScore(text:string,score:number):void {
+  const words='(?:10|[0-9]|'+[...englishScores,...norwegianScores,'ett','syv'].join('|')+')';
+  const range=new RegExp('(?<![\\p{L}\\p{N}])'+words+'\\s*(?:or|eller|to|til|and|og|[-–—])\\s*'+words+'(?![\\p{L}\\p{N}])','giu');
+  const matches=[...text.normalize('NFKC').matchAll(range)];
+  const last=matches.at(-1);if(!last)return;
+  // A subsequent explicit choice or a new short numeric answer can resolve it.
+  // Retain the original consecutive span: no forced repetition of the reflection.
+  const tail=text.normalize('NFKC').slice(last.index!+last[0].length).toLowerCase();
+  const selected='(?:'+scoreAliases(score).join('|')+')';
+  const prefix='(?:i (?:would )?(?:choose|say)|i[’\x27]d say|(?:my )?(?:score|rating) is|jeg (?:velger|sier)|(?:min )?skår er)';
+  const choice=new RegExp('(?:^|[.!?;\\n])\\s*(?:'+prefix+'\\s+(?:a\\s+)?'+selected+'(?![\\p{L}\\p{N}])|'+selected+'(?:\\s+(?:out of (?:ten|10)|av (?:ti|10)))?\\s*(?:[.!?;]|$))','u');
+  if(!choice.test(tail))throw new PracticeError('score_invalid');
+}
 /** Tool input is untrusted. Whitelist by call type; score/week never come from the model. */
 export function capture(snapshot: Snapshot, kind: Kind, week: number|null, input: unknown, now=new Date()): Snapshot {
   const v=obj(input); const id=wording(v?.['event_id'],100); const callerText=wording(v?.['caller_text'],16000);
   const existing=snapshot.receipts.find(r=>r.id===id);
   const c=obj(v?.['command']); const type=str(c?.['type']); let command: Command;
-  const confirmation=():true=>{if(c?.['confirmed']!==true || !/\b(yes|correct|agree|understand|ja|riktig|enig|forstår)\b/iu.test(callerText))throw new PracticeError('caller_confirmation_required');return true;};
+  const confirmation=():true=>{if(c?.['confirmed']!==true || !hasAgreement(callerText))throw new PracticeError('caller_confirmation_required');return true;};
   const target=()=>{const targetId=wording(c?.['id'],100);if(!snapshot.practice.beliefs.some(b=>b.id===targetId))throw new PracticeError('belief_unknown');return targetId;};
   switch(type) {
     case 'outcome': if(kind!=='onboarding')throw new PracticeError('command_not_allowed');command={type,outcome:quoted(callerText,c?.['outcome'])};break;
@@ -59,12 +76,14 @@ export function capture(snapshot: Snapshot, kind: Kind, week: number|null, input
     case 'review': {
       if(kind!=='weekly' || week===null)throw new PracticeError('command_not_allowed');
       if(!snapshot.initial.beliefs.some(b=>b.id===c?.['id'] && b.status==='active'))throw new PracticeError('review_not_due');
+      const initial=snapshot.initial.beliefs.find(b=>b.id===c?.['id'])!;
+      if(snapshot.practice.beliefs.find(b=>b.id===initial.id)?.version!==initial.version || snapshot.receipts.some(r=>r.command.type==='prepare' && r.command.id===initial.id))throw new PracticeError('review_not_due');
       if(typeof c?.['score']!=='number')throw new PracticeError('score_invalid');
       // Capture the caller's spoken numeric rating, separate from confirmation.
-      const numberWords=['zero','one','two','three','four','five','six','seven','eight','nine','ten'];
-      const norwegian=['null','en','to','tre','fire','fem','seks','sju','åtte','ni','ti'];
       const score=c['score'];
-      if(!containsWords(callerText,String(score)) && !containsWords(callerText,numberWords[score]??'') && !containsWords(callerText,norwegian[score]??''))throw new PracticeError('caller_words_required');
+      if(!Number.isInteger(score) || score<0 || score>10)throw new PracticeError('score_invalid');
+      if(!scoreAliases(score).some(word=>containsWords(callerText,word)))throw new PracticeError('caller_words_required');
+      unambiguousScore(callerText,score);
       command={type,id:target(),week,score,reflection:quoted(callerText,c?.['reflection']),confirmed:confirmation()};break;
     }
     case 'pause':
@@ -85,9 +104,34 @@ export function capture(snapshot: Snapshot, kind: Kind, week: number|null, input
   return next;
 }
 /** Reconcile against the signed caller transcript before canonical memory changes. */
-export function verifiedPractice(snapshot: Snapshot, callerTranscript: string): Practice {
-  if(snapshot.receipts.some(r=>!containsWords(callerTranscript,r.callerText)))throw new PracticeError('transcript_unconfirmed');
+export function verifiedPractice(snapshot: Snapshot, callerTranscript: string | readonly string[]): Practice {
+  const turns=typeof callerTranscript==='string'?[callerTranscript]:callerTranscript;
+  const joined=turns.join(' ');
+  for(const receipt of snapshot.receipts){
+    if(!containsWords(joined,receipt.callerText))throw new PracticeError('transcript_unconfirmed');
+    if(['prepare','understood','review','pause','reorder'].includes(receipt.command.type)){
+      // A previous yes followed by a final no is not confirmation.
+      let confirmed=false;
+      for(let start=0;start<turns.length && !confirmed;start++){
+        let span='';
+        for(let end=start;end<turns.length;end++){
+          span+=(span?' ':'')+turns[end]!;
+          if(normalise(span)===normalise(receipt.callerText) && explicitAgreement(turns[end]!)){confirmed=true;break;}
+          if(normalise(span).length>normalise(receipt.callerText).length)break;
+        }
+      }
+      if(!confirmed)throw new PracticeError('caller_confirmation_required');
+    }
+  }
   return snapshot.practice;
+}
+function explicitAgreement(text:string):boolean {
+  const n=normalise(text);
+  if(/\b(no|nope|nei|incorrect|wrong)\b|\bnot (quite |really )?(right|correct|exactly)\b|\b(don t|do not) (agree|understand)\b|\bikke (riktig|enig)\b/u.test(n))return false;
+  return hasAgreement(n);
+}
+function hasAgreement(text:string):boolean {
+  return /\b(yes|yep|yeah|exactly|correct|agree|understand|ja|jepp|riktig|enig|forstår)\b|\bthat s right\b/iu.test(normalise(text));
 }
 export function fullCoverage(snapshot: Snapshot, kind: Kind): boolean {
   if(kind==='onboarding')return snapshot.practice.understood;
@@ -95,6 +139,6 @@ export function fullCoverage(snapshot: Snapshot, kind: Kind): boolean {
 }
 
 /** Closed sessions retain identifiers/coverage, not another copy of private words. */
-export function closedSnapshot(snapshot: Snapshot): string {
-  return JSON.stringify({revision:snapshot.revision,beliefVersions:snapshot.initial.beliefs.map(b=>({id:b.id,version:b.version})),events:snapshot.receipts.map(r=>r.id),closed:true});
+export function closedSnapshot(snapshot: Snapshot, canonicalVerified=false): string {
+  return JSON.stringify({revision:snapshot.revision,beliefVersions:snapshot.initial.beliefs.map(b=>({id:b.id,version:b.version})),eligibleBeliefIds:activeBeliefs(snapshot.initial).map(b=>b.id),events:snapshot.receipts.map(r=>r.id),captureKinds:snapshot.receipts.map(r=>r.command.type),canonicalVerified,closed:true});
 }

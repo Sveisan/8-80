@@ -1,5 +1,7 @@
 # Initial implementation verification — 11 October 2026
 
+For the fresh 13 October continuation results and current limitations, see [continuation-verification.md](continuation-verification.md). Counts below remain historical.
+
 The table below records the initial local implementation before deployment and provider testing. It is a historical snapshot, not the current launch status. Subsequent provisioning and conversation work are recorded below. Live purchases and calls are disabled by default.
 
 | Check | Result |

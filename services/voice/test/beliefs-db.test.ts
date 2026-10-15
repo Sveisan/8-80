@@ -6,7 +6,7 @@ import { Scheduler } from '../src/schedule/scheduler.ts';
 import { loadScript } from '../src/script.ts';
 import { BeliefRepository } from '../src/beliefs/repository.ts';
 import { emptyPractice, applyCommand, type Practice, type Command } from '../src/beliefs/model.ts';
-import { claimBeliefs, beliefTool, settleBeliefs, closeBeliefSession } from '../src/beliefs/runtime.ts';
+import { claimBeliefs, beliefTool, settleBeliefs, closeBeliefSession, tickBeliefs } from '../src/beliefs/runtime.ts';
 import { sessionToken } from '../src/beliefs/protocol.ts';
 import { encrypt, decrypt } from '../src/store/crypto.ts';
 import type { LoopDeps } from '../src/loop/deps.ts';
@@ -14,6 +14,9 @@ import { Links } from '../src/link/token.ts';
 import { Pending } from '../src/signup/pending.ts';
 import { composeExport } from '../src/legal/export.ts';
 import { syncBeliefPurchase } from '../src/beliefs/billing.ts';
+import { safetyDigest } from '../src/loop/digest.ts';
+import { dispatchMessage } from '../src/messages/outbox.ts';
+import { SendFailure } from '../src/messages/types.ts';
 const opened=await openTestDb('beliefs');const db=typeof opened==='string'?undefined:opened;
 const options={skip:typeof opened==='string'?opened:false};
 const now=new Date('2026-10-10T10:00:00Z');const phone='+4791000008';const hash=phoneKey(phone);
@@ -35,12 +38,13 @@ async function enroll(active=true) {
   await db!.sql`update belief_enrollments set revision=${loaded!.practice.revision} where phone_hash=${hash}`;
 }
 const token=(id:string)=>sessionToken(id,'t'.repeat(40));
-function payload(id:string,said:string){return {type:'conversation.completed',data:{conversation_id:id,duration_ms:60000,messages:[{role:'user',content:said}]}};}
+function payload(id:string,said:string|string[]){return {type:'conversation.completed',data:{conversation_id:id,duration_ms:60000,messages:(typeof said==='string'?[said]:said).map(content=>({role:'user',content}))}};}
 beforeEach(async()=>{
-  if(db)await db.sql`truncate belief_sessions,belief_enrollments,callers,call_attempts,links,signups,access_codes,message_outbox,message_attempts,feedback,journey_events,journey_tracking,journey_counts,webhook_deliveries`;
+  if(db)await db.sql`truncate belief_sessions,belief_enrollments,callers,call_attempts,links,signups,access_codes,message_outbox,message_attempts,feedback,journey_events,journey_tracking,journey_counts,webhook_deliveries,heartbeats`;
   process.env['DATA_ENCRYPTION_KEY']=Buffer.alloc(32,12).toString('base64');
   process.env['BELIEFS_TOOL_SECRET']='t'.repeat(40);process.env['PUBLIC_URL']='https://8and80.example';process.env['OPERATOR_PHONE']='+4791000000';
   process.env['BILLING_PROVIDER']='stripe';process.env['BELIEFS_PRODUCT_ID']='price_module';process.env['BELIEFS_BASE_PRICE_ID']='price_month';process.env['STRIPE_SECRET_KEY']='test-key';
+  process.env['BELIEFS_COVERAGE_START']='00:00';process.env['BELIEFS_COVERAGE_END']='24:00';process.env['BELIEFS_ENABLED']='false';process.env['BELIEFS_LIVE_CALLS']='false';delete process.env['OPERATOR_PHONE_BACKUP'];
 });after(async()=>db?.close());
 
 test('standalone enrollment keeps base slot, trial, singular memory and call count untouched',options,async()=>{
@@ -98,6 +102,9 @@ test('provisional daily memories commit only from the signed caller transcript, 
   const [closed]=await db!.sql`select snapshot_enc from belief_sessions where id=${s.id}`;
   const retained=decrypt(closed!['snapshot_enc']);
   assert.equal(JSON.parse(retained).closed,true);
+  assert.equal(JSON.parse(retained).canonicalVerified,true);
+  assert.equal(JSON.parse(retained).eligibleBeliefIds.length,2);
+  assert.deepEqual(JSON.parse(retained).captureKinds,['practice','practice']);
   assert.ok(!retained.includes('I remember a real experience'));
   assert.equal((await settleBeliefs(payload('conversation_one',said),deps(),undefined,now))!.handled,false);
   assert.deepEqual(await db!.store.load(phone),before);
@@ -107,6 +114,8 @@ test('unconfirmed words and in-call concurrent edits do not overwrite canonical 
   await db!.sql`update call_attempts set status='placed',provider_call_id='conversation_two' where id=${s!.id}`;
   await beliefTool(deps(),{session_id:s!.id,session_token:token(s!.id),event_id:'unverified',caller_text:b.decision+' Genuine new evidence. Still difficult.',command:{type:'practice',id:b.id,evidence:'Genuine new evidence',balance:'Still difficult'}},now);
   assert.equal((await settleBeliefs(payload('conversation_two','Different caller words'),deps(),undefined,now))!.status,'unverified');
+  const [closed]=await db!.sql`select snapshot_enc from belief_sessions where id=${s!.id}`;
+  assert.equal(JSON.parse(decrypt(closed!['snapshot_enc'])).canonicalVerified,false);
   assert.equal((await repo().load(hash))!.practice.beliefs[0]!.evidence.length,1);
 });
 test('voice onboarding preserves provisional belief IDs and starts the daily rhythm atomically',options,async()=>{
@@ -129,7 +138,7 @@ test('voice onboarding preserves provisional belief IDs and starts the daily rhy
     {type:'prepare',id:belief.id,decision:`My decision ${i}`,evidence:[`My genuine experience ${i}`],balance:'Some uncertainty remains',opportunity:'My chosen step',confirmed:true});
   await save('Yes, I understand this practice.',{type:'understood',confirmed:true});
   assert.equal((await repo().load(hash))!.practice.beliefs.length,0);
-  assert.equal((await settleBeliefs(payload('onboarding_voice',spoken.join(' ')),deps(),undefined,now))!.status,'completed');
+  assert.equal((await settleBeliefs(payload('onboarding_voice',spoken),deps(),undefined,now))!.status,'completed');
   const saved=(await repo().load(hash))!;
   assert.equal(saved.practice.understood,true);
   assert.deepEqual(saved.practice.beliefs.map(b=>b.id),chosen.map(b=>b.id));
@@ -167,4 +176,189 @@ test('one-time confirmation is independent and duplicate callbacks create one no
   assert.equal(await syncBeliefPurchase(deps(),webhook,{},fetcher),true);assert.equal(await syncBeliefPurchase(deps(),webhook,{},fetcher),true);
   assert.equal((await repo().load(hash))!.enrollment.standing,'active');assert.equal((await db!.sql`select count(*)::int as count from message_outbox where kind='beliefs'`)[0]!['count'],1);
   assert.deepEqual(await db!.store.load(phone),before);
+});
+
+test('moving one daily appointment preserves its following usual occurrence and guards retries',options,async()=>{
+  await enroll();const before=await db!.store.load(phone);
+  const booked=new Date('2026-10-11T06:30:00Z'), moved=new Date('2026-10-11T05:30:00Z');
+  await db!.sql`update belief_enrollments set daily_minute=510,next_daily_at=${booked},next_weekly_at=${new Date('2026-10-11T15:30:00Z')} where phone_hash=${hash}`;
+  const form=new URLSearchParams({action:'occurrence',kind:'daily',expected_at:booked.toISOString(),occurrence:moved.toISOString()});
+  await repo().occurrence(hash,form,now);
+  let e=(await repo().load(hash))!.enrollment;assert.equal(e.daily_minute,510);assert.equal(e.next_daily_at!.toISOString(),moved.toISOString());
+  assert.equal(e.daily_resume_at!.toISOString(),'2026-10-12T06:30:00.000Z');
+  await assert.rejects(()=>repo().occurrence(hash,form,now));
+  const [s]=await claimBeliefs(deps(),moved);assert.equal(s!.kind,'daily');
+  e=(await repo().load(hash))!.enrollment;assert.equal(e.next_daily_at!.toISOString(),'2026-10-12T06:30:00.000Z');assert.equal(e.daily_resume_at,null);
+  assert.deepEqual(await db!.store.load(phone),before);
+});
+test('skip affects one occurrence; STOP, coverage and adjacent slots override moving',options,async()=>{
+  await enroll();const booked=new Date('2026-10-11T06:30:00Z');
+  await db!.sql`update belief_enrollments set daily_minute=510,next_daily_at=${booked},next_weekly_at=${new Date('2026-10-11T15:30:00Z')} where phone_hash=${hash}`;
+  const form=new URLSearchParams({action:'occurrence',kind:'daily',expected_at:booked.toISOString(),occurrence:'2026-10-11T15:15:00Z'});
+  await assert.rejects(()=>repo().occurrence(hash,form,now));
+  form.set('occurrence','2026-10-11T05:30:00Z');process.env['BELIEFS_COVERAGE_START']='08:00';process.env['BELIEFS_COVERAGE_END']='20:00';
+  await assert.rejects(()=>repo().occurrence(hash,form,now));process.env['BELIEFS_COVERAGE_START']='00:00';process.env['BELIEFS_COVERAGE_END']='24:00';
+  await db!.sql`update callers set all_calls_stopped=true where phone_hash=${hash}`;
+  await assert.rejects(()=>repo().occurrence(hash,form,now));await db!.sql`update callers set all_calls_stopped=false where phone_hash=${hash}`;
+  form.set('action','skip');await repo().occurrence(hash,form,now);
+  assert.equal((await repo().load(hash))!.enrollment.next_daily_at!.toISOString(),'2026-10-12T06:30:00.000Z');
+  await assert.rejects(()=>repo().occurrence(hash,form,now));
+});
+test('active usual schedule edits omit onboarding and keep original review origin',options,async()=>{
+  await enroll();const before=(await repo().load(hash))!.enrollment.review_origin;
+  await repo().schedule(hash,new URLSearchParams({timezone:'Europe/Oslo',daily:'09:30',weekly:'18:30',weekday:'2'}),now);
+  const e=(await repo().load(hash))!.enrollment;assert.equal(e.onboarding_at,null);assert.equal(e.daily_minute,570);assert.deepEqual(e.review_origin,before);
+});
+test('verified unfinished onboarding keeps genuine discovery and provides one continuation notice',options,async()=>{
+  await enroll(false);await db!.sql`update belief_enrollments set standing='active',onboarding_at=${now} where phone_hash=${hash}`;
+  const [s]=await claimBeliefs(deps(),now);await db!.sql`update call_attempts set status='placed',provider_call_id='partial_onboarding' where id=${s!.id}`;
+  const text='Speak at the next discussion';
+  await beliefTool(deps(),{session_id:s!.id,session_token:token(s!.id),event_id:'partial-outcome',caller_text:text,command:{type:'outcome',outcome:text}},now);
+  assert.equal((await settleBeliefs(payload('partial_onboarding',text),deps(),undefined,now))!.status,'interrupted');
+  const loaded=(await repo().load(hash))!;assert.equal(loaded.practice.outcome,text);assert.equal(loaded.practice.understood,false);assert.equal(loaded.enrollment.next_daily_at,null);
+  const [message]=await db!.sql`select payload_enc from message_outbox where reference=${s!.id}`;assert.ok(decrypt(message!['payload_enc']).includes('unfinished'));assert.ok(!decrypt(message!['payload_enc']).includes(text));
+});
+test('late daily and weekly occurrences each owe at most one neutral recovery notice',options,async()=>{
+  await enroll();await db!.sql`update belief_enrollments set next_daily_at=${new Date(+now-2*86400_000)},next_weekly_at=${new Date(+now-86400_000)} where phone_hash=${hash}`;
+  assert.equal((await claimBeliefs(deps(),now)).length,0);assert.equal((await claimBeliefs(deps(),now)).length,0);
+  const messages=await db!.sql`select payload_enc from message_outbox where kind='beliefs'`;assert.equal(messages.length,2);
+  for(const m of messages){const text=decrypt(m['payload_enc']);assert.ok(text.includes('Check or change'));assert.ok(!text.includes('rang'));assert.ok(!text.includes('Decision'));}
+});
+test('an ambiguous voice score cannot retire a decision until the caller chooses one',options,async()=>{
+  await enroll();let p=(await repo().load(hash))!.practice;const id=p.beliefs[0]!.id;
+  p=run(p,{type:'review',id,week:0,score:1,reflection:'My previous reflection',confirmed:true});
+  await db!.sql`update belief_enrollments set practice_enc=${encrypt(JSON.stringify(p))},revision=${p.revision},next_daily_at=null,next_weekly_at=${now},review_origin=${new Date(+now-7*86400_000)} where phone_hash=${hash}`;
+  const [s]=await claimBeliefs(deps(),now);assert.equal(s!.week,1);
+  await db!.sql`update call_attempts set status='placed',provider_call_id='ambiguous_rating' where id=${s!.id}`;
+  const command={type:'review',id,score:1,reflection:'My current reflection',confirmed:true};
+  await assert.rejects(()=>beliefTool(deps(),{session_id:s!.id,session_token:token(s!.id),event_id:'ambiguous',caller_text:'One or two. My current reflection. Yes.',command},now));
+  assert.equal((await repo().load(hash))!.practice.beliefs[0]!.status,'active');
+  const turns=['One or two. My current reflection.','I choose one.','Yes, correct.'];
+  await beliefTool(deps(),{session_id:s!.id,session_token:token(s!.id),event_id:'chosen',caller_text:turns.join(' '),command},now);
+  await settleBeliefs(payload('ambiguous_rating',turns),deps(),undefined,now);
+  const saved=(await repo().load(hash))!.practice.beliefs[0]!;
+  assert.equal(saved.status,'retired');assert.deepEqual(saved.reviews.map(r=>r.score),[1,1]);
+});
+test('programme completion clears future times and sends one content-free completion notice',options,async()=>{
+  await enroll();let p=initial();
+  for(const b of p.beliefs.slice(0,2))for(let week=0;week<2;week++)p=run(p,{type:'review',id:b.id,week,score:1,reflection:'Some reflection',confirmed:true});
+  const id=p.beliefs[2]!.id;p=run(p,{type:'prepare',id,decision:'The final decision',evidence:['Some genuine evidence'],balance:'Some difficulty',opportunity:'Some opportunity',confirmed:true});
+  p=run(p,{type:'review',id,week:2,score:1,reflection:'My earlier reflection',confirmed:true});
+  await db!.sql`update belief_enrollments set practice_enc=${encrypt(JSON.stringify(p))},revision=${p.revision},next_daily_at=${new Date(+now+86400_000)},next_weekly_at=${now},review_origin=${new Date(+now-21*86400_000)} where phone_hash=${hash}`;
+  const [s]=await claimBeliefs(deps(),now);await db!.sql`update call_attempts set status='placed',provider_call_id='final_review' where id=${s!.id}`;
+  const turns=['One. My final reflection.','Yes, correct.'];
+  await beliefTool(deps(),{session_id:s!.id,session_token:token(s!.id),event_id:'final-review',caller_text:turns.join(' '),command:{type:'review',id,score:1,reflection:'My final reflection',confirmed:true}},now);
+  assert.equal((await settleBeliefs(payload('final_review',turns),deps(),undefined,now))!.status,'completed');
+  const result=(await repo().load(hash))!;assert.equal(result.practice.state,'completed');assert.equal(result.enrollment.next_daily_at,null);assert.equal(result.enrollment.next_weekly_at,null);
+  await settleBeliefs(payload('final_review',turns),deps(),undefined,now);
+  const messages=await db!.sql`select payload_enc from message_outbox where reference=${s!.id}`;assert.equal(messages.length,1);assert.ok(decrypt(messages[0]!['payload_enc']).includes('Calls have stopped'));assert.ok(!decrypt(messages[0]!['payload_enc']).includes('My final reflection'));
+  await assert.rejects(()=>repo().command(hash,{type:'resume'},'completed-resume'));
+});
+test('failed urgent alerts remain durable; repeated flags do not create duplicate notices',options,async()=>{
+  await enroll();const [s]=await claimBeliefs(deps(),now);
+  for(let i=0;i<2;i++)await beliefTool(deps(),{session_id:s!.id,session_token:token(s!.id),caller_text:'I have thoughts of suicide'},now);
+  const [message]=await db!.sql`select id,payload_enc from message_outbox where kind='safety'`;assert.ok(message);
+  const broken=deps();broken.sms={send:async()=>{throw new SendFailure('retry','synthetic transport failure');}};
+  assert.equal(await dispatchMessage(broken,message['id'],now),'pending');
+  assert.equal((await db!.sql`select count(*)::int as n from message_outbox where kind='safety'`)[0]!['n'],1);
+  assert.equal((await db!.sql`select held_for_review from callers where phone_hash=${hash}`)[0]!['held_for_review'],true);
+  assert.equal(await dispatchMessage(deps(),message['id'],new Date(+now+60001)),'accepted');
+});
+test('failed tier-two digest remains in the outbox for recovery rather than waiting a day',options,async()=>{
+  await enroll();const [s]=await claimBeliefs(deps(),now);
+  await beliefTool(deps(),{session_id:s!.id,session_token:token(s!.id),caller_text:'I feel unsafe'},now);
+  const broken=deps();broken.sms={send:async()=>{throw new SendFailure('retry','synthetic transport failure');}};
+  const evening=new Date('2026-10-10T18:00:00Z');await safetyDigest(broken,evening);await safetyDigest(broken,evening);
+  const messages=await db!.sql`select id,status from message_outbox where kind='safety'`;assert.equal(messages.length,1);assert.equal(messages[0]!['status'],'pending');
+  assert.equal(await dispatchMessage(deps(),messages[0]!['id'],new Date(+evening+60001)),'accepted');
+});
+test('reordered payment events re-read authoritative state and cannot undo a refund/dispute',options,async()=>{
+  await enroll(false);let paid=true;let disputed=false;let refunded=false;
+  const fetcher:typeof fetch=async url=>new Response(JSON.stringify(String(url).includes('/prices/')?{unit_amount:1000,currency:'nok',recurring:{interval:'month',interval_count:1}}:{id:'cs_ordered',mode:'payment',amount_subtotal:1000,currency:'nok',client_reference_id:'beliefs:'+hash,payment_status:paid?'paid':'unpaid',line_items:{data:[{quantity:1,price:{id:'price_module',unit_amount:1000,currency:'nok'}}]},payment_intent:{id:'pi_ordered',status:paid?'succeeded':'processing',latest_charge:{paid,disputed,refunded,amount_refunded:refunded?1000:0}}}));
+  const completed={type:'checkout.session.completed',data:{object:{object:'checkout.session',id:'cs_ordered',client_reference_id:'beliefs:'+hash}}};
+  paid=false;await syncBeliefPurchase(deps(),completed,{},fetcher);assert.equal((await repo().load(hash))!.enrollment.standing,'payment_hold');
+  paid=true;await syncBeliefPurchase(deps(),completed,{},fetcher);assert.equal((await repo().load(hash))!.enrollment.standing,'active');
+  for(const type of ['charge.dispute.created','charge.refunded']){
+    if(type==='charge.dispute.created')disputed=true;else refunded=true;
+    await syncBeliefPurchase(deps(),{type,data:{object:{object:'charge',payment_intent:'pi_ordered'}}},{},fetcher);
+    await syncBeliefPurchase(deps(),completed,{},fetcher);assert.equal((await repo().load(hash))!.enrollment.standing,'payment_hold');
+  }
+  assert.equal((await db!.sql`select count(*)::int as n from message_outbox where kind='beliefs'`)[0]!['n'],1);
+});
+function fakeReady():void {
+  for(const key of ['BELIEFS_ENABLED','BELIEFS_LIVE_CALLS','BELIEFS_SAFETY_APPROVED','BELIEFS_SCRIPTS_APPROVED','BELIEFS_AGENTS_VERIFIED','BELIEFS_PRICE_VERIFIED'])process.env[key]='true';
+  Object.assign(process.env,{BELIEFS_PRICE_LABEL:'Synthetic price',BELIEFS_CHECKOUT_URL:'https://buy.stripe.com/synthetic',BELIEFS_SUPPORT_HOURS:'Synthetic staffed test window',SUPPORT_EMAIL:'support@example.com',BELIEFS_ONBOARDING_AGENT_ID:'synthetic-onboard',BELIEFS_DAILY_AGENT_ID:'synthetic-daily',BELIEFS_WEEKLY_AGENT_ID:'synthetic-weekly',TWILIO_ACCOUNT_SID:'synthetic',TWILIO_AUTH_TOKEN:'synthetic',SMS_FROM_NUMBER:'+4791000000',SPEECHIFY_API_KEY:'synthetic',SPEECHIFY_WEBHOOK_SECRET:'synthetic',STRIPE_WEBHOOK_SECRET:'synthetic'});
+}
+test('an uncertain provider placement is never automatically retried',options,async()=>{
+  await enroll();fakeReady();
+  let requests=0;const fetcher:typeof fetch=async()=>{requests++;throw new Error('synthetic uncertain request');};
+  const first=await tickBeliefs(deps(),now,fetcher);assert.equal(first.claimed,1);assert.equal(first.failed,1);
+  await tickBeliefs(deps(),new Date(+now+60000),fetcher);assert.equal(requests,1);
+  const [attempt]=await db!.sql`select status,note from call_attempts`;assert.equal(attempt!['status'],'claimed');assert.ok(attempt!['note'].includes('do not redial'));
+});
+test('missing caller words and invalid scoped credentials cannot return a successful safety check',options,async()=>{
+  await enroll();const [s]=await claimBeliefs(deps(),now);const before=(await repo().load(hash))!.practice;
+  await assert.rejects(()=>beliefTool(deps(),{session_id:s!.id,session_token:token(s!.id),caller_text:'   '},now));
+  await assert.rejects(()=>beliefTool(deps(),{session_id:s!.id,session_token:'wrong',caller_text:'Some words'},now));
+  assert.deepEqual((await repo().load(hash))!.practice,before);
+});
+test('schedule collision checks compare actual instants across different saved zones',options,async()=>{
+  await enroll();await db!.sql`update callers set slot_weekday=2,slot_minute=600,timezone='Europe/Oslo' where phone_hash=${hash}`;
+  // London 09:00 and Oslo 10:00 are the same appointment during this test window.
+  await assert.rejects(()=>repo().schedule(hash,new URLSearchParams({timezone:'Europe/London',daily:'09:00',weekly:'18:00',weekday:'0'}),now));
+  await repo().schedule(hash,new URLSearchParams({timezone:'Europe/London',daily:'11:00',weekly:'18:00',weekday:'0'}),now);
+  assert.equal((await repo().load(hash))!.enrollment.timezone,'Europe/London');
+});
+test('voice context includes preferred identity and first-month timing without base memories',options,async()=>{
+  await enroll();fakeReady();
+  await db!.sql`update belief_enrollments set next_daily_at=${new Date(+now+86400_000)},next_weekly_at=${now},review_origin=${new Date(+now-21*86400_000)} where phone_hash=${hash}`;
+  let requests=0;const fetcher:typeof fetch=async(_url,init)=>{
+    requests++;const body=JSON.parse(String(init!.body));const variables=body.dynamic_variables;const context=JSON.parse(variables.belief_context);
+    assert.equal(context.call_context.preferred_name,'Synthetic tester');assert.equal(context.call_context.first_month_review,true);assert.equal(context.call_context.review_period,3);
+    assert.equal(variables.call_kind,'weekly');assert.equal(variables.last_belief,undefined);assert.equal(variables.call_number,undefined);assert.equal(context.commitment,undefined);
+    return new Response(JSON.stringify({conversation_id:'synthetic_context_call'}));
+  };
+  const result=await tickBeliefs(deps(),now,fetcher);assert.equal(result.placed,1);assert.equal(requests,1);
+});
+test('private owner export omits operator contacts and credentials serialized inside tool arguments',options,async()=>{
+  await enroll();const [s]=await claimBeliefs(deps(),now);
+  await db!.sql`update call_attempts set status='placed',provider_call_id='export_redaction' where id=${s!.id}`;
+  await beliefTool(deps(),{session_id:s!.id,session_token:token(s!.id),caller_text:'I have thoughts of suicide'},now);
+  const body=JSON.stringify({messages:[{role:'tool',arguments:JSON.stringify({session_token:'synthetic-session-credential',caller_text:'Some caller words'})}]});
+  await db!.sql`insert into webhook_deliveries(id,event,conversation_id,body_enc) values('synthetic-export','conversation.completed','export_redaction',${encrypt(body)})`;
+  const exported=await composeExport(db!.store,phone,loadScript(),{includeBeliefs:true});
+  assert.ok(exported!.body.includes('My outcome'));assert.ok(exported!.body.includes('Some caller words'));
+  assert.ok(exported!.body.includes('operator contact omitted'));assert.ok(!exported!.body.includes('+4791000000'));assert.ok(!exported!.body.includes('synthetic-session-credential'));
+  const [stored]=await db!.sql`select body_enc from webhook_deliveries where id='synthetic-export'`;assert.equal(decrypt(stored!['body_enc']),body);
+});
+test('combined-account signup preferences stay encrypted and support email never enters voice context',options,async()=>{
+  await db!.store.upsertProfile(phone,{name:'Weekly name',email:'weekly@example.com'});const before=await db!.store.load(phone);
+  await repo().enroll(hash,now,{name:'Beliefs name',email:'support-only@example.com'});
+  assert.deepEqual((await repo().load(hash))!.practice.contact,{name:'Beliefs name',email:'support-only@example.com'});
+  assert.deepEqual(await db!.store.load(phone),before);
+  fakeReady();await db!.sql`update belief_enrollments set standing='active',onboarding_at=${now} where phone_hash=${hash}`;
+  const fetcher:typeof fetch=async(_url,init)=>{
+    const variables=JSON.parse(String(init!.body)).dynamic_variables;const context=JSON.parse(variables.belief_context);
+    assert.equal(context.call_context.preferred_name,'Beliefs name');assert.equal(context.contact,undefined);assert.ok(!variables.belief_context.includes('support-only@example.com'));
+    return new Response(JSON.stringify({conversation_id:'combined_identity'}));
+  };
+  assert.equal((await tickBeliefs(deps(),now,fetcher)).placed,1);
+  const [s]=await db!.sql`select id from belief_sessions`;
+  const result=await beliefTool(deps(),{session_id:s!['id'],session_token:token(s!['id']),event_id:'combined-outcome',caller_text:'My chosen outcome',command:{type:'outcome',outcome:'My chosen outcome'}},now);
+  assert.equal((result['practice'] as Practice).contact,undefined);assert.deepEqual(await db!.store.load(phone),before);
+});
+test('Lemon Squeezy one-time purchase and reordered refund remain isolated from weekly billing',options,async()=>{
+  await enroll(false);const before=await db!.store.load(phone);process.env['BILLING_PROVIDER']='lemonsqueezy';process.env['BELIEFS_PRODUCT_ID']='100';process.env['BELIEFS_BASE_PRICE_ID']='200';process.env['LEMONSQUEEZY_API_KEY']='synthetic';
+  let refunded=false;let wrongProduct=false;
+  const fetcher:typeof fetch=async url=>{
+    const path=String(url);
+    const data=path.includes('/orders/')?{id:'123',attributes:{first_order_item:{variant_id:wrongProduct?999:100,price:1000},subtotal:1000,currency:'NOK',store_id:1,status:'paid',refunded,refunded_amount:refunded?1000:0},relationships:{'order-items':{data:[{id:'item'}]}}}:path.includes('/variants/100')?{attributes:{is_subscription:false,price:1000}}:path.includes('/variants/200')?{attributes:{is_subscription:true,interval:'month',interval_count:1,price:1000}}:{attributes:{currency:'NOK'}};
+    return new Response(JSON.stringify({data}));
+  };
+  const event=(name:string)=>({meta:{event_name:name,custom_data:{phone_hash:'beliefs:'+hash}},data:{type:'orders',id:'123'}});
+  wrongProduct=true;await assert.rejects(()=>syncBeliefPurchase(deps(),event('order_created'),{},fetcher));assert.equal((await repo().load(hash))!.enrollment.standing,'awaiting_payment');
+  wrongProduct=false;await syncBeliefPurchase(deps(),event('order_created'),{},fetcher);await syncBeliefPurchase(deps(),event('order_created'),{},fetcher);
+  assert.equal((await repo().load(hash))!.enrollment.standing,'active');
+  refunded=true;await syncBeliefPurchase(deps(),event('order_refunded'),{},fetcher);await syncBeliefPurchase(deps(),event('order_created'),{},fetcher);
+  assert.equal((await repo().load(hash))!.enrollment.standing,'payment_hold');assert.equal((await db!.sql`select count(*)::int as n from message_outbox where kind='beliefs'`)[0]!['n'],1);assert.deepEqual(await db!.store.load(phone),before);
 });

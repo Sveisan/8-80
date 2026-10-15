@@ -3,6 +3,7 @@ import { log } from '../log.ts';
 import { alertText } from '../call/safety.ts';
 import { awaitingReview, beat, heartbeats } from '../schedule/scheduler.ts';
 import type { LoopDeps } from './deps.ts';
+import { enqueue, dispatchMessage } from '../messages/outbox.ts';
 
 const JOB = 'safety-digest';
 
@@ -29,18 +30,18 @@ export async function safetyDigest(deps: LoopDeps, now = new Date()): Promise<vo
 
     const waiting = await awaitingReview(deps.store.raw);
     if (waiting.length) {
-      for (const phone of to) {
-        try {
-          await deps.sms.send(phone, alertText(2, waiting.length));
-        } catch (e) {
-          log('safety.digest_failed', { reason: (e as Error).message });
-        }
-      }
+      const ids=await deps.store.raw.begin(async tx=>{
+        const ids:string[]=[];
+        for(const [index,phone] of to.entries())ids.push(await enqueue(tx,{eventKey:`safety:digest:${today}:${index}`,phoneHash:waiting[0]!.phoneHash,channel:'sms',kind:'safety',to:phone,body:alertText(2,waiting.length)},now));
+        return ids;
+      });
+      // A failed/uncertain transport stays in the outbox; the heartbeat never erases that intent.
+      for(const id of ids)await dispatchMessage(deps,id,now);
       log('safety.digest', { waiting: waiting.length });
     }
     await beat(deps.store.raw, JOB, `${waiting.length} waiting`);
-  } catch (e) {
-    log('safety.digest_failed', { reason: (e as Error).message });
+  } catch {
+    log('safety.digest_failed', { reason: 'digest unavailable; check private outbox status' });
   }
 }
 

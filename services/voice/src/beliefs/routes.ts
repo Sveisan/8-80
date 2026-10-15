@@ -3,6 +3,7 @@ import { config, smsConfigured } from '../config.ts';
 import type { LoopDeps } from '../loop/deps.ts';
 import type { Answer } from '../signup/routes.ts';
 import { Pending } from '../signup/pending.ts';
+import { TTL_MS } from '../signup/pending.ts';
 import { readPhone, EMAIL } from '../signup/form.ts';
 import { Limiter } from '../signup/limit.ts';
 import { phoneKey } from '../store/postgres.ts';
@@ -23,7 +24,7 @@ import { csrfFor, practiceCookie, readForm, pageHeaders } from './http.ts';
 import { BeliefRepository, scheduleInput, nextDaily } from './repository.ts';
 import { beliefCheckout } from './billing.ts';
 import { commandFrom, messages } from './forms.ts';
-import { PracticeError } from './model.ts';
+import { PracticeError, nextPracticeAppointment } from './model.ts';
 
 const sends=new Limiter(8,3600_000);const verifies=new Limiter(30,600_000);
 export async function beliefRoutes(req: IncomingMessage,url: URL,deps: LoopDeps,client: string,now=new Date()): Promise<Answer | undefined> {
@@ -31,7 +32,7 @@ export async function beliefRoutes(req: IncomingMessage,url: URL,deps: LoopDeps,
   const c=beliefConfig();
   const ready=beliefReadiness().length===0;
   const options: PageOptions={available:ready,price:c.price,support:config.company.supportEmail()?`mailto:${config.company.supportEmail()}`:undefined,supportHours:c.supportHours};
-  const page=(screen: Screen,status=200,note?: string,extra: PageOptions={}): Answer=>({status,body:beliefPage(screen,{...options,...extra,note}),headers:pageHeaders});
+  const page=(screen: Screen,status=200,note?: string,extra: PageOptions={}): Answer=>({status,body:beliefPage(screen,{...options,...extra,note:note??extra.note}),headers:pageHeaders});
   const redirect=(location: string,cookie?: string): Answer=>({status:303,body:'',headers:{...pageHeaders,location,...(cookie?{'set-cookie':cookie}:{})}});
   if (req.method==='POST' && crossSite(req)) return page('landing',403,'This request could not be verified.');
   if (req.method==='GET' && url.pathname==='/beliefs') return page('landing');
@@ -50,16 +51,16 @@ export async function beliefRoutes(req: IncomingMessage,url: URL,deps: LoopDeps,
     if(accessing) {
       challenge=await new AccessCodes(deps.store.raw).start(hash,now,async(tx,id,code)=>{
         const [caller]=await tx`select phone_hash from callers where phone_hash=${hash} for update`;
-        if(caller)messageId=await enqueue(tx,{eventKey:`beliefs:access:${id}`,phoneHash:hash,channel:'sms',kind:'access',reference:id,to:phone,body:`Your 8&80 verification code is ${code}. It expires in ten minutes.`},now);
+        if(caller)messageId=await enqueue(tx,{eventKey:`beliefs:access:${id}`,phoneHash:hash,channel:'sms',kind:'access',reference:id,to:phone,body:`Your 8&80 Beliefs code is ${code}. It expires in ${TTL_MS/60000} minutes.`},now);
       });
     } else {
       if(form.get('consent')!=='yes')return page('join',400,'Read the service information and confirm your choice.');
       const email=(form.get('email')??'').trim();
-      if(email && !EMAIL.test(email))return page('join',400,'Check your email address.');
+      if(email && (email.length>254 || !EMAIL.test(email)))return page('join',400,'Check your email address.');
       const [recent]=await deps.store.raw`select count(*)::int as count from message_outbox where phone_hash=${hash} and kind='signup' and created_at>${new Date(+now-3600_000)}`;
       if(Number(recent?.['count'])>=3)return page('join',429,'Please wait before requesting another code.');
       challenge=await new Pending(deps.store.raw).begin({phone,email,name:(form.get('name')??'').trim().slice(0,80),weekday:0,minute:480,timezone:'Europe/Oslo'},now,async(tx,id,code)=>{
-        messageId=await enqueue(tx,{eventKey:`beliefs:signup:${id}`,phoneHash:hash,channel:'sms',kind:'signup',reference:id,to:phone,body:`Your 8&80 verification code is ${code}. It expires in ten minutes.`},now);
+        messageId=await enqueue(tx,{eventKey:`beliefs:signup:${id}`,phoneHash:hash,channel:'sms',kind:'signup',reference:id,to:phone,body:`Your 8&80 Beliefs code is ${code}. It expires in ${TTL_MS/60000} minutes.`},now);
       },'beliefs');
     }
     if(!challenge)return page('join',429,'Please wait before requesting another code.',{access:accessing});
@@ -81,7 +82,7 @@ export async function beliefRoutes(req: IncomingMessage,url: URL,deps: LoopDeps,
       await new Pending(deps.store.raw).verify(phone,code,now,id,async(tx,signup)=>{
         const hash=phoneKey(signup.phone);
         await tx`insert into callers(phone_hash,phone_enc,name,email_enc,language) values(${hash},${encrypt(signup.phone)},${signup.name},${signup.email?encrypt(signup.email):null},'en') on conflict do nothing`;
-        await new BeliefRepository(tx).enroll(hash,now);
+        await new BeliefRepository(tx).enroll(hash,now,{name:signup.name,email:signup.email});
         token=await new Links(tx).mint(hash,now,'beliefs');
       },'beliefs');
     }
@@ -96,10 +97,14 @@ export async function beliefRoutes(req: IncomingMessage,url: URL,deps: LoopDeps,
   if(!loaded)return page('landing',200,'No Beliefs enrollment is attached to this account.');
   const {enrollment:e,practice:p}=loaded;
   const [identity]=await deps.store.raw`select held_for_review,all_calls_stopped from callers where phone_hash=${hash}`;
-  const next=p.understood?[e.next_daily_at,e.next_weekly_at].filter((at):at is Date=>!!at).sort((a,b)=>+a-+b)[0]:e.onboarding_at;
+  const upcoming=nextPracticeAppointment(p,{daily:e.next_daily_at,weekly:e.next_weekly_at,onboarding:e.onboarding_at},now);
+  const next=upcoming?.at;
   const privateOptions: PageOptions={...options,practice:p,csrf:csrfFor(token!),paid:e.standing==='active',checkout:e.purchase_id?'':beliefCheckout(hash),held:!!(identity?.['held_for_review']||identity?.['all_calls_stopped']),paymentHold:e.standing==='payment_hold',
     timezone:e.timezone,daily:e.daily_minute!==null?clock(e.daily_minute):undefined,weekly:e.weekly_minute!==null?clock(e.weekly_minute):undefined,weekday:e.weekly_weekday??undefined,
-    next:e.standing==='active' && !identity?.['held_for_review'] && !identity?.['all_calls_stopped'] && !['paused','completed'].includes(p.state) && next && next>now?describeAppointment(next,e.timezone):undefined};
+    next:e.standing==='active' && !identity?.['held_for_review'] && !identity?.['all_calls_stopped'] && !['paused','completed'].includes(p.state) && next?describeAppointment(next,e.timezone):undefined,
+    nextAt:next?.toISOString(),nextKind:upcoming?.kind,onboardingAt:e.onboarding_at?.toISOString(),selectedId:url.searchParams.get('id')??undefined};
+  const savedNotes:Record<string,string>={schedule:'Your usual times are saved.',occurrence:'This call has moved. Your usual times stay the same.',skip:'This call is skipped. No catch-up call will be added.',pause:'Your Beliefs calls are paused.',resume:'Your practice is resumed. Shared STOP or safety holds still apply.'};
+  if(url.searchParams.get('saved'))privateOptions.note=savedNotes[url.searchParams.get('saved')!];
   if(req.method==='POST') {
     const form=await readForm(req);
     if(form.get('csrf')!==csrfFor(token!))return page('account',403,'Open your practice again before saving.',privateOptions);
@@ -120,16 +125,17 @@ export async function beliefRoutes(req: IncomingMessage,url: URL,deps: LoopDeps,
         return redirect('/beliefs',practiceCookie(''));
       }
       if(action==='schedule') {
-        const times=scheduleInput(form,now);
-        const checks=[times.at];let daily=now;let weekly=now;
+        const times=scheduleInput(form,now,!p.understood);
+        const checks=times.at?[times.at]:[];let daily=now;let weekly=now;
         for(let day=0;day<35;day++){daily=nextDaily(daily,times.daily,times.timezone);checks.push(daily);}
         for(let week=0;week<6;week++){weekly=nextSlotAfter(weekly,{weekday:times.weekday,minute:times.weekly,timezone:times.timezone});checks.push(weekly);}
         if(checks.some(at=>!withinCoverage(at)))throw new PracticeError('outside_coverage');
-        await repo.schedule(hash,form,now);return redirect('/beliefs/account');
+        await repo.schedule(hash,form,now);return redirect('/beliefs/account?saved=schedule');
       }
+      if(action==='occurrence' || action==='skip'){await repo.occurrence(hash,form,now);return redirect('/beliefs/account?saved='+action);}
       if(['understood','review'].includes(action??''))throw new PracticeError('review_not_due');
       await repo.command(hash,commandFrom(form),form.get('event')??'',Number(form.get('revision')),now);
-      return redirect(action==='outcome'||action==='queue'?'/beliefs/onboarding':action==='prepare'?'/beliefs/prepare':'/beliefs/account');
+      return redirect(action==='outcome'||action==='queue'?'/beliefs/onboarding':action==='prepare'?'/beliefs/prepare':'/beliefs/account'+(action==='pause'||action==='resume'?'?saved='+action:''));
     } catch(error) {return page('account',error instanceof PracticeError?409:503,error instanceof PracticeError?messages[error.code]??'Review your choices before continuing.':'This change could not be confirmed. Please try again later.',privateOptions);}
   }
   if(req.method!=='GET')return page('account',405,undefined,privateOptions);
