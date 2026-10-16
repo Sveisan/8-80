@@ -15,7 +15,7 @@ function prepared(cap:2|3=2):Practice {
   return run(p,{type:'understood',confirmed:true});
 }
 const review=(p:Practice,id:string,week:number,score=1)=>run(p,{type:'review',id,week,score,reflection:'My reflection',confirmed:true});
-test('onboarding needs outcome, caller authorship, evidence, balance and a backlog',()=>{
+test('onboarding needs outcome, caller authorship, evidence and balance',()=>{
   let p=emptyPractice();
   assert.throws(()=>run(p,{type:'understood',confirmed:true}),PracticeError);
   p=run(p,{type:'queue',belief:'Old thought',trigger:'Situation'});
@@ -52,7 +52,7 @@ test('event redelivery is idempotent and a paused practice blocks exercises',()=
 });
 test('three active slots are capped and no AI-authored replacement is pulled into practice',()=>{
   const p=prepared(3);assert.equal(activeBeliefs(p).length,3);assert.equal(p.beliefs[3]!.status,'queued');
-  assert.throws(()=>run(p,{type:'queue',belief:'Another thought',trigger:'Situation'}),PracticeError);
+  const added=run(p,{type:'queue',belief:'Another thought',trigger:'Situation'});assert.equal(activeBeliefs(added).length,3);assert.equal(added.beliefs.at(-1)!.status,'queued');
 });
 test('empty backlog ends the paid programme and prevents indefinite new discovery',()=>{
   let p=prepared();for(let i=0;i<2;i++){const id=p.beliefs[i]!.id;p=review(p,id,0);p=review(p,id,1);}

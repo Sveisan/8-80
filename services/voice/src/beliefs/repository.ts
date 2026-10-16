@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import type { Database } from '../store/transaction.ts';
 import { transaction } from '../store/transaction.ts';
 import { decrypt, encrypt } from '../store/crypto.ts';
@@ -6,11 +7,13 @@ import { applyCommand, emptyPractice, PracticeError, type Command, type Practice
 import { withinCoverage } from './coverage.ts';
 
 export interface Enrollment {
-  phone_hash: string; practice_enc: string; revision: number; timezone: string;
+  id: string; is_current: boolean; checkout_reference: string; phone_hash: string; practice_enc: string; revision: number; timezone: string;
   daily_minute: number | null; weekly_weekday: number | null; weekly_minute: number | null;
   onboarding_at: Date | null; next_daily_at: Date | null; next_weekly_at: Date | null; review_origin: Date | null;
   daily_resume_at: Date | null; weekly_resume_at: Date | null;
-  standing: string; provider: 'stripe' | 'lemonsqueezy' | null; purchase_id: string | null; payment_id: string | null;
+  product_id:string|null; standing: string; provider: 'stripe' | 'lemonsqueezy' | null; purchase_id: string | null; payment_id: string | null;
+  first_connected_at: Date | null; completed_at: Date | null; history_delete_at: Date | null; history_deleted_at: Date | null; retention_notice_at: Date | null; retention_delivered_at: Date | null;
+  checkin_at: Date | null; checkin_used_at: Date | null; checkin_attempt_id: string | null; correction_count: number;
   customer_id: string | null; paid_at: Date | null; amount_minor: number | null; currency: string | null;
 }
 export function nextDaily(after: Date, minute: number, timezone: string): Date {
@@ -43,22 +46,24 @@ export function appointmentInput(form: URLSearchParams, timezone: string, now = 
 }
 
 export class BeliefRepository {
-  constructor(readonly sql: Database) {}
+  constructor(readonly sql: Database, readonly programmeId?: string) {}
   async load(hash: string): Promise<{ enrollment: Enrollment; practice: Practice } | undefined> {
-    const [enrollment] = await this.sql<Enrollment[]>`select * from belief_enrollments where phone_hash = ${hash}`;
+    const [enrollment] = await this.sql<Enrollment[]>`select * from belief_enrollments where phone_hash = ${hash} and (${this.programmeId ?? null}::text is not null and id=${this.programmeId ?? null} or ${this.programmeId ?? null}::text is null and is_current)`;
     return enrollment ? { enrollment, practice: JSON.parse(decrypt(enrollment.practice_enc)) as Practice } : undefined;
   }
   async enroll(hash: string, now = new Date(), contact?: {name:string;email:string}): Promise<void> {
     const practice=emptyPractice();
     if(contact && (contact.name.trim() || contact.email.trim()))practice.contact={name:contact.name.trim().slice(0,80),email:contact.email.trim().slice(0,254)};
-    await this.sql`insert into belief_enrollments (phone_hash, practice_enc, consent_version, consent_at)
-      values (${hash}, ${encrypt(JSON.stringify(practice))}, 'beliefs-v1', ${now}) on conflict do nothing`;
+    const id=randomUUID();
+    await this.sql`insert into belief_enrollments (id,checkout_reference,phone_hash, practice_enc, consent_version, consent_at)
+      values (${id},${'beliefs:'+id},${hash}, ${encrypt(JSON.stringify(practice))}, 'beliefs-v1', ${now}) on conflict do nothing`;
   }
   async command(hash: string, command: Command, eventId: string, expected?: number, now = new Date()): Promise<Practice> {
     return transaction(this.sql, async tx => {
       await tx`select phone_hash from callers where phone_hash = ${hash} for update`;
-      const [row] = await tx<Enrollment[]>`select * from belief_enrollments where phone_hash = ${hash} for update`;
+      const [row] = await tx<Enrollment[]>`select * from belief_enrollments where phone_hash = ${hash} and (${this.programmeId ?? null}::text is not null and id=${this.programmeId ?? null} or ${this.programmeId ?? null}::text is null and is_current) for update`;
       if (!row) throw new PracticeError('enrollment_unknown');
+      if(row.history_deleted_at)throw new PracticeError('history_deleted');
       const current = JSON.parse(decrypt(row.practice_enc)) as Practice;
       if (current.events.includes(eventId)) return applyCommand(current,command,eventId,now);
       if (expected !== undefined && expected !== current.revision) throw new PracticeError('page_changed');
@@ -70,29 +75,39 @@ export class BeliefRepository {
   async confirm(hash: string, expected: number, practice: Practice, now = new Date()): Promise<Practice> {
     return transaction(this.sql,async tx=>{
       await tx`select phone_hash from callers where phone_hash=${hash} for update`;
-      const [row]=await tx<Enrollment[]>`select * from belief_enrollments where phone_hash=${hash} for update`;
+      const [row]=await tx<Enrollment[]>`select * from belief_enrollments where phone_hash=${hash} and (${this.programmeId ?? null}::text is not null and id=${this.programmeId ?? null} or ${this.programmeId ?? null}::text is null and is_current) for update`;
       if(!row)throw new PracticeError('enrollment_unknown');
+      if(row.history_deleted_at)throw new PracticeError('history_deleted');
       const current=JSON.parse(decrypt(row.practice_enc)) as Practice;
       if(current.revision!==expected || practice.revision<expected)throw new PracticeError('page_changed');
       return this.write(tx,row,current,practice,now);
     });
   }
   private async write(sql: Database,row: Enrollment,current: Practice,practice: Practice,now: Date): Promise<Practice> {
-    const started = !current.understood && practice.understood && row.daily_minute !== null && row.weekly_minute !== null && row.weekly_weekday !== null;
-    const nextWeekly = started ? nextSlotAfter(now, { minute: row.weekly_minute!, weekday: row.weekly_weekday!, timezone: row.timezone }) : row.next_weekly_at;
-    await sql`update belief_enrollments set practice_enc = ${encrypt(JSON.stringify(practice))}, revision = ${practice.revision},
-      next_daily_at = ${practice.state==='completed'?null:started ? nextDaily(now, row.daily_minute!, row.timezone) : row.next_daily_at},
+    const corrected = current.state==='completed' && practice.state!=='completed';
+    const started = (!current.understood && practice.understood || corrected)  && row.daily_minute !== null && row.weekly_minute !== null && row.weekly_weekday !== null;
+    const resumed=current.state==='paused' && practice.state==='active';
+    const dailyDue=started || resumed && (!row.next_daily_at || row.next_daily_at<=now);
+    const weeklyDue=started || resumed && (!row.next_weekly_at || row.next_weekly_at<=now);
+    const nextWeekly = weeklyDue && row.weekly_minute!==null && row.weekly_weekday!==null ? nextSlotAfter(now, { minute: row.weekly_minute, weekday: row.weekly_weekday, timezone: row.timezone }) : row.next_weekly_at;
+    await sql`update belief_enrollments set policy_checked_at=${now}, practice_enc = ${encrypt(JSON.stringify(practice))}, revision = ${practice.revision},
+      completed_at = case when ${corrected} then null when ${practice.state==='completed'} then coalesce(completed_at, ${now}) else completed_at end,
+      history_delete_at = case when ${corrected} then null when ${practice.state==='completed'} then coalesce(history_delete_at, ${now}::timestamptz + interval '12 months') else history_delete_at end,
+      retention_delivered_at = case when ${corrected} then null else retention_delivered_at end,
+      retention_notice_at = case when ${corrected} then null else retention_notice_at end,
+      correction_count = correction_count + ${corrected?1:0}, checkin_at=case when ${corrected} then null else checkin_at end,
+      next_daily_at = ${practice.state==='completed'?null:dailyDue && row.daily_minute!==null ? nextDaily(now, row.daily_minute, row.timezone) : row.next_daily_at},
       next_weekly_at = ${practice.state==='completed'?null:nextWeekly}, review_origin = ${started ? nextWeekly : row.review_origin},
       onboarding_at = case when ${started || practice.state==='completed'} then null else onboarding_at end,
       daily_resume_at = case when ${practice.state==='completed'} then null else daily_resume_at end,
-      weekly_resume_at = case when ${practice.state==='completed'} then null else weekly_resume_at end, updated_at = ${now} where phone_hash = ${row.phone_hash}`;
+      weekly_resume_at = case when ${practice.state==='completed'} then null else weekly_resume_at end, updated_at = ${now} where id = ${row.id}`;
     return practice;
   }
   async schedule(hash: string, form: URLSearchParams, now = new Date()): Promise<void> {
     await transaction(this.sql, async tx => {
       const [caller] = await tx`select slot_weekday, slot_minute, timezone from callers where phone_hash = ${hash} for update`;
       if (!caller) throw new PracticeError('enrollment_unknown');
-      const loaded = await new BeliefRepository(tx).load(hash);
+      const loaded = await new BeliefRepository(tx,this.programmeId).load(hash);
       if (!loaded) throw new PracticeError('enrollment_unknown');
       if(loaded.practice.state==='completed')throw new PracticeError('programme_complete');
       const s = scheduleInput(form, now, !loaded.practice.understood);
@@ -114,14 +129,14 @@ export class BeliefRepository {
         next_daily_at = ${loaded.practice.understood ? nextDaily(now, s.daily, s.timezone) : null},
         next_weekly_at = ${loaded.practice.understood ? weekly : null},
         daily_resume_at = null, weekly_resume_at = null,
-        review_origin = coalesce(review_origin, ${loaded.practice.understood ? weekly : null}), updated_at = ${now} where phone_hash = ${hash}`;
+        review_origin = coalesce(review_origin, ${loaded.practice.understood ? weekly : null}), updated_at = ${now} where id = ${loaded.enrollment.id}`;
     });
   }
   /** Move/skip one claimed future appointment, without changing the usual cadence. */
   async occurrence(hash:string,form:URLSearchParams,now=new Date()):Promise<void> {
     await transaction(this.sql,async tx=>{
       const [caller]=await tx`select held_for_review,all_calls_stopped,sms_opt_out,slot_weekday,slot_minute,timezone from callers where phone_hash=${hash} for update`;
-      const loaded=await new BeliefRepository(tx).load(hash);
+      const loaded=await new BeliefRepository(tx,this.programmeId).load(hash);
       if(!caller || !loaded)throw new PracticeError('enrollment_unknown');
       const {enrollment:e,practice:p}=loaded;
       if(e.standing!=='active' || caller['held_for_review'] || caller['all_calls_stopped'] || caller['sms_opt_out'] || ['paused','completed'].includes(p.state))throw new PracticeError('calls_held');
@@ -145,9 +160,9 @@ export class BeliefRepository {
         if(caller['slot_weekday']!==null && caller['slot_minute']!==null)nearby.push(nextSlotAfter(before,{weekday:Number(caller['slot_weekday']),minute:Number(caller['slot_minute']),timezone:String(caller['timezone'])}));
         if(nearby.some(other=>Math.abs(+at-+other)<45*60_000))throw new PracticeError('calls_too_close');
       }
-      if(kind==='onboarding')await tx`update belief_enrollments set onboarding_at=${at},updated_at=${now} where phone_hash=${hash}`;
-      if(kind==='daily')await tx`update belief_enrollments set next_daily_at=${at},daily_resume_at=${form.get('action')==='skip'?null:following},updated_at=${now} where phone_hash=${hash}`;
-      if(kind==='weekly')await tx`update belief_enrollments set next_weekly_at=${at},weekly_resume_at=${form.get('action')==='skip'?null:following},updated_at=${now} where phone_hash=${hash}`;
+      if(kind==='onboarding')await tx`update belief_enrollments set onboarding_at=${at},updated_at=${now} where id=${e.id}`;
+      if(kind==='daily')await tx`update belief_enrollments set next_daily_at=${at},daily_resume_at=${form.get('action')==='skip'?null:following},updated_at=${now} where id=${e.id}`;
+      if(kind==='weekly')await tx`update belief_enrollments set next_weekly_at=${at},weekly_resume_at=${form.get('action')==='skip'?null:following},updated_at=${now} where id=${e.id}`;
     });
   }
 }

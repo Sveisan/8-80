@@ -4,6 +4,7 @@ import { AccessCodes } from './access/codes.ts';
 import { log } from './log.ts';
 import { openDeps } from './control.ts';
 import { tick } from './loop/tick.ts';
+import { maintainBeliefPolicies } from './beliefs/policies.ts';
 import { tickBeliefs } from './beliefs/runtime.ts';
 import { sweep } from './loop/sweep.ts';
 import { expireTrials } from './billing/trials.ts';
@@ -43,6 +44,7 @@ try {
   // And the one feedback text, fifteen minutes after the call it follows. A
   // query each minute rather than a timer per call, so a restart loses nothing.
   const asked = await sendDueFeedback(deps);
+  await maintainBeliefPolicies(deps);
   await dispatchMessages(deps);
   await pruneJourney(deps.store.raw);
   if (result.claimed || closed || pruned || ended || asked) {

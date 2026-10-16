@@ -113,14 +113,15 @@ export async function composeExport(
   const messageRows = await store.raw`select * from message_outbox where phone_hash = ${hash} order by created_at`;
   const messageAttempts = await store.raw`select a.* from message_attempts a join message_outbox m on m.id = a.message_id where m.phone_hash = ${hash} order by a.started_at`;
   const beliefEnrollments = includeBeliefs ? await store.raw`select * from belief_enrollments where phone_hash = ${hash}` : [];
+  const beliefRefunds = includeBeliefs ? await store.raw`select r.* from belief_refund_requests r join belief_enrollments e on e.id=r.programme_id where e.phone_hash=${hash}` : [];
   const beliefSessions = includeBeliefs ? await store.raw`select * from belief_sessions where phone_hash = ${hash} order by created_at` : [];
   const [privateProgramme] = includeBeliefs ? [] : await store.raw`select phone_hash from belief_enrollments where phone_hash = ${hash}`;
   if (privateProgramme) parts.push({role:'body',text:'Your private Beliefs programme is available through fresh phone verification at /beliefs/access. Its account download includes your complete 8&80 record.'});
   const messages = messageRows.map(({ payload_enc, recipient_enc, ...meta }) => ({ ...meta,
-    recipient: meta['kind']==='safety' ? '[operator contact omitted]' : recipient_enc ? decrypt(recipient_enc) : null,
+    recipient: ['safety','operator'].includes(String(meta['kind'])) ? '[operator contact omitted]' : recipient_enc ? decrypt(recipient_enc) : null,
     // Codes and bearer links are credentials; copies of previous exports would
     // recursively duplicate these records rather than add a new data category.
-    payload: meta['kind']==='safety' ? '[internal operator notification omitted]' : ['access', 'signup', 'export'].includes(meta['kind']) ? '[credential or duplicate export payload omitted]'
+    payload: ['safety','operator'].includes(String(meta['kind'])) ? '[internal operator notification omitted]' : ['access', 'signup', 'export'].includes(meta['kind']) ? '[credential or duplicate export payload omitted]'
       : payload_enc ? JSON.parse(decrypt(payload_enc).replace(/(https?:\/\/[^\s"<>]+\/(?:r|f)\/)[a-z0-9-]+/gi, '$1[credential omitted]')) : null,
   }));
   const redact = (value: unknown): unknown => {
@@ -138,7 +139,7 @@ export async function composeExport(
     catch { return {...metadata,body}; }
   };
   const unseal = (row: Record<string, unknown>): Record<string, unknown> => Object.fromEntries(Object.entries(row).map(([key, value]) => [key.endsWith('_enc') ? key.slice(0, -4) : key, key.endsWith('_enc') && typeof value === 'string' ? decrypt(value) : value]));
-  parts.push({ role: 'body', text: JSON.stringify({ profile: unseal(profile), callAttempts: attempts, beliefs: beliefEnrollments.map(unseal), beliefSessions: beliefSessions.map(unseal), feedback: feedbackRows.map(unseal), retainedCallDeliveries: deliveries.map(safeDelivery), accessExpiry: credentials, pendingSignup: pendingSignup.map(unseal), recovery, journey, messages, messageAttempts }, null, 2) });
+  parts.push({ role: 'body', text: JSON.stringify({ profile: unseal(profile), callAttempts: attempts, beliefs: beliefEnrollments.map(unseal), beliefSessions: beliefSessions.map(unseal), beliefRefundRequests:beliefRefunds, feedback: feedbackRows.map(unseal), retainedCallDeliveries: deliveries.map(safeDelivery), accessExpiry: credentials, pendingSignup: pendingSignup.map(unseal), recovery, journey, messages, messageAttempts }, null, 2) });
   const quiet = line('email.export.quiet');
   if (quiet) parts.push({ role: 'quiet', text: quiet });
   const signoff = script.get('email.signoff');

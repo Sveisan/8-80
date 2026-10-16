@@ -22,6 +22,7 @@ import { composeExport } from '../legal/export.ts';
 import { beliefPage, aboutPage, clock, type PageOptions, type Screen } from './page.ts';
 import { csrfFor, practiceCookie, readForm, pageHeaders } from './http.ts';
 import { BeliefRepository, scheduleInput, nextDaily } from './repository.ts';
+import { ProgrammePolicies, refundDeadline, guaranteedRefund } from './policies.ts';
 import { beliefCheckout } from './billing.ts';
 import { commandFrom, messages } from './forms.ts';
 import { PracticeError, nextPracticeAppointment } from './model.ts';
@@ -92,25 +93,40 @@ export async function beliefRoutes(req: IncomingMessage,url: URL,deps: LoopDeps,
   const token=cookieOf(req,'beliefs');
   const opened=token?await new Links(deps.store.raw).open(token,now,'beliefs'):undefined;
   if(!opened?.ok)return redirect('/beliefs/access',practiceCookie(''));
-  const hash=opened.claims.phoneHash;const repo=new BeliefRepository(deps.store.raw);
+  const hash=opened.claims.phoneHash;
+  const submitted=req.method==='POST'?await readForm(req):undefined;
+  const programmeId=submitted?.get('programme')||url.searchParams.get('programme')||undefined;
+  const repo=new BeliefRepository(deps.store.raw,programmeId);
+  const policies=new ProgrammePolicies(deps.store.raw);
   const loaded=await repo.load(hash);
   if(!loaded)return page('landing',200,'No Beliefs enrollment is attached to this account.');
   const {enrollment:e,practice:p}=loaded;
   const [identity]=await deps.store.raw`select held_for_review,all_calls_stopped from callers where phone_hash=${hash}`;
-  const upcoming=nextPracticeAppointment(p,{daily:e.next_daily_at,weekly:e.next_weekly_at,onboarding:e.onboarding_at},now);
+  const upcoming=nextPracticeAppointment(p,{daily:e.next_daily_at,weekly:e.next_weekly_at,onboarding:e.onboarding_at,checkin:e.checkin_at},now);
   const next=upcoming?.at;
-  const privateOptions: PageOptions={...options,practice:p,csrf:csrfFor(token!),paid:e.standing==='active',checkout:e.purchase_id?'':beliefCheckout(hash),held:!!(identity?.['held_for_review']||identity?.['all_calls_stopped']),paymentHold:e.standing==='payment_hold',
+  const programmes=await deps.store.raw<{id:string;is_current:boolean;history_deleted_at:Date|null}[]>`select id,is_current,history_deleted_at from belief_enrollments where phone_hash=${hash} order by created_at desc`;
+  const [refund]=await deps.store.raw`select status,guaranteed from belief_refund_requests where programme_id=${e.id}`;
+  const [checkinAttempt]=e.checkin_attempt_id?await deps.store.raw`select status from call_attempts where id=${e.checkin_attempt_id}`:[];
+  const privateOptions: PageOptions={...options,programmeId:e.id,currentProgramme:e.is_current,programmes,completedAt:e.completed_at?.toISOString(),historyDeleteAt:e.history_delete_at?.toISOString(),historyDeleted:!!e.history_deleted_at,checkinUsed:!!e.checkin_used_at,checkinPending:!!e.checkin_attempt_id && (!checkinAttempt || ['claimed','placed','settling','failed'].includes(checkinAttempt['status'])),refundStatus:refund?.['status'],refundEligible:guaranteedRefund(e,now),refundDeadline:refundDeadline(e.first_connected_at)?.toISOString(),hasPurchase:!!e.purchase_id,practice:p,csrf:csrfFor(token!),paid:e.standing==='active',checkout:e.purchase_id?'':beliefCheckout(e.checkout_reference),held:!!(identity?.['held_for_review']||identity?.['all_calls_stopped']),paymentHold:['payment_hold','refund_requested'].includes(e.standing),
     timezone:e.timezone,daily:e.daily_minute!==null?clock(e.daily_minute):undefined,weekly:e.weekly_minute!==null?clock(e.weekly_minute):undefined,weekday:e.weekly_weekday??undefined,
-    next:e.standing==='active' && !identity?.['held_for_review'] && !identity?.['all_calls_stopped'] && !['paused','completed'].includes(p.state) && next?describeAppointment(next,e.timezone):undefined,
+    next:e.standing==='active' && !identity?.['held_for_review'] && !identity?.['all_calls_stopped'] && p.state!=='paused' && next?describeAppointment(next,e.timezone):undefined,
     nextAt:next?.toISOString(),nextKind:upcoming?.kind,onboardingAt:e.onboarding_at?.toISOString(),selectedId:url.searchParams.get('id')??undefined};
-  const savedNotes:Record<string,string>={schedule:'Your usual times are saved.',occurrence:'This call has moved. Your usual times stay the same.',skip:'This call is skipped. No catch-up call will be added.',pause:'Your Beliefs calls are paused.',resume:'Your practice is resumed. Shared STOP or safety holds still apply.'};
+  const savedNotes:Record<string,string>={refund:'Your request is saved for human review. No refund has been issued yet. Contact support for updates.',schedule:'Your usual times are saved.',occurrence:'This call has moved. Your usual times stay the same.',skip:'This call is skipped. No catch-up call will be added.',pause:'Your Beliefs calls are paused.',resume:'Your practice is resumed. Shared STOP or safety holds still apply.'};
   if(url.searchParams.get('saved'))privateOptions.note=savedNotes[url.searchParams.get('saved')!];
   if(req.method==='POST') {
-    const form=await readForm(req);
+    const form=submitted!;
     if(form.get('csrf')!==csrfFor(token!))return page('account',403,'Open your practice again before saving.',privateOptions);
     if(url.pathname!=='/beliefs/action')return page('account',404,'Page not found.',privateOptions);
     try {
       const action=form.get('action');
+      if(!form.get('programme') || form.get('programme')!==e.id)throw new PracticeError('page_changed');
+      if(action==='new_programme'){const id=await policies.newProgramme(hash,e.id,form.get('outcome')??'',form.get('confirmed')==='yes',now);return redirect('/beliefs/account?programme='+encodeURIComponent(id));}
+      if(action==='refund'){await policies.requestRefund(hash,e.id,form.get('reason')??'',deps,now);return redirect('/beliefs/account?programme='+encodeURIComponent(e.id)+'&saved=refund');}
+      if(action==='book_checkin'){await policies.bookCheckin(hash,e.id,form,now);return redirect('/beliefs/account?programme='+encodeURIComponent(e.id));}
+      if(action==='cancel_checkin'){await policies.cancelCheckin(hash,e.id);return redirect('/beliefs/account?programme='+encodeURIComponent(e.id));}
+      if(action==='extend_history'){await policies.extendHistory(hash,e.id,form.get('until')??'',now);return redirect('/beliefs/account?programme='+encodeURIComponent(e.id));}
+      if(action==='acknowledge_retention'){await policies.acknowledgeRetention(hash,e.id,now);return redirect('/beliefs/account?programme='+encodeURIComponent(e.id));}
+      if(action==='delete_history'){await policies.deleteHistory(hash,e.id,form.get('confirmation')??'',now);return redirect('/beliefs/account?programme='+encodeURIComponent(e.id));}
       if(action==='signout') {await deps.store.raw`delete from links where code=${token!} and purpose='beliefs'`;return redirect('/beliefs',practiceCookie(''));}
       if(action==='export') {
         const phone=await deps.store.phoneFor(hash);
@@ -130,12 +146,12 @@ export async function beliefRoutes(req: IncomingMessage,url: URL,deps: LoopDeps,
         for(let day=0;day<35;day++){daily=nextDaily(daily,times.daily,times.timezone);checks.push(daily);}
         for(let week=0;week<6;week++){weekly=nextSlotAfter(weekly,{weekday:times.weekday,minute:times.weekly,timezone:times.timezone});checks.push(weekly);}
         if(checks.some(at=>!withinCoverage(at)))throw new PracticeError('outside_coverage');
-        await repo.schedule(hash,form,now);return redirect('/beliefs/account?saved=schedule');
+        await repo.schedule(hash,form,now);return redirect('/beliefs/account?programme='+encodeURIComponent(e.id)+'&saved=schedule');
       }
-      if(action==='occurrence' || action==='skip'){await repo.occurrence(hash,form,now);return redirect('/beliefs/account?saved='+action);}
+      if(action==='occurrence' || action==='skip'){await repo.occurrence(hash,form,now);return redirect('/beliefs/account?programme='+encodeURIComponent(e.id)+'&saved='+action);}
       if(['understood','review'].includes(action??''))throw new PracticeError('review_not_due');
       await repo.command(hash,commandFrom(form),form.get('event')??'',Number(form.get('revision')),now);
-      return redirect(action==='outcome'||action==='queue'?'/beliefs/onboarding':action==='prepare'?'/beliefs/prepare':'/beliefs/account'+(action==='pause'||action==='resume'?'?saved='+action:''));
+      return redirect((action==='outcome'||action==='queue'?'/beliefs/onboarding':action==='prepare'?'/beliefs/prepare':'/beliefs/account')+'?programme='+encodeURIComponent(e.id)+(action==='pause'||action==='resume'?'&saved='+action:''));
     } catch(error) {return page('account',error instanceof PracticeError?409:503,error instanceof PracticeError?messages[error.code]??'Review your choices before continuing.':'This change could not be confirmed. Please try again later.',privateOptions);}
   }
   if(req.method!=='GET')return page('account',405,undefined,privateOptions);

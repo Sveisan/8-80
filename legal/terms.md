@@ -1,6 +1,6 @@
 # Terms
 
-Draft updated 3 October 2026; operational wording requires review before a paid launch.
+Draft updated 15 October 2026; operational wording requires review before a paid launch.
 
 ## Who you are agreeing with
 
@@ -50,7 +50,42 @@ Contact {{support_email}} to exercise those rights; using the cancellation contr
 does not waive them. The paid checkout and withdrawal information must be reviewed
 for the selected provider and service before paid enrollment opens.
 
-## Stopping
+## Separate Beliefs programme
+
+Beliefs is an optional AI self-reflection practice for adults, separate from the
+weekly service and its subscription. One payment, equal to one monthly payment
+for weekly 8&80 in the same currency, covers one chosen outcome and related
+beliefs. The actual amount and applicable taxes are shown at checkout. There is
+no subscription, automatic renewal or fixed programme expiry.
+
+Start with one or two genuine prepared decisions; no compulsory backlog is
+required. You may add related beliefs or remove queued material that no longer
+fits. Removal does not mean that a belief was successfully practised. You can
+pause and resume an unfinished programme without another payment. Shared STOP,
+payment and human-review holds still apply. Contact support about a mistaken
+completion; the account also offers an explicit correction without charging again.
+
+Each completed programme includes one brief return check-in, booked explicitly
+from the private account. Opening your history does not book a call or start
+another programme. A further full programme, including revisiting the same
+outcome, requires a clearly displayed new one-time payment. Previous retained
+history remains separate.
+
+Our voluntary guarantee offers a full refund before the first call or within
+14 days after the first connected call, even if you have tried the programme.
+A missed appointment, unanswered call or voicemail does not start that clock.
+Where connection evidence is missing, contact support; missing evidence is not
+used to shorten the guarantee. A request is acknowledged separately from a
+provider-confirmed refund. Requests pause that programme's calls for human review.
+Contact {{support_email}} about missing service, incorrect charges or other
+refund requests at any time. This guarantee does not reduce statutory rights or
+replace the withdrawal information required for the operating company and checkout.
+
+Completed history follows the Beliefs retention choices described in Privacy.
+Deleting programme history, deleting the whole account, pausing calls and
+requesting a refund are separate actions.
+
+## Stopping weekly calls
 
 You can stop the calls at any time, immediately, without asking anybody:
 

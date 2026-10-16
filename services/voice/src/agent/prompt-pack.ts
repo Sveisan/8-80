@@ -14,7 +14,7 @@ export interface PromptSpec { role: AgentRole; name: string; prompt: string; var
 export const BELIEF_GREETINGS = {
   onboarding: 'Hi, it’s 8&80 Beliefs. Is now still a good time to talk?',
   daily: 'Hi, it’s 8&80 Beliefs. Let’s take a moment for your decisions.',
-  weekly: 'Hi, it’s 8&80 Beliefs. Is now still a good time for your weekly review?',
+  weekly: 'Hi, it’s 8&80 Beliefs. Is now still a good time to talk?',
 } as const;
 
 /** The same source and rendering used by `npm run prompt -- first console`. */

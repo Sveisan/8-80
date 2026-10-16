@@ -2,7 +2,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import { obj, str } from '../billing/types.ts';
 import { applyCommand, activeBeliefs, wording, PracticeError, type Command, type Practice } from './model.ts';
 
-export type Kind = 'onboarding' | 'daily' | 'weekly';
+export type Kind = 'onboarding' | 'daily' | 'weekly' | 'checkin';
 export interface Receipt { id: string; callerText: string; command: Command; }
 export interface Snapshot { revision: number; initial: Practice; practice: Practice; receipts: Receipt[]; coverage: Record<string,'done'|'passed'>; }
 export function sessionToken(id: string, secret: string): string {
@@ -45,9 +45,13 @@ export function capture(snapshot: Snapshot, kind: Kind, week: number|null, input
   const c=obj(v?.['command']); const type=str(c?.['type']); let command: Command;
   const confirmation=():true=>{if(c?.['confirmed']!==true || !hasAgreement(callerText))throw new PracticeError('caller_confirmation_required');return true;};
   const target=()=>{const targetId=wording(c?.['id'],100);if(!snapshot.practice.beliefs.some(b=>b.id===targetId))throw new PracticeError('belief_unknown');return targetId;};
+  if(kind==='checkin' && type!=='checkin')throw new PracticeError('command_not_allowed');
   switch(type) {
+    case 'checkin':
+      if(kind!=='checkin')throw new PracticeError('command_not_allowed');
+      command={type,reflection:quoted(callerText,c?.['reflection']),confirmed:confirmation()};break;
     case 'outcome': if(kind!=='onboarding')throw new PracticeError('command_not_allowed');command={type,outcome:quoted(callerText,c?.['outcome'])};break;
-    case 'queue': if(kind!=='onboarding')throw new PracticeError('command_not_allowed');command={type,belief:quoted(callerText,c?.['belief']),trigger:quoted(callerText,c?.['trigger'])};break;
+    case 'queue': if(kind==='daily')throw new PracticeError('command_not_allowed');command={type,belief:quoted(callerText,c?.['belief']),trigger:quoted(callerText,c?.['trigger'])};break;
     case 'reorder': {
       if(kind!=='onboarding' || snapshot.practice.understood)throw new PracticeError('command_not_allowed');
       confirmation();
@@ -98,6 +102,7 @@ export function capture(snapshot: Snapshot, kind: Kind, week: number|null, input
   }
   const next=structuredClone(snapshot);
   next.practice=applyCommand(snapshot.practice,command,id,now);next.receipts.push({id,callerText,command});
+  if(command.type==='checkin')next.coverage['checkin']='done';
   if(command.type==='practice')next.coverage[command.id]=command.passed?'passed':'done';
   if(command.type==='review')next.coverage[command.id]='done';
   if(next.receipts.length>100)throw new PracticeError('session_full');
@@ -109,7 +114,7 @@ export function verifiedPractice(snapshot: Snapshot, callerTranscript: string | 
   const joined=turns.join(' ');
   for(const receipt of snapshot.receipts){
     if(!containsWords(joined,receipt.callerText))throw new PracticeError('transcript_unconfirmed');
-    if(['prepare','understood','review','pause','reorder'].includes(receipt.command.type)){
+    if(['prepare','understood','review','pause','reorder','checkin'].includes(receipt.command.type)){
       // A previous yes followed by a final no is not confirmation.
       let confirmed=false;
       for(let start=0;start<turns.length && !confirmed;start++){
@@ -134,6 +139,7 @@ function hasAgreement(text:string):boolean {
   return /\b(yes|yep|yeah|exactly|correct|agree|understand|ja|jepp|riktig|enig|forstår)\b|\bthat s right\b/iu.test(normalise(text));
 }
 export function fullCoverage(snapshot: Snapshot, kind: Kind): boolean {
+  if(kind==='checkin')return snapshot.coverage['checkin']==='done';
   if(kind==='onboarding')return snapshot.practice.understood;
   return activeBeliefs(snapshot.initial).every(b=>snapshot.coverage[b.id]==='done') && activeBeliefs(snapshot.initial).length>0;
 }

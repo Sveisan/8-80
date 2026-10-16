@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "8&80 Beliefs capture tool",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "description": "Provisional caller-owned capture. Server reconciles against signed completion transcript; never speak session credentials."
   },
   "servers": [
@@ -285,6 +285,28 @@
                         "properties": {
                           "type": {
                             "const": "pause"
+                          },
+                          "confirmed": {
+                            "const": true
+                          }
+                        }
+                      },
+                      {
+                        "type": "object",
+                        "required": [
+                          "type",
+                          "reflection",
+                          "confirmed"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                          "type": {
+                            "const": "checkin"
+                          },
+                          "reflection": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 2000
                           },
                           "confirmed": {
                             "const": true

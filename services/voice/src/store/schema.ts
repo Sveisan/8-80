@@ -1,4 +1,5 @@
 import { boolean, index, integer, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 
 /**
  * One row per caller. Deliberately small — see `CallerRecord`.
@@ -423,7 +424,10 @@ export const journeyTracking = pgTable('journey_tracking', {
 
 /** Independent paid product; private practice content is encrypted as one versioned aggregate. */
 export const beliefEnrollments = pgTable('belief_enrollments', {
-  phoneHash: text('phone_hash').primaryKey().references(() => callers.phoneHash, { onDelete: 'cascade' }),
+  id: text('id').primaryKey().default(sql`gen_random_uuid()::text`),
+  phoneHash: text('phone_hash').notNull().references(() => callers.phoneHash, { onDelete: 'cascade' }),
+  isCurrent: boolean('is_current').notNull().default(true),
+  checkoutReference: text('checkout_reference').notNull().unique(),
   practiceEnc: text('practice_enc').notNull(), revision: integer('revision').notNull().default(0),
   consentVersion: text('consent_version').notNull(), consentAt: timestamp('consent_at', { withTimezone: true }).notNull(),
   timezone: text('timezone').notNull().default('Europe/Oslo'), dailyMinute: integer('daily_minute'),
@@ -433,15 +437,32 @@ export const beliefEnrollments = pgTable('belief_enrollments', {
   dailyResumeAt: timestamp('daily_resume_at', { withTimezone: true }), weeklyResumeAt: timestamp('weekly_resume_at', { withTimezone: true }),
   standing: text('standing').notNull().default('awaiting_payment'),
   provider: text('provider'), purchaseId: text('purchase_id').unique(), paymentId: text('payment_id').unique(), customerId: text('customer_id'),
+  productId:text('product_id'),
   paidAt: timestamp('paid_at', { withTimezone: true }), amountMinor: integer('amount_minor'), currency: text('currency'),
+  policyCheckedAt: timestamp('policy_checked_at', { withTimezone: true }),
+  firstConnectedAt: timestamp('first_connected_at', { withTimezone: true }),
+  completedAt: timestamp('completed_at', { withTimezone: true }), historyDeleteAt: timestamp('history_delete_at', { withTimezone: true }),
+  historyDeletedAt: timestamp('history_deleted_at', { withTimezone: true }), retentionNoticeAt: timestamp('retention_notice_at', { withTimezone: true }), retentionDeliveredAt: timestamp('retention_delivered_at', { withTimezone: true }),
+  checkinAt: timestamp('checkin_at', { withTimezone: true }), checkinUsedAt: timestamp('checkin_used_at', { withTimezone: true }),
+  checkinAttemptId: text('checkin_attempt_id'), correctionCount: integer('correction_count').notNull().default(0),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(), updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-});
+}, t=>[uniqueIndex('belief_enrollments_current_idx').on(t.phoneHash).where(sql`${t.isCurrent} = true`),index('belief_enrollments_owner_idx').on(t.phoneHash),index('belief_enrollments_retention_idx').on(t.historyDeleteAt)]);
 
 /** Uses the shared call-attempt/safety review infrastructure without advancing the base call cycle. */
 export const beliefSessions = pgTable('belief_sessions', {
   id: text('id').primaryKey().references(() => callAttempts.id, { onDelete: 'cascade' }),
-  phoneHash: text('phone_hash').notNull().references(() => beliefEnrollments.phoneHash, { onDelete: 'cascade' }),
+  phoneHash: text('phone_hash').notNull().references(() => callers.phoneHash, { onDelete: 'cascade' }),
+  programmeId: text('programme_id').notNull().references(() => beliefEnrollments.id, { onDelete: 'cascade' }),
   kind: text('kind').notNull(), week: integer('week'), snapshotEnc: text('snapshot_enc').notNull(),
   complete: boolean('complete').notNull().default(false), coverageEnc: text('coverage_enc'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-});
+},t=>[index('belief_sessions_programme_idx').on(t.programmeId)]);
+
+export const beliefRefundRequests = pgTable('belief_refund_requests', {
+  id:text('id').primaryKey().default(sql`gen_random_uuid()::text`),
+  programmeId:text('programme_id').notNull().references(()=>beliefEnrollments.id,{onDelete:'cascade'}),
+  reason:text('reason').notNull(), guaranteed:boolean('guaranteed').notNull(),
+  status:text('status').notNull().default('requested'),
+  requestedAt:timestamp('requested_at',{withTimezone:true}).notNull().defaultNow(),
+  resolvedAt:timestamp('resolved_at',{withTimezone:true}),
+},t=>[uniqueIndex('belief_refund_programme_idx').on(t.programmeId)]);

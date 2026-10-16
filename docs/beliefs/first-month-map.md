@@ -18,9 +18,9 @@ Current implementation, 13 October 2026. Production tasks below are actual exist
 | Hosted provider checkout | Existing configured HTTPS checkout URL bound to `beliefs:` account reference; only full readiness exposes it; choose times first | Provider return must point to `/beliefs/account` or `/beliefs/access`. Return does not mark paid; delayed/failed state remains clear; confirm provider receipt before another attempted charge |
 | Preparation `GET /beliefs/onboarding` → actions `outcome`, `queue` | Optional caller-written outcome and genuine thoughts/triggers ahead of the call | Account; no fabricated material to satisfy minimum; voice call alone captures understanding |
 | Decision `GET /beliefs/prepare[?id=owned-id]` → action `prepare` | Own decision, experience, balance, opportunity and checkbox confirmation; edit active item or prepare selected vacant slot | Outcome before onboarding, account after. Queued items wait for a vacancy; legacy preparation needs fresh confirmation. Full fields required; revision guard; changed wording keeps previous version and resets scores |
-| Onboarding voice | Greeting → orientation → focus → situation/thought → genuine ordered backlog → prepare two → understanding | Complete signed stages saved; unfinished stage identified; customer chooses continuation via account schedule |
+| Onboarding voice | Greeting → orientation → focus → situation/thought → one or more genuine thoughts → prepare one or two → understanding | Complete signed stages saved; unfinished stage identified; customer chooses continuation via account schedule |
 | Daily voice | Familiar saved topics → decision → experience → balance/pass | No routine recap; optional skip/pause/reschedule in account; no discovery/score/preparation |
-| Weekly voice | Full neutral reflection → confirmed score for start-active items → retirement → next fitting backlog preparation | Missing/ambiguous score stays missing; outdated backlog leaves vacancy; no new discovery or same-call score for revised/new item |
+| Weekly voice | Full neutral reflection → confirmed score for start-active items → retirement → next fitting backlog preparation | Missing/ambiguous score stays missing; outdated backlog can be removed in account; related additions allowed or same-call score for revised/new item |
 | Pause/resume, account POST actions | Product state only; global STOP/safety/payment still outrank resume | Account confirmation; private data and entitlement retained; no charge |
 | Data/account actions `export`, `delete` | Fresh scoped proof + CSRF; complete export; explicit `DELETE` erases both products | Download is private/no-store; deletion clears cookie and returns home. Provider erasure review remains in operating handoff |
 | Sign-out `action=signout` | Deletes private link credential and clears scoped cookie | Beliefs home; returning requires fresh verification |
@@ -69,7 +69,7 @@ Access URL is the public verification route, with no private bearer token or sen
 | Missed first conversation | Original appointment consumed; no repeated ringing | Book continuation; entitlement does not renew/expire automatically |
 | Too little genuine material | Onboarding stays unfinished; no daily start | Continue voluntarily or ask support about fit; owner must decide any exception/remedy |
 | No evidence/opportunity | Preparation incomplete or daily coverage passed | Keep honest missing state; do not create example or count full coverage |
-| Outdated backlog | No false preparation/activation | Vacant slot; owner-defined support/removal policy pending |
+| Outdated backlog | No false preparation/activation | Explicit Remove from queue; history retained, no claim of successful retirement |
 | Tool save/check failure | No guaranteed canonical update | Honest spoken branch, end unreliable exercise, technical review; no invented safety response |
 | Final disagreement/missing literal span | Transcript reconciliation rejects staged aggregate | Account shows retained canonical state and neutral recovery; caller need not perform artificial recital |
 | Concurrent browser edit | Snapshot revision stale | Preserve browser change; voice aggregate cannot overwrite it; reopen current account |
@@ -77,3 +77,18 @@ Access URL is the public verification route, with no private bearer token or sen
 | STOP/payment/safety/pause | Placement prohibited; global STOP wins | Product resume cannot release shared hold; human/payment procedure required |
 | Alert failed/uncertain/expired | Durable outbox diagnostic; not delivered/acknowledged | Named operator checks fixed-status reports and follows approved backup/failure path |
 | Completion/return | Future calls cleared, private history retained | Read history; no programme reopening or charge from browsing/reactivation |
+
+## Approved-policy journey additions — 15 October 2026
+
+| Moment | Navigation / customer action | Sendout / result |
+| --- | --- | --- |
+| First conversation | One genuine prepared decision is enough; no invented backlog | Existing signed onboarding confirmation only |
+| During unfinished practice | Account → Add a related belief / Remove from queue / Pause / Resume | No extra marketing or recap; existing purchase stays valid |
+| Mistaken completion | Account → Was completion a mistake? → select decision → confirm | Prior score version retained, no charge; daily/weekly practice can continue under existing holds |
+| Included return | Completed account → choose a time in saved zone → explicit booking; next card offers cancellation | One verified completion notice: “Your included return check-in is complete. No further calls or payments have been started. Open your account: {access_url}” |
+| Further full programme | Completed current account → new outcome → separate-payment confirmation → schedule/checkout | New programme/purchase identity; earlier programmes remain in Your programmes; no charge on confirmation alone |
+| Refund or missing delivery | Any paid programme → Refunds and delivery help → reason → request review | Durable human-review acknowledgment in account; content-free operator SMS; no claim of returned funds |
+| Completed history nearing expiry | Account → Your programme history → download, DELETE HISTORY, later UTC date or acknowledgment | One content-free SMS per programme/deadline: “Your completed Beliefs history is due for deletion on {date}. Export it, delete it or choose a later date in your private account: {access_url}” |
+| Notice fails / opted out | Operator follow-up and authenticated account acknowledgment | Cleanup waits; provider acceptance alone does not count as delivery |
+
+Programme selectors stay in owned private navigation and hidden form identity. They are not login credentials. No scheduled reminder reopens practice, renews payment or starts an included check-in. Reminders use the existing durable SMS worker; there is no new customer email sequence.
