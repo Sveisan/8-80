@@ -93,7 +93,7 @@ export class FileStore implements Store {
           // first call cannot establish one, because there was no week before
           // it. See the same guard in store/postgres.ts for what it cost.
           consecutiveUndone:
-            week === 'undone' ? before.consecutiveUndone + 1 : week ? 0 : before.consecutiveUndone,
+            outcome.noAction ? 0 : week === 'undone' ? before.consecutiveUndone + 1 : week ? 0 : before.consecutiveUndone,
           weeksDone: (before.weeksDone ?? 0) + (week === 'done' ? 1 : 0),
           weeksPartly: (before.weeksPartly ?? 0) + (week === 'partly' ? 1 : 0),
           weeksUndone: (before.weeksUndone ?? 0) + (week === 'undone' ? 1 : 0),

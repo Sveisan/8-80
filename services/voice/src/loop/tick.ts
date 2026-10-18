@@ -182,7 +182,12 @@ export async function tick(deps: LoopDeps, now = new Date()): Promise<TickResult
       result.placed++;
     } catch (e) {
       if (e instanceof PlacementAccepted) {
-        try { await deps.scheduler.markPlaced(claim.attemptId, e.conversationId); }
+        try {
+          // A lost commit acknowledgement may mean the original transaction
+          // succeeded and a fast webhook already settled it. Never rewind it.
+          await deps.store.raw`update call_attempts set status = 'placed', provider_call_id = ${e.conversationId}, started_at = coalesce(started_at, now())
+            where id = ${claim.attemptId} and status = 'claimed' and provider_call_id is null`;
+        }
         catch { log('agent.placement_unrecorded', { attemptId: claim.attemptId, conversationId: e.conversationId }); }
         result.placed++;
         continue;

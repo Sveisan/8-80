@@ -158,6 +158,9 @@ export class PostgresStore implements Store {
                 consecutiveUndone: sql`case when ${callers.callNumber} > 1 then ${callers.consecutiveUndone} + 1 else 0 end`,
               }
             : {}),
+          // A deliberate week without an action breaks the running pattern,
+          // while the established result of the previous action still counts.
+          ...(outcome.noAction ? { consecutiveUndone: 0 } : {}),
           lastCallAt: at,
           updatedAt: sql`now()`,
         },

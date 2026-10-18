@@ -119,10 +119,12 @@ test('no-action clears the old action; incomplete extraction preserves it; a new
   await db!.store.record(phoneA, { at: now.toISOString(), durationMs: 100_000, commitment: 'old action', day: 'Monday', onboardingComplete: true });
   await db!.store.record(phoneA, { at: now.toISOString(), durationMs: 100_000 });
   assert.equal((await db!.store.load(phoneA)).lastCommitment, 'old action');
+  await db!.sql`update callers set consecutive_undone = 2`;
   await tick(deps(), now);
   await settleConversation(event('wire_1', [['user', 'No action this week.'], ['assistant', fill('next.none')]]), deps(), undefined, now);
   assert.equal((await db!.store.load(phoneA)).lastCommitment, undefined);
   assert.equal((await db!.store.load(phoneA)).lastCommitmentDay, undefined);
+  assert.equal((await db!.store.load(phoneA)).consecutiveUndone, 0, 'a chosen no-action week breaks the running pattern');
   await tick(deps(), nextWeek);
   const vars = wire[1]!['dynamic_variables'] as Record<string, string>;
   assert.equal(vars['last_commitment'], NOTHING_RECORDED);
@@ -199,6 +201,30 @@ test('a local transaction failure after acceptance never places the same call ag
     assert.equal(messages.length, 0);
     assert.equal((await db!.sql`select provider_call_id from call_attempts`)[0]?.['provider_call_id'], 'wire_1');
   } finally { d.store.in = original; }
+});
+
+test('a lost commit acknowledgement cannot rewind a conversation already settled by its webhook', options, async () => {
+  await enrol();
+  const d = deps(), raw = d.store.raw, original = raw.begin;
+  let simulated = false;
+  const payload = event('wire_1', [['user', 'Book a lesson.'], ['assistant', fill('next.confirm', { commitment: 'book a lesson' })]]);
+  raw.begin = (async (...args: unknown[]) => {
+    const result: unknown = await Reflect.apply(original, raw, args);
+    if (wire.length === 1 && !simulated) {
+      simulated = true;
+      await settleConversation(payload, d, undefined, now);
+      throw new Error('synthetic lost acknowledgement after a successful commit');
+    }
+    return result;
+  }) as typeof raw.begin;
+  try {
+    assert.equal((await tick(d, now)).placed, 1);
+    assert.equal(wire.length, 1);
+    assert.equal((await db!.sql`select status from call_attempts`)[0]?.['status'], 'completed');
+    assert.equal((await settleConversation(payload, d, undefined, now)).handled, false);
+    assert.equal((await db!.store.load(phoneA)).callNumber, 2);
+    assert.equal(messages.length, 1);
+  } finally { raw.begin = original; }
 });
 
 test('safety holds suppress both a pending recap and call SMS', options, async () => {
