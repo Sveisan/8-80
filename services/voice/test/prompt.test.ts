@@ -106,7 +106,7 @@ test('the first call is curious about goals and never audits or schedules them',
   assert.match(p, /CURIOUS, NOT AUDITING/);
   assert.match(p, /whether it is realistic, why that one/);
   assert.match(p, /A goal is not a schedule/);
-  assert.match(p, /line of genuine reaction/);
+  assert.match(p, /without inventing a trait or retelling every answer/);
 });
 
 test('the first call runs from easy to real: eight, eighty, this year, then the one thing', () => {
@@ -202,7 +202,7 @@ test('the first call may notice one connection, repairs on a ladder, and never s
   // project" was said back three times.
   const p = buildInstructions(loadScript(), { callNumber: 1 });
   assert.match(p, /THE ONE THING YOU NOTICE/);
-  assert.match(p, /never because it feels like interpretation/);
+  assert.match(p, /connection is clear in their own words and adds something/);
   assert.match(p, /Never ask a fourth version/);
   assert.match(p, /never say one back the first time you hear it/);
   assert.match(p, /You get ONE push/);
@@ -245,8 +245,24 @@ test('a return without a previous action has a conversational opening and does n
   const script = loadScript();
   const text = buildInstructions(script, { callNumber: 2, onboardingProgress: 'complete', lastCommitment: '(nothing recorded)' });
   assert.ok(text.includes(script.get('open.return.no_action')!));
-  assert.match(text, /Skip stages 3–5/);
+  assert.match(text, /Skip stages 3–6a/);
   assert.match(text, /choosing no action is not an unfinished commitment/);
   assert.ok(text.includes(script.get('next.none')!));
   assert.match(text, /overrides prompts to pick, propose, make concrete or pin a commitment/);
+});
+
+test('weekly guidance limits serial follow-ups and permits a natural no-action close', () => {
+  for (const callNumber of [1, 3]) {
+    const prompt = buildInstructions(loadScript(), { callNumber, consecutiveUndone: 2 });
+    assert.match(prompt, /Count across their answers; rewording the same question does not reset the count/);
+    assert.match(prompt, /A closing question is optional/);
+    assert.match(prompt, /Never infer a commitment from a short answer/);
+    assert.match(prompt, /then WAIT for their answer/);
+    assert.doesNotMatch(prompt, /Two moves, in that order|pin a commitment to it|A question about what they just said cannot/);
+  }
+  const returning = buildInstructions(loadScript(), { callNumber: 3, consecutiveUndone: 2 });
+  assert.match(returning, /Only if they did nothing again this week/);
+  const console = renderForConsole(buildInstructions(loadScript(), { callNumber: 1 }));
+  assert.match(console, /written in angle brackets/);
+  assert.doesNotMatch(console, /written in double braces/);
 });

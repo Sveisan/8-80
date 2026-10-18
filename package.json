@@ -37,7 +37,8 @@
     "journey": "npm run -w @8and80/voice journey",
     "beliefs:doctor": "npm run -w @8and80/voice beliefs:doctor",
     "beliefs:prompt": "npm run -w @8and80/voice beliefs:prompt --",
-    "beliefs:requests": "npm run -w @8and80/voice beliefs:requests --"
+    "beliefs:requests": "npm run -w @8and80/voice beliefs:requests --",
+    "quality:weekly": "npm run -w @8and80/voice quality:weekly --"
   },
   "devDependencies": {
     "@eslint/js": "^9.13.0",

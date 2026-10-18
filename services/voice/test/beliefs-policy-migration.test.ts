@@ -11,7 +11,9 @@ test('policy migration preserves populated legacy enrollment, sessions, payment 
   const folder=await mkdtemp(join(tmpdir(),'beliefs-migration-'));
   const migrations=resolve(import.meta.dirname,'../drizzle');
   const journal=JSON.parse(await readFile(join(migrations,'meta/_journal.json'),'utf8')) as {entries:{tag:string}[]};
-  const legacy={...journal,entries:journal.entries.filter(e=>!e.tag.startsWith('0026_'))};
+  // Reconstruct the schema before this policy migration, excluding later
+  // migrations too; otherwise Drizzle's latest timestamp can skip 0026.
+  const legacy={...journal,entries:journal.entries.filter(e=>Number(e.tag.slice(0,4))<26)};
   await mkdir(join(folder,'meta'));await writeFile(join(folder,'meta/_journal.json'),JSON.stringify(legacy));
   for(const entry of legacy.entries)await copyFile(join(migrations,entry.tag+'.sql'),join(folder,entry.tag+'.sql'));
   const sql=postgres(url,{max:1,connection:{search_path:schema},onnotice:()=>{}});

@@ -127,9 +127,10 @@ export class PostgresStore implements Store {
           onboarding: sql`case when ${callers.onboarding} in ('complete', 'legacy') then ${callers.onboarding}
             when ${!!outcome.onboardingComplete} then 'complete' else 'in_progress' end`,
           onboardingCompletedAt: sql`coalesce(${callers.onboardingCompletedAt}, ${outcome.onboardingComplete ? at.toISOString() : null})`,
-          // A call that reached no commitment leaves the last one standing.
-          lastCommitmentEnc: sql`coalesce(${commitment}, ${callers.lastCommitmentEnc})`,
-          lastCommitmentDay: sql`coalesce(${outcome.day ?? null}, ${callers.lastCommitmentDay})`,
+          // An incomplete extraction preserves memory. An explicit decision
+          // not to choose an action clears it, so it is not quoted as last week.
+          lastCommitmentEnc: sql`case when ${!!outcome.noAction} then null else coalesce(${commitment}, ${callers.lastCommitmentEnc}) end`,
+          lastCommitmentDay: sql`case when ${!!outcome.noAction || !!outcome.commitment} then ${outcome.noAction ? null : outcome.day ?? null} else ${callers.lastCommitmentDay} end`,
           // Each kept until a later call reads a new one back.
           eightEnc: sql`coalesce(${eight}, ${callers.eightEnc})`,
           eightyEnc: sql`coalesce(${eighty}, ${callers.eightyEnc})`,
@@ -157,6 +158,9 @@ export class PostgresStore implements Store {
                 consecutiveUndone: sql`case when ${callers.callNumber} > 1 then ${callers.consecutiveUndone} + 1 else 0 end`,
               }
             : {}),
+          // A deliberate week without an action breaks the running pattern,
+          // while the established result of the previous action still counts.
+          ...(outcome.noAction ? { consecutiveUndone: 0 } : {}),
           lastCallAt: at,
           updatedAt: sql`now()`,
         },

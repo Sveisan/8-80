@@ -19,7 +19,7 @@ export interface Commitment {
 }
 
 /** Build a matcher from the template, so the words stay in SCRIPT.md. */
-export function extractCommitment(spoken: string, script: ScriptLines): Commitment | undefined {
+export function extractCommitment(spoken: string, script: ScriptLines, opts: { strict?: boolean } = {}): Commitment | undefined {
   const template = script.get('next.confirm');
   if (!template) return undefined;
 
@@ -42,6 +42,7 @@ export function extractCommitment(spoken: string, script: ScriptLines): Commitme
   // first one sent a recap containing everything from "Right — I've got the
   // shape of it" onwards, as the commitment.
   const end = tail ? said.lastIndexOf(tail) : -1;
+  if (opts.strict && tail && end < 0) return undefined;
   // Without its closing words a read-back is only trusted when the turn opens
   // on it. "All right with that?" contains the head and is not a commitment,
   // and a call that reached none once had "with that" saved as one.

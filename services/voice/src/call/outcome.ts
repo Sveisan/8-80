@@ -3,9 +3,10 @@ import type { AttemptStatus } from '../schedule/scheduler.ts';
 import type { CallOutcome } from '../store/types.ts';
 import { extractCommitment } from './commitment.ts';
 import { extractReschedule, type SpokenTime } from './reschedule.ts';
-import { readBack } from './readback.ts';
+import { readBack, readBackSpan } from './readback.ts';
 import { lastWeek } from './lastweek.ts';
 import { carries } from './scorecard.ts';
+import { normalise } from '../turn/endpointer.ts';
 
 /** One line of a call, from whichever platform ran it. */
 export interface Turn {
@@ -92,27 +93,48 @@ export function settle(transcript: CallTranscript, script: ScriptLines, now = ne
   // The commitment comes from the mentor's read-back, not the caller's words —
   // see commitment.ts for why. Joined across turns because the read-back can
   // be split by a backchannel.
-  const spoken = agentTurns.map((t) => t.text).join(' ');
+  const said = agentTurns.map((t) => t.text);
+  const spoken = said.join(' ');
+  const positions = transcript.turns.flatMap((t, i) => t.speaker === 'agent' && t.text.trim() ? [i] : []);
   // The turn that carries the whole read-back first; the whole call only when
   // a backchannel split it.
-  const tail = script.get('next.confirm')?.split('}}').at(-1);
-  const current = tail && carries(spoken, tail)
-    ? agentTurns.map(t => extractCommitment(t.text, script)).filter(c => c !== undefined).pop() ?? extractCommitment(spoken, script)
+  const currentSpan = readBackSpan(said, script.get('next.confirm'), { strict: true });
+  const current = currentSpan
+    ? extractCommitment(said.slice(currentSpan.start, currentSpan.end + 1).join(' '), script, { strict: true })
     : undefined;
   // Older recordings used a question at the end of the fixed read-back.
   const legacyScript = new Map(script).set('next.confirm', 'Right. {{commitment}}, {{day}}. Will you?');
-  const legacy = agentTurns.filter(t => /^right[\s.—-]/i.test(t.text.trim()) && /will you\??[.!]?$/i.test(t.text.trim()))
-    .map(t => extractCommitment(t.text, legacyScript)).filter(c => c !== undefined).pop();
-  const commitment = current ?? legacy;
+  const legacyIndex = said.findLastIndex(text => /^right[\s.—-]/i.test(text.trim()) && /will you\??[.!]?$/i.test(text.trim()) && !!extractCommitment(text, legacyScript));
+  const legacy = legacyIndex >= 0 ? extractCommitment(said[legacyIndex]!, legacyScript) : undefined;
+  const currentAt = currentSpan && current ? positions[currentSpan.end] ?? -1 : -1;
+  const legacyAt = legacy ? positions[legacyIndex] ?? -1 : -1;
+  const committedAt = Math.max(currentAt, legacyAt);
+  let commitment = currentAt >= legacyAt ? current : legacy;
   const callAgain = extractReschedule(spoken, script);
-  const said = agentTurns.map((t) => t.text);
-  const selves = readBack(said, script.get('read.first.keep'));
+  // This fixed branch is used only after an explicit choice of no action.
+  // A later read-back can replace it, but an earlier proposal cannot survive it.
+  const declinedAt = transcript.turns.findLastIndex(t => t.speaker === 'agent' && !!script.get('next.none') && carries(t.text, script.get('next.none')!)
+    || t.speaker === 'caller' && explicitNoAction(t.text));
+  const noAction = declinedAt >= 0 && declinedAt > committedAt
+    && (transcript.turns[declinedAt]?.speaker === 'caller' || transcript.turns.slice(0, declinedAt).some(t => t.speaker === 'caller' && t.text.trim()));
+  const reply: Turn[] = [];
+  for (const turn of transcript.turns.slice(committedAt + 1)) {
+    if (!turn.text.trim()) continue;
+    if (turn.speaker === 'agent') break;
+    reply.push(turn);
+  }
+  // A direct rejection cannot be turned into an agreement just because the
+  // mentor forgot the fixed no-action line. Do not infer a replacement action.
+  const rejected = /^(no\b(?! problem\b| worries\b)|nope\b|not (that|this week)\b|i (refuse|decline)\b|i (dont|do not) want (that|to)\b|nei\b|jeg vil ikke\b)/.test(normalise(reply.map(t => t.text).join(' ')));
+  if (noAction || rejected) commitment = undefined;
+  const map = readBackSpan(said, script.get('read.first.keep'));
+  const selves = map?.values;
 
   // A call moved before it got anywhere is not a failed call and not a week
   // that happened. It is an appointment, and the only thing to carry out of it
   // is the time. Recording it as completed would make next week's call open by
   // asking what happened to a commitment nobody ever made.
-  if (callAgain && !commitment && !selves && transcript.durationMs < TOO_SHORT_MS) {
+  if (callAgain && !commitment && !selves && !noAction && transcript.durationMs < TOO_SHORT_MS) {
     return {
       status: 'rescheduled',
       callAgain,
@@ -122,32 +144,36 @@ export function settle(transcript: CallTranscript, script: ScriptLines, now = ne
 
   // Their own eight and eighty, and an assumption they chose to test — each
   // taken from the line where the mentor read it back, like the commitment.
-  if (!commitment && !selves && transcript.durationMs < TOO_SHORT_MS) {
+  if (!commitment && !selves && !noAction && transcript.durationMs < TOO_SHORT_MS) {
     return { status: 'interrupted', note: 'conversation ended before a substantive exchange' };
   }
-  // A correction says back only the part that changed. If this year's goals
-  // were corrected after the map, the correction is what was agreed.
-  const keptAt = lastIndex(said, script.get('read.first.keep'));
-  const fixAt = lastIndex(said, script.get('read.first.fix'));
-  if (selves && fixAt > keptAt) {
-    const fixed = readBack([said[fixAt] ?? ''], script.get('read.first.fix'))?.['goals'];
-    if (fixed) selves['goals'] = fixed;
+  // A correction says back only the part that changed. A newer complete map
+  // supersedes older corrections, including a map split across messages.
+  let mapEnd = map?.end ?? -1;
+  if (selves) for (const [field, key] of [['eight', 'read.first.fix_eight'], ['eighty', 'read.first.fix_eighty'], ['goals', 'read.first.fix']] as const) {
+    const fix = readBackSpan(said, script.get(key));
+    if (fix && fix.end > (map?.end ?? -1) && fix.values[field]) {
+      selves[field] = fix.values[field]!;
+      mapEnd = Math.max(mapEnd, fix.end);
+    }
   }
   const belief = readBack(said, script.get('belief.name'))?.['belief'];
-  const week = lastWeek(said, script);
+  const noPrevious = script.get('open.return.no_action');
+  const week = noPrevious && said.some(t => carries(t, noPrevious)) ? undefined : lastWeek(said, script);
   const changeSlot = script.get('setup.change_slot');
   const wantsSlotChange = !!changeSlot && said.some((t) => carries(t, changeSlot));
   const confirmed = script.get('onboarding.confirmed');
-  const mappedAt = transcript.turns.findLastIndex(t => t.speaker === 'agent' && !!readBack([t.text], script.get('read.first.keep')));
+  const mappedAt = mapEnd < 0 ? -1 : positions[mapEnd] ?? -1;
   const confirmedAt = transcript.turns.findLastIndex(t => t.speaker === 'agent' && !!confirmed && carries(t.text, confirmed));
   const onboardingComplete = !!selves && mappedAt >= 0 && confirmedAt > mappedAt
-    && transcript.turns.slice(mappedAt + 1, confirmedAt).some(t => t.speaker === 'caller' && t.text.trim());
+    && confirmsMap(transcript.turns.slice(mappedAt + 1, confirmedAt));
 
   const outcome: CallOutcome = {
     at: now.toISOString(),
     durationMs: transcript.durationMs,
     ...(onboardingComplete ? { onboardingComplete: true } : {}),
     ...(commitment ? { commitment: commitment.text, ...(commitment.day ? { day: commitment.day } : {}) } : {}),
+    ...(noAction ? { noAction: true } : {}),
     ...(selves?.['eight'] ? { eight: selves['eight'] } : {}),
     ...(selves?.['eighty'] ? { eighty: selves['eighty'] } : {}),
     ...(selves?.['goals'] ? { goals: selves['goals'] } : {}),
@@ -163,9 +189,17 @@ export function settle(transcript: CallTranscript, script: ScriptLines, now = ne
     ...(commitment ? {} : { note: 'no commitment was reached' }),
   };
 }
+/** A clear acknowledgement, rather than treating any caller speech as agreement.
+ * Unknown phrasing leaves onboarding unfinished; the saved map can be checked
+ * next time. This deliberately does not try to infer agreement from a story.
+ */
+function confirmsMap(turns: readonly Turn[]): boolean {
+  const answer = normalise(turns.filter(t => t.speaker === 'caller').map(t => t.text).join(' '));
+  if (/\b(no|nope|none|not|wrong|incorrect|but|except|nej|nei|ikke|feil|men)\b/.test(answer)) return false;
+  return /^(yes|yeah|yep|exactly|correct|right|thats right|that is right|you got it|ja|stemmer|riktig|det stemmer)\b/.test(answer);
+}
 
-/** The last turn that carries a whole read-back of `template`, or -1. */
-function lastIndex(turns: readonly string[], template: string | undefined): number {
-  for (let i = turns.length - 1; i >= 0; i--) if (readBack([turns[i] ?? ''], template)) return i;
-  return -1;
+/** Narrow explicit choices, not a general intent classifier. */
+function explicitNoAction(text: string): boolean {
+  return /^(actually |then )?(no (new )?(action|commitment)( this week)?|i (dont|do not) want (an action|a commitment)|ingen (handling|forpliktelse)( denne uken)?)\b/.test(normalise(text));
 }

@@ -22,9 +22,9 @@ function goodFirstCall(): TimedTurn[] {
     agent(say('open.first.disclosure')),
     caller('Fine by me.'),
     agent(`${say('open.first.frame')} ${say('open.first.first_question')}`),
-    caller('Football, mostly. And video games.'),
-    agent('Football and games — so, competitive. Which position?'),
-    caller('Striker.'),
+    caller('At home.'),
+    agent(say('eight.home')),
+    caller('They would like the football and video games.'),
     agent(say('read.first.eighty')),
     caller('A family. Kids.'),
     agent(say('work.more')),
@@ -37,6 +37,7 @@ function goodFirstCall(): TimedTurn[] {
     caller('No, that is it.'),
     agent(say('read.first.keep')),
     caller('Yes.'),
+    agent(say('onboarding.confirmed')),
     agent(say('work.start')),
     caller('The stand-up set.'),
     agent(say('next.ask.first')),
@@ -115,9 +116,17 @@ test('going straight from the first answer to the one thing is rushed, and says 
     ...goodFirstCall().slice(22),
   ];
   const card = scoreCall(script, turns);
-  assert.equal(card.findings.find((f) => f.check === 'map.rushed')?.severity, 'fail');
+  assert.equal(card.findings.find((f) => f.check === 'map.rushed')?.severity, 'warn');
   assert.equal(card.findings.find((f) => f.check === 'map.eighty')?.severity, 'fail');
   assert.equal(card.findings.find((f) => f.check === 'map.readback')?.severity, 'fail');
+});
+
+test('an explicit choice of no action is a valid deliverable', () => {
+  const turns = goodFirstCall();
+  const start = turns.findIndex(t => t.text === say('work.start'));
+  const end = turns.findIndex(t => t.text === say('setup.confirm_slot'));
+  turns.splice(start, end - start, caller('No action this week.'), agent(say('next.none')));
+  assert.equal(severity(turns, 'deliverable.readback'), 'ok');
 });
 
 test('asking for an email address on the call is a failure', () => {

@@ -61,9 +61,8 @@ export class FileStore implements Store {
 
   async record(phone: string, outcome: CallOutcome): Promise<void> {
     const before = await this.load(phone);
-    // A call that reached no commitment does not overwrite the last one: they
-    // are still on the hook for what they said the week before.
-    const commitment = outcome.commitment ?? before.lastCommitment;
+    // Missing extraction preserves memory; an explicit no-action choice clears it.
+    const commitment = outcome.noAction ? undefined : outcome.commitment ?? before.lastCommitment;
     const eight = outcome.eight ?? before.eight;
     const eighty = outcome.eighty ?? before.eighty;
     const belief = outcome.belief ?? before.belief;
@@ -89,12 +88,12 @@ export class FileStore implements Store {
           language: before.language,
           voice: before.voice,
           lastCommitment: commitment ? encrypt(commitment) : undefined,
-          lastCommitmentDay: outcome.day ?? before.lastCommitmentDay,
+          lastCommitmentDay: outcome.noAction ? undefined : outcome.commitment ? outcome.day : before.lastCommitmentDay,
           // A week not established leaves every count where it was — and a
           // first call cannot establish one, because there was no week before
           // it. See the same guard in store/postgres.ts for what it cost.
           consecutiveUndone:
-            week === 'undone' ? before.consecutiveUndone + 1 : week ? 0 : before.consecutiveUndone,
+            outcome.noAction ? 0 : week === 'undone' ? before.consecutiveUndone + 1 : week ? 0 : before.consecutiveUndone,
           weeksDone: (before.weeksDone ?? 0) + (week === 'done' ? 1 : 0),
           weeksPartly: (before.weeksPartly ?? 0) + (week === 'partly' ? 1 : 0),
           weeksUndone: (before.weeksUndone ?? 0) + (week === 'undone' ? 1 : 0),

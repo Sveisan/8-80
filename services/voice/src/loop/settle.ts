@@ -140,9 +140,21 @@ async function settleInside(
   }
 
   if (outcome.status === 'completed' && outcome.outcome) {
-    await deps.store.record(phone, outcome.outcome);
-    if (outcome.outcome.onboardingComplete) await milestone(deps.store.raw, attempt.phoneHash, 'onboarding_complete', attempt.phoneHash, now);
-    if (outcome.outcome.commitment) await milestone(deps.store.raw, attempt.phoneHash, 'action_read_back', attempt.id, now);
+    const [correction] = await deps.store.raw`select c.memory_corrected_at > a.claimed_at as newer
+      from callers c join call_attempts a on a.phone_hash = c.phone_hash where a.id = ${attempt.id}`;
+    const remembered = { ...outcome.outcome };
+    if (correction?.['newer']) {
+      // The signed-in correction wins over an older conversation, even if its
+      // webhook is delayed. Do not claim that the old map was confirmed.
+      delete remembered.commitment;
+      delete remembered.day;
+      delete remembered.noAction;
+      delete remembered.goals;
+      delete remembered.onboardingComplete;
+    }
+    await deps.store.record(phone, remembered);
+    if (remembered.onboardingComplete) await milestone(deps.store.raw, attempt.phoneHash, 'onboarding_complete', attempt.phoneHash, now);
+    if (remembered.commitment) await milestone(deps.store.raw, attempt.phoneHash, 'action_read_back', attempt.id, now);
     const caller = await deps.store.load(phone);
     // The existing transcript classifier verifies caller participation. This
     // operational signal includes no-action calls; it does not claim usefulness.

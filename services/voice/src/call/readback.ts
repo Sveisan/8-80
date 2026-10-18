@@ -17,6 +17,9 @@ export function extractSlots(
   template: string | undefined,
   opts: { strict?: boolean } = {},
 ): Record<string, string> | undefined {
+  return extractMatch(spoken,template,opts)?.values;
+}
+function extractMatch(spoken:string,template:string|undefined,opts:{strict?:boolean}={}):{values:Record<string,string>;start:number;end:number}|undefined {
   if (!template) return undefined;
   const parts = template.split(/\{\{([^}]+)\}\}/);
   // parts alternates literal, slot, literal, slot, ... literal.
@@ -56,7 +59,7 @@ export function extractSlots(
       out[name] = value;
       pos = end >= 0 ? end + next.length : said.length;
     });
-    if (ok) return out;
+    if (ok) return {values:out,start:start-head.length,end:pos};
   }
   return undefined;
 }
@@ -66,9 +69,26 @@ export function extractSlots(
  * or, when a backchannel split it across turns, the whole call read strictly.
  */
 export function readBack(agentTurns: readonly string[], template: string | undefined): Record<string, string> | undefined {
+  return readBackSpan(agentTurns,template)?.values;
+}
+
+/** Agent-message indices of the selected read-back, including split delivery. */
+export function readBackSpan(agentTurns:readonly string[],template:string|undefined,opts:{strict?:boolean}={}):{values:Record<string,string>;start:number;end:number}|undefined {
+  let single: {values:Record<string,string>;start:number;end:number}|undefined;
   for (let i = agentTurns.length - 1; i >= 0; i--) {
-    const found = extractSlots(agentTurns[i] ?? '', template);
-    if (found) return found;
+    const found = extractSlots(agentTurns[i] ?? '', template, opts);
+    if (found) { single = {values:found,start:i,end:i}; break; }
   }
-  return extractSlots(agentTurns.join(' '), template, { strict: true });
+  const chunks = agentTurns.map(normalise);
+  const found=extractMatch(chunks.filter(Boolean).join(' '),template,{strict:true});
+  if(!found)return single;
+  let offset=0,start=0,end=0;
+  for(let i=0;i<agentTurns.length;i++){
+    if (!chunks[i]) continue;
+    if(offset<=found.start)start=i;
+    if(offset<found.end)end=i;
+    offset+=chunks[i]!.length+1;
+  }
+  if(single && single.end>end)return single;
+  return {values:found.values,start,end};
 }

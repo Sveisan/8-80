@@ -69,6 +69,8 @@ export const callers = pgTable(
     beliefEnc: text('belief_enc'),
     /** Their goals for this year, in their words. Encrypted. */
     goalsEnc: text('goals_enc'),
+    /** An authenticated correction outranks a call already in flight. */
+    memoryCorrectedAt: timestamp('memory_corrected_at', { withTimezone: true }),
     lastCallAt: timestamp('last_call_at', { withTimezone: true }),
 
     /*
