@@ -50,6 +50,7 @@ export class SpeechifyAgent {
       ringingTimeout: boolean;
       language: boolean;
     } = { variables: false, amd: false, ringingTimeout: false, language: false },
+    private readonly fetcher: typeof fetch = fetch,
   ) {}
 
   async placeCall(req: PlaceCallRequest): Promise<PlacedCall> {
@@ -95,8 +96,17 @@ export class SpeechifyAgent {
 
   /** The conversation record, for when a webhook was missed rather than not sent. */
   async conversation(conversationId: string): Promise<unknown> {
-    const res = await fetch(`${this.base}/v1/conversations/${encodeURIComponent(conversationId)}`, {
-      headers: { authorization: `Bearer ${this.apiKey}` },
+    return this.readConversation(conversationId, '');
+  }
+
+  /** Read-only timing/capture review. Never replays a webhook or stores a copy. */
+  async conversationMessages(conversationId: string): Promise<unknown> {
+    return this.readConversation(conversationId, '/messages');
+  }
+
+  private async readConversation(conversationId: string, suffix: string): Promise<unknown> {
+    const res = await this.fetcher(`${this.base}/v1/agents/conversations/${encodeURIComponent(conversationId)}${suffix}`, {
+      headers: { authorization: `Bearer ${this.apiKey}` }, redirect: 'error', signal: AbortSignal.timeout(15_000),
     });
     if (!res.ok) throw new Error(`Speechify refused the conversation read (HTTP ${res.status})`);
     return await res.json();
