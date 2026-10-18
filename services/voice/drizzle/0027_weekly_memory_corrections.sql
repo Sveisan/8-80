@@ -1,0 +1,1 @@
+ALTER TABLE "callers" ADD COLUMN "memory_corrected_at" timestamp with time zone;

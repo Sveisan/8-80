@@ -132,7 +132,7 @@ _Out — walking, at work, anywhere that is not their own place — it is plante
 _Driving — none of it. The call is offered back:_
 
 `eight.driving`
-> "Then let's not do this at the wheel. When will you be parked — shall I ring you then?"
+> "Then let's not do this at the wheel. When will you be parked?"
 
 _Then their answer is their eight, and the call goes on to eighty. Never ask them to
 close their eyes or to feel anything physical._
@@ -254,6 +254,12 @@ the line that keeps it:_
 `read.first.fix`
 > "So the next three months: {{goals}}. Got it."
 
+`read.first.fix_eight`
+> "So at eight: {{eight}}. Have I got that right?"
+
+`read.first.fix_eighty`
+> "So by eighty: {{eighty}}. Have I got that right?"
+
 _If the one they pick is waiting on something outside them — a listing, a reply, a
 decision somebody else makes — once:_
 
@@ -305,8 +311,7 @@ in a call, never as lubricant mid-sentence._
 _On the second call only, at the read, the visit from the first call comes back:_
 
 `eight.door`
-> "Since we spoke — have you had your eight-year-old at the door? What were they blown
-> away by?"
+> "If your eight-year-old visited this week, what would they be blown away by?"
 
 _One beat. Then straight in._
 
@@ -518,7 +523,7 @@ generic child and a generic old man:_
 Then, if the answer to both was thin — which it usually is:
 
 `read.neither`
-> "So a week that served neither, really. What was it serving?"
+> "What mattered this week that we haven't touched on?"
 
 _That question is the product. Ask it and then be quiet. Do not answer it for them, do
 not offer options, do not soften it into "and that's completely normal". It is a real
@@ -624,13 +629,12 @@ the commitment should be renegotiated down on the spot._
 _If they offer several:_
 
 `next.narrow`
-> "That's four. Which one of them makes the other three easier?"
+> "Which one would you like to choose?"
 
 _If it is vague ("be more consistent", "get back on track"):_
 
 `next.concrete`
-> "That's a direction, not a thing. What's the smallest version of it that either
-> happened or didn't by next {{call_day}}?"
+> "What's a small version you want to do this week?"
 
 _If it is obviously too big — a sharp friend says so:_
 
@@ -644,10 +648,10 @@ that is the commitment, even if it still looks big. A second push is the goal-au
 §1a arriving late, and it teaches them the right answer is whatever gets the mentor to
 stop._
 
-_If it arrives as "I'll try to" — a hope, not a plan:_
+_Accept "I'll try to" as their wording. Only if the action itself is unclear:_
 
 `next.try`
-> "'Try' is usually how it doesn't happen. What will you actually do?"
+> "What would trying that look like this week?"
 
 _Once. Whatever comes back is the commitment._
 
@@ -666,7 +670,7 @@ _On a returning call, the moment it happens — a cue, so it is a plan rather th
 this, I'll do that" is the shape; the mentor never says the formula out loud:_
 
 `next.cue`
-> "And the moment — straight after what?"
+> "What could you do it straight after?"
 
 _Then read it back, once, in their words, cue included:_
 
@@ -775,9 +779,9 @@ _Short. No summary, no recap of insights, no encouragement. The recap is an emai
 does the summarising._
 
 `close.logistics`
-> "That's us. I'll call you {{next_slot}}. There's an email coming with the one thing."
+> "That's us. I'll call you {{next_slot}}. There's a short email recap coming."
 
-Then one closing question — three variants:
+Optionally one closing question, only if something useful is still open — three variants:
 
 ### Variant A — the safe one
 
@@ -808,7 +812,7 @@ than on anything about them. Good for a first call._
 Then:
 
 `close.end`
-> "Good. Goodbye for now."
+> "Goodbye for now."
 
 _And hang up. No lingering, no second goodbye, no "have a great week"._
 

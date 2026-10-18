@@ -31,7 +31,8 @@
     "journey": "tsx src/journey-cli.ts",
     "beliefs:doctor": "node --import tsx src/beliefs/doctor-cli.ts",
     "beliefs:prompt": "node --import tsx src/beliefs/prompt-cli.ts",
-    "beliefs:requests": "tsx src/beliefs/requests-cli.ts"
+    "beliefs:requests": "tsx src/beliefs/requests-cli.ts",
+    "quality:weekly": "tsx src/quality/cli.ts"
   },
   "dependencies": {
     "dotenv": "^16.4.5",

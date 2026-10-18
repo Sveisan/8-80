@@ -22,7 +22,7 @@ export async function correctMemory(sql: postgres.Sql, hash: string, revision: s
     const before = open(row);
     await tx`update callers set last_commitment_enc = ${commitment ? encrypt(commitment) : null},
       last_commitment_day = ${before.commitment === commitment ? row.last_commitment_day : null},
-      goals_enc = ${goals ? encrypt(goals) : null}, updated_at = now() where phone_hash = ${hash}`;
+      goals_enc = ${goals ? encrypt(goals) : null}, memory_corrected_at = clock_timestamp(), updated_at = now() where phone_hash = ${hash}`;
     return 'saved' as const;
   });
 }

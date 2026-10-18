@@ -72,6 +72,8 @@ export interface CallOutcome {
   onboardingComplete?: boolean;
   /** The commitment for next week, if one was reached. */
   commitment?: string;
+  /** Explicit no-action branch; absence alone must not erase an older action. */
+  noAction?: boolean;
   day?: string;
   /** Whether last week's commitment happened, when the call established it. */
   lastWeek?: 'done' | 'partly' | 'undone';

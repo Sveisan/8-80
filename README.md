@@ -108,6 +108,8 @@ after every endpointing change — that is what it is for.
 
 ### Changing what the mentor says
 
+The [weekly call quality and memory plan](docs/weekly-call-quality.md) records the verified memory path, conversation changes and owner listening scenarios. `npm run quality:weekly` runs the synthetic baseline without contacting providers.
+
 For Speechify-hosted agents, [Speechify API sync](docs/speechify-api-sync.md) uploads the repository's prompts and variable declarations. `npm run speechify:sync` previews its plan locally; `--apply` updates the selected agents without placing a call. It covers the original first/returning pair and the separate Beliefs agents.
 
 Edit [SCRIPT.md](SCRIPT.md). It is parsed at runtime, so the next call uses your words

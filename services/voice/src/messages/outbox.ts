@@ -74,9 +74,14 @@ async function suppression(sql: Database, row: Row, now: Date): Promise<string |
   }
   if (row.kind === 'trial' && (caller?.['billing_status'] !== 'ended' || caller?.['ls_subscription_id'])) return 'trial_state_changed';
   if (row.kind === 'billing' && row.reference !== `${caller?.['billing_status']}:${caller?.['cancel_at_period_end']}`) return 'billing_state_changed';
-  if (row.kind === 'call' && row.reference) {
+  if (['call', 'recap'].includes(row.kind) && row.reference) {
     const flagged = await sql`select id from call_attempts where id = ${row.reference} and safety_tier is not null`;
     if (flagged.length) return 'human_review';
+    if (row.kind === 'recap') {
+      const corrected = await sql`select a.id from call_attempts a join callers c on c.phone_hash = a.phone_hash
+        where a.id = ${row.reference} and c.memory_corrected_at > a.claimed_at`;
+      if (corrected.length) return 'memory_corrected';
+    }
   }
   if (row.kind === 'feedback') {
     if (caller?.['feedback_opt_out']) return 'feedback_opt_out';

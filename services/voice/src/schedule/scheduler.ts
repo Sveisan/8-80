@@ -11,6 +11,8 @@ export interface Claim {
   phoneHash: string;
   /** The slot instant this is for, not the moment it was claimed. */
   scheduledFor: Date;
+  /** Schedule after claiming, so a later move invalidates an unplaced claim. */
+  nextCallAt: Date;
 }
 
 /** Nobody by that number. Raised rather than returned so it cannot be ignored. */
@@ -135,7 +137,7 @@ export class Scheduler {
           on conflict (phone_hash, scheduled_for) do nothing
           returning id
         `;
-        if (inserted[0]) claims.push({ attemptId, phoneHash: row.phone_hash, scheduledFor: due_ });
+        if (inserted[0]) claims.push({ attemptId, phoneHash: row.phone_hash, scheduledFor: due_, nextCallAt: next });
       }
 
       if (due.length) log('schedule.claimed', { due: due.length, claimed: claims.length });

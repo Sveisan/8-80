@@ -46,12 +46,17 @@ export interface TickResult {
  */
 const ATTEMPTS = 3;
 const BACKOFF_MS = [2_000, 6_000];
+class CallSuppressed extends Error {}
+class PlacementAccepted extends Error {
+  constructor(readonly conversationId: string) { super('provider accepted; local transaction failed'); }
+}
 
 async function withRetries<T>(place: () => Promise<T>): Promise<T> {
   for (let attempt = 1; ; attempt++) {
     try {
       return await place();
     } catch (e) {
+      if (e instanceof CallSuppressed || e instanceof PlacementAccepted) throw e;
       // A phone that rang and was not answered is not a failure to retry, it
       // is the answer. Retrying it rings somebody three times in seventy
       // seconds from an unknown number, which is the opposite of this product
@@ -117,47 +122,77 @@ async function textForMissedCall(
 }
 
 export async function tick(deps: LoopDeps, now = new Date()): Promise<TickResult> {
+  const started = Date.now();
   await safetyDigest(deps, now);
   const claims = await deps.scheduler.claimDue(now);
   const result: TickResult = { claimed: claims.length, placed: 0, failed: 0 };
 
   for (const claim of claims) {
+    let acceptedId: string | undefined;
     try {
-      const phone = await deps.store.phoneFor(claim.phoneHash);
-      if (!phone) {
-        // The claim exists and the caller does not. Not recoverable here.
-        await deps.scheduler.finish(claim.attemptId, 'failed', { note: 'no number on file' });
+      await withRetries(() => deps.store.raw.begin(async tx => {
+        // The caller lock serialises placement with STOP, deletion and safety
+        // controls. Re-enter on every retry, after backoff, with fresh memory.
+        const at = new Date(+now + Math.max(0, Date.now() - started));
+        const [eligible] = await tx`select phone_hash from callers where phone_hash = ${claim.phoneHash}
+          and paused = false and all_calls_stopped = false and held_for_review = false and sms_opt_out = false
+          and (billing_status in ('comped','active','past_due') or (billing_status = 'trialing' and (trial_ends_at is null or trial_ends_at > ${at})))
+          and (not cancel_at_period_end or paid_until > ${at}) and next_call_at = ${claim.nextCallAt}
+          for update`;
+        const [attempt] = eligible ? await tx`select id from call_attempts where id = ${claim.attemptId} and status = 'claimed' for update` : [];
+        if (!eligible || !attempt) throw new CallSuppressed('call controls changed before placement');
+        const scoped = { ...deps, store: deps.store.in(tx), scheduler: new Scheduler(tx) };
+        const phone = await scoped.store.phoneFor(claim.phoneHash);
+        if (!phone) {
+          throw new CallSuppressed('no number on file');
+        }
+
+        const caller = await scoped.store.load(phone);
+        const slotSaid = await bookedSlot(scoped, phone, caller.language);
+        const next = await scoped.scheduler.nextEligibleCallFor(phone, at);
+        const zone = (await scoped.scheduler.slotFor(phone))?.timezone;
+        const nextSaid = next && zone ? describeAppointment(next, zone, caller.language) : NOTHING_RECORDED;
+        const placed = await deps.agent.placeCall({
+          to: phone,
+          // Which kind of call it is, not which agent serves it: the mapping from
+          // one to the other is the platform's business and lives in the adapter.
+          // A rehearsal is a first call for this purpose and for no other: nothing
+          // else in the record moves, so the returning call still has a last week
+          // to ask about once the rehearsal is over.
+          firstCall: needsOnboarding(caller),
+          variables: variablesFor({ ...caller, nextSlot: nextSaid, ...(slotSaid ? { bookedSlot: slotSaid } : {}) }),
+          ...(config.speechify.callerIdNumber ? { callerIdNumber: config.speechify.callerIdNumber } : {}),
+          ...(caller.language ? { language: caller.language } : {}),
+          ringingTimeoutMs: config.speechify.ringingTimeoutMs,
+          amd: config.speechify.amd,
+        });
+        acceptedId = placed.conversationId;
+
+        await scoped.scheduler.markPlaced(claim.attemptId, placed.conversationId);
+        // The rehearsal is spent here rather than at claim time: a call that never
+        // left the building has not been rehearsed, and the retry should still be
+        // the call you asked for.
+        if (caller.rehearseFirstCall) await scoped.store.clearRehearseFirstCall(claim.phoneHash);
+      }).catch(error => {
+        // Retrying a failed local commit must never place the accepted call
+        // again. Recover the provider identity separately below.
+        if (acceptedId) throw new PlacementAccepted(acceptedId);
+        throw error;
+      }));
+      result.placed++;
+    } catch (e) {
+      if (e instanceof PlacementAccepted) {
+        try { await deps.scheduler.markPlaced(claim.attemptId, e.conversationId); }
+        catch { log('agent.placement_unrecorded', { attemptId: claim.attemptId, conversationId: e.conversationId }); }
+        result.placed++;
+        continue;
+      }
+      if (e instanceof CallSuppressed) {
+        await deps.store.raw`update call_attempts set status = 'failed', ended_at = ${now}, note = 'suppressed before placement'
+          where id = ${claim.attemptId} and status = 'claimed'`;
         result.failed++;
         continue;
       }
-
-      const caller = await deps.store.load(phone);
-      const slotSaid = await bookedSlot(deps, phone, caller.language);
-      const next = await deps.scheduler.nextEligibleCallFor(phone, now);
-      const zone = (await deps.scheduler.slotFor(phone))?.timezone;
-      const nextSaid = next && zone ? describeAppointment(next, zone, caller.language) : NOTHING_RECORDED;
-      const placed = await withRetries(() => deps.agent.placeCall({
-        to: phone,
-        // Which kind of call it is, not which agent serves it: the mapping from
-        // one to the other is the platform's business and lives in the adapter.
-        // A rehearsal is a first call for this purpose and for no other: nothing
-        // else in the record moves, so the returning call still has a last week
-        // to ask about once the rehearsal is over.
-        firstCall: needsOnboarding(caller),
-        variables: variablesFor({ ...caller, nextSlot: nextSaid, ...(slotSaid ? { bookedSlot: slotSaid } : {}) }),
-        ...(config.speechify.callerIdNumber ? { callerIdNumber: config.speechify.callerIdNumber } : {}),
-        ...(caller.language ? { language: caller.language } : {}),
-        ringingTimeoutMs: config.speechify.ringingTimeoutMs,
-        amd: config.speechify.amd,
-      }));
-
-      await deps.scheduler.markPlaced(claim.attemptId, placed.conversationId);
-      // The rehearsal is spent here rather than at claim time: a call that never
-      // left the building has not been rehearsed, and the retry should still be
-      // the call you asked for.
-      if (caller.rehearseFirstCall) await deps.store.clearRehearseFirstCall(claim.phoneHash);
-      result.placed++;
-    } catch (e) {
       if (e instanceof CallNotPlaced && e.rang) {
         // Their phone rang and they did not pick up. That is a missed call and
         // it gets the one text — the same path a call that connects and then

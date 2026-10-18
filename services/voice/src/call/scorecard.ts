@@ -288,9 +288,9 @@ function scoreGoal(script: ScriptLines, turns: TimedTurn[]): Finding[] {
 
   out.push({
     check: 'map.rushed',
-    severity: next.length && answers < MIN_ANSWERS_BEFORE_ONE_THING ? 'fail' : 'ok',
+    severity: next.length && answers < MIN_ANSWERS_BEFORE_ONE_THING ? 'warn' : 'ok',
     detail: next.length
-      ? `${answers} answer${answers === 1 ? '' : 's'} before the one thing (at least ${MIN_ANSWERS_BEFORE_ONE_THING} to have got to know them)`
+      ? `${answers} answer${answers === 1 ? '' : 's'} before the one thing; listen for a rushed map, not a target number of exchanges`
       : 'never reached the one thing',
   });
 
@@ -308,7 +308,7 @@ function scoreGoal(script: ScriptLines, turns: TimedTurn[]): Finding[] {
 function scoreDeliverables(script: ScriptLines, turns: TimedTurn[]): Finding[] {
   const said = (id: string) => indexOfLine(turns, script.get(id)) >= 0;
   const need: [string, string, string[], Severity][] = [
-    ['deliverable.readback', 'read the commitment back', ['next.confirm'], 'fail'],
+    ['deliverable.readback', 'read the commitment back or explicitly accepted no action', ['next.confirm', 'next.none'], 'fail'],
     // Skipped, correctly, when no slot was on record, so only worth a look.
     ['deliverable.slot', 'confirmed the weekly slot', ['setup.confirm_slot'], 'warn'],
     ['deliverable.close', 'closed the call', ['close.end', 'close.logistics'], 'fail'],
