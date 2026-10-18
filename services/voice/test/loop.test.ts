@@ -144,7 +144,8 @@ test('the third-week-running question only appears when the pattern is there', a
 
 test('instructions are built from SCRIPT.md and carry the silence rule', async () => {
   const { voice } = await drive([{ buf: QUIET, count: 5 }], false);
-  assert.match(voice.instructions, /The pause before the real answer is the entire product/);
+  assert.match(voice.instructions, /When they stop mid-sentence or a thought is still forming, WAIT/);
+  assert.match(voice.instructions, /When an answer is clearly finished, respond naturally without adding a deliberate thinking delay/);
   assert.match(voice.instructions, /Mm\./, 'the default nothing variant should be in the prompt');
   assert.ok(!voice.instructions.includes('!'), 'no exclamation marks reach the model');
 });

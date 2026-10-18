@@ -2,8 +2,9 @@ import {readFile,stat} from 'node:fs/promises';
 import {toTranscript} from '../webhook/speechify.ts';
 import {weeklyQuality,type QualityContext} from './weekly.ts';
 import {qualityFixtures} from './fixtures.ts';
+import {captureReport} from './capture.ts';
 
-const usage='Use quality:weekly (synthetic baseline), --file PATH [--context PATH], or --conversation ID [--context PATH]. Context is optional JSON with kind and priorCommitment from before this call. No provider requests or messages are made.';
+const usage='Use quality:weekly (synthetic baseline), --file PATH [--context PATH], or --conversation ID [--context PATH] [--provider-timing]. The last flag makes one read-only provider request for that known weekly call. No calls, messages or retention copies are made.';
 async function readJson(path:string):Promise<unknown>{
   if((await stat(path)).size>2_000_000)throw Error('File exceeds the local review limit.');
   return JSON.parse(await readFile(path,'utf8')) as unknown;
@@ -16,13 +17,17 @@ function contextOf(v:unknown):QualityContext {
 }
 try{
   const args=process.argv.slice(2);const opts=new Map<string,string>();
+  let providerTiming=false;
   if(args.includes('--help')){console.log(usage);process.exit(0);}
-  for(let i=0;i<args.length;i+=2){
-    const key=args[i],value=args[i+1];
+  for(let i=0;i<args.length;i++){
+    const key=args[i];
+    if(key==='--provider-timing'){if(providerTiming)throw Error('Duplicate flag.');providerTiming=true;continue;}
+    const value=args[++i];
     if(!key || !['--file','--conversation','--context'].includes(key) || !value || value.startsWith('--') || opts.has(key))throw Error('Invalid arguments.');
     opts.set(key,value);
   }
   if(opts.has('--file') && opts.has('--conversation') || opts.has('--context') && !opts.has('--file') && !opts.has('--conversation'))throw Error('Choose one review source.');
+  if(providerTiming && !opts.has('--conversation'))throw Error('Provider timing requires a known weekly conversation.');
   const context=opts.has('--context')?contextOf(await readJson(opts.get('--context')!)):{kind:'unknown'} as const;
   if(!opts.has('--file') && !opts.has('--conversation')){
     console.log(JSON.stringify({source:'synthetic_only',cases:qualityFixtures.map(f=>({id:f.id,report:weeklyQuality(f.transcript,f.context)}))},null,2));
@@ -39,7 +44,15 @@ try{
       if(attempts.length!==1 || attempts[0]!['belief_id'])throw Error('No unambiguous weekly call is available for this identifier.');
       const delivery=await new Deliveries(store.raw).body(id);
       if(!delivery)throw Error('No retained delivery is available. This command does not fetch or retain older provider data.');
-      console.log(JSON.stringify({source:'retained_weekly_webhook',report:weeklyQuality(toTranscript(JSON.parse(delivery.body)),context)},null,2));
+      const transcript=toTranscript(JSON.parse(delivery.body));
+      let capture;
+      if(providerTiming){
+        if(!config.speechify.apiKey())throw Error('Provider configuration is missing.');
+        const {SpeechifyAgent}=await import('../agent/speechify.ts');
+        const api=new SpeechifyAgent(config.speechify.apiKey(),'','',config.speechify.base);
+        capture=captureReport(await api.conversationMessages(id),transcript);
+      }
+      console.log(JSON.stringify({source:'retained_weekly_webhook',report:weeklyQuality(transcript,context),...(capture?{capture}:{})},null,2));
     }finally{await store.close();}
   }
 }catch{

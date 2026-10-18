@@ -224,11 +224,44 @@ test('no prompt asks for, pins or expects a day for the one thing', () => {
 
 test('the eight-year-old arrives by where they are: at the door if home, planted if out, not at all if driving', () => {
   const p = buildInstructions(loadScript(), { callNumber: 1 });
-  assert.match(p, /Where am I catching you/);
+  assert.match(p, /Are you at home, or out and about/);
   assert.match(p, /knocking on your door right now/);
   assert.match(p, /Next time you walk in your own front door/);
   assert.match(p, /let's not do this at the wheel/);
   assert.match(p, /Never ask them to close their eyes/);
+});
+
+test('the shorter opening preserves disclosure, agreement and room for an answer', () => {
+  const s = loadScript();
+  const opening = ['open.first.greet', 'open.first.disclosure', 'open.first.frame', 'open.first.first_question'].map(k => s.get(k)!).join(' ');
+  assert.ok(opening.split(/\s+/).length <= 65, 'setup must stay brief before the first perspective');
+  const disclosure = s.get('open.first.disclosure')!;
+  assert.match(disclosure, /AI/); assert.match(disclosure, /written note/);
+  assert.match(disclosure, /stop me any time/); assert.match(disclosure, /All right\?$/);
+  const p = buildInstructions(s, {callNumber:1});
+  assert.match(p, /leave room for their answer, without calling it misheard/);
+  assert.match(p, /wait for the answer/);
+});
+
+test('weekly prompts distinguish acknowledgment and feedback from consent to hang up', () => {
+  // Contract regressions, not a claim that a provider model obeys them. The
+  // owner retry must check thanks, feedback, explicit stop and audible goodbye.
+  for (const callNumber of [1, 2]) {
+    const p = buildInstructions(loadScript(), {callNumber});
+    assert.match(p, /"thank you".*is an acknowledgement, not a request to end/);
+    assert.match(p, /Accept clear agreement to the greeting, disclosure or map/);
+    assert.match(p, /A shop or being out does not itself mean they are unavailable/);
+    assert.match(p, /feedback about this call, not permission to hang up/);
+    assert.match(p, /End when they clearly ask to stop or say goodbye/);
+    assert.match(p, /confirmed choice of no action can lead to that close/);
+    assert.match(p, /Say the brief goodbye first, let its speech finish, and only then call `end_call`/);
+    assert.match(p, /Do not queue a goodbye after the tool/);
+    assert.match(p, /serious-disclosure safety rule still overrides/);
+    assert.match(p, /stop speaking, leaving them the floor; this is not permission to hang up/);
+    assert.match(p, /Depth is an invitation, not a target/);
+    assert.match(p, /never joke about their vulnerability/);
+    assert.match(p, /without adding a deliberate thinking delay/);
+  }
 });
 
 test('a first name greets them when known, and leaves no gap when not', () => {

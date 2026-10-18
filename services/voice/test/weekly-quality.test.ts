@@ -56,6 +56,11 @@ test('the default baseline needs no database or provider credentials',()=>{
   const r=run([]);assert.equal(r.status,0,r.stderr);const parsed=JSON.parse(r.stdout);
   assert.equal(parsed.source,'synthetic_only');assert.equal(parsed.cases.length,6);assert.ok(!r.stdout.includes('synthetic-secret-never-output'));
 });
+test('provider reads require explicit opt-in and a conversation, never a file or default baseline',()=>{
+  for(const args of [['--provider-timing'],['--provider-timing','--file','private-file'],['--conversation','id','--provider-timing','--provider-timing']]){
+    const r=run(args);assert.equal(r.status,1);assert.ok(!r.stderr.includes('synthetic-secret'));
+  }
+});
 test('private file review prints signals only and malformed source never leaks diagnostics',()=>{
   const dir=mkdtempSync(join(tmpdir(),'8and80-quality-'));
   try{

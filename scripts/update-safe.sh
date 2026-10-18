@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Run as root after merging the release and saving both voice-agent prompts.
+# Run as root after merging the release. Sync weekly prompts before a call test.
 # Only fixed status lines reach stdout. Diagnostics and backups stay private.
 set +x
 set -Eeuo pipefail
 umask 077
-export LC_ALL=C LANG=C
+export LC_ALL=C LANG=C GIT_TERMINAL_PROMPT=0
 
 TARGET_COMMIT=${1:-}
 RESUME=${2:-}
@@ -21,15 +21,33 @@ install -d -m 700 /var/backups/8and80
 RUN_DIR=$(mktemp -d /var/backups/8and80/update.XXXXXXXX)
 exec >>"$RUN_DIR/private.log" 2>&1
 report() { printf '%s\n' "$*" >&3; }
-trap 'rc=$?; report "FAILED: $STEP (exit $rc). Share only this report; diagnostics remain private on the server."; if systemctl is-active --quiet 8and80-tick.timer 3>&-; then report "Scheduled calls: ACTIVE"; else report "Scheduled calls: PAUSED"; fi; exit "$rc"' ERR
+status_report() {
+  if systemctl is-active --quiet 8and80-control.service 3>&-; then report 'Web: ACTIVE'; else report 'Web: NOT ACTIVE'; fi
+  if systemctl is-active --quiet 8and80-tick.timer 3>&-; then report 'Scheduled calls: ACTIVE'; else report 'Scheduled calls: PAUSED'; fi
+}
+trap 'rc=$?; report "FAILED: $STEP (exit $rc). Share only this report; diagnostics remain private on the server."; status_report; exit "$rc"' ERR
+
+# Root's private backup umask must not become the source/dependency umask.
+# Git metadata and checkout files belong to the service user; .env and private
+# runtime files keep their existing modes. Never chmod the whole repository.
+source_run() {
+  sudo -u eightandeighty env LC_ALL=C LANG=C GIT_TERMINAL_PROMPT=0 \
+    bash -c 'umask 022; exec "$@"' source-command "$@" 3>&-
+}
 
 report '=== 8AND80 UPDATE REPORT ==='
+STEP='acquiring update lock'
+exec 9>/run/lock/8and80-update.lock
+flock -n 9 3>&-
 STEP='checking merged release and clean checkout'
 cd "$REPO"
-[[ -z $(git status --porcelain 3>&-) ]]
-[[ $(git branch --show-current 3>&-) == "$BRANCH" ]]
-git fetch origin 3>&-
-git merge-base --is-ancestor "$TARGET_COMMIT" "origin/$BRANCH" 3>&-
+CHECKOUT_STATUS=$(source_run git status --porcelain)
+[[ -z $CHECKOUT_STATUS ]]
+CHECKOUT_BRANCH=$(source_run git branch --show-current)
+[[ $CHECKOUT_BRANCH == "$BRANCH" ]]
+source_run git fetch origin
+source_run git merge-base --is-ancestor "$TARGET_COMMIT" "origin/$BRANCH"
+source_run git merge-base --is-ancestor HEAD "$TARGET_COMMIT"
 report 'OK: merged release is available; checkout is clean'
 
 WAS_ACTIVE=0
@@ -41,20 +59,21 @@ report 'OK: services paused for update'
 STEP='backing up database and configuration'
 sudo -u postgres pg_dump --format=custom eight80 > "$RUN_DIR/database.dump" 3>&-
 cp -p .env "$RUN_DIR/env" 3>&-
-git rev-parse HEAD > "$RUN_DIR/previous-commit" 3>&-
+source_run git rev-parse HEAD > "$RUN_DIR/previous-commit"
 report 'OK: database and configuration backed up privately'
 
 STEP='updating code'
-git merge --ff-only "origin/$BRANCH" 3>&-
+source_run git merge --ff-only "$TARGET_COMMIT"
+source_run test -r services/voice/src/server.ts
 report 'OK: code updated'
 STEP='installing dependencies'
-sudo -u eightandeighty npm ci --include=dev 3>&-
+source_run npm ci --include=dev
 report 'OK: dependencies installed'
 STEP='applying migrations'
-sudo -u eightandeighty npm run db:migrate 3>&-
+source_run npm run db:migrate
 report 'OK: database migrations applied'
 STEP='checking configuration'
-sudo -u eightandeighty npm run preflight 3>&-
+source_run npm run preflight
 report 'OK: configuration checks passed'
 STEP='starting web service'
 systemctl start 8and80-control.service 3>&-
@@ -71,6 +90,6 @@ if [[ $RESUME == --resume ]]; then
 elif [[ $WAS_ACTIVE == 1 ]]; then
   systemctl start 8and80-tick.timer 3>&-
 fi
-if systemctl is-active --quiet 8and80-tick.timer 3>&-; then report 'Scheduled calls: ACTIVE'; else report 'Scheduled calls: PAUSED'; fi
+status_report
 report 'UPDATE COMPLETE. Share only this report; keep backups and diagnostics on the server.'
 report '=== END REPORT ==='

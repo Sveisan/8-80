@@ -27,7 +27,27 @@ One warm mentor uses eight and eighty as perspectives on the caller's present li
 
 Obstacle questions are conditional on an unfinished previous action and are skipped when the reason is already explained. First-call elaboration, a connection between the perspectives, a cue and a closing question are optional. Short answers do not authorise an invented commitment. The repair ladder waits for an answer to the connection check before repeating a question. Clear serious disclosures retain priority over the ordinary opening and closing.
 
-Fixed disclosure, read-back, outcome, reschedule, safety and tool contracts are retained. New correction lines support eight and eighty. The numeric and console branches now ask about a third undone week under the same condition. The legacy scorecard accepts the explicit no-action branch and treats a low exchange count as a listening prompt rather than proof of a poor call.
+The AI/note/right-to-stop disclosure contract, read-back, outcome, reschedule, safety and tool contracts are retained. New correction lines support eight and eighty. The numeric and console branches now ask about a third undone week under the same condition. The legacy scorecard accepts the explicit no-action branch and treats a low exchange count as a listening prompt rather than proof of a poor call.
+
+## Premature ending and capture: owner pilot follow-up
+
+The 18 October first-call pilot ended after 89 seconds with the provider reason `agent_ended`. It settled as interrupted, without advancing the conversation counter or creating a recap. The last caller message was a plain acknowledgment; the recorded `end_call` preceded the final assistant message. This establishes an inappropriate ending in this context and tool/message order, not whether goodbye audio finished playing. The introduction and memory test did not complete.
+
+The provider messages and retained webhook agree. They contain only nine caller words across five turns. All eleven spoken messages have start/end timestamps. Median caller-to-agent gap is 1,102 ms; median agent-to-caller gap is 7,582 ms. These are provider message timings, not independently measured acoustic latency or proof of caller hesitation. Missing speech before transcription remains unverified. Recording is disabled; no recording was enabled or downloaded. The configured language is English. Turn-handling and STT override settings are null/inherited, whose effective platform values were not established.
+
+The source opening is now 59 whitespace-separated words across the greeting, disclosure, frame and location question, compared with 92 before (the earlier provider version spoke 91). The existing provider First message is unchanged. The model must still avoid repeating that greeting. The shortened disclosure retains AI identity, the written note, the right to stop and an agreement check.
+
+Both weekly prompts now distinguish courtesy and feedback from a request to stop. Follow-up limits mean handing the floor back, not hanging up. A clear stop request still gets a prompt close; serious-disclosure safety retains priority. The farewell must precede `end_call`, without speech queued after it. This is a prompt contract: the hosted provider owns actual tool execution and audio playout, so a live retry must verify compliance. This PR does not install a server-side hangup interceptor.
+
+Warmth comes from noticing what the caller said, a light reaction when it fits, and responding to feedback without defending the script. The eight-year-old question is shorter and concrete. Depth is optional. Completed answers need no artificial thinking delay, while unfinished thoughts retain room. Neither charm nor voice latency can be proven by string assertions.
+
+For an authorized known weekly call, add `--provider-timing` to the existing review command:
+
+```sh
+npm run quality:weekly -- --conversation CONVERSATION_ID --provider-timing
+```
+
+Only this flag makes a provider GET. It fetches the messages endpoint after verifying the retained weekly identity, reports counts, normalized copy agreement, the public neutral probe, speech timing and tool ordering, and retains no new copy. Unknown roles, incomplete pages or excessive input fail closed. Missing timestamps remain unmeasured; creation timestamps are never substituted. Negative gaps are reported overlaps, not automatic interruption failures. Courtesy before a close is a review signal, not a general intent classifier. A matching provider/webhook pair cannot establish that every spoken word was captured. See the provider's [message/tool record documentation](https://docs.speechify.ai/docs/voice-agents/tools).
 
 ## Synthetic baseline
 
@@ -75,15 +95,19 @@ Do not choose a winner from an aggregate AI score. Discuss the owner's listening
 
 ## Release sequence
 
-1. Review and merge the code change, then use the normal server update process to install locked dependencies, apply migrations and restart the control service. Keep existing `.env` values private.
+1. Review and merge the code change. Bootstrap the **merged version** of `scripts/update-safe.sh` before invoking it; do not run the older installed updater to obtain its own fix. It now runs Git and npm as the service user with source umask 022, keeps backups under root umask 077, deploys the requested merged commit exactly and detects a failing Git status before stopping services. It never changes `.env` or runtime-file permissions recursively. Keep the scheduler paused and do not pass `--resume` for the owner retry. The service user must have access to fetch the origin; a fetch failure stops before the pause step.
 2. Check the weekly configuration, including distinct first and returning agent IDs, `SPEECHIFY_SEND_VARIABLES=1`, completion callbacks and `end_call`. A green web health check alone does not verify calling.
 3. Apply only the weekly prompt group with the existing sync workflow, then compare read-back settings. See [Speechify sync](speechify-api-sync.md). Weekly sync preserves existing provider memory and flow settings, so confirm there is no competing provider memory or overriding published phase before interpreting a test as the new experience.
-4. Run the deliberate owner calls above, confirm the retained recap and the next call's memory, and listen together before extending the pilot.
+4. The previous private owner pilot state deliberately blocks a duplicate first request. Before retrying, verify its attempt is interrupted, its provider completion was retained, no return was requested, the counter did not advance and there is no active attempt. Archive that state privately under the same `pilot.lock` used by the helper; preserve database history and existing memory. Do not delete state to bypass an uncertain or active placement.
+5. On the owner's handset in a quiet room, use English for this capture check. Answer the greeting and disclosure normally. At the location question, say that you are at home, then ask: “Please repeat these three words: blue river bicycle.” Confirm aloud that all three were heard. Later give an ordinary answer with a short natural pause, say “Thank you” without goodbye, and give brief feedback about pace or wording. The call should continue without treating these as a stop request. Confirm/correct the full map and choose an action voluntarily. Check that the farewell is audible; an explicit stop must also be respected.
+6. After that first call, compare provider capture with the retained webhook and the owner's actual experience. Verify one counter increment, confirmed map, corrected read-back matching storage, and at most one recap intent. Provider acceptance of an email is separate from delivery. If speech is missing or the map did not settle, wait with the return test. Only after the memory check passes, request one deliberate returning call and verify that it actually uses the saved details. A new outgoing variable match alone does not prove spoken use.
 
 No terminal action is needed from the owner while this PR is under review. The exact deployment commands should be provided against the merged commit and current server state. This local work does not upload provider settings, deploy the service or place real calls.
 
 ## Verification record
 
-On 18 October 2026, TypeScript, ESLint and all 731 tests in the disposable PostgreSQL suite pass, with zero failures and zero skips. The new regressions exercise parser ordering, confirmation, no-action storage, delayed correction, signed webhook handling, outbound request variables, prompt rendering, two-caller isolation, STOP during backoff and recap suppression. The full suite includes Beliefs regressions to protect shared infrastructure; this change does not alter its journey or scripts.
+On 18 October 2026, TypeScript, ESLint and all 744 tests in the disposable PostgreSQL suite pass, with zero failures and zero skips. The suite exercises parser ordering, confirmation, no-action storage, delayed correction, signed webhook handling, outbound request variables, prompt rendering, two-caller isolation, STOP during backoff and recap suppression. The follow-up adds opening/ending prompt contracts, current provider read routes, missing/partial timing data, overlaps, split text, copy mismatches, neutral-probe matching and private output. Real Git checkout fixtures verify source permissions, exact requested revision, private backups and safe update failure paths; sudo/systemd are stubbed in those fixtures. The full suite includes Beliefs regressions to protect shared infrastructure; this change does not alter its journey or scripts.
+
+The new capture report was also run in memory against the completed owner pilot through read-only SSH. It reproduced the counts, median timings and tool ordering above without retaining customer data locally or changing provider configuration.
 
 Real audio quality, provider flow overrides, voicemail behaviour and live delivery remain pilot checks. No retention uplift is claimed from synthetic tests.
