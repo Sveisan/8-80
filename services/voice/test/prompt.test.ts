@@ -222,13 +222,31 @@ test('no prompt asks for, pins or expects a day for the one thing', () => {
   }
 });
 
-test('the eight-year-old arrives by where they are: at the door if home, planted if out, not at all if driving', () => {
+test('the eight-year-old visits their present life at home or out, without homework or a second question', () => {
+  const script = loadScript();
   const p = buildInstructions(loadScript(), { callNumber: 1 });
   assert.match(p, /Are you at home, or out and about/);
   assert.match(p, /knocking on your door right now/);
-  assert.match(p, /Next time you walk in your own front door/);
+  const out = script.get('eight.out')!;
+  assert.ok(p.includes(out));
+  assert.equal((out.match(/\?/g) ?? []).length, 1);
+  assert.ok(out.split(/\s+/).length <= 25, 'the outdoor entry must be answerable now');
+  assert.doesNotMatch(p, /Next time you walk in your own front door|And for now, a guess/);
   assert.match(p, /let's not do this at the wheel/);
   assert.match(p, /Never ask them to close their eyes/);
+});
+
+test('action and short-answer clarification ask for one thing without a wager or week audit', () => {
+  const script = loadScript();
+  for (const id of ['next.ask.c', 'next.ask.c.calibrate', 'next.oversized', 'thin.smaller']) {
+    const text = script.get(id)!;
+    assert.equal((text.match(/\?/g) ?? []).length, 1, id);
+    assert.ok(text.split(/\s+/).length <= 15, `${id} should be easy to hear once`);
+    assert.doesNotMatch(text, /\b(bet|money|honestly)\b|Monday to now|before we talk/i);
+  }
+  const returning = buildInstructions(script, {callNumber: 2});
+  assert.doesNotMatch(returning, /answer comes too fast|put money on|bet you'd take/);
+  assert.match(returning, /A quick answer is not a reason to challenge their choice/);
 });
 
 test('the shorter opening preserves disclosure, agreement and room for an answer', () => {

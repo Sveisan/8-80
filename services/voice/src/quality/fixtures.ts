@@ -19,7 +19,7 @@ export const qualityFixtures:{id:string;context:QualityContext;transcript:CallTr
     agent('What would make this conversation useful today?'),caller('Just thinking aloud. I do not want an action this week.'),
     agent('We can leave it there.'),caller('Thank you.'),agent('Thanks for today. Take care.')])},
   {id:'eight-eighty-perspectives',context:{kind:'first'},transcript:transcript([
-    agent('What did you love doing when you were eight?'),caller('Drawing stories.'),agent('Making something of your own.'),caller('Exactly.'),
+    agent('Think of your life as it is today. What would make your eight-year-old self grin?'),caller('I still make time to draw stories.'),agent('The stories are still there.'),caller('Exactly.'),
     agent('Looking back at eighty, what would you want to have made room for?'),caller('Time for creative work and my family.'),
     agent('There is room for both in what you described.'),caller('Yes.'),agent('Which would you most like to see move in the next three months?'),caller('Creative work.')])},
 ];
