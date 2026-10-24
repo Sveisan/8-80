@@ -29,6 +29,51 @@ Obstacle questions are conditional on an unfinished previous action and are skip
 
 The AI/note/right-to-stop disclosure contract, read-back, outcome, reschedule, safety and tool contracts are retained. New correction lines support eight and eighty. The numeric and console branches now ask about a third undone week under the same condition. The legacy scorecard accepts the explicit no-action branch and treats a low exchange count as a listening prompt rather than proof of a poor call.
 
+## Natural conversation follow-up
+
+The next revision removes the default commitment question's wager and honesty challenge.
+It asks for one action this week. Only a clearly oversized action can prompt the optional
+smaller-version question; a quick answer is not a reason to challenge it. All clarification
+still shares one allowance, and choosing no action remains valid.
+
+The outdoor eight perspective is now one short question about present life, with no
+homework or follow-up guess. A caller who wants a simpler entry can name one event rather
+than reconstructing Monday to now. The optional connection between eight and eighty is
+offered only when the caller's own words support it and it adds something.
+
+Three fictional exchanges in `SCRIPT.md` illustrate a light joke, a short thinking answer
+and feedback about the questioning. Both weekly prompts include them after the opening.
+They are examples of rhythm, never caller facts, reusable jokes or permission to skip
+consent, read-back, safety or the closing rules. The thinking example shares the existing
+once-per-call patience allowance. A complete thought may be followed by a brief reaction
+and the next relevant question in one turn; fixed confirmation boundaries stay intact.
+
+### Release and owner review
+
+1. Run TypeScript, lint and the disposable-Postgres suite. Review the diff and merge the
+   release before deploying. Keep the fixed disclosure, map/correction, outcome, action
+   read-back, safety and reschedule lines unchanged.
+2. Use the merged safe updater and the existing weekly-only sync/check sequence below.
+   Confirm both active prompts match the deployed source, and record scheduler status
+   explicitly. A successful local render or Git merge does not establish a live update.
+3. When the owner is ready, run one deliberate first-call pilot. Include the neutral
+   speech probe, a thinking pause, plain thanks and feedback about the questions. Check
+   capture and confirmed memory before requesting one returning pilot.
+4. In the returning pilot, check actual spoken use of the saved words. Include a short
+   answer or disagreement. Check no-action handling and an explicit stop in a focused
+   owner test if these branches were not reached naturally. Do not reset customer memory
+   or start calls automatically to complete this checklist.
+5. After each call, record the owner's 1–10 ratings for feeling understood, naturalness
+   and value, plus one thing to keep and one thing to improve. Change the weakest point
+   first. Tune timing one setting at a time only after checking speech capture.
+
+The release gate is no unintended hangup, no fabricated or stale memory, no independent
+stacked questions or redundant answered probes, and space for the planned thinking pause.
+Use human context to distinguish a requested repeat from a redundant probe and a listening
+backchannel from an interruption. Missing timing or audio remains unmeasured. The target
+is consistent owner ratings of 9–10 across these situations; synthetic tests do not award
+a conversation-quality score or establish audible farewell or complete speech capture.
+
 ## Premature ending and capture: owner pilot follow-up
 
 The 18 October first-call pilot ended after 89 seconds with the provider reason `agent_ended`. It settled as interrupted, without advancing the conversation counter or creating a recap. The last caller message was a plain acknowledgment; the recorded `end_call` preceded the final assistant message. This establishes an inappropriate ending in this context and tool/message order, not whether goodbye audio finished playing. The introduction and memory test did not complete.
