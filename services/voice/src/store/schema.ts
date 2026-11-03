@@ -32,6 +32,9 @@ export const callers = pgTable(
     language: text('language'),
     /** 'female' | 'male' | a provider voice name. Their choice, not a default. */
     voice: text('voice'),
+    nudgesEnabled: boolean('nudges_enabled').notNull().default(false),
+    nextNudgeAt: timestamp('next_nudge_at', { withTimezone: true }),
+    nudgeSequence: integer('nudge_sequence').notNull().default(0),
     /** This is call number N. 1 means they have never been called. */
     callNumber: integer('call_number').notNull().default(1),
     onboarding: text('onboarding').notNull().default('pending'),
@@ -132,6 +135,7 @@ export const callers = pgTable(
     uniqueIndex('callers_phone_hash_key').on(t.phoneHash),
     index('callers_last_call_at_idx').on(t.lastCallAt),
     index('callers_due_idx').on(t.nextCallAt),
+    index('callers_nudge_due').on(t.nextNudgeAt).where(sql`${t.nudgesEnabled} = true`),
     uniqueIndex('callers_ls_subscription_key').on(t.lsSubscriptionId),
     index('callers_trial_idx').on(t.trialEndsAt),
   ],
@@ -159,6 +163,8 @@ export const signups = pgTable(
   {
     id: text('id').primaryKey(),
     product: text('product').notNull().default('weekly'),
+    voice: text('voice'),
+    nudges: boolean('nudges').notNull().default(false),
     /** Deterministic, so a second attempt from the same number replaces the first. */
     phoneHash: text('phone_hash').notNull(),
     phoneEnc: text('phone_enc').notNull(),

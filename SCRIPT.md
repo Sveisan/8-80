@@ -2429,3 +2429,92 @@ Interrupted introductions keep their progress; availability-only calls do not ad
 
 `page.held.detail`
 > "We need to review your call arrangement before scheduling the next call. Contact us about your account below."
+
+
+## First feedback — registration, voice and optional texts
+
+_Explicit opt-in. Generic messages only: no private call details on a lock screen. No shame, threats or invented messages from a future self. Patience and the existing call script stay intact._
+
+`signup.eyebrow`
+> "A weekly call. A little perspective."
+
+`signup.booking.step`
+> "Your first conversation"
+
+`signup.booking.title`
+> "Make a little room for yourself"
+
+`signup.visual.today`
+> "You, today"
+
+`signup.visual.eight`
+> "What makes you feel alive?"
+
+`signup.visual.eighty`
+> "What will matter in the long run?"
+
+`signup.visual.detail`
+> "Two perspectives on the life you are living now. One conversation to make room for both."
+
+`signup.voice`
+> "Which voice would you like?"
+
+`signup.voice.male`
+> "Man’s voice"
+
+`signup.voice.female`
+> "Woman’s voice"
+
+`signup.voice.detail`
+> "The same voice for your first and weekly calls. You can change it later."
+
+`page.voice.save`
+> "Save voice"
+
+`page.voice.saved`
+> "Voice saved for your next call."
+
+`page.voice.unavailable`
+> "That voice is not available yet. Please choose the other voice."
+
+`signup.nudges`
+> "A little perspective between calls"
+
+`signup.nudges.detail`
+> "Optional short texts from your 8&80 number every 2–4 days, at varying times between 10:00 and 18:00 in your booking timezone. Turn them off in Your calls, or reply STOP to stop all calls and texts."
+
+`signup.nudges.unavailable`
+> "Between-call texts are not available yet. Leave this option unchecked to continue."
+
+`page.nudges.on`
+> "Turn on between-call texts"
+
+`page.nudges.off`
+> "Turn off between-call texts"
+
+`page.nudges.saved`
+> "Your between-call text preference is saved."
+
+`sms.nudge.0`
+> "8&80: What would make a little room for curiosity today?"
+
+`sms.nudge.1`
+> "8&80: A small step counts. What feels possible today?"
+
+`sms.nudge.2`
+> "8&80: Is there someone you would like to make time for this week?"
+
+`sms.nudge.3`
+> "8&80: What is one thing today that your older self might be glad you made time for?"
+
+`sms.nudge.4`
+> "8&80: There can be room for something enjoyable before everything else is finished."
+
+`sms.nudge.5`
+> "8&80: If the week has changed, your next step can change with it."
+
+`sms.nudge.6`
+> "8&80: What has caught your interest lately? A few minutes with it might be enough."
+
+`sms.nudge.7`
+> "8&80: You can start small, start again, or take a pause. There is room for all three."

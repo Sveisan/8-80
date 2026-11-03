@@ -35,6 +35,8 @@ import {
   GOALS_MAX,
   type PageView,
 } from './link/page.ts';
+import { femaleVoiceReady, sameMessageNumber } from './agent/voices.ts';
+import { setNudges } from './sms/nudges.ts';
 import { accountState } from './link/account.ts';
 import { readMemory, correctMemory } from './memory/context.ts';
 import { memoryPage } from './memory/page.ts';
@@ -543,6 +545,20 @@ async function yourPage(
       (!state.canCall || (state.paused && action !== 'start'))) return await page();
   // Asked, not done. The only control here that a mis-tap should not be able
   // to end the arrangement with.
+  if (action === 'voice') {
+    const voice = form.get('voice');
+    if (voice !== 'male' && voice !== 'female') return await page();
+    if (voice === 'female' && !femaleVoiceReady()) return await page(undefined, undefined, { scheduleNote: 'page.voice.unavailable' });
+    await deps.store.upsertProfile(phone, { voice });
+    await measured(true);
+    return await page(undefined, undefined, { scheduleNote: 'page.voice.saved' });
+  }
+  if (action === 'nudges-on' || action === 'nudges-off') {
+    if (action === 'nudges-on' && !sameMessageNumber()) return await page();
+    await deps.store.raw.begin(tx => setNudges(tx, phoneHash, action === 'nudges-on', slot.timezone));
+    await measured(true);
+    return await page(undefined, undefined, { scheduleNote: 'page.nudges.saved' });
+  }
   if (action === 'feedback-on' || action === 'feedback-off') {
     await deps.store.raw`update callers set feedback_opt_out = ${action === 'feedback-off'} where phone_hash = ${phoneHash}`;
     await measured(true);

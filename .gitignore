@@ -42,3 +42,7 @@ coverage/
 cloudflared
 cloudflared.tgz
 ngrok
+
+# Local visual QA
+output/
+.playwright-cli/

@@ -394,7 +394,8 @@ test('a call moved during the call is actually moved', { skip: skip() }, async (
     'the weekly slot was left standing and the callback never happened',
   );
   // 17:30 Oslo, and in the future rather than the 17:30 that has already gone.
-  assert.match(after_?.next_call_at.toISOString() ?? '', /T15:30:00/);
+  assert.ok(after_);
+  assert.equal(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Oslo', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(after_.next_call_at), '17:30');
   assert.ok((after_?.next_call_at.getTime() ?? 0) > Date.now());
 });
 

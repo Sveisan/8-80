@@ -219,6 +219,12 @@ export function preflight(env: NodeJS.ProcessEnv = process.env): Check[] {
     if (env['OPERATOR_PHONE_BACKUP'] && !E164.test(env['OPERATOR_PHONE_BACKUP'])) {
       checks.push({ ok: false, label: 'OPERATOR_PHONE_BACKUP is not E.164', detail: 'Must start with + and contain digits only.' });
     }
+    const femaleIds = [env['SPEECHIFY_FEMALE_FIRST_CALL_AGENT_ID'], env['SPEECHIFY_FEMALE_AGENT_ID']];
+    if (femaleIds.some(Boolean)) {
+      const allIds = [...femaleIds, env['SPEECHIFY_FIRST_CALL_AGENT_ID'], env['SPEECHIFY_AGENT_ID']];
+      const valid = allIds.every(id => !!id && /^[a-zA-Z0-9_-]{1,120}$/.test(id)) && new Set(allIds).size === 4;
+      checks.push({ ok: valid, label: valid ? 'female first and weekly agents are distinct' : 'female voice routing is incomplete or duplicated', detail: 'Both female agents need the same phone number, signed completion callbacks and end_call. Run speechify:sync -- --check before offering the choice.' });
+    }
     if (!env['SPEECHIFY_FIRST_CALL_AGENT_ID']) {
       checks.push({
         ok: true,

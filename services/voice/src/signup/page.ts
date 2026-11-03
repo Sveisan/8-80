@@ -1,3 +1,4 @@
+import { femaleVoiceReady, sameMessageNumber } from '../agent/voices.ts';
 import type { ScriptLines } from '../script.ts';
 import { readBookingSlot, type Invalid, type Signup } from './form.ts';
 import { describeAppointment, nextSlotAfter } from '../schedule/time.ts';
@@ -78,13 +79,15 @@ const ERROR_KEY: Record<Invalid['why'], string> = {
   weekday: 'signup.error.weekday',
   time: 'signup.error.time',
   timezone: 'signup.error.timezone',
+  voice: 'page.voice.unavailable',
+  nudges: 'signup.nudges.unavailable',
 };
 
 export interface SignupFormState {
   errors?: Invalid[];
   note?: string;
   appointmentChecked?: boolean;
-  values?: Partial<Record<'name' | 'phone' | 'email' | 'weekday' | 'time' | 'timezone', string>>;
+  values?: Partial<Record<'name' | 'phone' | 'email' | 'weekday' | 'time' | 'timezone' | 'voice' | 'nudges', string>>;
 }
 
 /**
@@ -142,11 +145,31 @@ export function signupPage(
 
   return shell(
     `
+    <div class="signup-layout">
+    <section class="signup-intro" aria-labelledby="intro-heading">
     ${LOCKUP}
-    <h1>${say(headline)}${second}</h1>
+    <p class="eyebrow">${say('signup.eyebrow')}</p>
+    <h1 id="intro-heading">${say(headline)}${second}</h1>
     ${inFaq('signup.honest') ? '' : `<p class="honest">${say('signup.honest')}</p>`}
 
-    <p class="honest">${say('signup.summary')}</p>
+    <p class="honest intro-summary">${say('signup.summary')}</p>
+    <figure class="perspectives">
+      <svg viewBox="0 0 440 170" aria-hidden="true" focusable="false">
+        <path d="M80 100 C140 25 300 25 360 100" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".35"/>
+        <path d="M80 100 C140 156 300 156 360 100" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".35"/>
+        <circle cx="80" cy="92" r="43" fill="var(--gold)"/><circle cx="360" cy="92" r="43" fill="var(--ink)"/>
+        <text x="80" y="108" text-anchor="middle" fill="#1A2920" font-size="48">8</text>
+        <text x="360" y="108" text-anchor="middle" fill="var(--bg)" font-size="43">80</text>
+        <circle cx="220" cy="92" r="5" fill="currentColor"/>
+        <text x="220" y="121" text-anchor="middle" fill="currentColor" font-size="14">${say('signup.visual.today')}</text>
+      </svg>
+      <figcaption><span>${say('signup.visual.eight')}</span><span>${say('signup.visual.eighty')}</span></figcaption>
+    </figure>
+    <p class="intro-note">${say('signup.visual.detail')}</p>
+    </section>
+    <section class="booking-panel" aria-labelledby="booking-heading">
+    <p class="eyebrow">${say('signup.booking.step')}</p>
+    <h2 id="booking-heading">${say('signup.booking.title')}</h2>
     ${state.note ? `<p class="wrong" role="alert">${say(state.note)}</p>` : ''}
     ${note('timezone')}
 
@@ -157,6 +180,10 @@ export function signupPage(
         ${field('email', say(script.get('signup.email.short') ? 'signup.email.short' : 'signup.email'), 'email', 'autocomplete="email" autocapitalize="off" spellcheck="false" enterkeyhint="done" required')}
       </div>
 
+      ${femaleVoiceReady() ? `<fieldset class="voice-choice"><legend>${say('signup.voice')}</legend><div class="voice-options">
+        ${(['male', 'female'] as const).map(voice => `<label class="pick"><input type="radio" name="voice" value="${voice}"${(v.voice || 'male') === voice ? ' checked' : ''}/><span>${say(`signup.voice.${voice}`)}</span></label>`).join('')}
+      </div><p class="quiet small">${say('signup.voice.detail')}</p></fieldset>` : ''}
+      ${note('voice')}
       <fieldset${v.weekday || v.time ? '' : ' data-auto'} id="when">
         <legend>${say('signup.when')}</legend>
         <p class="zone" id="zone" data-other="${say('time.zone.other')}">${say('time.zone.home')}</p>
@@ -189,11 +216,15 @@ export function signupPage(
         <button type="submit" formaction="/start/preview" formnovalidate>${say('signup.appointment.check')}</button>
       </div>
       <p class="quiet small">${say('signup.appointment.detail')}</p>
+      ${sameMessageNumber() ? `<label class="nudge-choice"><input type="checkbox" name="nudges" value="yes"${v.nudges === 'yes' ? ' checked' : ''}/><span><strong>${say('signup.nudges')}</strong><small>${say('signup.nudges.detail')}</small></span></label>` : ''}
+      ${note('nudges')}
       <p class="quiet small" id="signup-verify">${say('signup.verify.detail')}</p>
       <button class="primary" aria-describedby="signup-verify">${busyLabel(say('signup.submit'))}</button>
       ${inFaq('signup.free') ? '' : `<p class="quiet small centre">${say('signup.free')}</p>`}
       <p class="quiet small centre">${say('signup.terms.summary')}</p>
     </form>
+    </section>
+    </div>
     <div class="returning">
       <p>${say('access.returning')}</p>
       <a href="/access">${say('access.title')} <span aria-hidden="true">&rarr;</span></a>
@@ -280,6 +311,7 @@ export function signupPage(
     </script>
   `,
     language,
+    true,
   );
 }
 
@@ -359,7 +391,7 @@ export { clock };
  * tokens as the reschedule page. Written for a 360px screen first; a wider one
  * only gets more margin.
  */
-function shell(body: string, language = 'en'): string {
+function shell(body: string, language = 'en', wide = false): string {
   return `<!doctype html>
 <html lang="${esc(language)}">
 <head>
@@ -509,12 +541,41 @@ function shell(body: string, language = 'en'): string {
      a sign-up page hoping nobody looks. */
   .legal { margin-top: 2rem; }
   .legal a { color: var(--quiet); }
+  .signup-wide { max-width: 68rem; }
+  .signup-layout { display: grid; gap: 2.5rem; }
+  .signup-intro { padding-top: .5rem; }
+  .signup-intro .lockup { justify-content: flex-start; margin-bottom: 2rem; }
+  .eyebrow { text-transform: uppercase; font-size: .72rem; letter-spacing: .14em; font-weight: 600; color: var(--quiet); margin: 0 0 1.1rem; }
+  .signup-intro h1 { font-size: clamp(2.6rem, 5vw, 4.1rem); line-height: 1.06; margin-bottom: 1.5rem; }
+  .intro-summary { font-size: 1.04rem; line-height: 1.7; max-width: 27rem; }
+  .perspectives { margin: 1.6rem 0 1rem; max-width: 28rem; }
+  .perspectives svg { color-scheme: light; width: 100%; display: block; font-family: var(--serif); }
+  .perspectives figcaption { display: flex; justify-content: space-between; gap: 1.5rem; font-size: .85rem; color: var(--quiet); }
+  .perspectives figcaption span { max-width: 9rem; }
+  .perspectives figcaption span:last-child { text-align: right; }
+  .intro-note { font-size: .95rem; line-height: 1.7; color: var(--quiet); margin-top: 1.5rem; max-width: 28rem; }
+  .booking-panel { padding: 1.6rem 1.1rem; border: 1px solid var(--line); background: var(--card); border-radius: 1.4rem; min-width: 0; }
+  .booking-panel h2 { font: 500 1.8rem/1.15 var(--serif); margin: 0 0 1.6rem; letter-spacing: -.02em; }
+  .booking-panel .fields { background: var(--bg); }
+  .booking-panel fieldset { margin-top: 2rem; }
+  .voice-options { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
+  .voice-choice .small { margin-top: .65rem; }
+  .nudge-choice { display: flex; align-items: flex-start; gap: .75rem; margin: 1.75rem 0; cursor: pointer; }
+  .nudge-choice input { flex: 0 0 1.2rem; width: 1.2rem; min-height: 1.2rem; margin: .2rem 0; accent-color: var(--accent); }
+  .nudge-choice strong { display: block; color: var(--ink); font-weight: 500; }
+  .nudge-choice small { display: block; margin-top: .4rem; line-height: 1.6; }
+  .signup-wide > .faq { max-width: 40rem; margin: 3rem auto 0; }
+  @media (min-width: 55rem) {
+    .signup-layout { grid-template-columns: minmax(0, 1fr) minmax(0, 28rem); gap: 4rem; align-items: start; }
+    .signup-intro { padding-top: 1.5rem; }
+    .booking-panel { padding: 2rem; }
+  }
   @media (min-width: 40rem) {
     body { padding-top: 4rem; }
     h1 { font-size: 2rem; }
   }
 </style>
 </head>
-<body><main>${body}</main>${BUSY}${MOTION}</body>
+<body><main${wide ? ' class="signup-wide"' : ''}>${body}</main>${BUSY}${MOTION}</body>
 </html>`;
 }

@@ -1,7 +1,9 @@
 import { log } from '../log.ts';
+import { femaleAgents } from './voices.ts';
 
 export interface PlaceCallRequest {
   to: string;
+  voice?: string;
   /** Their first call ever, which is a different agent with a different prompt. */
   firstCall?: boolean;
   /** Per-caller context, injected into the agent's prompt before the first turn. */
@@ -59,8 +61,10 @@ export class SpeechifyAgent {
     // here, because a body carrying all of them came back "Request body is not
     // valid JSON" — a message that says nothing about which field offended, so
     // the only way through is one at a time. `send` says which are allowed.
+    const female = req.voice === 'female' ? femaleAgents() : undefined;
+    if (req.voice === 'female' && !female) throw new Error('The female first and returning agents are not configured distinctly.');
     const body: Record<string, unknown> = {
-      agent_id: req.firstCall ? this.firstCallAgentId : this.agentId,
+      agent_id: female ? (req.firstCall ? female.first : female.returning) : req.firstCall ? this.firstCallAgentId : this.agentId,
       to: req.to,
       ...(req.callerIdNumber ? { caller_id_number: req.callerIdNumber } : {}),
       ...(this.send.variables && req.variables ? { dynamic_variables: req.variables } : {}),
@@ -113,7 +117,7 @@ export class SpeechifyAgent {
   }
 
   private async post(path: string, body: Record<string, unknown>, about: Record<string, unknown> = {}): Promise<unknown> {
-    const res = await fetch(`${this.base}${path}`, {
+    const res = await this.fetcher(`${this.base}${path}`, {
       method: 'POST',
       headers: { authorization: `Bearer ${this.apiKey}`, 'content-type': 'application/json' },
       body: JSON.stringify(body),

@@ -1,6 +1,7 @@
 import { checkoutLink } from '../billing/notice.ts';
 import { config } from '../config.ts';
 import { beliefConfig } from '../beliefs/config.ts';
+import { femaleVoiceReady, sameMessageNumber } from '../agent/voices.ts';
 import { maskEmail, type AccountState } from './account.ts';
 import type { ScriptLines } from '../script.ts';
 import { describeAppointment, type Slot } from '../schedule/time.ts';
@@ -271,6 +272,8 @@ export function reschedulePage(
         <button name="action" value="email">${busyLabel(say('page.email.save'))}</button>
         ${note ? `<p class="now said">${say(note)}</p>` : ''}
       </form></details>
+      ${state && (femaleVoiceReady() || state.voice === 'female') ? `<form method="post"><label for="voice">${say('signup.voice')}</label><select id="voice" name="voice"><option value="male"${state.voice !== 'female' ? ' selected' : ''}>${say('signup.voice.male')}</option><option value="female"${state.voice === 'female' ? ' selected' : ''}${!femaleVoiceReady() ? ' disabled' : ''}>${say('signup.voice.female')}</option></select><button name="action" value="voice">${say('page.voice.save')}</button></form>` : ''}
+      ${state && (sameMessageNumber() || state.nudgesEnabled) ? `<form method="post"><p class="hint">${say('signup.nudges.detail')}</p><button name="action" value="${state.nudgesEnabled ? 'nudges-off' : 'nudges-on'}">${say(state.nudgesEnabled ? 'page.nudges.off' : 'page.nudges.on')}</button></form>` : ''}
       ${state ? `<form method="post"><p class="hint">${say('page.feedback.detail')}</p><button name="action" value="${state.feedbackOptOut ? 'feedback-on' : 'feedback-off'}">${say(state.feedbackOptOut ? 'page.feedback.on' : 'page.feedback.off')}</button></form>` : ''}
     </section>
 

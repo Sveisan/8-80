@@ -1,3 +1,4 @@
+import { setNudges } from '../sms/nudges.ts';
 import { milestone, countRequest } from '../journey/measure.ts';
 import type { IncomingMessage } from 'node:http';
 import { config } from '../config.ts';
@@ -37,7 +38,7 @@ async function body(req: IncomingMessage): Promise<URLSearchParams | undefined> 
 const valuesOf = (signup: Signup): SignupFormState['values'] => ({
   name: signup.name, phone: signup.phone, email: signup.email, weekday: String(signup.weekday),
   time: `${String(Math.floor(signup.minute / 60)).padStart(2, '0')}:${String(signup.minute % 60).padStart(2, '0')}`,
-  timezone: signup.timezone,
+  timezone: signup.timezone, voice: signup.voice ?? '', nudges: signup.nudges ? 'yes' : '',
 });
 
 /** Draft capabilities preserve booking choices without revealing them by phone-number lookup. */
@@ -63,7 +64,7 @@ export async function signupRoutes(req: IncomingMessage, url: URL, deps: LoopDep
   if (!form) return page(413, { note: 'signup.code.tryagain' });
   if (url.pathname === '/start/preview') {
     const read = readBookingSlot(form, now);
-    const values = Object.fromEntries(['name', 'phone', 'email', 'weekday', 'time', 'timezone'].map(k => [k, form.get(k) ?? '']));
+    const values = Object.fromEntries(['name', 'phone', 'email', 'weekday', 'time', 'timezone', 'voice', 'nudges'].map(k => [k, form.get(k) ?? '']));
     return page(read.ok ? 200 : 400, { values, ...(read.ok ? { appointmentChecked: true } : { errors: read.errors }) });
   }
   const id = (form.get('draft') ?? '').slice(0, 36);
@@ -82,7 +83,8 @@ export async function signupRoutes(req: IncomingMessage, url: URL, deps: LoopDep
       await tx`select pg_advisory_xact_lock(hashtextextended(${hash}, 1))`;
       if (!(await scopedStore.phoneFor(hash))) {
         const slot = { weekday: signup.weekday, minute: signup.minute, timezone: signup.timezone };
-        await scopedStore.upsertProfile(signup.phone, { ...(signup.name ? { name: signup.name } : {}), email: signup.email });
+        await scopedStore.upsertProfile(signup.phone, { ...(signup.name ? { name: signup.name } : {}), email: signup.email, ...(signup.voice ? { voice: signup.voice } : {}) });
+        if (signup.nudges) await setNudges(tx, hash, true, signup.timezone, now);
         await scopedStore.startTrial(signup.phone, new Date(+now + TRIAL_DAYS * 24 * HOUR));
         const first = await new Scheduler(tx).setSlot(signup.phone, slot, now);
         const messages = queued(tx, hash, `welcome:${hash}:${now.toISOString()}`, now, 'welcome');
@@ -113,7 +115,7 @@ export async function signupRoutes(req: IncomingMessage, url: URL, deps: LoopDep
   } else {
     const read = readSignup(form, now);
     if (!read.ok) {
-      const values = Object.fromEntries(['name', 'phone', 'email', 'weekday', 'time', 'timezone'].map(k => [k, form.get(k) ?? '']));
+      const values = Object.fromEntries(['name', 'phone', 'email', 'weekday', 'time', 'timezone', 'voice', 'nudges'].map(k => [k, form.get(k) ?? '']));
       return page(400, { errors: read.errors, values });
     }
     signup = read.signup;

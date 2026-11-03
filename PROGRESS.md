@@ -137,11 +137,11 @@ measured — a real regression gate, not evidence about human timing.
 - Script §10, serious disclosure, is still behaviour-only. Wording at Milestone 5, for
   your review before it can reach anyone.
 
-## Later
+## First customer feedback, 3 November 2026
 
-- **Choosing the mentor's voice.** The first call on 27 September asked "man's or
-  woman's voice", took "woman" and said so, and nothing could act on it: a Speechify
-  agent has one fixed voice, `placeCall` sends none, and the answer was never stored.
-  The question is gone from the call. Doing it properly needs a voice choice at sign-up
-  and a second pair of agents (first and returning) in the other voice, picked per
-  caller when the call is placed. Deliberately after the call itself feels right.
+Voice choice is now wired from verified registration and Your calls through the weekly
+scheduler to separate female first/returning Speechify agents. The page has more space
+and a visual explaining the two perspectives. Optional same-number texts have per-caller
+consent, local daytime scheduling and delivery-time controls. Existing users are not
+opted in. See [setup and verification](docs/first-feedback.md). This is local code;
+production voice configuration and a listening check remain separate.

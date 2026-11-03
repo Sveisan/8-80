@@ -106,6 +106,13 @@ websocket must **not** pass through Cloudflare's proxy.
 the five 1–5 scores and writes them with the objective metrics to `runs/`. Run it again
 after every endpointing change — that is what it is for.
 
+### Voice choice and between-call texts
+
+The [first feedback implementation](docs/first-feedback.md) adds a female voice option at
+registration and in Your calls, a more spacious registration page, and opt-in SMS between
+calls. Apply migration 0028 and configure the separate female first/returning Speechify
+agents before offering that voice. The document records setup and verification.
+
 ### Changing what the mentor says
 
 The [weekly call quality and memory plan](docs/weekly-call-quality.md) records the verified memory path, conversation changes and owner listening scenarios. `npm run quality:weekly` runs the synthetic baseline without contacting providers.
