@@ -227,3 +227,45 @@ test('saved routing changes are limited to agent IDs and preserve credentials an
   assert.throws(() => parseState({ version: 1, ids: { unknown: 'agent_one' } }));
   assert.equal(mergeVariables([{ key: 'call_number', type: 'number', default: 1 }], ['call_number'])[0]!.default, 1);
 });
+
+test('female source pack covers both weekly stages and is included in subsequent weekly syncs', () => {
+  const pack=promptPack('weekly-female',{});
+  assert.deepEqual(pack.map(s=>s.role),['female-first','female-return']);
+  assert.equal(pack[0]!.prompt,promptPack('weekly',{})[0]!.prompt);
+  assert.equal(pack[1]!.prompt,promptPack('weekly',{})[1]!.prompt);
+  assert.equal(promptPack('weekly',{SPEECHIFY_FEMALE_AGENT_ID:'configured'}).length,4);
+});
+
+test('female sync cannot overwrite a male agent even when syncing the female group alone', async()=>{
+  const p=provider();
+  await assert.rejects(syncAgents(p.api,options({specs:[{...spec,role:'female-return'}],env:{SPEECHIFY_AGENT_ID:'agent_return',SPEECHIFY_FEMALE_AGENT_ID:'agent_return',SPEECHIFY_FEMALE_VOICE_ID:'verified-female'}})),/same agent/);
+  assert.equal(p.requests.length,0);
+});
+
+test('female sync manages and reads back voice, callback and privacy settings without changing the existing pair', async()=>{
+  const p=provider();const old=structuredClone(p.agents['agent_return']);
+  p.agents['female_return']={...structuredClone(old),id:'female_return'};p.variables['female_return']=[];
+  let backup:Backup|undefined;
+  await syncAgents(p.api,options({specs:[{...spec,role:'female-return'}],env:{SPEECHIFY_AGENT_ID:'agent_return',SPEECHIFY_FEMALE_AGENT_ID:'female_return',SPEECHIFY_FEMALE_VOICE_ID:'verified-female',PUBLIC_URL:'https://8and80.example'},saveBackup:async(value:Backup)=>{backup=value;}}));
+  assert.deepEqual(p.agents['agent_return'],old);
+  assert.deepEqual(p.agents['female_return']!['tts'],{voice_id:'verified-female',speed:0.8});
+  assert.deepEqual(p.agents['female_return']!['memory'],{enabled:false});
+  assert.equal(p.agents['female_return']!['save_audio_recording'],false);
+  assert.equal(p.agents['female_return']!['webhook_url'],'https://8and80.example/webhooks/speechify');
+  assert.deepEqual(backup!.agents[0]!.agent['tts'],old!['tts']);
+  await restoreAgents(p.api,backup);assert.deepEqual(p.agents['female_return']!['tts'],old!['tts']);
+});
+
+test('creating the female pair copies the matching stage greeting and pace, and reports missing tools before routing',async()=>{
+  const p=provider();
+  p.agents['agent_first']={...structuredClone(p.agents['agent_return']),id:'agent_first',first_message:'First greeting',tts:{voice_id:'original-first',speed:0.72}};
+  p.variables['agent_first']=[];
+  const saved=state();
+  const reports=await syncAgents(p.api,options({specs:promptPack('weekly-female',{}),state:saved,env:{SPEECHIFY_AGENT_ID:'agent_return',SPEECHIFY_FIRST_CALL_AGENT_ID:'agent_first',SPEECHIFY_FEMALE_VOICE_ID:'verified-female',SPEECHIFY_WEBHOOK_SECRET:'synthetic-secret',PUBLIC_URL:'https://8and80.example'}}));
+  assert.equal(reports.length,2);assert.ok(reports.every(r=>r.created && r.tools==='unverified'));
+  const first=p.agents[saved.ids['female-first']!]!;const returning=p.agents[saved.ids['female-return']!]!;
+  assert.equal(first['first_message'],'First greeting');assert.equal(returning['first_message'],'Existing greeting');
+  assert.deepEqual(first['tts'],{voice_id:'verified-female',speed:0.72});
+  assert.deepEqual(returning['tts'],{voice_id:'verified-female',speed:0.8});
+  assert.equal(p.agents['agent_return']!['prompt'],'Old');assert.equal(p.requests.filter(r=>r.method==='POST').length,2);
+});

@@ -54,10 +54,10 @@ export class Pending {
     await tx`
       insert into signups (
         id, product, phone_hash, phone_enc, email_enc, name, timezone,
-        slot_weekday, slot_minute, code_hash, attempts, expires_at, created_at
+        slot_weekday, slot_minute, voice, nudges, code_hash, attempts, expires_at, created_at
       ) values (
         ${id}, ${product}, ${hash}, ${encrypt(signup.phone)}, ${signup.email ? encrypt(signup.email) : null}, ${signup.name},
-        ${signup.timezone}, ${signup.weekday}, ${signup.minute}, ${codeKey(hash, code)}, 0,
+        ${signup.timezone}, ${signup.weekday}, ${signup.minute}, ${signup.voice ?? null}, ${signup.nudges ?? false}, ${codeKey(hash, code)}, 0,
         ${new Date(now.getTime() + TTL_MS)}, ${now}
       )
       on conflict (phone_hash, product) do update set
@@ -65,7 +65,7 @@ export class Pending {
         product = excluded.product,
         phone_enc = excluded.phone_enc, email_enc = excluded.email_enc, name = excluded.name,
         timezone = excluded.timezone, slot_weekday = excluded.slot_weekday,
-        slot_minute = excluded.slot_minute, code_hash = excluded.code_hash,
+        slot_minute = excluded.slot_minute, voice = excluded.voice, nudges = excluded.nudges, code_hash = excluded.code_hash,
         attempts = 0, expires_at = excluded.expires_at, created_at = excluded.created_at
     `;
     await onCreated?.(tx, id, code);
@@ -86,11 +86,11 @@ export class Pending {
       await tx`select pg_advisory_xact_lock(hashtextextended(${hash}, 1))`;
       await tx`select phone_hash from callers where phone_hash = ${hash} for update`;
       const rows = await tx<
-        { code_hash: string; attempts: number; expires_at: Date; phone_enc: string; email_enc: string | null; name: string | null; timezone: string; slot_weekday: number; slot_minute: number }[]
+        { code_hash: string; attempts: number; expires_at: Date; phone_enc: string; email_enc: string | null; name: string | null; timezone: string; slot_weekday: number; slot_minute: number; voice: string | null; nudges: boolean }[]
       >`
         update signups set attempts = attempts + 1
         where phone_hash = ${hash} and product = ${product} and (${draftId ?? null}::text is null or id = ${draftId ?? null})
-        returning code_hash, attempts, expires_at, phone_enc, email_enc, name, timezone, slot_weekday, slot_minute
+        returning code_hash, attempts, expires_at, phone_enc, email_enc, name, timezone, slot_weekday, slot_minute, voice, nudges
       `;
       const row = rows[0];
       if (!row) return { ok: false, why: 'unknown' };
@@ -102,13 +102,15 @@ export class Pending {
       if (want.length !== got.length || !timingSafeEqual(want, got)) return { ok: false, why: 'wrong' };
 
       await tx`delete from signups where phone_hash = ${hash} and product = ${product}`;
-      const signup = {
+      const signup: Signup = {
           phone: decrypt(row.phone_enc),
           email: row.email_enc ? decrypt(row.email_enc) : '',
           name: row.name ?? '',
           weekday: row.slot_weekday,
           minute: row.slot_minute,
           timezone: row.timezone,
+          ...(row.voice === 'female' || row.voice === 'male' ? { voice: row.voice } : {}),
+          ...(row.nudges ? { nudges: true } : {}),
         };
       await onVerified?.(tx, signup);
       return { ok: true, signup };
@@ -118,12 +120,12 @@ export class Pending {
   /** Only an opaque draft capability may reveal the pre-verification form values. */
   async draft(id: string, now = new Date(), product = 'weekly'): Promise<Signup | undefined> {
     if (!/^[0-9a-f-]{36}$/.test(id)) return undefined;
-    const [row] = await this.sql<{ phone_enc: string; email_enc: string | null; name: string | null; slot_weekday: number; slot_minute: number; timezone: string }[]>`
-      select phone_enc, email_enc, name, slot_weekday, slot_minute, timezone from signups
+    const [row] = await this.sql<{ phone_enc: string; email_enc: string | null; name: string | null; slot_weekday: number; slot_minute: number; voice: string | null; nudges: boolean; timezone: string }[]>`
+      select phone_enc, email_enc, name, slot_weekday, slot_minute, timezone, voice, nudges from signups
       where id = ${id} and product = ${product} and created_at > ${new Date(now.getTime() - 3600_000)}
     `;
     return row ? { phone: decrypt(row.phone_enc), email: row.email_enc ? decrypt(row.email_enc) : '', name: row.name ?? '',
-      weekday: row.slot_weekday, minute: row.slot_minute, timezone: row.timezone } : undefined;
+      weekday: row.slot_weekday, minute: row.slot_minute, timezone: row.timezone, ...(row.voice === 'female' || row.voice === 'male' ? { voice: row.voice } : {}), ...(row.nudges ? { nudges: true } : {}) } : undefined;
   }
 
   async invalidate(id: string, now = new Date()): Promise<void> {

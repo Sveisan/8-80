@@ -1,3 +1,4 @@
+import { femaleVoiceReady, sameMessageNumber } from '../agent/voices.ts';
 import { parseLocalTime, parseWeekday, type Slot } from '../schedule/time.ts';
 
 export interface Signup {
@@ -7,6 +8,8 @@ export interface Signup {
   weekday: number;
   minute: number;
   timezone: string;
+  voice?: 'female' | 'male';
+  nudges?: boolean;
 }
 
 export type Invalid = { field: keyof Signup; why: string };
@@ -69,13 +72,17 @@ export function readSignup(
   const name = get('name').slice(0, 80);
   // Optional first name for the greeting; booking also works without one.
 
+  const voice = get('voice');
+  if (voice && voice !== 'male' && (voice !== 'female' || !femaleVoiceReady())) errors.push({ field: 'voice', why: 'voice' });
+  const nudges = form.get('nudges') === 'yes';
+  if (nudges && !sameMessageNumber()) errors.push({ field: 'nudges', why: 'nudges' });
   const slot = readBookingSlot(form, now);
   if (!slot.ok) errors.push(...slot.errors);
 
   if (errors.length || !slot.ok) return { ok: false, errors };
   return {
     ok: true,
-    signup: { phone, email, name, ...slot.slot },
+    signup: { phone, email, name, ...slot.slot, ...(voice ? { voice: voice as 'female' | 'male' } : {}), ...(nudges ? { nudges: true } : {}) },
   };
 }
 

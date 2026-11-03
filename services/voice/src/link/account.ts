@@ -2,6 +2,8 @@ import type postgres from 'postgres';
 
 export interface AccountState {
   paused: boolean;
+  voice?: string;
+  nudgesEnabled?: boolean;
   onHold?: boolean;
   billing: string;
   canCall: boolean;
@@ -15,8 +17,8 @@ export interface AccountState {
 
 /** One snapshot of the conditions the scheduler uses, including the trial boundary. */
 export async function accountState(sql: postgres.Sql, hash: string, now = new Date()): Promise<AccountState | undefined> {
-  const [row] = await sql<{ paused: boolean; billing_status: string; trial_ends_at: Date | null; next_call_at: Date | null; ls_subscription_id: string | null; cancel_at_period_end: boolean; paid_until: Date | null; feedback_opt_out: boolean; held_for_review: boolean }[]>`
-    select paused, billing_status, trial_ends_at, next_call_at, ls_subscription_id, cancel_at_period_end, paid_until, feedback_opt_out, held_for_review from callers where phone_hash = ${hash}
+  const [row] = await sql<{ paused: boolean; billing_status: string; trial_ends_at: Date | null; next_call_at: Date | null; ls_subscription_id: string | null; cancel_at_period_end: boolean; paid_until: Date | null; feedback_opt_out: boolean; held_for_review: boolean; voice: string | null; nudges_enabled: boolean }[]>`
+    select paused, billing_status, trial_ends_at, next_call_at, ls_subscription_id, cancel_at_period_end, paid_until, feedback_opt_out, held_for_review, voice, nudges_enabled from callers where phone_hash = ${hash}
   `;
   if (!row) return undefined;
   const trial = row.billing_status === 'trialing';
@@ -25,6 +27,7 @@ export async function accountState(sql: postgres.Sql, hash: string, now = new Da
   const canCall = entitled && (!row.cancel_at_period_end || (!!row.paid_until && row.paid_until > now));
   const next = row.next_call_at;
   return {
+    voice: row.voice ?? undefined, nudgesEnabled: row.nudges_enabled,
     feedbackOptOut: row.feedback_opt_out, subscribed: !!row.ls_subscription_id, cancelAtPeriodEnd: row.cancel_at_period_end, ...(row.paid_until ? { paidUntil: row.paid_until } : {}),
     onHold: row.held_for_review, paused: row.paused, billing: endedTrial ? 'trial_ended' : row.billing_status, canCall,
     ...((trial || endedTrial) && row.trial_ends_at ? { trialEnds: row.trial_ends_at } : {}),

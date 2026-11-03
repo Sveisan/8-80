@@ -1,3 +1,5 @@
+import { sameMessageNumber } from '../agent/voices.ts';
+import { localDate, zonedTimeToUtc } from '../schedule/time.ts';
 import { randomUUID } from 'node:crypto';
 import type { Database } from '../store/transaction.ts';
 import { decrypt, encrypt } from '../store/crypto.ts';
@@ -8,7 +10,7 @@ import { OptedOut } from '../sms/types.ts';
 import type { Mailer } from '../recap/mailer.ts';
 import { SendFailure } from './types.ts';
 
-export type MessageKind = 'call' | 'welcome' | 'recap' | 'billing' | 'trial' | 'feedback' | 'access' | 'signup' | 'reply' | 'export' | 'beliefs' | 'safety' | 'operator';
+export type MessageKind = 'call' | 'welcome' | 'recap' | 'billing' | 'trial' | 'feedback' | 'access' | 'signup' | 'reply' | 'export' | 'beliefs' | 'safety' | 'operator' | 'nudge';
 export interface Message {
   eventKey: string; phoneHash: string; channel: 'sms' | 'email'; kind: MessageKind;
   to: string; body: string | Recap; reference?: string; expiresAt?: Date;
@@ -55,7 +57,7 @@ export async function recoverMessages(deps: LoopDeps, now = new Date()): Promise
 /** Suppression is rechecked under the same caller lock used by deletion and controls. */
 async function suppression(sql: Database, row: Row, now: Date): Promise<string | undefined> {
   if (row.expires_at <= now) return 'expired';
-  const [caller] = await sql`select email_enc, next_call_at, paused, held_for_review, sms_opt_out, feedback_opt_out, billing_status, cancel_at_period_end, ls_subscription_id from callers where phone_hash = ${row.phone_hash} for update`;
+  const [caller] = await sql`select email_enc, next_call_at, paused, all_calls_stopped, held_for_review, sms_opt_out, feedback_opt_out, billing_status, cancel_at_period_end, paid_until, trial_ends_at, ls_subscription_id, nudges_enabled, nudge_sequence, timezone, call_number, onboarding from callers where phone_hash = ${row.phone_hash} for update`;
   if (row.kind === 'signup' || row.kind === 'access') {
     const valid = row.kind === 'signup'
       ? await sql`select id from signups where phone_hash = ${row.phone_hash} and id = ${row.reference} and expires_at > ${now} for update`
@@ -71,6 +73,24 @@ async function suppression(sql: Database, row: Row, now: Date): Promise<string |
   if(row.kind==='beliefs' && row.event_key.startsWith('beliefs:retention:')){
     const [e]=await sql`select history_delete_at,history_deleted_at from belief_enrollments where id=${row.reference}`;
     if(!e || e['history_deleted_at'] || !e['history_delete_at'] || row.event_key!==`beliefs:retention:${row.reference}:${e['history_delete_at'].toISOString()}`)return 'history_notice_changed';
+  }
+  if (row.kind === 'nudge') {
+    if (!caller?.['nudges_enabled']) return 'nudges_off';
+    if (row.reference !== String(caller['nudge_sequence'])) return 'preference_changed';
+    if (!sameMessageNumber()) return 'sender_changed';
+    if (caller['paused'] || caller['all_calls_stopped']) return 'calls_paused';
+    if (caller['held_for_review']) return 'human_review';
+    if (Number(caller['call_number']) <= 1 || !['complete', 'legacy'].includes(caller['onboarding'])) return 'onboarding_incomplete';
+    const entitled = ['comped', 'active', 'past_due'].includes(caller['billing_status']) || (caller['billing_status'] === 'trialing' && (!caller['trial_ends_at'] || caller['trial_ends_at'] > now));
+    if (!entitled || (caller['cancel_at_period_end'] && (!caller['paid_until'] || caller['paid_until'] <= now))) return 'billing_inactive';
+    if (!caller['timezone']) return 'timezone_missing';
+    const d = localDate(now, caller['timezone']);
+    if (now < zonedTimeToUtc(d.year, d.month, d.day, 600, caller['timezone']) || now >= zonedTimeToUtc(d.year, d.month, d.day, 1080, caller['timezone'])) return 'quiet_hours';
+    const active = await sql`select id from call_attempts where phone_hash = ${row.phone_hash} and status in ('claimed','placed','active') limit 1`;
+    if (active.length) return 'wait_for_spacing';
+    const recent = await sql`select id from message_outbox where phone_hash = ${row.phone_hash} and channel = 'sms' and id <> ${row.id}
+      and ((accepted_at > ${new Date(+now - 2 * HOUR)}) or (kind = 'nudge' and accepted_at > ${new Date(+now - 24 * HOUR)}) or (status = 'sending' and started_at > ${new Date(+now - 2 * HOUR)})) limit 1`;
+    if (recent.length) return 'wait_for_spacing';
   }
   if (row.kind === 'trial' && (caller?.['billing_status'] !== 'ended' || caller?.['ls_subscription_id'])) return 'trial_state_changed';
   if (row.kind === 'billing' && row.reference !== `${caller?.['billing_status']}:${caller?.['cancel_at_period_end']}`) return 'billing_state_changed';

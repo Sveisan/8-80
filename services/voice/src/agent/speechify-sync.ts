@@ -108,7 +108,7 @@ function fieldsMatch(actual: Json, wanted: Json): boolean {
     return value && typeof value === 'object' && !Array.isArray(value) ? !!got && typeof got === 'object' && !Array.isArray(got) && fieldsMatch(got as Json, value as Json) : isDeepStrictEqual(got, value);
   });
 }
-const ownedFields = ['prompt', 'first_message', 'webhook_url', 'memory', 'amd', 'save_audio_recording'] as const;
+const ownedFields = ['prompt', 'first_message', 'webhook_url', 'memory', 'amd', 'save_audio_recording', 'tts'] as const;
 /** JSON Merge Patch needs nulls to remove settings introduced after a snapshot. */
 function restorePatch(before: Json, current: Json): Json {
   return Object.fromEntries([...new Set([...Object.keys(before), ...Object.keys(current)])].map(key => {
@@ -142,6 +142,10 @@ export async function syncAgents(api: SpeechifySettingsApi, options: SyncOptions
   const resolved = specs.map(spec => ({ spec, id: env[agentKeys[spec.role]]?.trim() || state.ids[spec.role] }));
   const ids = resolved.flatMap(v => v.id ? [resourceId(v.id)] : []);
   if (new Set(ids).size !== ids.length) throw new Error('Two roles point to the same agent. Separate the IDs before uploading different prompts.');
+  if (resolved.some(v => v.spec.role.startsWith('female-'))) {
+    const all = Object.entries(agentKeys).flatMap(([role, key]) => { const id = env[key]?.trim() || state.ids[role as AgentRole]; return id ? [resourceId(id)] : []; });
+    if (new Set(all).size !== all.length) throw new Error('Two roles point to the same agent. Female agents must be separate from every existing agent.');
+  }
   // Agent-creation idempotency has not been confirmed for this beta endpoint.
   // Keep the key, but never replay an uncertain POST on that assumption alone.
   if (apply && state.pending && !resolved.some(v => v.spec.role === state.pending!.role && v.id)) throw new Error('An earlier create request remains unconfirmed. Find that agent in Speechify and set its role’s agent ID before rerunning; no second create request was sent.');
@@ -152,18 +156,36 @@ export async function syncAgents(api: SpeechifySettingsApi, options: SyncOptions
   const entries: { spec: PromptSpec; id?: string; agent?: Json; currentVariables: Variable[]; variables: Variable[]; wanted: Json; create?: Json }[] = [];
   for (const { spec, id } of resolved) {
     const beliefs = spec.role.startsWith('belief-');
+    const female = spec.role.startsWith('female-');
+    const femaleVoice = env['SPEECHIFY_FEMALE_VOICE_ID']?.trim();
+    if (female && !femaleVoice) throw new Error('Set SPEECHIFY_FEMALE_VOICE_ID to a verified female voice before syncing the female agents.');
     const agent = id ? await api.agent(id) : undefined;
     const currentVariables = id ? await api.variables(id) : [];
     const variables = mergeVariables(currentVariables, spec.variables);
     const wanted: Json = { prompt: spec.prompt };
     // All three routing branches are required, even when only voicemail/unavailable behaviour changes.
     if (beliefs) Object.assign(wanted, { first_message: spec.firstMessage ?? '', memory: { enabled: false }, amd: { enabled: true, on_voicemail: { action: 'hangup' }, on_ivr: { action: 'proceed' }, on_unavailable: { action: 'hangup' } }, save_audio_recording: false, webhook_url: privateUrl(env['PUBLIC_URL']) });
+    if (female) Object.assign(wanted, { tts: { voice_id: femaleVoice }, memory: { enabled: false }, amd: { enabled: true, on_voicemail: { action: 'hangup' }, on_ivr: { action: 'proceed' }, on_unavailable: { action: 'hangup' } }, save_audio_recording: false, webhook_url: privateUrl(env['PUBLIC_URL']) });
     let create: Json | undefined;
     if (!id) {
-      if (typeof voice !== 'string' || !voice) throw new Error('New agents need SPEECHIFY_SETUP_VOICE_ID or an existing SPEECHIFY_AGENT_ID with a voice.');
+      const selectedVoice = female ? femaleVoice : voice;
+      if (typeof selectedVoice !== 'string' || !selectedVoice) throw new Error('New agents need SPEECHIFY_SETUP_VOICE_ID or an existing SPEECHIFY_AGENT_ID with a voice.');
       const secret = env['SPEECHIFY_WEBHOOK_SECRET']?.split(',')[0]?.trim();
       if (!secret) throw new Error('SPEECHIFY_WEBHOOK_SECRET is required to create signed callbacks.');
-      create = { name: spec.name, kind: 'voice', ...wanted, prompt: 'This agent is being configured. Do not begin a conversation.', tts: { voice_id: voice }, language: typeof template?.['language'] === 'string' ? template['language'] : 'en', first_message: '', is_public: false, webhook_url: privateUrl(env['PUBLIC_URL']), webhook_secret: secret };
+      create = { name: spec.name, kind: 'voice', ...wanted, prompt: 'This agent is being configured. Do not begin a conversation.', tts: { voice_id: selectedVoice }, language: typeof template?.['language'] === 'string' ? template['language'] : 'en', first_message: '', is_public: false, webhook_url: privateUrl(env['PUBLIC_URL']), webhook_secret: secret };
+    }
+    if (female && !id) {
+      const sourceId = spec.role === 'female-first' ? env['SPEECHIFY_FIRST_CALL_AGENT_ID'] : env['SPEECHIFY_AGENT_ID'];
+      if (!sourceId) throw new Error('Configure both existing weekly agents before adding a female pair.');
+      const source = await api.agent(resourceId(sourceId));
+      if (!toolsPresent(source, false)) throw new Error('The source weekly agent must have end_call configured before adding a female pair.');
+      if (typeof source['first_message'] !== 'string') throw new Error('The source weekly greeting could not be read.');
+      wanted['first_message'] = source['first_message'];
+      if (create) {
+        create['first_message'] = '';
+        create['language'] = source['language'] ?? 'en';
+        create['tts'] = { ...record(source['tts']), voice_id: femaleVoice };
+      }
     }
     entries.push({ spec, id, agent, currentVariables, variables, wanted, create });
   }
@@ -172,7 +194,7 @@ export async function syncAgents(api: SpeechifySettingsApi, options: SyncOptions
     if (!recovered?.id || recovered.agent?.['name'] !== recovered.spec.name || recovered.agent?.['is_public'] !== false) throw new Error('The supplied recovery ID does not identify the expected private setup agent. No configuration was changed.');
   }
   // Read and validate every selected agent before the first provider write.
-  if (apply) await options.saveBackup({ version: 1, at: now.toISOString(), agents: entries.flatMap(e => e.id && e.agent ? [{ role: e.spec.role, id: e.id, agent: Object.fromEntries(ownedFields.filter(k => Object.hasOwn(e.agent!, k) && (k !== 'first_message' || e.spec.role.startsWith('belief-'))).map(k => [k, e.agent![k]])), variables: e.currentVariables }] : []) });
+  if (apply) await options.saveBackup({ version: 1, at: now.toISOString(), agents: entries.flatMap(e => e.id && e.agent ? [{ role: e.spec.role, id: e.id, agent: Object.fromEntries(ownedFields.filter(k => Object.hasOwn(e.agent!, k) && (k !== 'first_message' || e.spec.role.startsWith('belief-') || e.spec.role.startsWith('female-')) && (k !== 'tts' || e.spec.role.startsWith('female-'))).map(k => [k, e.agent![k]])), variables: e.currentVariables }] : []) });
   if (apply && state.pending) { delete state.pending; await options.saveState(state); }
   const reports: SyncReport[] = [];
   for (const entry of entries) {
@@ -219,7 +241,7 @@ export async function restoreAgents(api: SpeechifySettingsApi, input: unknown): 
   let index = 0;
   for (const { id, settings, variables } of entries) {
     // Older restore points predate managed greetings: they cannot restore an unknown greeting.
-    const fields = ownedFields.filter(k => k !== 'first_message' || Object.hasOwn(settings, k));
+    const fields = ownedFields.filter(k => !['first_message', 'tts'].includes(k) || Object.hasOwn(settings, k));
     // The old prompt's variables still exist in the merged catalog until this restore.
     const current = Object.fromEntries(fields.filter(k => Object.hasOwn(originals[index]!, k)).map(k => [k, originals[index]![k]])); index++;
     await api.request('PATCH', `/v1/agents/${id}`, restorePatch(settings, current));

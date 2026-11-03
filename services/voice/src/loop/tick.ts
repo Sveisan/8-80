@@ -160,6 +160,7 @@ export async function tick(deps: LoopDeps, now = new Date()): Promise<TickResult
           // else in the record moves, so the returning call still has a last week
           // to ask about once the rehearsal is over.
           firstCall: needsOnboarding(caller),
+          voice: caller.voice,
           variables: variablesFor({ ...caller, nextSlot: nextSaid, ...(slotSaid ? { bookedSlot: slotSaid } : {}) }),
           ...(config.speechify.callerIdNumber ? { callerIdNumber: config.speechify.callerIdNumber } : {}),
           ...(caller.language ? { language: caller.language } : {}),

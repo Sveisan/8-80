@@ -1,3 +1,4 @@
+import { queueDueNudges } from './sms/nudges.ts';
 import { pruneJourney } from './journey/measure.ts';
 import { Pending } from './signup/pending.ts';
 import { AccessCodes } from './access/codes.ts';
@@ -45,10 +46,11 @@ try {
   // query each minute rather than a timer per call, so a restart loses nothing.
   const asked = await sendDueFeedback(deps);
   await maintainBeliefPolicies(deps);
+  const nudgesQueued = await queueDueNudges(deps);
   await dispatchMessages(deps);
   await pruneJourney(deps.store.raw);
-  if (result.claimed || closed || pruned || ended || asked) {
-    log('tick.summary', { ...result, swept: closed, pruned, trialsEnded: ended, feedbackSent: asked });
+  if (result.claimed || closed || pruned || ended || asked || nudgesQueued) {
+    log('tick.summary', { ...result, swept: closed, pruned, trialsEnded: ended, feedbackSent: asked, nudgesQueued });
   }
 
   // Always, including the quiet runs. A tick logs only when it claims a call,
