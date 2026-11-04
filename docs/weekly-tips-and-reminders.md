@@ -1,20 +1,20 @@
 # In-call feature tips and one-time SMS reminders
 
-Implemented locally on 3 November 2026. This change does not deploy production,
-import a provider tool, send a message or place a call. The English launch copy
-stays in SCRIPT.md; the discussion and scoring below refer to its 20 proposed phrases.
+Implemented on 3 November 2026 and revised after owner phone tests on 4 November.
+Global activation remains gated by successful live verification. The English
+launch copy stays in SCRIPT.md; the scoring below covers its 20 proposed phrases.
 
 ## Editorial selection
 
 Scores are editorial assessments of usefulness, brevity, caller control and
 whether the capability actually exists. They are not customer ratings or A/B
-results. Only scores **strictly greater than 7** enter the live catalogue: 14
+results. Only scores **strictly greater than 7** enter the live catalogue: 12
 phrases. Rejected wording is absent from SCRIPT.md and cannot be selected.
 
 | # | Proposed function or phrase | Score / 10 | Decision and reason |
 |---|---|---:|---|
-| 1 | Ask how the service works | 8 | Keep: short, scoped discovery. |
-| 2 | Offer examples of uses for these calls | 8 | Keep: alternative discovery wording. |
+| 1 | Ask how the service works | 7 | Remove after owner feedback: too general to demonstrate a function. |
+| 2 | Offer examples of uses for these calls | 7 | Remove: same lack of a concrete function. |
 | 3 | Ask for a more direct mentor | 7 | Remove: no saved directness preference. |
 | 4 | Think aloud instead of answering questions | 9 | Keep: existing conversational behaviour. |
 | 5 | Take one thing at a time | 8 | Keep: clear adjustment within this call. |
@@ -40,14 +40,14 @@ The server returns one approved phrase. The provider prompt never contains the
 entire phrase bank, so rejected or unavailable capabilities are not options.
 Two sticky sequences are assigned per account:
 
-- A: discovery, voice, scheduling, optional texts, reminder, thinking aloud,
+- A: voice, scheduling, optional texts, reminder, thinking aloud,
   pace, shorter calls, no action required, correcting memory, reminder control,
   stopping tips.
-- B: discovery, reminder, scheduling, correcting memory, no action required,
+- B: reminder, scheduling, correcting memory, no action required,
   voice, thinking aloud, shorter calls, pace, optional texts, reminder control,
   stopping tips.
 
-Discovery has two variants (#1/#2); pace has two (#5/#6). Sequence A selects the
+Pace has two variants (#5/#6). Sequence A selects the
 first, B the second. This is a **sequence-level experiment**: it cannot establish
 which individual phrase caused a difference.
 
@@ -69,6 +69,14 @@ not pause calls, opt into/out of between-call texts, or cancel a reminder.
 
 `weekly_assist` exposes context/status, tip reports, tip preferences,
 `reminder_prepare`, `reminder_confirm` and `reminder_cancel`.
+
+Relative requests use `after_minutes` (server clock) or `shift_minutes` plus the
+current pending revision (existing due time). They cannot be mixed with each
+other or absolute date/time. Proposals return the server-calculated local date,
+time and timezone before explicit confirmation. Absolute appointments still use
+strict wall-clock validation. Status includes local `date`/`time` as well as UTC
+`now`: the owner test found the model had mistaken 10:38 UTC for 10:38 Oslo time,
+so the model must not perform that conversion for relative reminders.
 
 1. Agree exact SMS text, full local date and time in the account timezone.
 2. Prepare an encrypted ten-minute draft. The existing reminder stays intact.

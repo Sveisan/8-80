@@ -17,7 +17,7 @@ const request=async(method:string,path:string,body?:unknown):Promise<Record<stri
   if(!response.ok)throw new Error(`Speechify tool operation ${method} failed (${response.status}); no response content printed.`);
   return text?JSON.parse(text) as Record<string,unknown>:{};
 };
-const expected=['attempt_id','session_token','command','request_id','text','date','time','draft_id','tip_id','response','confirmed','revision'];
+const expected=['attempt_id','session_token','command','request_id','text','date','time','after_minutes','shift_minutes','draft_id','tip_id','response','confirmed','revision'];
 type Binding={id:string;name:string;enabled:boolean;kind:string;definition_id?:string;config?:{url?:string;method?:string;params?:{name:string;type:string;required:boolean}[]}};
 const bindings=async(id:string):Promise<Binding[]>=>{
   const result=await request('GET',`/v1/agents/${id}/tools`);
@@ -29,7 +29,7 @@ try {
   const c=definition['config'] as Binding['config'];
   const url=new URL('/weekly/tool',config.link.publicUrl());
   if(url.protocol!=='https:' || definition['name']!=='weekly_assist' || definition['kind']!=='webhook' || c?.url!==url.href || c.method!=='POST'
-    || c.params?.length!==expected.length || expected.some(name=>!c.params?.some(p=>p.name===name && p.type===(name==='confirmed'?'boolean':name==='revision'?'integer':'string') && p.required===['attempt_id','session_token','command'].includes(name))))throw new Error('Tool definition does not match the reviewed endpoint and parameter contract.');
+    || c.params?.length!==expected.length || expected.some(name=>!c.params?.some(p=>p.name===name && p.type===(name==='confirmed'?'boolean':['revision','after_minutes','shift_minutes'].includes(name)?'integer':'string') && p.required===['attempt_id','session_token','command'].includes(name))))throw new Error('Tool definition does not match the reviewed endpoint and parameter contract.');
   const original:Record<string,Binding[]>={};for(const id of ids)original[id]=await bindings(id);
   const backup=resolve(dir,`before-${Date.now()}.json`);
   if(mode!=='--check')writeFileSync(backup,JSON.stringify({definition,bindings:original}),{mode:0o600,flag:'wx'});
@@ -49,7 +49,7 @@ try {
       await request('PATCH',`/v1/agents/${id}/tools/${tool}`,{enabled:mode==='--enable'});
     }
     const current=await bindings(id),ours=current.find(b=>b.id===tool);
-    if(!ours || ours.name!=='weekly_assist' || ours.kind!=='webhook' || ours.config?.url!==url.href || ours.config.params?.length!==12 || (mode!=='--check' && ours.enabled!==(mode==='--enable'))
+    if(!ours || ours.name!=='weekly_assist' || ours.kind!=='webhook' || ours.config?.url!==url.href || ours.config.params?.length!==expected.length || (mode!=='--check' && ours.enabled!==(mode==='--enable'))
       || !current.some(b=>b.name==='end_call' && b.enabled) || original[id]!.some(b=>b.id!==tool && !current.some(a=>a.id===b.id && a.enabled===b.enabled)))throw new Error('Read-back did not verify the intended binding and existing tools.');
     console.log(`${keys[index]}: weekly_assist verified ${ours.enabled?'ENABLED':'DISABLED'}; existing tools preserved.`);
   }

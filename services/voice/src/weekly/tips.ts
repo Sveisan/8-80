@@ -8,15 +8,15 @@ export const EXPERIMENT = 'weekly-tips-v1';
 export type Arm = 'A' | 'B';
 /** Editorial scores, not measured customer preferences. Only scores strictly above 7 ship. */
 export const CANDIDATES = [
-  ['01', 'help', 8], ['02', 'help', 8], ['03', 'directness', 7], ['04', 'think', 9],
+  ['01', 'help', 7], ['02', 'help', 7], ['03', 'directness', 7], ['04', 'think', 9],
   ['05', 'pace', 8], ['06', 'pace', 9], ['07', 'shorter', 9], ['08', 'no_action', 10],
   ['09', 'memory', 10], ['10', 'followup', 7], ['11', 'voice', 9], ['12', 'schedule', 10],
   ['13', 'nudges', 8], ['14', 'reminder', 9], ['15', 'time_question', 7], ['16', 'recurring', 4],
   ['17', 'calendar', 3], ['18', 'extra_call', 3], ['19', 'reminder_control', 10], ['20', 'tips_control', 10],
 ] as const;
 const SEQUENCES: Record<Arm, readonly string[]> = {
-  A: ['help', 'voice', 'schedule', 'nudges', 'reminder', 'think', 'pace', 'shorter', 'no_action', 'memory', 'followup', 'reminder_control', 'tips_control'],
-  B: ['help', 'reminder', 'schedule', 'memory', 'no_action', 'voice', 'think', 'shorter', 'pace', 'nudges', 'followup', 'reminder_control', 'tips_control'],
+  A: ['voice', 'schedule', 'nudges', 'reminder', 'think', 'pace', 'shorter', 'no_action', 'memory', 'followup', 'reminder_control', 'tips_control'],
+  B: ['reminder', 'schedule', 'memory', 'no_action', 'voice', 'think', 'shorter', 'pace', 'nudges', 'followup', 'reminder_control', 'tips_control'],
 };
 export const randomizedArm = (hash: string): Arm => createHash('sha256').update(`${EXPERIMENT}:${hash}`).digest()[0]! % 2 ? 'B' : 'A';
 interface Progress { arm?: Arm; topics?: string[]; last?: string; }

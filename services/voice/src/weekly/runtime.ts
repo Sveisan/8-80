@@ -1,7 +1,7 @@
 import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
 import type { LoopDeps } from '../loop/deps.ts';
 import { decrypt, encrypt } from '../store/crypto.ts';
-import { canRemind, invalidateReminder, reminderTime, reminderView, WeeklyToolError } from './reminders.ts';
+import { canRemind, invalidateReminder, reminderTime, reminderLocalTime, relativeReminderTime, reminderView, WeeklyToolError } from './reminders.ts';
 import { nextTip, consumeTopic } from './tips.ts';
 
 export function weeklyToolsReady(env: NodeJS.ProcessEnv=process.env): boolean {
@@ -40,10 +40,11 @@ export async function weeklyTool(deps: LoopDeps, input: unknown, now=new Date())
       || !attempt['started_at'] || +now-+attempt['started_at']>45*60_000 || now<attempt['started_at'])throw new WeeklyToolError('session_closed');
     const reminder=await reminderView(tx,hash);
     const remindersAvailable=!deps.sms.previewOnly&&canRemind(caller,now);
-    if(command==='status')return {reminder,tips_enabled:caller['tips_enabled'],timezone:caller['timezone'],now:now.toISOString(),reminders_available:remindersAvailable};
+    const clock={now:now.toISOString(),timezone:caller['timezone'],...(caller['timezone']?reminderLocalTime(now,caller['timezone']):{})};
+    if(command==='status')return {reminder,tips_enabled:caller['tips_enabled'],...clock,reminders_available:remindersAvailable};
     if(command==='context') {
       const eligible=!caller['paused']&&!caller['all_calls_stopped']&&!caller['held_for_review']&&!caller['sms_opt_out'] && +now-+attempt['started_at']>=180_000;
-      return {tip:eligible?await nextTip(tx,hash,id,deps.script,now,!deps.sms.previewOnly):null,reminder,tips_enabled:caller['tips_enabled'],reminders_available:remindersAvailable,timezone:caller['timezone'],now:now.toISOString()};
+      return {tip:eligible?await nextTip(tx,hash,id,deps.script,now,!deps.sms.previewOnly):null,reminder,tips_enabled:caller['tips_enabled'],reminders_available:remindersAvailable,...clock};
     }
     const request=string(v['request_id']);
     if(!/^[a-zA-Z0-9_-]{1,80}$/.test(request))throw new WeeklyToolError('request_id_required');
@@ -74,7 +75,11 @@ export async function weeklyTool(deps: LoopDeps, input: unknown, now=new Date())
       const text=string(v['text']).trim();
       if(!text || text.length>240 || Array.from(text).some(c=>c.charCodeAt(0)<32))throw new WeeklyToolError('short_reminder_text_required');
       const zone=string(caller['timezone']);if(!zone)throw new WeeklyToolError('timezone_required');
-      const due=reminderTime(string(v['date']),string(v['time']),zone,now);
+      const after=v['after_minutes']!==undefined,shift=v['shift_minutes']!==undefined;
+      if((after&&shift)||((after||shift)&&(v['date']!==undefined||v['time']!==undefined)))throw new WeeklyToolError('choose_one_time_mode');
+      if(shift&&(!reminder||!['scheduled','queued'].includes(reminder.state)||v['revision']!==reminder.revision))throw new WeeklyToolError('pending_reminder_revision_required');
+      const due=after?relativeReminderTime(v['after_minutes'],now):shift?relativeReminderTime(v['shift_minutes'],now,new Date(reminder!.at)):reminderTime(string(v['date']),string(v['time']),zone,now);
+      const local=reminderLocalTime(due,zone);
       // A reminder must still be within the entitlement explicitly granted now.
       const boundary=caller['cancel_at_period_end']?caller['paid_until']:caller['billing_status']==='trialing'?caller['trial_ends_at']:null;
       if(boundary && due>=boundary)throw new WeeklyToolError('reminder_beyond_access');
@@ -82,7 +87,7 @@ export async function weeklyTool(deps: LoopDeps, input: unknown, now=new Date())
       await tx`delete from weekly_reminder_drafts where attempt_id=${id}`;
       await tx`insert into weekly_reminder_drafts(id,phone_hash,attempt_id,revision,body_enc,replaces_pending,due_at,timezone,expires_at)
         values(${draft},${hash},${id},${reminder?.revision??0},${encrypt(text)},${!!reminder&&['scheduled','queued'].includes(reminder.state)},${due},${zone},${new Date(+now+10*60_000)})`;
-      out={draft_id:draft,text,date:v['date'],time:v['time'],timezone:zone,channel:'sms',replaces_existing:!!reminder&&['scheduled','queued'].includes(reminder.state),
+      out={draft_id:draft,text,...local,at:due.toISOString(),timezone:zone,channel:'sms',replaces_existing:!!reminder&&['scheduled','queued'].includes(reminder.state),
         instruction:'Read back this exact text, full date, local time, timezone and one SMS. Ask for explicit confirmation. Nothing has been scheduled or changed yet.'};
     } else if(command==='reminder_confirm'){
       if(!remindersAvailable)throw new WeeklyToolError('reminders_unavailable');
