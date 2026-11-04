@@ -113,7 +113,7 @@ test('live weekly prompt writes are blocked while dialogue changes are held in p
   const p=provider();
   await assert.rejects(syncAgents(p.api,options({env:{SPEECHIFY_AGENT_ID:'agent_return',WEEKLY_DIALOGUE_PILOT:'1',WEEKLY_DIALOGUE_READY:'0'}})),/held in pilot/);
   assert.equal(p.requests.length,0);
-  p.agents['pilot_return']=structuredClone(p.agents['agent_return']);p.variables['pilot_return']=structuredClone(p.variables['agent_return']!);
+  p.agents['pilot_return']=structuredClone(p.agents['agent_return']!);p.variables['pilot_return']=structuredClone(p.variables['agent_return']!);
   await syncAgents(p.api,options({dialoguePilot:true,env:{SPEECHIFY_AGENT_ID:'pilot_return',WEEKLY_DIALOGUE_PILOT:'1',WEEKLY_DIALOGUE_READY:'0'}}));
   assert.equal(p.agents['pilot_return']!['prompt'],spec.prompt);assert.equal(p.agents['agent_return']!['prompt'],'Old');
 });
