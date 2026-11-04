@@ -329,7 +329,7 @@ test('creating the female pair copies the matching stage greeting and pace, and 
   const reports=await syncAgents(p.api,options({specs:promptPack('weekly-female',{}),state:saved,env:{SPEECHIFY_AGENT_ID:'agent_return',SPEECHIFY_FIRST_CALL_AGENT_ID:'agent_first',SPEECHIFY_FEMALE_VOICE_ID:'verified-female',SPEECHIFY_WEBHOOK_SECRET:'synthetic-secret',PUBLIC_URL:'https://8and80.example'}}));
   assert.equal(reports.length,2);assert.ok(reports.every(r=>r.created && r.tools==='unverified'));
   const first=p.agents[saved.ids['female-first']!]!;const returning=p.agents[saved.ids['female-return']!]!;
-  assert.equal(first['first_message'],weeklyGreeting());assert.equal(returning['first_message'],weeklyGreeting());
+  assert.equal(first['first_message'],weeklyGreeting());assert.equal(returning['first_message'],weeklyGreeting(false));
   assert.deepEqual(first['tts'],{voice_id:'verified-female',speed:0.72});
   assert.deepEqual(returning['tts'],{voice_id:'verified-female',speed:0.8});
   assert.equal(p.agents['agent_return']!['prompt'],'Old');assert.equal(p.requests.filter(r=>r.method==='POST').length,2);

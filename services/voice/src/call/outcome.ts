@@ -3,7 +3,8 @@ import type { AttemptStatus } from '../schedule/scheduler.ts';
 import type { CallOutcome } from '../store/types.ts';
 import { extractCommitment } from './commitment.ts';
 import { extractReschedule, type SpokenTime } from './reschedule.ts';
-import { readBack, readBackSpan } from './readback.ts';
+import { readBack } from './readback.ts';
+import { containsWeeklyLine, weeklyReadBackSpan } from './weekly-lines.ts';
 import { lastWeek } from './lastweek.ts';
 import { carries } from './scorecard.ts';
 import { normalise } from '../turn/endpointer.ts';
@@ -98,27 +99,23 @@ export function settle(transcript: CallTranscript, script: ScriptLines, now = ne
   const positions = transcript.turns.flatMap((t, i) => t.speaker === 'agent' && t.text.trim() ? [i] : []);
   // The turn that carries the whole read-back first; the whole call only when
   // a backchannel split it.
-  const currentSpan = readBackSpan(said, script.get('next.confirm'), { strict: true });
+  const currentSpan = weeklyReadBackSpan(said, script, 'next.confirm', { strict: true });
   const current = currentSpan
-    ? extractCommitment(said.slice(currentSpan.start, currentSpan.end + 1).join(' '), script, { strict: true })
+    ? extractCommitment(said.slice(currentSpan.start, currentSpan.end + 1).join(' '), new Map(script).set('next.confirm', currentSpan.template), { strict: true })
     : undefined;
-  const previousScript=new Map(script).set('next.confirm',"Right — {{commitment}}. I'll ask how it went next time we talk.");
-  const previousSpan=readBackSpan(said,previousScript.get('next.confirm'),{strict:true});
-  const previous=previousSpan?extractCommitment(said.slice(previousSpan.start,previousSpan.end+1).join(' '),previousScript,{strict:true}):undefined;
   // Older recordings used a question at the end of the fixed read-back.
   const legacyScript = new Map(script).set('next.confirm', 'Right. {{commitment}}, {{day}}. Will you?');
   const legacyIndex = said.findLastIndex(text => /^right[\s.—-]/i.test(text.trim()) && /will you\??[.!]?$/i.test(text.trim()) && !!extractCommitment(text, legacyScript));
   const legacy = legacyIndex >= 0 ? extractCommitment(said[legacyIndex]!, legacyScript) : undefined;
   const currentAt = currentSpan && current ? positions[currentSpan.end] ?? -1 : -1;
   const legacyAt = legacy ? positions[legacyIndex] ?? -1 : -1;
-  const previousAt=previousSpan&&previous?positions[previousSpan.end]??-1:-1;
-  const committedAt = Math.max(currentAt,previousAt, legacyAt);
-  let commitment = currentAt===committedAt?current:previousAt===committedAt?previous:legacy;
+  const committedAt = Math.max(currentAt, legacyAt);
+  let commitment = currentAt === committedAt ? current : legacy;
   const callAgain = extractReschedule(spoken, script);
   // This fixed branch is used only after an explicit choice of no action.
   // A later read-back can replace it, but an earlier proposal cannot survive it.
   const invitations=[...script].filter(([key])=>key.startsWith('next.ask.')&&!key.endsWith('.calibrate')).map(([,text])=>text);
-  const declinedAt = transcript.turns.findLastIndex((t,i) => !strict&&t.speaker==='agent'&&!!script.get('next.none')&&carries(t.text,script.get('next.none')!) || t.speaker==='caller' && (explicitNoAction(t.text)
+  const declinedAt = transcript.turns.findLastIndex((t,i) => !strict&&t.speaker==='agent'&&containsWeeklyLine(t.text,script,'next.none') || t.speaker==='caller' && (explicitNoAction(t.text)
     || /^(no|nope|not this week|nei|ikke denne uken)\b/.test(normalise(t.text))
       && invitations.some(line=>carries(transcript.turns.slice(0,i).findLast(p=>p.speaker==='agent')?.text??'',line))));
   const noAction = declinedAt >= 0 && declinedAt > committedAt
@@ -135,7 +132,7 @@ export function settle(transcript: CallTranscript, script: ScriptLines, now = ne
   const withdrawn=transcript.turns.slice(committedAt+1).some(t=>t.speaker==='caller'
     && /\b(dont save that|do not save that|dont remember that|that is not my action|thats not my action|i withdraw|ikke lagre det|ikke husk det)\b/.test(normalise(t.text)));
   if (noAction || rejected || strict&&(withdrawn || !confirmsAction(reply))) commitment = undefined;
-  const map = readBackSpan(said, script.get('read.first.keep'));
+  const map = weeklyReadBackSpan(said, script, 'read.first.keep');
   const selves = map?.values;
 
   // A call moved before it got anywhere is not a failed call and not a week
@@ -159,7 +156,7 @@ export function settle(transcript: CallTranscript, script: ScriptLines, now = ne
   // supersedes older corrections, including a map split across messages.
   let mapEnd = map?.end ?? -1;
   if (selves) for (const [field, key] of [['eight', 'read.first.fix_eight'], ['eighty', 'read.first.fix_eighty'], ['goals', 'read.first.fix']] as const) {
-    const fix = readBackSpan(said, script.get(key));
+    const fix = weeklyReadBackSpan(said, script, key);
     if (fix && fix.end > (map?.end ?? -1) && fix.values[field]) {
       selves[field] = fix.values[field]!;
       mapEnd = Math.max(mapEnd, fix.end);
@@ -168,11 +165,9 @@ export function settle(transcript: CallTranscript, script: ScriptLines, now = ne
   const belief = readBack(said, script.get('belief.name'))?.['belief'];
   const noPrevious = script.get('open.return.no_action');
   const week = noPrevious && said.some(t => carries(t, noPrevious)) ? undefined : lastWeek(said, script);
-  const changeSlot = script.get('setup.change_slot');
-  const wantsSlotChange = !!changeSlot && said.some((t) => carries(t, changeSlot));
-  const confirmed = script.get('onboarding.confirmed');
+  const wantsSlotChange = said.some(t => containsWeeklyLine(t, script, 'setup.change_slot'));
   const mappedAt = mapEnd < 0 ? -1 : positions[mapEnd] ?? -1;
-  const confirmedAt = transcript.turns.findLastIndex(t => t.speaker === 'agent' && !!confirmed && carries(t.text, confirmed));
+  const confirmedAt = transcript.turns.findLastIndex(t => t.speaker === 'agent' && containsWeeklyLine(t.text, script, 'onboarding.confirmed'));
   const onboardingComplete = !!selves && mappedAt >= 0 && confirmedAt > mappedAt
     && confirmsMap(transcript.turns.slice(mappedAt + 1, confirmedAt));
 
