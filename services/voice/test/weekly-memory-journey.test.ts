@@ -121,11 +121,38 @@ test('signed webhook → encrypted memory → next outbound request and prompt, 
     assert.ok(prompt.includes(eight));
     assert.match(prompt, /THIS IS NOT THE FIRST CALL/);
     const rendered = weeklyPrompt(false).replace(/\{\{([^}]+)\}\}/g, (_, key: string) => vars[key] ?? '');
-    assert.ok(rendered.includes(`The last action I have recorded is ${vars['last_commitment']}. How did it go?`));
+    assert.ok(rendered.includes(`Last time, you said: ${vars['last_commitment']}. How did it go?`));
     assert.ok(rendered.includes(eight));
     assert.doesNotMatch(rendered, /\{\{/);
   }
 });
+
+for (const [resultLine, resultField] of [['last.did', 'weeksDone'], ['last.partial', 'weeksPartly'], ['nothing.c.follow', 'weeksUndone']] as const) {
+  test(`new wording persists ${resultField} and carries the chosen action to the next request`, options, async () => {
+    await enrol();
+    await db!.store.record(phoneA, { at: now.toISOString(), durationMs: 100_000, commitment: 'original action', eight: 'drawing', eighty: 'family', goals: 'learn to sail', onboardingComplete: true });
+    const d = deps();
+    await tick(d, now);
+    const payload = event('wire_1', [
+      ['user', 'Here is how the action went.'], ['assistant', fill(resultLine)],
+      ['user', 'Next I choose to phone the school.'], ['assistant', fill('next.confirm', { commitment: 'phone the sailing school' })], ['user', 'Yes.'], ['assistant', fill('next.agreed')],
+    ]);
+    await settleConversation(payload, d, undefined, now);
+    await settleConversation(payload, d, undefined, now);
+    const profile = await db!.store.load(phoneA);
+    assert.equal(profile[resultField], 1, 'a duplicate completion cannot count the result twice');
+    assert.equal(profile.lastCommitment, 'phone the sailing school');
+    assert.equal(profile.eight, 'drawing');
+    assert.equal(profile.eighty, 'family');
+    assert.equal(profile.goals, 'learn to sail');
+    await tick(d, nextWeek);
+    const vars = wire[1]!['dynamic_variables'] as Record<string, string>;
+    assert.equal(vars['last_commitment'], 'phone the sailing school');
+    assert.equal(vars['own_eight'], 'drawing');
+    assert.equal(vars['own_goals'], 'learn to sail');
+    assert.doesNotMatch(JSON.stringify(vars), /original action/);
+  });
+}
 
 test('no-action clears the old action; incomplete extraction preserves it; a new action clears an old day', options, async () => {
   await enrol();

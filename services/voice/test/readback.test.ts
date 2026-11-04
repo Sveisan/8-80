@@ -9,14 +9,14 @@ const script = loadScript();
 
 test('their eight and eighty come out of the read-back, in their words', () => {
   const found = readBack(
-    ['Mm.', 'Let me say it back. At eight, building dens in the woods. By eighty, a family. And in the next three months, the apartment and a stand-up set. Have I got that right?', 'Which one?'],
+    ['Mm.', "Let me say it back. Your eight-year-old self would love building dens in the woods. By eighty, you'd like a family. And in the next three months, the apartment and a stand-up set. Have I got that right?", 'Which one?'],
     script.get('read.first.keep'),
   );
   assert.deepEqual(found, { eight: 'building dens in the woods', eighty: 'a family', goals: 'the apartment and a stand up set' });
 });
 
 test('a read-back that dropped its closing words still counts, inside its own turn', () => {
-  const found = readBack(['Let me say it back. At eight, building dens. By eighty, a family. And in the next three months, stand-up.', 'Anyway.'], script.get('read.first.keep'));
+  const found = readBack(["Let me say it back. Your eight-year-old self would love building dens. By eighty, you'd like a family. And in the next three months, stand-up.", 'Anyway.'], script.get('read.first.keep'));
   assert.deepEqual(found, { eight: 'building dens', eighty: 'a family', goals: 'stand up' });
 });
 

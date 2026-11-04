@@ -34,7 +34,7 @@ test('the prompt tells the mentor how to move a call so it actually moves', () =
   // and nowhere else, so a prompt that omits it produces an agreement the
   // scheduler never hears about — which is exactly what happened.
   const p = buildInstructions(loadScript(), { callNumber: 1 });
-  assert.match(p, /ring you back at/i);
+  assert.match(p, /call you back at/i);
   assert.match(p, /digits/i);
 });
 
@@ -114,11 +114,11 @@ test('the first call runs from easy to real: eight, eighty, this year, then the 
   const at = (s: string) => p.indexOf(s);
   const order = [
     'knocking on your door',
-    "You're eighty, looking back",
-    'the next three months. What would you like to have achieved by then?',
+    "Now picture yourself at eighty, looking back",
+    'the next three months, what would you like to be different?',
     'Let me say it back.',
-    'Which one would you most like to see move',
-    "What's one thing you'll do on it",
+    'Which of those would you like to focus on',
+    "What's one thing you'd like to do towards that",
   ].map(at);
   assert.ok(order.every((n) => n >= 0), 'a stage is missing');
   assert.deepEqual([...order].sort((a, b) => a - b), order, 'the stages are out of order');
@@ -126,7 +126,7 @@ test('the first call runs from easy to real: eight, eighty, this year, then the 
 
 test('the first call never asks for an email, and confirms the slot rather than asking', () => {
   const p = buildInstructions(loadScript(), { callNumber: 1, bookedSlot: 'Sunday at 13:00' });
-  assert.match(p, /You picked Sunday at 13:00 for these/);
+  assert.match(p, /Your usual call is Sunday at 13:00/);
   assert.match(p, /Never ask for an email address/);
   assert.ok(!/which address\?/i.test(p), 'the email question is still in the prompt');
 });
@@ -145,8 +145,8 @@ test('a stored value can never be substituted into a slot the model fills', () =
 
 test('the first call reads their eight and eighty back, which is how they are kept', () => {
   const p = buildInstructions(loadScript(), { callNumber: 1 });
-  assert.match(p, /At eight, \{\{eight\}\}/);
-  assert.match(p, /By eighty, \{\{eighty\}\}/);
+  assert.match(p, /Your eight-year-old self would love \{\{eight\}\}/);
+  assert.match(p, /By eighty, you'd like \{\{eighty\}\}/);
   assert.match(p, /three months, \{\{goals\}\}/);
 });
 
@@ -158,7 +158,7 @@ test('a returning call reads against their own answers, and never repeats an ass
     eighty: 'a stand up set',
     belief: 'nobody will pay for this',
   });
-  assert.match(p, /At eight it was building dens\./);
+  assert.match(p, /your eight-year-old self would love building dens\./);
   assert.match(p, /a stand up set/);
   assert.match(p, /Never say the assumption itself out loud/);
   assert.ok(!/Will you\?/.test(p), 'the read-back is not a compliance test');
@@ -168,7 +168,7 @@ test('a returning call reads against their own answers, and never repeats an ass
 
 test('a returning caller with no answers on file gets the read as it always was', () => {
   const p = buildInstructions(loadScript(), { callNumber: 3, lastCommitment: 'call two members' });
-  assert.ok(!p.includes('At eight it was'), 'no own-answer read without their answers');
+  assert.ok(!p.includes('You said your eight-year-old self would love'), 'no own-answer read without their answers');
   assert.ok(!p.includes('Never say the assumption itself'), 'no test to ask about');
 });
 
@@ -225,7 +225,7 @@ test('no prompt asks for, pins or expects a day for the one thing', () => {
 test('the eight-year-old visits their present life at home or out, without homework or a second question', () => {
   const script = loadScript();
   const p = buildInstructions(loadScript(), { callNumber: 1 });
-  assert.match(p, /Are you at home, or out and about/);
+  assert.match(p, /Are you at home or somewhere else/);
   assert.match(p, /knocking on your door right now/);
   const out = script.get('eight.out')!;
   assert.ok(p.includes(out));
@@ -255,7 +255,7 @@ test('the shorter opening preserves disclosure, agreement and room for an answer
   assert.ok(opening.split(/\s+/).length <= 65, 'setup must stay brief before the first perspective');
   const disclosure = s.get('open.first.disclosure')!;
   assert.match(disclosure, /AI/); assert.match(disclosure, /written note/);
-  assert.match(disclosure, /stop me any time/); assert.match(disclosure, /All right\?$/);
+  assert.match(disclosure, /stop me any time/); assert.doesNotMatch(disclosure, /\?/);
   const p = buildInstructions(s, {callNumber:1});
   assert.match(p, /leave room for their answer, without calling it misheard/);
   assert.match(p, /wait for the answer/);
@@ -267,7 +267,7 @@ test('weekly prompts distinguish acknowledgment and feedback from consent to han
   for (const callNumber of [1, 2]) {
     const p = buildInstructions(loadScript(), {callNumber});
     assert.match(p, /"thank you".*is an acknowledgement, not a request to end/);
-    assert.match(p, /Accept clear agreement to the greeting, disclosure or map/);
+    assert.match(p, /Accept clear agreement to the greeting or map/);
     assert.match(p, /A shop or being out does not itself mean they are unavailable/);
     assert.match(p, /feedback about this call, not permission to hang up/);
     assert.match(p, /End when they clearly ask to stop or say goodbye/);
@@ -284,9 +284,9 @@ test('weekly prompts distinguish acknowledgment and feedback from consent to han
 
 test('a first name greets them when known, and leaves no gap when not', () => {
   const s = loadScript();
-  assert.match(buildInstructions(s, { callNumber: 3, lastCommitment: 'x', firstName: 'Eirik' }), /"Hello Eirik — it's your 8 and 80 call/);
+  assert.match(buildInstructions(s, { callNumber: 3, lastCommitment: 'x', firstName: 'Eirik' }), /"Hello again, Eirik\./);
   const anon = buildInstructions(s, { callNumber: 3, lastCommitment: 'x' });
-  assert.match(anon, /"Hello — it's your 8 and 80 call/);
+  assert.match(anon, /"Hello again\./);
   assert.ok(!anon.includes('Hello again, .'));
   assert.match(buildInstructions(s, { callNumber: 1 }), /"Hello — it's your 8 and 80 call/);
 });

@@ -1,4 +1,5 @@
 import type { ScriptLines } from '../script.ts';
+import { weeklyLineTemplates } from './weekly-lines.ts';
 import { carries } from './scorecard.ts';
 
 /** Whether last week's one thing happened, as the call established it. */
@@ -20,8 +21,7 @@ export type LastWeek = 'done' | 'partly' | 'undone';
  */
 export function lastWeek(agentTurns: readonly string[], script: ScriptLines): LastWeek | undefined {
   const said = (id: string) => {
-    const line = script.get(id);
-    return !!line && agentTurns.some((t) => carries(t, line));
+    return weeklyLineTemplates(script, id).some(line => agentTurns.some(t => carries(t, line)));
   };
   // A first call has no last week, and saying so here is not belt-and-braces.
   // `block.first` ("And what usually gets in the way of it?") shares four of

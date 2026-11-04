@@ -1,3 +1,4 @@
+import { weeklyLineTemplates } from './weekly-lines.ts';
 import type { ScriptLines } from '../script.ts';
 import { localDate, parseWeekday, zonedTimeToUtc } from '../schedule/time.ts';
 
@@ -52,8 +53,8 @@ const EARLIEST = Number(process.env['CALLBACK_EARLIEST_HOUR'] ?? 7);
 const LATEST = Number(process.env['CALLBACK_LATEST_HOUR'] ?? 21);
 
 export function extractReschedule(spoken: string, script: ScriptLines): SpokenTime | undefined {
-  const template = script.get('reschedule.confirm');
-  if (!template) return undefined;
+  const templates = weeklyLineTemplates(script, 'reschedule.confirm');
+  if (!templates.length) return undefined;
 
   // Anchor on the fixed words immediately before the slot, so the phrasing
   // stays editable in SCRIPT.md. Without an anchor, any clock time anywhere in
@@ -61,13 +62,15 @@ export function extractReschedule(spoken: string, script: ScriptLines): SpokenTi
   // week. The last few words rather than the whole opening, because the first
   // word of a spoken line is the one most likely to come out differently:
   // "Fine." and "Right." are the same agreement and "ring you back at" is not.
-  const [before] = template.split('{{time}}');
-  const head = loosen(before ?? '').split(' ').slice(-4).join(' ');
-  if (head.length < 6) return undefined;
-
   const said = loosen(spoken);
-  const at = said.lastIndexOf(head);
-  if (at < 0) return undefined;
+  const matches = templates.map(template => {
+    const [before] = template.split('{{time}}');
+    const head = loosen(before ?? '').split(' ').slice(-4).join(' ');
+    return { head, at: head.length >= 6 ? said.lastIndexOf(head) : -1 };
+  }).filter(match => match.at >= 0).sort((a, b) => b.at - a.at);
+  const selected = matches[0];
+  if (!selected) return undefined;
+  const { head, at } = selected;
   // Only what follows the agreement, and not the rest of the call after it.
   const rest = said.slice(at + head.length).slice(0, 60);
 

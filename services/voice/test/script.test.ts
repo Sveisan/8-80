@@ -10,7 +10,7 @@ test('parses keyed lines out of SCRIPT.md', () => {
   const lines = parseScript(SCRIPT);
   assert.ok(lines.size > 25, `expected many lines, got ${lines.size}`);
   assert.equal(lines.get('nothing.c'), 'Mm.');
-  assert.match(lines.get('open.return.callback') ?? '', /^The last action I have recorded/);
+  assert.match(lines.get('open.return.callback') ?? '', /^Last time, you said:/);
 });
 
 test('joins multi-line quoted blocks into one utterance', () => {

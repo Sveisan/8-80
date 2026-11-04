@@ -216,7 +216,7 @@ test('the model is told to stop after a question, not to talk past it', async ()
   const { voice } = await drive([{ buf: QUIET, count: 5 }], false);
   assert.match(voice.instructions, /ONE THING AT A TIME/);
   assert.match(voice.instructions, /stop dead and wait/);
-  assert.match(voice.instructions, /separate turns, not a speech/);
+  assert.match(voice.instructions, /Other numbered stages are separate turns/);
 });
 
 test('a returning call is told, in the first line, not to introduce itself', async () => {
@@ -315,6 +315,6 @@ test('the disclaimer is for danger, not for a hard week', async () => {
 
 test('a returning call continues after the platform opening without a second greeting', async () => {
   const { voice } = await drive([{ buf: QUIET, count: 5 }], false);
-  assert.match(voice.instructions, /platform's greeting and availability question are the whole opening/);
+  assert.match(voice.instructions, /platform's greeting is the whole opening/);
   assert.doesNotMatch(voice.instructions,/YOUR FIRST SENTENCE IS EXACTLY: "Hello again/);
 });
