@@ -13,6 +13,7 @@ const previous: Record<string, readonly string[]> = {
   'next.none': ['We can leave it there this week.'],
   'last.did': ['Right. How was it — worth doing, or did it just get done?'],
   'last.partial': ["So some of it. Which part didn't survive the week?"],
+  'nothing.pattern': ['Third week running — is the goal wrong, or is something else going on?'],
   'setup.change_slot': ["I can't move it from the call yet, so it stays as it is for now. Sorry about that."],
   'reschedule.confirm': ["Fine. I'll ring you back at {{time}} {{when}}."],
 };

@@ -85,6 +85,7 @@ test('separating a result from its optional follow-up keeps all three outcomes, 
   assert.equal(outcome([c('I did it.'), a('Right. How was it — worth doing, or did it just get done?')]).lastWeek, 'done');
   assert.equal(outcome([c('Part of it.'), a("So some of it. Which part didn't survive the week?")]).lastWeek, 'partly');
   assert.equal(outcome([c('Done.'), a('Right. How was it — worth doing, or did it simply get done?')]).lastWeek, 'done', 'historical result markers retain their existing tolerance for a changed word');
+  assert.equal(outcome([c('Nothing again.'), a('Mm.'), a('Third week running — is the goal wrong, or is something else going on?')]).lastWeek, 'undone', 'an in-flight ordinary call can still use the old repeated-undone marker');
   assert.equal(outcome([c('Still thinking.'), a('Mm.'), a(line('silence.patience'))]).lastWeek, undefined);
 });
 
