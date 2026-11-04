@@ -7,6 +7,7 @@ import { weeklyCallContext, weeklyToolsAllowed, weeklyToken, weeklyTool } from '
 import { reminderTime, queueDueReminders, pruneWeekly } from '../src/weekly/reminders.ts';
 import { CANDIDATES, EXPERIMENT, chooseWinner, observeTip, optimizeTips, tipReport, type ExperimentGroup } from '../src/weekly/tips.ts';
 import { weeklyOpenApi } from '../src/weekly/tool-schema.ts';
+import { weeklyWebhookArguments } from '../src/weekly/transport.ts';
 import { dispatchMessages, dispatchMessage } from '../src/messages/outbox.ts';
 import { SendFailure } from '../src/messages/types.ts';
 import { loadScript } from '../src/script.ts';
@@ -29,6 +30,7 @@ let texts:string[]=[], requests=0;
 const deps=():LoopDeps=>({store:db!.store,scheduler:new Scheduler(db!.sql),script,agent:new SpeechifyAgent('synthetic','return','first'),
   mailer:{send:async()=>undefined},sms:{send:async(_phone,body)=>{texts.push(body);return {id:'synthetic-sms'};}}});
 const call=(command:string,extra:Record<string,unknown>={},at=now,id=attempt)=>weeklyTool(deps(),{attempt_id:id,session_token:weeklyToken(id),command,request_id:`request-${++requests}`,...extra},at);
+const envelope=(args:unknown)=>({arguments:args,timestamp:Date.now()/1000,tool_call_id:'synthetic-tool-call',tool_name:'weekly_assist'});
 async function enrolled(at=now,id=attempt,p=phone):Promise<void>{
   await db!.store.upsertProfile(p,{name:'Synthetic',email:'synthetic@example.com'});
   await db!.sql`update callers set timezone='Europe/Oslo',onboarding='complete',call_number=2 where phone_hash=${phoneKey(p)}`;
@@ -68,6 +70,17 @@ test('wall clock validation rejects gaps, repeated hours, impossible dates and p
   assert.throws(()=>reminderTime('2026-11-31','10:00','Europe/Oslo',now),/nonexistent/);
   assert.throws(()=>reminderTime('2026-11-03','10:00','Europe/Oslo',now),/two_minutes/);
   assert.throws(()=>reminderTime('2027-01-01','10:00','Europe/Oslo',now),/thirty_days/);
+});
+
+test('Speechify transport unwraps only a named tool envelope and rejects ambiguous authority',()=>{
+  const args={attempt_id:attempt,session_token:'synthetic',command:'status'};
+  assert.equal(weeklyWebhookArguments(args),args);
+  assert.equal(weeklyWebhookArguments(envelope(args)),args);
+  for(const input of [{...envelope(args),tool_name:'another_tool'},{...envelope(args),tool_call_id:''},
+    {...envelope(args),timestamp:'invalid'},envelope([]),envelope(JSON.stringify(args)),
+    {...envelope(args),session_token:'outer-credential'},{...envelope(args),command:'tips_off'}]){
+    assert.throws(()=>weeklyWebhookArguments(input),/unauthorized/);
+  }
 });
 
 test('pilot setup authorizes only its test caller until global activation',()=>{
@@ -268,15 +281,27 @@ test('real HTTP operation rejects forged auth, malformed and oversized requests 
   try{
     assert.equal((await post('{')).status,400);assert.equal((await post('x'.repeat(7000))).status,413);
     assert.equal((await post(JSON.stringify({attempt_id:attempt,session_token:'forged',command:'status'}))).status,401);
+    const probe=await fetch(base+'/weekly/tool',{method:'POST',headers:{'content-type':'application/json','speechify-webhook-test':'true'},body:JSON.stringify({attempt_id:attempt,session_token:weeklyToken(attempt),command:'tips_off',request_id:'must-not-run'})});
+    const probeResult=await probe.json() as {action_performed:boolean};assert.equal(probe.status,200);assert.equal(probeResult.action_performed,false);
+    assert.equal((await db!.sql`select tips_enabled from callers where phone_hash=${hash}`)[0]!['tips_enabled'],true);
+    assert.equal((await db!.sql`select count(*)::int as n from weekly_tool_requests`)[0]!['n'],0);
+    assert.ok(!JSON.stringify(probeResult).includes(weeklyToken(attempt)));
+    const forgedEnvelope=envelope({attempt_id:attempt,session_token:'forged',command:'status'});
+    assert.equal((await post(JSON.stringify(forgedEnvelope))).status,401);
+    assert.equal((await post(JSON.stringify({...forgedEnvelope,session_token:weeklyToken(attempt)}))).status,401);
     const response=await post(JSON.stringify({attempt_id:attempt,session_token:weeklyToken(attempt),command:'status'}));assert.equal(response.status,200);assert.equal((await response.json() as {reminders_available:boolean}).reminders_available,true);
     assert.equal((await (await fetch(base+'/weekly/openapi.json')).json() as {openapi:string}).openapi,'3.0.3');
     const invoke=async(command:string,extra:Record<string,unknown>={})=>{
-      const response=await post(JSON.stringify({attempt_id:attempt,session_token:weeklyToken(attempt),command,request_id:`http-${++requests}`,...extra}));
+      const response=await post(JSON.stringify(envelope({attempt_id:attempt,session_token:weeklyToken(attempt),command,request_id:`http-${++requests}`,...extra})));
       assert.equal(response.status,200);return await response.json() as Record<string,unknown>;
     };
     const date=new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Oslo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(+at+86400_000));
     const proposal=await invoke('reminder_prepare',{text:'Synthetic HTTP reminder',date,time:'15:30'});
     assert.equal((await invoke('reminder_confirm',{draft_id:proposal['draft_id'],confirmed:true}))['saved'],true);
+    const replacement=await invoke('reminder_prepare',{text:'Synthetic replacement',date,time:'15:32'});
+    const changed=await invoke('reminder_confirm',{draft_id:replacement['draft_id'],confirmed:true});
+    assert.equal((changed['reminder'] as {revision:number}).revision,2);
+    assert.equal((await invoke('reminder_cancel',{revision:2}))['cancelled'],true);
     const tip=(await invoke('context'))['tip'] as {id:string;text:string};assert.ok(tip);
     const body=JSON.stringify({event:'conversation.completed',conversation_id:`provider-${attempt}`,duration_ms:300000,messages:[{role:'agent',content:tip.text},{role:'user',content:'No action this week.'}]});
     const t=Math.floor(Date.now()/1000),signature=createHmac('sha256','synthetic-webhook-secret').update(`${t}.${body}`).digest('hex');
