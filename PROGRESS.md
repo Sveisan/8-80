@@ -145,3 +145,20 @@ and a visual explaining the two perspectives. Optional same-number texts have pe
 consent, local daytime scheduling and delivery-time controls. Existing users are not
 opted in. See [setup and verification](docs/first-feedback.md). This is local code;
 production voice configuration and a listening check remain separate.
+
+## In-call tips and one-time reminders, 3 November 2026
+
+Fourteen of twenty proposed feature phrases score above seven on the editorial
+rubric. They are selected through two persistent sequences, with one appropriate
+tip near a returning call's close and an independent spoken opt-out. The weekly
+call now supplies a short-lived authenticated tool context. One requested SMS can
+be prepared, confirmed, replaced and cancelled in-call; revisions and the existing
+outbox prevent stale pending requests from sending. Uncertain provider outcomes
+remain explicit. Reminder data joins export, deletion and scheduled cleanup.
+
+The A/B comparison waits for a fixed sample of 100 randomized accounts per arm
+and complete 14-day windows, then freezes a conservative result and applies a
+winning sequence only to new assignments. No user-data result or improvement is
+claimed. See [scores, experiment contract and activation](docs/weekly-tips-and-reminders.md).
+The backend, migration, prompt and OpenAPI tool schema are local; Speechify setup
+and an owner-device call remain deployment work.

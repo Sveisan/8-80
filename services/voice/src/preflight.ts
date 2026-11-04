@@ -115,6 +115,13 @@ function placeholders(env: NodeJS.ProcessEnv, checks: Check[]): void {
 
 export function preflight(env: NodeJS.ProcessEnv = process.env): Check[] {
   const checks: Check[] = [];
+  if (env['WEEKLY_TOOLS_READY']==='1') {
+    const number=(env['SMS_FROM_NUMBER']??'').replace(/[\s()-]/g,'');
+    const callerId=(env['SPEECHIFY_CALLER_ID_NUMBER']??'').replace(/[\s()-]/g,'');
+    checks.push({ok:(env['WEEKLY_TOOL_SECRET']?.length??0)>=32 && env['SPEECHIFY_SEND_VARIABLES']==='1' && E164.test(number) && number===callerId,
+      label:'weekly tips and reminders have a call secret, dynamic variables and the same SMS sender',
+      detail:'Import weekly_assist from quality:tips -- --openapi on every weekly agent; verify with speechify:sync -- --check and an owner call before enabling WEEKLY_TOOLS_READY.'});
+  }
 
   // Read the file rather than the environment: by the time it is an env var,
   // the duplicate has already won and left no trace.

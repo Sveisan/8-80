@@ -9,8 +9,9 @@ import type { Sms } from '../sms/types.ts';
 import { OptedOut } from '../sms/types.ts';
 import type { Mailer } from '../recap/mailer.ts';
 import { SendFailure } from './types.ts';
+import { canRemind } from '../weekly/reminders.ts';
 
-export type MessageKind = 'call' | 'welcome' | 'recap' | 'billing' | 'trial' | 'feedback' | 'access' | 'signup' | 'reply' | 'export' | 'beliefs' | 'safety' | 'operator' | 'nudge';
+export type MessageKind = 'call' | 'welcome' | 'recap' | 'billing' | 'trial' | 'feedback' | 'access' | 'signup' | 'reply' | 'export' | 'beliefs' | 'safety' | 'operator' | 'nudge' | 'reminder';
 export interface Message {
   eventKey: string; phoneHash: string; channel: 'sms' | 'email'; kind: MessageKind;
   to: string; body: string | Recap; reference?: string; expiresAt?: Date;
@@ -52,6 +53,8 @@ export async function recoverMessages(deps: LoopDeps, now = new Date()): Promise
     where status = 'sending' and started_at < ${new Date(+now - 90_000)}`;
   await deps.store.raw`update message_attempts set result = 'interrupted', finished_at = ${now}
     where finished_at is null and started_at < ${new Date(+now - 90_000)}`;
+  await deps.store.raw`update weekly_reminders r set state='uncertain',body_enc=null,updated_at=${now}
+    from message_outbox m where m.phone_hash=r.phone_hash and m.kind='reminder' and m.reference=r.revision::text and m.status='uncertain' and r.state='queued'`;
 }
 
 /** Suppression is rechecked under the same caller lock used by deletion and controls. */
@@ -70,6 +73,13 @@ async function suppression(sql: Database, row: Row, now: Date): Promise<string |
   if (!['safety','operator'].includes(row.kind) && row.channel === 'sms' && caller?.['sms_opt_out']) return 'carrier_opt_out';
   if (['call', 'welcome', 'feedback'].includes(row.kind) && caller?.['paused']) return 'calls_paused';
   if (row.kind === 'beliefs' && caller?.['held_for_review']) return 'human_review';
+  if (row.kind === 'reminder') {
+    const [reminder] = await sql`select revision,state from weekly_reminders where phone_hash=${row.phone_hash} for update`;
+    if (!reminder || row.reference !== String(reminder['revision']) || reminder['state'] !== 'queued') return 'reminder_changed';
+    if (!caller || !canRemind(caller, now)) return 'reminder_controls_changed';
+    const active = await sql`select id from call_attempts where phone_hash=${row.phone_hash} and status in ('claimed','placed','active','settling') limit 1`;
+    if (active.length) return 'wait_for_spacing';
+  }
   if(row.kind==='beliefs' && row.event_key.startsWith('beliefs:retention:')){
     const [e]=await sql`select history_delete_at,history_deleted_at from belief_enrollments where id=${row.reference}`;
     if(!e || e['history_deleted_at'] || !e['history_delete_at'] || row.event_key!==`beliefs:retention:${row.reference}:${e['history_delete_at'].toISOString()}`)return 'history_notice_changed';
@@ -140,6 +150,8 @@ export async function dispatchMessage(deps: LoopDeps, id: string, now = new Date
       await tx`update message_attempts set result = ${why ?? status}, finished_at = ${now} where id = ${attemptId}`;
       if (row.kind === 'feedback') await tx`update feedback set state = ${status === 'accepted' ? 'sent' : status === 'pending' ? 'queued' : 'failed'},
         sent_at = case when ${status === 'accepted'} then ${now} else sent_at end where phone_hash = ${row.phone_hash}`;
+      if (row.kind === 'reminder' && status !== 'pending') await tx`update weekly_reminders set state=${status},body_enc=null,updated_at=${now}
+        where phone_hash=${row.phone_hash} and revision::text=${row.reference} and state='queued'`;
       return status;
     };
     if (reason) return finish(reason === 'wait_for_spacing' ? 'pending' : 'suppressed', reason);
@@ -192,6 +204,8 @@ export async function reconcileMessages(deps: LoopDeps, now = new Date()): Promi
       const status = await transport.deliveryStatus(row.provider_id!);
       if (status !== 'pending') await deps.store.raw`update message_outbox set status = ${status},
         delivered_at = ${status === 'delivered' ? now : null}, reason = ${status === 'failed' ? 'provider_delivery_failed' : null} where id = ${row.id} and status = 'accepted'`;
+      if (status !== 'pending' && row.kind === 'reminder') await deps.store.raw`update weekly_reminders set state=${status},updated_at=${now}
+        where phone_hash=${row.phone_hash} and revision::text=${row.reference} and state='accepted'`;
     } catch { /* Retain accepted, with no false delivery claim. Retry the status check later. */ }
   }
 }

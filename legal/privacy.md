@@ -74,6 +74,20 @@ We do not use analytics cookies.
 **Your feedback preference.** You can stop optional feedback requests separately
 from calls, recaps, verification codes and billing notices.
 
+**Feature tips and requested reminders.** We keep your preference for tips, a fixed
+sequence identifier and the topics already shown or declined until you delete your
+account, so we do not repeat them. Account-linked A/B assignments and tip offers,
+agent reports, transcript-confirmed exposure and explicit responses last 60 days.
+Aggregate experiment counters and frozen results contain no account identifiers.
+For one reminder you explicitly request, we encrypt the chosen SMS text and store
+its agreed local timezone, instant, revision and delivery state. It can be changed
+or cancelled in a phone conversation before provider acceptance. Preparing a draft
+does not schedule anything: it expires after ten minutes. Encrypted tool receipts
+last one day for safe retries; reminder status lasts up to 30 days after its final
+update. Text is cleared on acceptance, cancellation or suppression, or after its
+15-minute delivery window. Scheduled reminders use the same SMS supplier as other
+texts and do not subscribe you to recurring messages.
+
 **Call recordings are not stored by us; transcripts are retained for fourteen days.** Our voice
 supplier sends us a transcript when a call ends, we take the one commitment
 (and the answers above, when they were read back to you) out of it, and the raw
@@ -103,7 +117,10 @@ Four suppliers, each doing one job:
   for it, your eight and eighty answers, your goals for this year, your onboarding progress, your next appointment, your weekly
   slot, any assumption you are testing, and how many weeks in a row a commitment
   has gone undone — because the mentor has to be able to ask about them — and
-  your first name, so it can greet you; never your full name. That is the whole list, and a test fails the
+  your first name, so it can greet you; never your full name. When enabled, a call-scoped service credential,
+  current time and account timezone allow tools to return the selected feature tip,
+  reminder text and schedule, and the result of your requested changes. The credential
+  expires when the call settles or after at most 45 minutes, and cannot address another account. That is the whole list, and a test fails the
   build if a new field starts going to them without appearing here.
 - **Twilio** send the texts. They receive your number.
 - **Resend** send the email. They receive your address.

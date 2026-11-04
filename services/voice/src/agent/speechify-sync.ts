@@ -67,7 +67,8 @@ export class SpeechifySettingsApi {
     if (!key || /[\r\n]/.test(key)) throw new Error('SPEECHIFY_API_KEY is missing or invalid.');
   }
   async request(method: 'GET' | 'POST' | 'PUT' | 'PATCH', path: string, body?: unknown, idempotency?: string): Promise<unknown> {
-    if (!/^\/v1\/agents(?:\/[a-zA-Z0-9_-]+)?(?:\/variables)?$/.test(path)) throw new Error('Unsupported Speechify settings endpoint.');
+    if (!/^\/v1\/agents(?:\/[a-zA-Z0-9_-]+)?(?:\/(?:variables|tools))?$/.test(path)) throw new Error('Unsupported Speechify settings endpoint.');
+    if (path.endsWith('/tools') && method !== 'GET') throw new Error('Tool writes are outside the settings sync.');
     let response: Response;
     try {
       response = await this.fetcher(`https://api.speechify.ai${path}`, {
@@ -83,7 +84,17 @@ export class SpeechifySettingsApi {
     if (response.status === 204) return {};
     try { return await response.json(); } catch { throw new Error('Speechify returned an unreadable settings response.'); }
   }
-  async agent(id: string): Promise<Json> { return record(await this.request('GET', `/v1/agents/${resourceId(id)}`)); }
+  async agent(id: string): Promise<Json> {
+    const key=resourceId(id);
+    const agent=record(await this.request('GET', `/v1/agents/${key}`));
+    // The live API lists bindings separately; older fixtures included them inline.
+    if (!Array.isArray(agent['tools'])) {
+      const bindings=record(await this.request('GET', `/v1/agents/${key}/tools`));
+      if (!Array.isArray(bindings['tools']) || bindings['has_more']===true) throw new Error('The complete Speechify tool bindings could not be verified.');
+      agent['tools']=bindings['tools'];
+    }
+    return agent;
+  }
   async variables(id: string): Promise<Variable[]> {
     const response = record(await this.request('GET', `/v1/agents/${resourceId(id)}/variables`));
     if (!Array.isArray(response['variables'])) throw new Error('Speechify variable catalog format is unrecognised; nothing was replaced.');
@@ -125,10 +136,10 @@ function restoredFieldsMatch(actual: Json, before: Json): boolean {
     return value && typeof value === 'object' && !Array.isArray(value) ? !!got && typeof got === 'object' && !Array.isArray(got) && restoredFieldsMatch(got as Json, value as Json) : isDeepStrictEqual(value, got);
   });
 }
-function toolsPresent(agent: Json, beliefs: boolean): boolean {
+function toolsPresent(agent: Json, beliefs: boolean, weekly = false): boolean {
   const tools = agent['tools']; if (!Array.isArray(tools)) return false;
-  const names = tools.flatMap(t => { if (!t || typeof t !== 'object' || Array.isArray(t)) return []; const v = record(t); const c = typeof v['config'] === 'object' && v['config'] ? record(v['config']) : {}; return [v['name'], c['builtin']]; });
-  return names.includes('end_call') && (!beliefs || names.includes('capture_belief'));
+  const names = tools.flatMap(t => { if (!t || typeof t !== 'object' || Array.isArray(t)) return []; const v = record(t); if(v['enabled']===false)return []; const c = typeof v['config'] === 'object' && v['config'] ? record(v['config']) : {}; return [v['name'], c['builtin']]; });
+  return names.includes('end_call') && (!beliefs || names.includes('capture_belief')) && (!weekly || names.includes('weekly_assist'));
 }
 function privateUrl(value: string | undefined): string {
   try {
@@ -204,7 +215,7 @@ export async function syncAgents(api: SpeechifySettingsApi, options: SyncOptions
     const settingsChanged = !entry.agent || !fieldsMatch(entry.agent, wanted);
     const changed = settingsChanged || variablesChanged;
     if (!apply) {
-      const report: SyncReport = { role: spec.role, id: id ?? '', changed, created: !id, tools: entry.agent && toolsPresent(entry.agent, spec.role.startsWith('belief-')) ? 'present' : 'unverified' };
+      const report: SyncReport = { role: spec.role, id: id ?? '', changed, created: !id, tools: entry.agent && toolsPresent(entry.agent, spec.role.startsWith('belief-'), !spec.role.startsWith('belief-') && env['WEEKLY_TOOLS_READY']==='1') ? 'present' : 'unverified' };
       reports.push(report); options.onReport?.(report); continue;
     }
     if (!id) {
@@ -222,7 +233,7 @@ export async function syncAgents(api: SpeechifySettingsApi, options: SyncOptions
     const actual = await api.agent(id); const actualVariables = await api.variables(id);
     if (!fieldsMatch(actual, wanted) || variables.some(v => !actualVariables.some(a => fieldsMatch(a, v)))) throw new Error('Speechify did not retain the requested settings. A private backup is available; routing IDs were not written.');
     state.ids[spec.role] = id; await options.saveState(state);
-    const report: SyncReport = { role: spec.role, id, changed, created, tools: toolsPresent(actual, spec.role.startsWith('belief-')) ? 'present' : 'unverified' };
+    const report: SyncReport = { role: spec.role, id, changed, created, tools: toolsPresent(actual, spec.role.startsWith('belief-'), !spec.role.startsWith('belief-') && env['WEEKLY_TOOLS_READY']==='1') ? 'present' : 'unverified' };
     reports.push(report); options.onReport?.(report);
   }
   return reports;

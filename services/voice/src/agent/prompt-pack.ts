@@ -21,10 +21,10 @@ export const BELIEF_GREETINGS = {
 /** The same source and rendering used by `npm run prompt -- first console`. */
 export function weeklyPrompt(first: boolean): string {
   const profile: CallerProfile = first ? {
-    callNumber: 1, firstName: '{{first_name}}', bookedSlot: '{{booked_slot}}', onboardingProgress: '{{onboarding_progress}}',
+    callNumber: 1, firstName: '{{first_name}}', bookedSlot: '{{booked_slot}}', onboardingProgress: '{{onboarding_progress}}', weeklyContext: '{{weekly_context}}',
     eight: '{{own_eight}}', eighty: '{{own_eighty}}', goals: '{{own_goals}}', lastCommitment: '{{last_commitment}}', nextSlot: '{{next_appointment}}',
   } : {
-    callNumber: '{{call_number}}', firstName: '{{first_name}}', nextSlot: '{{next_appointment}}', lastCommitment: '{{last_commitment}}',
+    callNumber: '{{call_number}}', firstName: '{{first_name}}', nextSlot: '{{next_appointment}}', lastCommitment: '{{last_commitment}}', weeklyContext: '{{weekly_context}}',
     callDay: '{{last_day}}', eight: '{{own_eight}}', eighty: '{{own_eighty}}', belief: '{{last_belief}}',
     consecutiveUndone: '{{weeks_undone_running}}', goals: '{{own_goals}}',
   };

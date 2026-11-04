@@ -6,6 +6,9 @@ import { repoRoot } from '../src/config.ts';
 import { legalPage, render } from '../src/legal/page.ts';
 import { variablesFor } from '../src/loop/tick.ts';
 import { CONSOLE_VARIABLES } from '../src/prompt.ts';
+import { getTableName } from 'drizzle-orm';
+import { getTableConfig, type PgTable } from 'drizzle-orm/pg-core';
+import * as tables from '../src/store/schema.ts';
 
 const read = (p: string) => readFileSync(resolve(repoRoot, p), 'utf8');
 /** Unwrapped, because these are prose files and a claim can straddle a line. */
@@ -43,11 +46,16 @@ test('deleting really does clear every table that knows the caller', () => {
   // table keyed on the hash has to be named in forget(), or that is false.
   const forget = /async forget\([\s\S]*?\n {2}}\n/.exec(store)?.[0] ?? '';
   assert.ok(forget, 'forget() not found');
-  const keyed = [...schema.matchAll(/pgTable\(\s*'(\w+)'/g)].map((m) => m[1] as string);
-  for (const table of keyed) {
-    const block = new RegExp(`pgTable\\(\\s*'${table}'[\\s\\S]*?\\n\\);`).exec(schema)?.[0] ?? '';
-    if (!block.includes("'phone_hash'")) continue;
-    assert.ok(forget.includes(table), `${table} holds a phone_hash and forget() never touches it`);
+  const removed = (table: PgTable, seen = new Set<string>()): boolean => {
+    const name = getTableName(table);
+    if (forget.includes(name)) return true;
+    if (seen.has(name)) return false;
+    seen.add(name);
+    return getTableConfig(table).foreignKeys.some(key => key.onDelete === 'cascade' && removed(key.reference().foreignTable, seen));
+  };
+  for (const table of Object.values(tables)) {
+    if (!getTableConfig(table).columns.some(column => column.name === 'phone_hash')) continue;
+    assert.ok(removed(table), `${getTableName(table)} holds a phone_hash but is neither erased nor cascaded by forget()`);
   }
   assert.ok(forget.includes('webhook_deliveries'), 'the transcripts go too');
 });
@@ -153,6 +161,7 @@ const COVERED: Record<string, RegExp> = {
   weeks_undone_running: /weeks in a row|in a row/i,
   own_goals: /goals\s+for\s+(the|this)\s+year/i,
   booked_slot: /weekly\s+slot/i,
+  weekly_context: /call-scoped.*credential/i,
 };
 
 /** What actually goes out, asked of the function that builds it. */

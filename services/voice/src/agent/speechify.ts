@@ -129,7 +129,14 @@ export class SpeechifyAgent {
       // that says *why* a call did not happen can be read without leaking who
       // it was for. A 400 with nothing but its status attached is a morning
       // spent guessing.
-      const detail = await res.text().catch(() => '');
+      let detail = await res.text().catch(() => '');
+      const variables = body['dynamic_variables'] as Record<string, string> | undefined;
+      if (variables?.['weekly_context']) {
+        try {
+          const credential = (JSON.parse(variables['weekly_context']) as {session_token?: string}).session_token;
+          if (credential) detail = detail.split(credential).join('[call credential omitted]');
+        } catch { /* A missing/disabled context has no credential to remove. */ }
+      }
       // The field names, never the values: which key was too much is the whole
       // question, and the values are a phone number and somebody's commitment.
       log('agent.call_failed', {

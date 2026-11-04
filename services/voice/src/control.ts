@@ -3,6 +3,9 @@ import twilio from 'twilio';
 import { randomUUID } from 'node:crypto';
 import { queued, enqueue, dispatchMessage } from './messages/outbox.ts';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
+import { weeklyTool } from './weekly/runtime.ts';
+import { WeeklyToolError } from './weekly/reminders.ts';
+import { weeklyOpenApi } from './weekly/tool-schema.ts';
 import { isIP } from 'node:net';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -71,12 +74,12 @@ import type { LoopDeps } from './loop/deps.ts';
 const MAX_BODY = 1_000_000;
 
 /** The bytes as they arrived. Re-serialising breaks every signature. */
-async function rawBody(req: IncomingMessage): Promise<Buffer> {
+async function rawBody(req: IncomingMessage, maximum = MAX_BODY): Promise<Buffer> {
   const chunks: Buffer[] = [];
   let size = 0;
   for await (const chunk of req) {
     size += (chunk as Buffer).length;
-    if (size > MAX_BODY) throw new Error('body too large');
+    if (size > maximum) throw maximum === 6000 ? new WeeklyToolError('request_too_large') : new Error('body too large');
     chunks.push(chunk as Buffer);
   }
   return Buffer.concat(chunks);
@@ -200,6 +203,17 @@ export function controlPlane(deps: LoopDeps, secret: string | readonly string[] 
         if (answer) return html(res, answer.status, answer.body, answer.headers);
       }
 
+      if (req.method === 'GET' && url.pathname === '/weekly/openapi.json') return send(res, 200, weeklyOpenApi());
+      if (req.method === 'POST' && url.pathname === '/weekly/tool') {
+        try {
+          const body = await rawBody(req, 6000);
+          if (body.length > 6000) return send(res, 413, { error: 'request_too_large' });
+          return send(res, 200, await weeklyTool(deps, JSON.parse(body.toString('utf8'))));
+        } catch (error) {
+          const code = error instanceof WeeklyToolError ? error.code : error instanceof SyntaxError ? 'invalid_json' : 'tool_unavailable';
+          return send(res, code === 'request_too_large' ? 413 : code === 'unauthorized' ? 401 : code === 'invalid_json' ? 400 : code === 'tool_unavailable' ? 503 : 409, {error:code, instruction:code === 'tool_unavailable' ? 'Outcome unconfirmed. Check status or retry identical arguments and request_id. Do not claim success or failure.' : 'No action was confirmed by this request. Explain the problem without claiming success.'});
+        }
+      }
       if (req.method === 'POST' && url.pathname === '/beliefs/tool') {
         try {
           const body = await rawBody(req);

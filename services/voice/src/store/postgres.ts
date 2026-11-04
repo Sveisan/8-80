@@ -310,6 +310,11 @@ export class PostgresStore implements Store {
       const [billing] = await tx`select phone_hash, ls_subscription_id from callers where phone_hash = ${hash} for update`;
       if (billing?.['ls_subscription_id'] && !transaction) throw new Error('Cancel billing through the account deletion service before erasing this record');
       await tx`delete from journey_events where phone_hash = ${hash}`;
+      await tx`delete from weekly_reminders where phone_hash = ${hash}`;
+      await tx`delete from weekly_reminder_drafts where phone_hash = ${hash}`;
+      await tx`delete from weekly_tool_requests where phone_hash = ${hash}`;
+      await tx`delete from weekly_tip_offers where phone_hash = ${hash}`;
+      await tx`delete from weekly_tip_assignments where phone_hash = ${hash}`;
       await tx`delete from links where phone_hash = ${hash}`;
       await tx`delete from feedback where phone_hash = ${hash}`;
       await tx`delete from signups where phone_hash = ${hash}`;

@@ -45,6 +45,7 @@ function provider() {
     }
     const parts = path.split('/'); const id = parts[3]!;
     if (!agents[id]) return Response.json({ error: 'not found' }, { status: 404 });
+    if(parts[4]==='tools') return Response.json({tools:agents[id]!['tools']??[],has_more:false});
     if (parts[4] === 'variables') {
       if (method === 'PUT') {
         variables[id] = structuredClone(body!['variables']) as Variable[];
@@ -72,6 +73,27 @@ test('read-only check makes no provider writes, backups or state saves', async (
   const p = provider(); let saves = 0;
   const reports = await syncAgents(p.api, options({ apply: false, saveBackup: async () => { saves++; }, saveState: async () => { saves++; } }));
   assert.ok(reports[0]!.changed); assert.equal(saves, 0); assert.ok(p.requests.every(r => r.method === 'GET'));
+});
+
+test('enabled weekly service tools must be read back on each agent before routing is ready', async () => {
+  const p=provider();
+  const setup=options({apply:false,env:{SPEECHIFY_AGENT_ID:'agent_return',WEEKLY_TOOLS_READY:'1'}});
+  assert.equal((await syncAgents(p.api,setup))[0]!.tools,'unverified');
+  (p.agents['agent_return']!['tools'] as {name:string}[]).push({name:'weekly_assist'});
+  assert.equal((await syncAgents(p.api,setup))[0]!.tools,'present');
+  assert.ok(p.requests.every(r=>r.method==='GET'));
+});
+
+test('live agent responses read separate bindings and refuse incomplete or disabled tools', async () => {
+  const paths:string[]=[];
+  const api=new SpeechifySettingsApi('synthetic',async(url)=>{
+    const path=new URL(String(url)).pathname;paths.push(path);
+    return Response.json(path.endsWith('/tools')?{tools:[{name:'weekly_assist',enabled:true}],has_more:false}:{id:'agent_real_shape'});
+  });
+  assert.deepEqual((await api.agent('agent_real_shape'))['tools'],[{name:'weekly_assist',enabled:true}]);
+  assert.deepEqual(paths,['/v1/agents/agent_real_shape','/v1/agents/agent_real_shape/tools']);
+  const p=provider();(p.agents['agent_return']!['tools'] as unknown[]).push({name:'weekly_assist',enabled:false});
+  assert.equal((await syncAgents(p.api,options({apply:false,env:{SPEECHIFY_AGENT_ID:'agent_return',WEEKLY_TOOLS_READY:'1'}})))[0]!.tools,'unverified');
 });
 test('sync preserves voice, greeting, tools and defaults, adds variables before prompt, and skips unchanged writes', async () => {
   const p = provider(); let backup: Backup | undefined;
