@@ -93,3 +93,10 @@ test('the previous pilot action question stays strict across a wording release',
   assert.equal(outcome([a(old), c('Yes.')]).commitment, 'call the sailing school');
   assert.equal(outcome([a(old), c('Thanks.')]).commitment, undefined);
 });
+
+test('old no-action wording keeps its historical policy without weakening pilot agreement', () => {
+  const turns = [c("I'd rather skip choosing anything today."), a('We can leave it there this week.')];
+  const transcript = { providerCallId: 'synthetic-old-no-action', durationMs: 300_000, turns };
+  assert.equal(settle(transcript, script, new Date(), { strictActionAgreement: false }).outcome?.noAction, true);
+  assert.equal(settle(transcript, script, new Date(), { strictActionAgreement: true }).outcome?.noAction, undefined);
+});

@@ -115,7 +115,7 @@ export function settle(transcript: CallTranscript, script: ScriptLines, now = ne
   // This fixed branch is used only after an explicit choice of no action.
   // A later read-back can replace it, but an earlier proposal cannot survive it.
   const invitations=[...script].filter(([key])=>key.startsWith('next.ask.')&&!key.endsWith('.calibrate')).map(([,text])=>text);
-  const declinedAt = transcript.turns.findLastIndex((t,i) => !strict&&t.speaker==='agent'&&!!script.get('next.none')&&carries(t.text,script.get('next.none')!) || t.speaker==='caller' && (explicitNoAction(t.text)
+  const declinedAt = transcript.turns.findLastIndex((t,i) => !strict&&t.speaker==='agent'&&containsWeeklyLine(t.text,script,'next.none') || t.speaker==='caller' && (explicitNoAction(t.text)
     || /^(no|nope|not this week|nei|ikke denne uken)\b/.test(normalise(t.text))
       && invitations.some(line=>carries(transcript.turns.slice(0,i).findLast(p=>p.speaker==='agent')?.text??'',line))));
   const noAction = declinedAt >= 0 && declinedAt > committedAt

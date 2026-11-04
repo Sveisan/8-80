@@ -10,6 +10,7 @@ const previous: Record<string, readonly string[]> = {
   'read.first.fix_eighty': ['So by eighty: {{eighty}}. Have I got that right?'],
   'onboarding.confirmed': ["That's the map I'll keep for next time."],
   'next.confirm': ["Let me check: {{commitment}}. Is that the action you want me to remember for next week?", "Right — {{commitment}}. I'll ask how it went next time we talk."],
+  'next.none': ['We can leave it there this week.'],
   'last.did': ['Right. How was it — worth doing, or did it just get done?'],
   'last.partial': ["So some of it. Which part didn't survive the week?"],
   'setup.change_slot': ["I can't move it from the call yet, so it stays as it is for now. Sorry about that."],
