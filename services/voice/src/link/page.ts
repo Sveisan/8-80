@@ -6,6 +6,7 @@ import { maskEmail, type AccountState } from './account.ts';
 import type { ScriptLines } from '../script.ts';
 import { describeAppointment, type Slot } from '../schedule/time.ts';
 import { BUSY, BUSY_CSS, MOTION, busyLabel } from '../signup/mascot.ts';
+import { timePicker, TIME_PICKER_CSS, TIME_PICKER_SCRIPT } from '../signup/time-picker.ts';
 
 /** Weekday names come from the locale, not from a list in this file. */
 const dayNames = (language: string, weekday: 'long' | 'short' = 'long'): string[] => {
@@ -216,11 +217,9 @@ export function reschedulePage(
               </label>`,
               ).join('')}
             </div>
-            <div class="times" id="times">
-              ${timesFor(slot.minute).map((t) =>
+            ${timePicker(timesFor(slot.minute).map((t) =>
                 `<label class="pick"><input type="radio" name="time" value="${t}"${t === time ? ' checked' : ''} /><span>${t}</span></label>`,
-              ).join('')}
-            </div>
+              ).join(''), script)}
           </fieldset>
           ${always}
           ${booking ? '' : `<p class="hint">${say('page.move.detail')}</p>`}
@@ -301,19 +300,7 @@ export function reschedulePage(
           appointment.setAttribute('aria-label', date + ' ' + time + ' ' + label);
         }
       } catch (e) {}
-      try {
-        var row = document.getElementById('times');
-        var move = document.getElementById('move-call');
-        var centre = function (el, smooth) {
-          var box = el.getBoundingClientRect(), track = row.getBoundingClientRect();
-          row.scrollTo({ left: row.scrollLeft + box.left - track.left - (row.clientWidth - box.width) / 2, behavior: smooth ? 'smooth' : 'auto' });
-        };
-        move.addEventListener('toggle', function () {
-          var on = row.querySelector('input:checked');
-          if (move.open && on) centre(on.parentNode, false);
-        });
-        row.addEventListener('change', function (e) { centre(e.target.parentNode, true); });
-      } catch (e) {}
+      ${TIME_PICKER_SCRIPT}
     </script>
   `,
     language,
@@ -564,14 +551,7 @@ export function shell(body: string, language = 'en'): string {
   legend { padding: 0; margin: 0 0 .15rem; font-size: .95rem; color: var(--quiet); }
   .zone { margin: 0 0 .5rem; font-size: .85rem; color: var(--quiet); }
   .days { display: grid; grid-template-columns: repeat(7, 1fr); gap: .3rem; }
-  .times {
-    display: flex; gap: .3rem; margin-top: .5rem; padding: .1rem 1.5rem; scroll-padding-inline: 1.5rem;
-    overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none; overscroll-behavior-x: contain;
-    -webkit-mask-image: linear-gradient(90deg, transparent, #000 1.5rem, #000 calc(100% - 1.5rem), transparent);
-    mask-image: linear-gradient(90deg, transparent, #000 1.5rem, #000 calc(100% - 1.5rem), transparent);
-  }
-  .times::-webkit-scrollbar { display: none; }
-  .times .pick { flex: 0 0 4.4rem; scroll-snap-align: center; }
+  ${TIME_PICKER_CSS}
   .pick { position: relative; display: block; margin: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; }
   .pick input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; }
   .pick span:first-of-type {
