@@ -89,7 +89,8 @@ test('relative time uses server elapsed minutes across midnight and DST, indepen
   assert.deepEqual(reminderLocalTime(relativeReminderTime(5,at),'Europe/Oslo'),{date:'2026-11-04',time:'11:43'});
   assert.deepEqual(reminderLocalTime(relativeReminderTime(5,new Date('2026-11-04T22:58Z')),'Europe/Oslo'),{date:'2026-11-05',time:'00:03'});
   assert.deepEqual(reminderLocalTime(relativeReminderTime(5,new Date('2027-03-28T00:58Z')),'Europe/Oslo'),{date:'2027-03-28',time:'03:03'});
-  for(const minutes of [1,0,-2,5.5,'5',43201])assert.throws(()=>relativeReminderTime(minutes,at),/whole_minutes/);
+  for(const minutes of [5.5,'5'])assert.throws(()=>relativeReminderTime(minutes,at),/whole_minutes/);
+  for(const minutes of [1,0,-2,43201])assert.throws(()=>relativeReminderTime(minutes,at),/two_minutes/);
 });
 
 test('relative create and revision-guarded shifts return server local proposals before confirmation',options,async()=>{
@@ -316,6 +317,10 @@ test('real HTTP operation rejects forged auth, malformed and oversized requests 
     const forgedEnvelope=envelope({attempt_id:attempt,session_token:'forged',command:'status'});
     assert.equal((await post(JSON.stringify(forgedEnvelope))).status,401);
     assert.equal((await post(JSON.stringify({...forgedEnvelope,session_token:weeklyToken(attempt)}))).status,401);
+    const yesterday=new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Oslo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(+at-86400_000));
+    const past=await post(JSON.stringify(envelope({attempt_id:attempt,session_token:weeklyToken(attempt),command:'reminder_prepare',request_id:'past-local-time',text:'Test break',date:yesterday,time:'10:43'})));
+    const pastResult=await past.json() as {reason:string;user_message:string};assert.equal(past.status,409);assert.equal(pastResult.reason,'past');assert.match(pastResult.user_message,/already passed/);
+    assert.doesNotMatch(pastResult.user_message,/less than two|too soon/);assert.equal((await db!.sql`select * from weekly_reminder_drafts`).length,0);
     const response=await post(JSON.stringify({attempt_id:attempt,session_token:weeklyToken(attempt),command:'status'}));assert.equal(response.status,200);assert.equal((await response.json() as {reminders_available:boolean}).reminders_available,true);
     assert.equal((await (await fetch(base+'/weekly/openapi.json')).json() as {openapi:string}).openapi,'3.0.3');
     const invoke=async(command:string,extra:Record<string,unknown>={})=>{

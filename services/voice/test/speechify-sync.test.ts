@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { SpeechifySettingsApi, SpeechifySettingsError, syncAgents, parseState, mergeVariables, mergeAgentIds, restoreAgents, type SyncState, type Backup, type Variable, type SyncReport } from '../src/agent/speechify-sync.ts';
-import { promptPack, type PromptSpec } from '../src/agent/prompt-pack.ts';
+import { promptPack,weeklyGreeting,WEEKLY_END_CALL_DESCRIPTION, type PromptSpec } from '../src/agent/prompt-pack.ts';
 
 const spec: PromptSpec = { role: 'return', name: 'Weekly', prompt: 'New {{call_number}}', variables: ['call_number'] };
 const state = (): SyncState => ({ version: 1, ids: {} });
@@ -45,7 +45,14 @@ function provider() {
     }
     const parts = path.split('/'); const id = parts[3]!;
     if (!agents[id]) return Response.json({ error: 'not found' }, { status: 404 });
-    if(parts[4]==='tools') return Response.json({tools:agents[id]!['tools']??[],has_more:false});
+    if(parts[4]==='tools'){
+      if(method==='PATCH'&&parts[5]){
+        const tool=(agents[id]!['tools'] as Record<string,unknown>[]).find(t=>t['id']===parts[5]);
+        if(!tool)return Response.json({error:'not found'},{status:404});
+        Object.assign(tool,body);return Response.json(tool);
+      }
+      return Response.json({tools:agents[id]!['tools']??[],has_more:false});
+    }
     if (parts[4] === 'variables') {
       if (method === 'PUT') {
         variables[id] = structuredClone(body!['variables']) as Variable[];
@@ -73,6 +80,42 @@ test('read-only check makes no provider writes, backups or state saves', async (
   const p = provider(); let saves = 0;
   const reports = await syncAgents(p.api, options({ apply: false, saveBackup: async () => { saves++; }, saveState: async () => { saves++; } }));
   assert.ok(reports[0]!.changed); assert.equal(saves, 0); assert.ok(p.requests.every(r => r.method === 'GET'));
+});
+
+test('weekly greeting and end-call instructions are backed up, verified, idempotent and restorable',async()=>{
+  const p=provider();let backup:Backup|undefined;
+  const tool=(p.agents['agent_return']!['tools'] as Record<string,unknown>[])[0]!;
+  Object.assign(tool,{id:'tool_end',description:'Original built-in description',enabled:true});
+  (p.agents['agent_return']!['tools'] as Record<string,unknown>[]).push({id:'tool_other',kind:'client',name:'unrelated',enabled:true,description:'Do not change'});
+  const before=structuredClone(p.agents['agent_return']);
+  const specs=[{...spec,firstMessage:weeklyGreeting(),endCallDescription:WEEKLY_END_CALL_DESCRIPTION}];
+  const setup=options({specs,saveBackup:async(b:Backup)=>{backup=b;}});
+  const check=await syncAgents(p.api,{...setup,apply:false});assert.equal(check[0]!.changed,true);assert.ok(p.requests.every(r=>r.method==='GET'));
+  await syncAgents(p.api,setup);
+  assert.equal(tool['description'],WEEKLY_END_CALL_DESCRIPTION);assert.equal(tool['enabled'],true);
+  assert.equal(p.agents['agent_return']!['first_message'],weeklyGreeting());
+  assert.deepEqual((p.agents['agent_return']!['tools'] as unknown[])[1],(before!['tools'] as unknown[])[1]);
+  assert.equal(backup!.agents[0]!.agent['first_message'],'Existing greeting');assert.equal(backup!.agents[0]!.endCall?.description,'Original built-in description');
+  const restore=structuredClone(backup),n=p.requests.length;
+  await syncAgents(p.api,setup);assert.ok(p.requests.slice(n).every(r=>r.method==='GET'));
+  await restoreAgents(p.api,restore);assert.deepEqual(p.agents['agent_return'],before);
+});
+
+test('settings synchronization refuses arbitrary tool mutations before any request',async()=>{
+  const p=provider();
+  for(const [method,body]of [['PATCH',{enabled:false}],['PATCH',{config:{builtin:'other'}}],['GET',undefined]] as const){
+    await assert.rejects(p.api.request(method,'/v1/agents/agent_return/tools/tool_end',body),/Only a built-in/);
+  }
+  assert.equal(p.requests.length,0);
+});
+
+test('live weekly prompt writes are blocked while dialogue changes are held in pilot',async()=>{
+  const p=provider();
+  await assert.rejects(syncAgents(p.api,options({env:{SPEECHIFY_AGENT_ID:'agent_return',WEEKLY_DIALOGUE_PILOT:'1',WEEKLY_DIALOGUE_READY:'0'}})),/held in pilot/);
+  assert.equal(p.requests.length,0);
+  p.agents['pilot_return']=structuredClone(p.agents['agent_return']);p.variables['pilot_return']=structuredClone(p.variables['agent_return']!);
+  await syncAgents(p.api,options({dialoguePilot:true,env:{SPEECHIFY_AGENT_ID:'pilot_return',WEEKLY_DIALOGUE_PILOT:'1',WEEKLY_DIALOGUE_READY:'0'}}));
+  assert.equal(p.agents['pilot_return']!['prompt'],spec.prompt);assert.equal(p.agents['agent_return']!['prompt'],'Old');
 });
 
 test('enabled weekly service tools must be read back on each agent before routing is ready', async () => {
@@ -286,7 +329,7 @@ test('creating the female pair copies the matching stage greeting and pace, and 
   const reports=await syncAgents(p.api,options({specs:promptPack('weekly-female',{}),state:saved,env:{SPEECHIFY_AGENT_ID:'agent_return',SPEECHIFY_FIRST_CALL_AGENT_ID:'agent_first',SPEECHIFY_FEMALE_VOICE_ID:'verified-female',SPEECHIFY_WEBHOOK_SECRET:'synthetic-secret',PUBLIC_URL:'https://8and80.example'}}));
   assert.equal(reports.length,2);assert.ok(reports.every(r=>r.created && r.tools==='unverified'));
   const first=p.agents[saved.ids['female-first']!]!;const returning=p.agents[saved.ids['female-return']!]!;
-  assert.equal(first['first_message'],'First greeting');assert.equal(returning['first_message'],'Existing greeting');
+  assert.equal(first['first_message'],weeklyGreeting());assert.equal(returning['first_message'],weeklyGreeting());
   assert.deepEqual(first['tts'],{voice_id:'verified-female',speed:0.72});
   assert.deepEqual(returning['tts'],{voice_id:'verified-female',speed:0.8});
   assert.equal(p.agents['agent_return']!['prompt'],'Old');assert.equal(p.requests.filter(r=>r.method==='POST').length,2);

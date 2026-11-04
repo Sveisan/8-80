@@ -74,7 +74,8 @@ const TOO_SHORT_MS = 90_000;
  * end without one, and treating that as an error would put a red mark against
  * the weeks a person most needed the call to be ordinary.
  */
-export function settle(transcript: CallTranscript, script: ScriptLines, now = new Date()): Settlement {
+export function settle(transcript: CallTranscript, script: ScriptLines, now = new Date(),options:{strictActionAgreement?:boolean}={}): Settlement {
+  const strict=options.strictActionAgreement!==false;
   const agentTurns = transcript.turns.filter((t) => t.speaker === 'agent' && t.text.trim());
   const callerTurns = transcript.turns.filter((t) => t.speaker === 'caller' && t.text.trim());
 
@@ -90,9 +91,8 @@ export function settle(transcript: CallTranscript, script: ScriptLines, now = ne
   }
   if (callerTurns.length === 0) return { status: 'unverified', note: 'no caller transcript; conversation could not be verified' };
 
-  // The commitment comes from the mentor's read-back, not the caller's words —
-  // see commitment.ts for why. Joined across turns because the read-back can
-  // be split by a backchannel.
+  // Extract only a complete read-back; the caller must then explicitly approve
+  // it. An agent proposal or a courteous acknowledgement is never an agreement.
   const said = agentTurns.map((t) => t.text);
   const spoken = said.join(' ');
   const positions = transcript.turns.flatMap((t, i) => t.speaker === 'agent' && t.text.trim() ? [i] : []);
@@ -102,19 +102,25 @@ export function settle(transcript: CallTranscript, script: ScriptLines, now = ne
   const current = currentSpan
     ? extractCommitment(said.slice(currentSpan.start, currentSpan.end + 1).join(' '), script, { strict: true })
     : undefined;
+  const previousScript=new Map(script).set('next.confirm',"Right — {{commitment}}. I'll ask how it went next time we talk.");
+  const previousSpan=readBackSpan(said,previousScript.get('next.confirm'),{strict:true});
+  const previous=previousSpan?extractCommitment(said.slice(previousSpan.start,previousSpan.end+1).join(' '),previousScript,{strict:true}):undefined;
   // Older recordings used a question at the end of the fixed read-back.
   const legacyScript = new Map(script).set('next.confirm', 'Right. {{commitment}}, {{day}}. Will you?');
   const legacyIndex = said.findLastIndex(text => /^right[\s.—-]/i.test(text.trim()) && /will you\??[.!]?$/i.test(text.trim()) && !!extractCommitment(text, legacyScript));
   const legacy = legacyIndex >= 0 ? extractCommitment(said[legacyIndex]!, legacyScript) : undefined;
   const currentAt = currentSpan && current ? positions[currentSpan.end] ?? -1 : -1;
   const legacyAt = legacy ? positions[legacyIndex] ?? -1 : -1;
-  const committedAt = Math.max(currentAt, legacyAt);
-  let commitment = currentAt >= legacyAt ? current : legacy;
+  const previousAt=previousSpan&&previous?positions[previousSpan.end]??-1:-1;
+  const committedAt = Math.max(currentAt,previousAt, legacyAt);
+  let commitment = currentAt===committedAt?current:previousAt===committedAt?previous:legacy;
   const callAgain = extractReschedule(spoken, script);
   // This fixed branch is used only after an explicit choice of no action.
   // A later read-back can replace it, but an earlier proposal cannot survive it.
-  const declinedAt = transcript.turns.findLastIndex(t => t.speaker === 'agent' && !!script.get('next.none') && carries(t.text, script.get('next.none')!)
-    || t.speaker === 'caller' && explicitNoAction(t.text));
+  const invitations=[...script].filter(([key])=>key.startsWith('next.ask.')&&!key.endsWith('.calibrate')).map(([,text])=>text);
+  const declinedAt = transcript.turns.findLastIndex((t,i) => !strict&&t.speaker==='agent'&&!!script.get('next.none')&&carries(t.text,script.get('next.none')!) || t.speaker==='caller' && (explicitNoAction(t.text)
+    || /^(no|nope|not this week|nei|ikke denne uken)\b/.test(normalise(t.text))
+      && invitations.some(line=>carries(transcript.turns.slice(0,i).findLast(p=>p.speaker==='agent')?.text??'',line))));
   const noAction = declinedAt >= 0 && declinedAt > committedAt
     && (transcript.turns[declinedAt]?.speaker === 'caller' || transcript.turns.slice(0, declinedAt).some(t => t.speaker === 'caller' && t.text.trim()));
   const reply: Turn[] = [];
@@ -126,7 +132,9 @@ export function settle(transcript: CallTranscript, script: ScriptLines, now = ne
   // A direct rejection cannot be turned into an agreement just because the
   // mentor forgot the fixed no-action line. Do not infer a replacement action.
   const rejected = /^(no\b(?! problem\b| worries\b)|nope\b|not (that|this week)\b|i (refuse|decline)\b|i (dont|do not) want (that|to)\b|nei\b|jeg vil ikke\b)/.test(normalise(reply.map(t => t.text).join(' ')));
-  if (noAction || rejected) commitment = undefined;
+  const withdrawn=transcript.turns.slice(committedAt+1).some(t=>t.speaker==='caller'
+    && /\b(dont save that|do not save that|dont remember that|that is not my action|thats not my action|i withdraw|ikke lagre det|ikke husk det)\b/.test(normalise(t.text)));
+  if (noAction || rejected || strict&&(withdrawn || !confirmsAction(reply))) commitment = undefined;
   const map = readBackSpan(said, script.get('read.first.keep'));
   const selves = map?.values;
 
@@ -189,6 +197,12 @@ export function settle(transcript: CallTranscript, script: ScriptLines, now = ne
     ...(commitment ? {} : { note: 'no commitment was reached' }),
   };
 }
+/** Agreement to the complete read-back, not assent inferred from politeness. */
+export function confirmsAction(turns:readonly Turn[]):boolean {
+  const answer=normalise(turns.filter(t=>t.speaker==='caller').map(t=>t.text).join(' '));
+  if(/\b(no|nope|not|wrong|incorrect|but|except|maybe|perhaps|nei|ikke|feil|men|kanskje)\b/.test(answer))return false;
+  return /^(yes|yeah|yep|exactly|correct|thats right|that is right|you got it|go ahead|ja|stemmer|riktig|det stemmer)\b/.test(answer);
+}
 /** A clear acknowledgement, rather than treating any caller speech as agreement.
  * Unknown phrasing leaves onboarding unfinished; the saved map can be checked
  * next time. This deliberately does not try to infer agreement from a story.
@@ -201,5 +215,5 @@ function confirmsMap(turns: readonly Turn[]): boolean {
 
 /** Narrow explicit choices, not a general intent classifier. */
 function explicitNoAction(text: string): boolean {
-  return /^(actually |then )?(no (new )?(action|commitment)( this week)?|i (dont|do not) want (an action|a commitment)|ingen (handling|forpliktelse)( denne uken)?)\b/.test(normalise(text));
+  return /^(actually |then |no |nei )?(no (new )?(action|commitment)( this week)?|i (dont|do not) want (an action|a commitment)|ingen (handling|forpliktelse)( denne uken)?)\b/.test(normalise(text));
 }

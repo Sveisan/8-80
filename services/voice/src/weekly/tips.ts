@@ -41,7 +41,7 @@ export async function nextTip(sql: Database, hash: string, attemptId: string, sc
   const available = (topic: string) => (topic !== 'voice' || femaleVoiceReady())
     && (!['nudges', 'reminder', 'reminder_control'].includes(topic) || smsAvailable && sameMessageNumber())
     && (!['voice', 'schedule', 'nudges', 'memory'].includes(topic) || !!process.env['PUBLIC_URL']);
-  if (existing) return available(existing['topic']) ? { id: existing['tip_id'], text: decrypt(existing['wording_enc']) } : null;
+  if (existing) return available(existing['topic']) && CANDIDATES.some(c=>`tips.${c[0]}`===existing['tip_id']&&c[2]>7)&&script.has(existing['tip_id']) ? { id: existing['tip_id'], text: decrypt(existing['wording_enc']) } : null;
   const [experiment] = await sql`select winner from weekly_tip_experiments where id=${EXPERIMENT}`;
   const winner = experiment?.['winner'];
   const arm = progress.arm ?? (winner === 'A' || winner === 'B' ? winner : randomizedArm(hash));

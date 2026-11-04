@@ -28,8 +28,8 @@ test('a map split around backchannels can be confirmed at its true ending', () =
 
 test('a later corrected action split across provider messages replaces the older read-back', () => {
   const corrected = line('next.confirm', { commitment: 'call the sailing school' });
-  const split = corrected.indexOf("I'll ask");
-  const result = outcome([c('Book a lesson.'), a(action), c('Actually, I need to call them first.'), a(corrected.slice(0, split)), c('Mhm.'), a(corrected.slice(split)), a('Right. Goodbye.')]);
+  const split = corrected.indexOf('Is that');
+  const result = outcome([c('Book a lesson.'), a(action), c('Actually, I need to call them first.'), a(corrected.slice(0, split)), c('Mhm.'), a(corrected.slice(split)),c('Yes, exactly.'), a('Right. Goodbye.')]);
   assert.equal(result.commitment, 'call the sailing school');
 });
 
@@ -68,7 +68,7 @@ test('an explicit no-action branch supersedes a proposal; a later chosen action 
   const declined = outcome([c('Maybe a lesson.'), a(action), c('No, no action this week.'), none, a('Right. Goodbye.')]);
   assert.equal(declined.commitment, undefined);
   assert.equal(declined.noAction, true);
-  const changedMind = outcome([c('No action.'), none, c('Actually, book the lesson.'), a(action)]);
+  const changedMind = outcome([c('No action.'), none, c('Actually, book the lesson.'), a(action),c('Yes.')]);
   assert.equal(changedMind.commitment, 'book a sailing lesson');
   assert.equal(changedMind.noAction, undefined);
   assert.equal(outcome([a('Hello.'), c('How are you?')]).noAction, undefined, 'missing data cannot clear memory');
@@ -85,17 +85,39 @@ test('a direct refusal rejects the proposed action even without the fixed no-act
   assert.equal(none.commitment, undefined);
   assert.equal(none.noAction, true);
   assert.equal(outcome([c('No action this week.'), a('Goodbye.')]).noAction, true);
-  assert.equal(outcome([a(action), c('No problem.'), a('Goodbye.')]).commitment, 'book a sailing lesson');
+  assert.equal(outcome([a(action), c('No problem.'), a('Goodbye.')]).commitment, undefined,'courtesy is not action confirmation');
   const completed = outcome([a(action), c('Yes.'), a('Anything else?'), c('No.'), a('Goodbye.')]);
   assert.equal(completed.commitment, 'book a sailing lesson', 'a no to an unrelated later question is not an action refusal');
 });
 
 test('historical read-backs and current read-backs follow chronology, including after a refusal', () => {
   const legacy = 'Right. Call my sister, Thursday. Will you?';
-  const chosen = outcome([c('No action.'), a(line('next.none')), c('Actually, call my sister.'), a(legacy)]);
+  const chosen = outcome([c('No action.'), a(line('next.none')), c('Actually, call my sister.'), a(legacy),c('Yes.')]);
   assert.equal(chosen.commitment, 'call my sister');
   assert.equal(chosen.day, 'thursday');
   assert.equal(chosen.noAction, undefined);
-  assert.equal(outcome([c('A lesson.'), a(action), c('Actually, my sister.'), a(legacy)]).commitment, 'call my sister');
-  assert.equal(outcome([c('My sister.'), a(legacy), c('Actually, the lesson.'), a(action)]).commitment, 'book a sailing lesson');
+  assert.equal(outcome([c('A lesson.'), a(action), c('Actually, my sister.'), a(legacy),c('Yes.')]).commitment, 'call my sister');
+  assert.equal(outcome([c('My sister.'), a(legacy), c('Actually, the lesson.'), a(action),c('Yes.')]).commitment, 'book a sailing lesson');
+});
+
+test('only explicit agreement to the completed action can be saved',()=>{
+  for(const response of ['Thanks.','Right, thank you.','Mhm.','Yes, but not that action.','Maybe.','Yes, actually no.','I am still thinking.']){
+    assert.equal(outcome([c('The product needs redesigning.'),a(action),c(response),a('Goodbye.')]).commitment,undefined,response);
+  }
+  assert.equal(outcome([c('Book a lesson.'),a(action)]).commitment,undefined,'silence is not agreement');
+  for(const response of ['Yes.','That is right.','Exactly.','Ja, det stemmer.'])assert.equal(outcome([a(action),c(response)]).commitment,'book a sailing lesson',response);
+});
+
+test('a correction needs fresh agreement, and a later explicit withdrawal invalidates an earlier yes',()=>{
+  const corrected=line('next.confirm',{commitment:'call the sailing school'});
+  assert.equal(outcome([a(action),c('Yes.'),a(line('next.agreed')),c('Actually, call them first.'),a(corrected)]).commitment,undefined);
+  assert.equal(outcome([a(action),c('Yes.'),a(line('next.agreed')),c('Do not save that action.')]).commitment,undefined);
+  assert.equal(outcome([a(action),c('Yes.'),a('Anything else?'),c('No.')]).commitment,'book a sailing lesson');
+});
+
+test('an agent cannot clear the previous action by interpreting courtesy as no-action',()=>{
+  const result=outcome([a('What would you like to talk about?'),c('Thank you.'),a(line('next.none'))]);
+  assert.equal(result.noAction,undefined);
+  const declined=outcome([a(line('next.ask.c')),c('No, not this week.'),a(line('next.none'))]);
+  assert.equal(declined.noAction,true);
 });
