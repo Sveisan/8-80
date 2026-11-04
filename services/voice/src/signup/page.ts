@@ -3,6 +3,7 @@ import type { ScriptLines } from '../script.ts';
 import { readBookingSlot, type Invalid, type Signup } from './form.ts';
 import { describeAppointment, nextSlotAfter } from '../schedule/time.ts';
 import { BUSY, BUSY_CSS, MOTION, busyLabel, mascot } from './mascot.ts';
+import { timePicker, TIME_PICKER_CSS, TIME_PICKER_SCRIPT } from './time-picker.ts';
 
 const esc = (s: string): string =>
   s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
@@ -196,11 +197,9 @@ export function signupPage(
           ).join('')}
         </div>
         ${note('weekday')}
-        <div class="times" id="times">
-          ${TIMES.map(
+        ${timePicker(TIMES.map(
             (t) => `<label class="pick"><input type="radio" name="time" value="${t}"${t === time ? ' checked' : ''} /><span>${t}</span></label>`,
-          ).join('')}
-        </div>
+          ).join(''), script)}
         ${note('minute')}
       </fieldset>
 
@@ -298,16 +297,7 @@ export function signupPage(
         setInterval(function () { if (!document.hidden) updateAppointment(); }, 60000);
         document.addEventListener('visibilitychange', function () { if (!document.hidden) updateAppointment(); });
       } catch (e) {}
-      try {
-        var row = document.getElementById('times');
-        var centre = function (el, smooth) {
-          var box = el.getBoundingClientRect(), track = row.getBoundingClientRect();
-          row.scrollTo({ left: row.scrollLeft + box.left - track.left - (row.clientWidth - box.width) / 2, behavior: smooth ? 'smooth' : 'auto' });
-        };
-        var on = row.querySelector('input:checked');
-        if (on) centre(on.parentNode, false);
-        row.addEventListener('change', function (e) { centre(e.target.parentNode, true); });
-      } catch (e) {}
+      ${TIME_PICKER_SCRIPT}
     </script>
   `,
     language,
@@ -490,14 +480,7 @@ function shell(body: string, language = 'en', wide = false): string {
    */
   fieldset { margin-top: 1.75rem; }
   .days { display: grid; grid-template-columns: repeat(7, 1fr); gap: .3rem; }
-  .times {
-    display: flex; gap: .3rem; margin-top: .5rem; padding: .1rem 1.5rem; scroll-padding-inline: 1.5rem;
-    overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none; overscroll-behavior-x: contain;
-    -webkit-mask-image: linear-gradient(90deg, transparent, #000 1.5rem, #000 calc(100% - 1.5rem), transparent);
-    mask-image: linear-gradient(90deg, transparent, #000 1.5rem, #000 calc(100% - 1.5rem), transparent);
-  }
-  .times::-webkit-scrollbar { display: none; }
-  .times .pick { flex: 0 0 4.4rem; scroll-snap-align: center; }
+  ${TIME_PICKER_CSS}
   .pick { position: relative; display: block; margin: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; }
   .pick input { position: absolute; opacity: 0; width: 1px; height: 1px; min-height: 0; margin: 0; }
   .pick span:first-of-type {

@@ -2561,3 +2561,11 @@ _Explicit opt-in. Generic messages only: no private call details on a lock scree
 
 `reminder.sms`
 > "8&80 reminder: {{text}}"
+
+## Time picker controls
+
+`time.earlier`
+> "Show earlier times"
+
+`time.later`
+> "Show later times"
