@@ -10,6 +10,7 @@ import { needsOnboarding, type CallerRecord } from '../store/types.ts';
 import { describeAppointment, describeSlot } from '../schedule/time.ts';
 import { queued, dispatchMessage } from '../messages/outbox.ts';
 import { Scheduler } from '../schedule/scheduler.ts';
+import { weeklyCallContext } from '../weekly/runtime.ts';
 
 export interface TickResult {
   claimed: number;
@@ -161,7 +162,7 @@ export async function tick(deps: LoopDeps, now = new Date()): Promise<TickResult
           // to ask about once the rehearsal is over.
           firstCall: needsOnboarding(caller),
           voice: caller.voice,
-          variables: variablesFor({ ...caller, nextSlot: nextSaid, ...(slotSaid ? { bookedSlot: slotSaid } : {}) }),
+          variables: { ...variablesFor({ ...caller, nextSlot: nextSaid, ...(slotSaid ? { bookedSlot: slotSaid } : {}) }), weekly_context: weeklyCallContext(claim.attemptId, zone, at, claim.phoneHash) },
           ...(config.speechify.callerIdNumber ? { callerIdNumber: config.speechify.callerIdNumber } : {}),
           ...(caller.language ? { language: caller.language } : {}),
           ringingTimeoutMs: config.speechify.ringingTimeoutMs,
@@ -245,6 +246,7 @@ export function variablesFor(caller: {
   onboarding?: CallerRecord['onboarding'];
 }): Record<string, string> {
   return {
+    weekly_context: '{"available":false}',
     call_number: String(caller.callNumber),
     // First name only, for the greeting. Empty when unknown: the console fills
     // "Hello {{first_name}} —" with nothing, which reads as "Hello —".

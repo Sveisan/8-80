@@ -35,6 +35,8 @@ export const callers = pgTable(
     nudgesEnabled: boolean('nudges_enabled').notNull().default(false),
     nextNudgeAt: timestamp('next_nudge_at', { withTimezone: true }),
     nudgeSequence: integer('nudge_sequence').notNull().default(0),
+    tipsEnabled: boolean('tips_enabled').notNull().default(true),
+    tipProgress: text('tip_progress').notNull().default('{}'),
     /** This is call number N. 1 means they have never been called. */
     callNumber: integer('call_number').notNull().default(1),
     onboarding: text('onboarding').notNull().default('pending'),
@@ -296,6 +298,47 @@ export const messageAttempts = pgTable('message_attempts', {
   startedAt: timestamp('started_at', { withTimezone: true }).notNull(),
   finishedAt: timestamp('finished_at', { withTimezone: true }), result: text('result'),
 }, t => [index('message_attempts_message_idx').on(t.messageId)]);
+
+/** One explicitly requested SMS, independent of the optional nudge subscription. */
+export const weeklyReminders = pgTable('weekly_reminders', {
+  phoneHash: text('phone_hash').primaryKey(), revision: integer('revision').notNull(),
+  bodyEnc: text('body_enc'), dueAt: timestamp('due_at', { withTimezone: true }).notNull(),
+  timezone: text('timezone').notNull(), state: text('state').notNull(),
+  attemptId: text('attempt_id').notNull(), updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
+}, t => [index('weekly_reminders_due').on(t.dueAt).where(sql`${t.state} = 'scheduled'`)]);
+export const weeklyReminderDrafts = pgTable('weekly_reminder_drafts', {
+  id: text('id').primaryKey(), phoneHash: text('phone_hash').notNull(), attemptId: text('attempt_id').notNull(),
+  revision: integer('revision').notNull(), bodyEnc: text('body_enc').notNull(),
+  replacesPending: boolean('replaces_pending').notNull(),
+  dueAt: timestamp('due_at', { withTimezone: true }).notNull(), timezone: text('timezone').notNull(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+}, t => [index('weekly_reminder_drafts_expiry').on(t.expiresAt), index('weekly_reminder_drafts_caller').on(t.phoneHash)]);
+export const weeklyToolRequests = pgTable('weekly_tool_requests', {
+  id: text('id').primaryKey(), phoneHash: text('phone_hash').notNull(), attemptId: text('attempt_id').notNull(),
+  inputHash: text('input_hash').notNull(), responseEnc: text('response_enc').notNull(),
+  at: timestamp('at', { withTimezone: true }).notNull(),
+}, t => [index('weekly_tool_requests_expiry').on(t.at), index('weekly_tool_requests_caller').on(t.phoneHash)]);
+export const weeklyTipAssignments = pgTable('weekly_tip_assignments', {
+  phoneHash: text('phone_hash').primaryKey(), experiment: text('experiment').notNull(), arm: text('arm').notNull(),
+  randomized: boolean('randomized').notNull(), assignedAt: timestamp('assigned_at', { withTimezone: true }).notNull(),
+  sampleRank: integer('sample_rank').notNull(),
+  optedOutAt: timestamp('opted_out_at', { withTimezone: true }),
+}, t => [index('weekly_tip_assignments_cohort').on(t.experiment, t.randomized, t.arm, t.assignedAt)]);
+export const weeklyTipOffers = pgTable('weekly_tip_offers', {
+  attemptId: text('attempt_id').primaryKey(), phoneHash: text('phone_hash').notNull(),
+  tipId: text('tip_id').notNull(), topic: text('topic').notNull(), wordingEnc: text('wording_enc').notNull(),
+  offeredAt: timestamp('offered_at', { withTimezone: true }).notNull(),
+  reportedAt: timestamp('reported_at', { withTimezone: true }), exposedAt: timestamp('exposed_at', { withTimezone: true }),
+  response: text('response'),
+}, t => [index('weekly_tip_offers_caller').on(t.phoneHash, t.offeredAt)]);
+/** Frozen aggregate result of the prespecified experiment; no customer content. */
+export const weeklyTipExperiments = pgTable('weekly_tip_experiments', {
+  id: text('id').primaryKey(), evaluatedAt: timestamp('evaluated_at', { withTimezone: true }).notNull(),
+  winner: text('winner'), results: text('results').notNull(),
+});
+export const weeklyTipCounters = pgTable('weekly_tip_counters', {
+  id: text('id').primaryKey(), count: integer('count').notNull(),
+});
 
 export type CallerRow = typeof callers.$inferSelect;
 export type CallAttemptRow = typeof callAttempts.$inferSelect;

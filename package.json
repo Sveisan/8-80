@@ -6,6 +6,8 @@
     "services/*"
   ],
   "scripts": {
+    "quality:tips": "npm run -w @8and80/voice quality:tips --",
+    "weekly:tools": "npm run -w @8and80/voice weekly:tools --",
     "beliefs:preview": "npm run -w @8and80/voice beliefs:preview",
     "animate-mark": "npm run -w @8and80/voice animate-mark",
     "audition": "npm run -w @8and80/voice audition --",
@@ -30,7 +32,7 @@
     "stress": "npm run -w @8and80/voice stress",
     "test": "npm run -ws --if-present test",
     "test:db": "./scripts/test-with-db.sh",
-    "tick": "npm run -w @8and80/voice tick",
+    "tick": "bash scripts/tick-gated.sh",
     "typecheck": "npm run -ws --if-present typecheck",
     "voices": "npm run -w @8and80/voice voices --",
     "messages": "npm run -w @8and80/voice messages --",

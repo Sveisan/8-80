@@ -2518,3 +2518,52 @@ _Explicit opt-in. Generic messages only: no private call details on a lock scree
 
 `sms.nudge.7`
 > "8&80: You can start small, start again, or take a pause. There is room for all three."
+
+## Feature tips and one-time SMS reminders
+
+<!-- Weekly service tips: scored catalogue and experiment contract live in docs/weekly-tips-and-reminders.md. -->
+
+`tips.01`
+> "You can ask me how this service works whenever you like."
+
+`tips.02`
+> "If you'd like, I can explain a couple of things you can use these calls for."
+
+`tips.04`
+> "If you'd rather think out loud than answer questions, just say."
+
+`tips.05`
+> "You can ask me to take one thing at a time."
+
+`tips.06`
+> "You can tell me when you need more time to think."
+
+`tips.07`
+> "If a shorter call suits you better today, just say."
+
+`tips.08`
+> "You don't have to choose an action every time we talk."
+
+`tips.09`
+> "If I remember something wrongly, you can correct me; your call page also lets you edit my saved notes."
+
+`tips.11`
+> "You can choose a man's or a woman's voice on your call page; the choice takes effect on your next call."
+
+`tips.12`
+> "Your call page lets you move one appointment or change your usual weekly time."
+
+`tips.13`
+> "If you'd like occasional texts between calls, you can switch them on or off on your call page."
+
+`tips.14`
+> "If a one-time text reminder would help with what you chose today, we can arrange one now."
+
+`tips.19`
+> "You can ask me to change or stop your pending text reminder while we're talking."
+
+`tips.20`
+> "You can ask me to stop these feature tips without stopping your calls."
+
+`reminder.sms`
+> "8&80 reminder: {{text}}"

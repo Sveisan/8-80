@@ -14,6 +14,7 @@ import type { LoopDeps } from './deps.ts';
 import { queued, dispatchMessage, enqueue } from '../messages/outbox.ts';
 import { Scheduler, flagForReview } from '../schedule/scheduler.ts';
 import { safetyTier, alertText } from '../call/safety.ts';
+import { observeTip } from '../weekly/tips.ts';
 
 export interface Settled {
   handled: boolean;
@@ -63,6 +64,7 @@ export async function settleConversation(
     if (!caller) return { handled: false, why: 'account deleted' };
     const messages = queued(tx, attempt.phoneHash, `call:${attempt.id}`, now, 'call', attempt.id);
     const answer = await settleInside(payload, { ...deps, store: deps.store.in(tx), scheduler: new Scheduler(tx), sms: messages.sms, mailer: messages.mailer }, headerEvent, now);
+    if (answer.handled) await observeTip(tx, attempt.id, transcript.turns.filter(t => t.speaker === 'agent').map(t => t.text), now);
     ids.push(...messages.ids);
     // Silent/interrupted calls get a way back, with no invented next-week promise.
     if (answer.handled && ['silent', 'unverified', 'interrupted'].includes(answer.status ?? '') && !messages.ids.length) {
