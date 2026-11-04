@@ -49,7 +49,7 @@ export const crossSite = (req: IncomingMessage): boolean => {
   }
 };
 
-/** Separate, short-lived authority to read and correct private context. */
+/** Issued alongside a freshly SMS-verified browser; never extended by ordinary account visits. */
 export function memoryCookie(code: string): string {
   return `memory=${code}; Path=/memory; Max-Age=900; HttpOnly; SameSite=Strict${config.link.publicUrl().startsWith('https:') ? '; Secure' : ''}`;
 }

@@ -48,13 +48,14 @@ export async function accessRoutes(req: IncomingMessage, url: URL, deps: LoopDep
       const [caller] = await tx`select phone_hash from callers where phone_hash = ${hash} for update`;
       if (!caller) return undefined;
       const links = new Links(tx);
-      return { browser: await links.mint(hash, now, 'browser'), link: await links.mint(hash, now), memory: memory ? await links.mint(hash, now, 'memory') : undefined };
+      return { browser: await links.mint(hash, now, 'browser'), link: await links.mint(hash, now), memory: await links.mint(hash, now, 'memory') };
     }) : undefined;
     if (!access) {
       return { status: 400, body: accessCodePage(script, id, phone, 'access.code.wrong', memory) };
     }
-    // Fresh phone proof grants the same controls as a new SMS link.
-    return { status: 303, body: '', headers: { location: access.memory ? '/memory' : `/r/${access.link}`, 'set-cookie': access.memory ? [browserCookie(access.browser), memoryCookie(access.memory)] : browserCookie(access.browser) } };
+    // One fresh phone proof also opens private corrections for 15 minutes.
+    // The sign-in intent chooses the destination, not the strength of that proof.
+    return { status: 303, body: '', headers: { location: memory ? '/memory' : `/r/${access.link}`, 'set-cookie': [browserCookie(access.browser), memoryCookie(access.memory)] } };
   }
   if (!sendLimit.take(client, now.getTime())) return limited();
   if (!smsConfigured()) return page(503, 'access.unavailable', phone);
