@@ -37,11 +37,24 @@ const deps = (): LoopDeps => ({
   sms: { send: async (_to, body) => { messages.push(body); } },
   mailer: { send: async (_to, body) => { messages.push(body); } },
 });
+
+for(const reply of ['Thanks.','Right, thank you.','Yes, but not that action.'])test(`unconfirmed proposal cannot overwrite memory or appear in recap: ${reply}`,options,async()=>{
+  Object.assign(process.env,{WEEKLY_DIALOGUE_PILOT:'1',WEEKLY_TOOLS_READY:'0',WEEKLY_TOOLS_PILOT_HASH:phoneKey(phoneA),WEEKLY_TOOL_SECRET:'synthetic-weekly-secret-with-32-characters',SPEECHIFY_SEND_VARIABLES:'1',
+    SPEECHIFY_DIALOGUE_AGENT_ID:'pilot-return',SPEECHIFY_DIALOGUE_FIRST_CALL_AGENT_ID:'pilot-first',SPEECHIFY_DIALOGUE_FEMALE_AGENT_ID:'pilot-female-return',SPEECHIFY_DIALOGUE_FEMALE_FIRST_CALL_AGENT_ID:'pilot-female-first'});
+  await enrol();await db!.store.record(phoneA,{at:now.toISOString(),durationMs:100_000,commitment:'original chosen action',onboardingComplete:true});
+  const d=deps();await tick(d,now);
+  await settleConversation(event('wire_1',[
+    ['user','The product needs redesigning.'],['assistant',fill('next.confirm',{commitment:'redo the unchosen flyer'})],['user',reply],['assistant','Goodbye.'],
+  ]),d,undefined,now);
+  assert.equal((await db!.store.load(phoneA)).lastCommitment,'original chosen action');
+  assert.doesNotMatch(JSON.stringify(messages),/redo the unchosen flyer/);
+});
 async function enrol(phone = phoneA) {
   await db!.store.upsertProfile(phone, { name: phone === phoneA ? 'Alpha Person' : 'Beta Person', email: `${phone === phoneA ? 'alpha' : 'beta'}@example.com` });
   await new Scheduler(db!.sql).setSlot(phone, { weekday: 2, minute: 480, timezone: 'Europe/Oslo' }, new Date(+now - 86400_000));
 }
 beforeEach(async () => {
+  process.env['WEEKLY_DIALOGUE_PILOT']='0';delete process.env['WEEKLY_DIALOGUE_READY'];delete process.env['WEEKLY_TOOLS_PILOT_HASH'];
   process.env['DATA_ENCRYPTION_KEY'] = Buffer.alloc(32, 12).toString('base64');
   process.env['PUBLIC_URL'] = 'https://8and80.example';
   process.env['BELIEFS_ENABLED'] = '0';
@@ -80,7 +93,7 @@ test('signed webhook → encrypted memory → next outbound request and prompt, 
     ['assistant', fill('read.first.keep', { eight: 'alpha games', eighty: 'alpha family', goals: 'alpha garden' })],
     ['user', 'No, change eight.'], ['assistant', fill('read.first.fix_eight', { eight: 'alpha drawing' })],
     ['user', 'Yes, exactly.'], ['assistant', fill('onboarding.confirmed')],
-    ['user', 'Plant alpha seeds.'], ['assistant', fill('next.confirm', { commitment: 'plant alpha seeds' })], ['assistant', 'Right. Goodbye.'],
+    ['user', 'Plant alpha seeds.'], ['assistant', fill('next.confirm', { commitment: 'plant alpha seeds' })],['user','Yes.'], ['assistant', 'Right. Goodbye.'],
   ]);
   assert.equal((await post(alpha, false)).status, 401);
   assert.equal((await db!.store.load(phoneA)).callNumber, 1);
@@ -89,7 +102,7 @@ test('signed webhook → encrypted memory → next outbound request and prompt, 
   assert.equal(messages.length, 1, 'duplicate webhook cannot produce a second recap');
   await post(event(idFor(phoneB), [
     ['assistant', fill('read.first.keep', { eight: 'beta books', eighty: 'beta family', goals: 'beta lessons' })],
-    ['user', 'Yes.'], ['assistant', fill('onboarding.confirmed')], ['user', 'Book beta lessons.'], ['assistant', fill('next.confirm', { commitment: 'book beta lessons' })],
+    ['user', 'Yes.'], ['assistant', fill('onboarding.confirmed')], ['user', 'Book beta lessons.'], ['assistant', fill('next.confirm', { commitment: 'book beta lessons' })],['user','Yes.'],
   ]));
   assert.equal((await db!.store.load(phoneA)).callNumber, 2);
   const sealed = await db!.sql`select last_commitment_enc, eight_enc, goals_enc from callers`;
@@ -108,7 +121,7 @@ test('signed webhook → encrypted memory → next outbound request and prompt, 
     assert.ok(prompt.includes(eight));
     assert.match(prompt, /THIS IS NOT THE FIRST CALL/);
     const rendered = weeklyPrompt(false).replace(/\{\{([^}]+)\}\}/g, (_, key: string) => vars[key] ?? '');
-    assert.ok(rendered.includes(`Last week you said you'd ${vars['last_commitment']}. What happened?`));
+    assert.ok(rendered.includes(`The last action I have recorded is ${vars['last_commitment']}. How did it go?`));
     assert.ok(rendered.includes(eight));
     assert.doesNotMatch(rendered, /\{\{/);
   }
@@ -146,7 +159,7 @@ test('an authenticated correction wins over a delayed call and suppresses its st
   await tick(deps(), nextWeek);
   const vars = wire[1]!['dynamic_variables'] as Record<string, string>;
   assert.equal(vars['last_commitment'], 'corrected action');
-  await settleConversation(event('wire_2', [['user', 'New chosen action.'], ['assistant', fill('next.confirm', { commitment: 'new chosen action' })]]), deps(), undefined, nextWeek);
+  await settleConversation(event('wire_2', [['user', 'New chosen action.'], ['assistant', fill('next.confirm', { commitment: 'new chosen action' })],['user','Yes.']]), deps(), undefined, nextWeek);
   assert.equal((await db!.store.load(phoneA)).lastCommitment, 'new chosen action', 'later calls may update corrected memory');
   assert.equal(messages.length, 1);
 });
@@ -207,7 +220,7 @@ test('a lost commit acknowledgement cannot rewind a conversation already settled
   await enrol();
   const d = deps(), raw = d.store.raw, original = raw.begin;
   let simulated = false;
-  const payload = event('wire_1', [['user', 'Book a lesson.'], ['assistant', fill('next.confirm', { commitment: 'book a lesson' })]]);
+  const payload = event('wire_1', [['user', 'Book a lesson.'], ['assistant', fill('next.confirm', { commitment: 'book a lesson' })],['user','Yes.']]);
   raw.begin = (async (...args: unknown[]) => {
     const result: unknown = await Reflect.apply(original, raw, args);
     if (wire.length === 1 && !simulated) {

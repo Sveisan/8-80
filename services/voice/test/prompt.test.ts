@@ -203,7 +203,7 @@ test('the first call may notice one connection, repairs on a ladder, and never s
   const p = buildInstructions(loadScript(), { callNumber: 1 });
   assert.match(p, /THE ONE THING YOU NOTICE/);
   assert.match(p, /connection is clear in their own words and adds something/);
-  assert.match(p, /Never ask a fourth version/);
+  assert.match(p, /Never ask a third version/);
   assert.match(p, /never say one back the first time you hear it/);
   assert.match(p, /You get ONE push/);
   assert.ok(!/"Which games\?"\)/.test(p), 'the example that got "Can\'t remember" is gone as a model');
@@ -284,9 +284,9 @@ test('weekly prompts distinguish acknowledgment and feedback from consent to han
 
 test('a first name greets them when known, and leaves no gap when not', () => {
   const s = loadScript();
-  assert.match(buildInstructions(s, { callNumber: 3, lastCommitment: 'x', firstName: 'Eirik' }), /"Hello again, Eirik\."/);
+  assert.match(buildInstructions(s, { callNumber: 3, lastCommitment: 'x', firstName: 'Eirik' }), /"Hello Eirik — it's your 8 and 80 call/);
   const anon = buildInstructions(s, { callNumber: 3, lastCommitment: 'x' });
-  assert.match(anon, /"Hello again\."/);
+  assert.match(anon, /"Hello — it's your 8 and 80 call/);
   assert.ok(!anon.includes('Hello again, .'));
   assert.match(buildInstructions(s, { callNumber: 1 }), /"Hello — it's your 8 and 80 call/);
 });

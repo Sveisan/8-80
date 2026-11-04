@@ -224,7 +224,7 @@ test('a returning call is told, in the first line, not to introduce itself', asy
   // the instruction was implicit, and implicit lost to the model's habit.
   const { voice } = await drive([{ buf: QUIET, count: 5 }], false);
   assert.match(voice.instructions, /THIS IS NOT THE FIRST CALL/);
-  assert.match(voice.instructions, /Do NOT introduce yourself/);
+  assert.match(voice.instructions, /do not greet again.*introduce yourself/);
   assert.ok(!voice.instructions.includes('Is now still a good moment'), 'the first-call lines must not be in a returning call at all');
 });
 
@@ -313,7 +313,8 @@ test('the disclaimer is for danger, not for a hard week', async () => {
   assert.match(voice.instructions, /once in the whole call/);
 });
 
-test('a returning call is given its first sentence verbatim', async () => {
+test('a returning call continues after the platform opening without a second greeting', async () => {
   const { voice } = await drive([{ buf: QUIET, count: 5 }], false);
-  assert.match(voice.instructions, /YOUR FIRST SENTENCE IS EXACTLY: "Hello again\."/);
+  assert.match(voice.instructions, /platform's greeting and availability question are the whole opening/);
+  assert.doesNotMatch(voice.instructions,/YOUR FIRST SENTENCE IS EXACTLY: "Hello again/);
 });

@@ -6,9 +6,14 @@ import { sameMessageNumber } from '../agent/voices.ts';
 import { zonedTimeToUtc } from '../schedule/time.ts';
 
 export class WeeklyToolError extends Error {
-  constructor(readonly code: string) { super(code); }
+  constructor(readonly code: string,readonly reason?:'past'|'minimum_delay'|'horizon') { super(code); }
 }
 const MINUTE=60_000;
+function validateHorizon(at:Date,now:Date):void {
+  if(+at<=+now)throw new WeeklyToolError('choose_time_two_minutes_to_thirty_days_ahead','past');
+  if(+at<+now+2*MINUTE)throw new WeeklyToolError('choose_time_two_minutes_to_thirty_days_ahead','minimum_delay');
+  if(+at>+now+30*86400_000)throw new WeeklyToolError('choose_time_two_minutes_to_thirty_days_ahead','horizon');
+}
 export const entitled = (c: Record<string, unknown>, now: Date) => ['comped','active','past_due'].includes(String(c['billing_status']))
   || (c['billing_status']==='trialing' && (!c['trial_ends_at'] || +(c['trial_ends_at'] as Date)>+now));
 export function canRemind(c: Record<string, unknown>, now: Date): boolean {
@@ -28,7 +33,7 @@ export function reminderTime(date: string, time: string, zone: string, now: Date
   try { at=zonedTimeToUtc(year,month,day,hour*60+minute,zone); } catch { throw new WeeklyToolError('timezone_required'); }
   if (wall(at)!==`${date} ${time}`) throw new WeeklyToolError('nonexistent_local_time');
   if ([-120,-90,-60,-30,30,60,90,120].some(m=>wall(new Date(+at+m*MINUTE))===wall(at))) throw new WeeklyToolError('ambiguous_local_time_choose_another');
-  if (+at<+now+2*MINUTE || +at>+now+30*86400_000) throw new WeeklyToolError('choose_time_two_minutes_to_thirty_days_ahead');
+  validateHorizon(at,now);
   return at;
 }
 export function reminderLocalTime(at:Date,zone:string):{date:string;time:string} {
@@ -37,9 +42,11 @@ export function reminderLocalTime(at:Date,zone:string):{date:string;time:string}
 }
 /** Relative requests use elapsed time on the server, never model timezone arithmetic. */
 export function relativeReminderTime(value:unknown,now:Date,existing?:Date):Date {
-  if(typeof value!=='number'||!Number.isInteger(value)||Math.abs(value)>43200||(!existing&&value<2)||value===0)throw new WeeklyToolError('whole_minutes_required');
+  if(typeof value!=='number'||!Number.isInteger(value))throw new WeeklyToolError('whole_minutes_required');
+  if(existing&&value===0)throw new WeeklyToolError('no_time_change');
+  if(Math.abs(value)>43200)throw new WeeklyToolError('choose_time_two_minutes_to_thirty_days_ahead',value>0?'horizon':'past');
   const at=new Date(+(existing??now)+value*MINUTE);
-  if(+at<+now+2*MINUTE||+at>+now+30*86400_000)throw new WeeklyToolError('choose_time_two_minutes_to_thirty_days_ahead');
+  validateHorizon(at,now);
   return at;
 }
 export async function reminderView(sql: Database, hash: string) {

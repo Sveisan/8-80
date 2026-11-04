@@ -5,12 +5,14 @@ import { agentKeys, type AgentRole, type PromptSpec } from './prompt-pack.ts';
 type Json = Record<string, unknown>;
 export interface Variable extends Json { key: string; type: string; }
 export interface SyncState { version: 1; ids: Partial<Record<AgentRole, string>>; pending?: { role: AgentRole; key: string; since: string; hash: string }; }
-export interface Backup { version: 1; at: string; agents: { role: AgentRole; id: string; agent: Json; variables: Variable[] }[]; }
+export interface Backup { version: 1; at: string; agents: { role: AgentRole; id: string; agent: Json; variables: Variable[]; endCall?:{id:string;description:string} }[]; }
 export interface SyncReport { role: AgentRole; id: string; changed: boolean; created: boolean; tools: 'present' | 'unverified'; }
 export interface SyncOptions {
   specs: PromptSpec[]; env: NodeJS.ProcessEnv; state: SyncState; apply: boolean;
   saveState: (state: SyncState) => Promise<void>; saveBackup: (backup: Backup) => Promise<void>; now?: Date;
   onReport?: (report: SyncReport) => void;
+  /** Private clone configuration; never set by the ordinary live-agent CLI. */
+  dialoguePilot?:boolean;
 }
 const record = (v: unknown): Json => {
   if (!v || typeof v !== 'object' || Array.isArray(v)) throw new Error('Speechify returned an unexpected response shape.');
@@ -67,8 +69,9 @@ export class SpeechifySettingsApi {
     if (!key || /[\r\n]/.test(key)) throw new Error('SPEECHIFY_API_KEY is missing or invalid.');
   }
   async request(method: 'GET' | 'POST' | 'PUT' | 'PATCH', path: string, body?: unknown, idempotency?: string): Promise<unknown> {
-    if (!/^\/v1\/agents(?:\/[a-zA-Z0-9_-]+)?(?:\/(?:variables|tools))?$/.test(path)) throw new Error('Unsupported Speechify settings endpoint.');
+    if (!/^\/v1\/agents(?:\/[a-zA-Z0-9_-]+)?(?:\/variables|\/tools(?:\/[a-zA-Z0-9_-]+)?)?$/.test(path)) throw new Error('Unsupported Speechify settings endpoint.');
     if (path.endsWith('/tools') && method !== 'GET') throw new Error('Tool writes are outside the settings sync.');
+    if(/\/tools\/[^/]+$/.test(path)&&(method!=='PATCH'||!body||Object.keys(record(body)).some(k=>k!=='description')||typeof record(body)['description']!=='string'))throw new Error('Only a built-in tool description may be synchronized.');
     let response: Response;
     try {
       response = await this.fetcher(`https://api.speechify.ai${path}`, {
@@ -141,6 +144,11 @@ function toolsPresent(agent: Json, beliefs: boolean, weekly = false): boolean {
   const names = tools.flatMap(t => { if (!t || typeof t !== 'object' || Array.isArray(t)) return []; const v = record(t); if(v['enabled']===false)return []; const c = typeof v['config'] === 'object' && v['config'] ? record(v['config']) : {}; return [v['name'], c['builtin']]; });
   return names.includes('end_call') && (!beliefs || names.includes('capture_belief')) && (!weekly || names.includes('weekly_assist'));
 }
+function endCall(agent:Json):Json|undefined {
+  const tools=agent['tools'];if(!Array.isArray(tools))return undefined;
+  const found=tools.filter(t=>t&&typeof t==='object'&&t.kind==='builtin'&&t.name==='end_call'&&t.config?.builtin==='end_call'&&typeof t.id==='string');
+  return found.length===1?found[0] as Json:undefined;
+}
 function privateUrl(value: string | undefined): string {
   try {
     const url = new URL(value ?? '');
@@ -150,6 +158,7 @@ function privateUrl(value: string | undefined): string {
 }
 export async function syncAgents(api: SpeechifySettingsApi, options: SyncOptions): Promise<SyncReport[]> {
   const { specs, env, state, apply } = options; const now = options.now ?? new Date();
+  if(apply&&env['WEEKLY_DIALOGUE_PILOT']==='1'&&env['WEEKLY_DIALOGUE_READY']!=='1'&&!options.dialoguePilot&&specs.some(s=>!s.role.startsWith('belief-')))throw new Error('Dialogue changes are held in pilot. Use the dialogue pilot setup; live weekly agents require a successful phone test before promotion.');
   const resolved = specs.map(spec => ({ spec, id: env[agentKeys[spec.role]]?.trim() || state.ids[spec.role] }));
   const ids = resolved.flatMap(v => v.id ? [resourceId(v.id)] : []);
   if (new Set(ids).size !== ids.length) throw new Error('Two roles point to the same agent. Separate the IDs before uploading different prompts.');
@@ -173,7 +182,7 @@ export async function syncAgents(api: SpeechifySettingsApi, options: SyncOptions
     const agent = id ? await api.agent(id) : undefined;
     const currentVariables = id ? await api.variables(id) : [];
     const variables = mergeVariables(currentVariables, spec.variables);
-    const wanted: Json = { prompt: spec.prompt };
+    const wanted: Json = { prompt: spec.prompt,...(spec.firstMessage!==undefined?{first_message:spec.firstMessage}:{}) };
     // All three routing branches are required, even when only voicemail/unavailable behaviour changes.
     if (beliefs) Object.assign(wanted, { first_message: spec.firstMessage ?? '', memory: { enabled: false }, amd: { enabled: true, on_voicemail: { action: 'hangup' }, on_ivr: { action: 'proceed' }, on_unavailable: { action: 'hangup' } }, save_audio_recording: false, webhook_url: privateUrl(env['PUBLIC_URL']) });
     if (female) Object.assign(wanted, { tts: { voice_id: femaleVoice }, memory: { enabled: false }, amd: { enabled: true, on_voicemail: { action: 'hangup' }, on_ivr: { action: 'proceed' }, on_unavailable: { action: 'hangup' } }, save_audio_recording: false, webhook_url: privateUrl(env['PUBLIC_URL']) });
@@ -191,7 +200,7 @@ export async function syncAgents(api: SpeechifySettingsApi, options: SyncOptions
       const source = await api.agent(resourceId(sourceId));
       if (!toolsPresent(source, false)) throw new Error('The source weekly agent must have end_call configured before adding a female pair.');
       if (typeof source['first_message'] !== 'string') throw new Error('The source weekly greeting could not be read.');
-      wanted['first_message'] = source['first_message'];
+      wanted['first_message'] = spec.firstMessage??source['first_message'];
       if (create) {
         create['first_message'] = '';
         create['language'] = source['language'] ?? 'en';
@@ -205,7 +214,7 @@ export async function syncAgents(api: SpeechifySettingsApi, options: SyncOptions
     if (!recovered?.id || recovered.agent?.['name'] !== recovered.spec.name || recovered.agent?.['is_public'] !== false) throw new Error('The supplied recovery ID does not identify the expected private setup agent. No configuration was changed.');
   }
   // Read and validate every selected agent before the first provider write.
-  if (apply) await options.saveBackup({ version: 1, at: now.toISOString(), agents: entries.flatMap(e => e.id && e.agent ? [{ role: e.spec.role, id: e.id, agent: Object.fromEntries(ownedFields.filter(k => Object.hasOwn(e.agent!, k) && (k !== 'first_message' || e.spec.role.startsWith('belief-') || e.spec.role.startsWith('female-')) && (k !== 'tts' || e.spec.role.startsWith('female-'))).map(k => [k, e.agent![k]])), variables: e.currentVariables }] : []) });
+  if (apply) await options.saveBackup({ version: 1, at: now.toISOString(), agents: entries.flatMap(e => e.id && e.agent ? [{ role: e.spec.role, id: e.id, agent: Object.fromEntries(ownedFields.filter(k => Object.hasOwn(e.agent!, k) && (k !== 'first_message' || e.spec.firstMessage!==undefined || e.spec.role.startsWith('belief-') || e.spec.role.startsWith('female-')) && (k !== 'tts' || e.spec.role.startsWith('female-'))).map(k => [k, e.agent![k]])), variables: e.currentVariables,...(e.spec.endCallDescription&&endCall(e.agent)?{endCall:{id:resourceId(endCall(e.agent)!['id']),description:String(endCall(e.agent)!['description']??'')}}:{}) }] : []) });
   if (apply && state.pending) { delete state.pending; await options.saveState(state); }
   const reports: SyncReport[] = [];
   for (const entry of entries) {
@@ -213,9 +222,12 @@ export async function syncAgents(api: SpeechifySettingsApi, options: SyncOptions
     let id = entry.id; let created = false;
     const variablesChanged = !isDeepStrictEqual(entry.currentVariables, variables);
     const settingsChanged = !entry.agent || !fieldsMatch(entry.agent, wanted);
-    const changed = settingsChanged || variablesChanged;
+    const toolBefore=entry.agent?endCall(entry.agent):undefined;
+    const toolChanged=!!spec.endCallDescription&&toolBefore?.['description']!==spec.endCallDescription;
+    const ready=(agent:Json)=>toolsPresent(agent,spec.role.startsWith('belief-'),!spec.role.startsWith('belief-')&&env['WEEKLY_TOOLS_READY']==='1')&&(!spec.endCallDescription||endCall(agent)?.['description']===spec.endCallDescription);
+    const changed = settingsChanged || variablesChanged || toolChanged;
     if (!apply) {
-      const report: SyncReport = { role: spec.role, id: id ?? '', changed, created: !id, tools: entry.agent && toolsPresent(entry.agent, spec.role.startsWith('belief-'), !spec.role.startsWith('belief-') && env['WEEKLY_TOOLS_READY']==='1') ? 'present' : 'unverified' };
+      const report: SyncReport = { role: spec.role, id: id ?? '', changed, created: !id, tools: entry.agent && ready(entry.agent) ? 'present' : 'unverified' };
       reports.push(report); options.onReport?.(report); continue;
     }
     if (!id) {
@@ -230,10 +242,13 @@ export async function syncAgents(api: SpeechifySettingsApi, options: SyncOptions
     // Declare variables first: the provider rejects prompts referring to missing keys.
     if (created || variablesChanged) await api.request('PUT', `/v1/agents/${id}/variables`, { variables });
     if (created || settingsChanged) await api.request('PATCH', `/v1/agents/${id}`, wanted);
+    const tool=created?endCall(await api.agent(id)):toolBefore;
+    if(spec.endCallDescription&&tool&&tool['description']!==spec.endCallDescription)await api.request('PATCH',`/v1/agents/${id}/tools/${resourceId(tool['id'])}`,{description:spec.endCallDescription});
     const actual = await api.agent(id); const actualVariables = await api.variables(id);
     if (!fieldsMatch(actual, wanted) || variables.some(v => !actualVariables.some(a => fieldsMatch(a, v)))) throw new Error('Speechify did not retain the requested settings. A private backup is available; routing IDs were not written.');
+    if(tool&&spec.endCallDescription&&endCall(actual)?.['description']!==spec.endCallDescription)throw new Error('Speechify did not retain the end-call instructions.');
     state.ids[spec.role] = id; await options.saveState(state);
-    const report: SyncReport = { role: spec.role, id, changed, created, tools: toolsPresent(actual, spec.role.startsWith('belief-'), !spec.role.startsWith('belief-') && env['WEEKLY_TOOLS_READY']==='1') ? 'present' : 'unverified' };
+    const report: SyncReport = { role: spec.role, id, changed, created, tools: ready(actual) ? 'present' : 'unverified' };
     reports.push(report); options.onReport?.(report);
   }
   return reports;
@@ -245,21 +260,28 @@ export async function restoreAgents(api: SpeechifySettingsApi, input: unknown): 
     const entry = record(v); const settings = record(entry['agent']);
     if (Object.keys(settings).some(k => !ownedFields.includes(k as typeof ownedFields[number])) || typeof settings['prompt'] !== 'string' || !Array.isArray(entry['variables'])) throw new Error('Invalid Speechify backup settings.');
     const variables = entry['variables'].map(v => { const item = record(v); if (typeof item['key'] !== 'string' || typeof item['type'] !== 'string') throw new Error('Invalid backup variable.'); return item; });
-    return { id: resourceId(entry['id']), settings, variables };
+    const tool=entry['endCall']===undefined?undefined:record(entry['endCall']);
+    if(tool&&typeof tool['description']!=='string')throw new Error('Invalid built-in backup.');
+    return { id: resourceId(entry['id']), settings, variables,...(tool?{endCall:{id:resourceId(tool['id']),description:tool['description'] as string}}:{}) };
   });
   const originals: Json[] = [];
   for (const entry of entries) originals.push(await api.agent(entry.id));
+  entries.forEach((entry,i)=>{if(entry.endCall&&endCall(originals[i]!)?.['id']!==entry.endCall.id)throw new Error('The end-call backup does not match this agent.');});
   let index = 0;
-  for (const { id, settings, variables } of entries) {
+  for (const { id, settings, variables,endCall:toolBackup } of entries) {
     // Older restore points predate managed greetings: they cannot restore an unknown greeting.
     const fields = ownedFields.filter(k => !['first_message', 'tts'].includes(k) || Object.hasOwn(settings, k));
     // The old prompt's variables still exist in the merged catalog until this restore.
     const current = Object.fromEntries(fields.filter(k => Object.hasOwn(originals[index]!, k)).map(k => [k, originals[index]![k]])); index++;
     await api.request('PATCH', `/v1/agents/${id}`, restorePatch(settings, current));
     await api.request('PUT', `/v1/agents/${id}/variables`, { variables });
+    if(toolBackup){
+      await api.request('PATCH',`/v1/agents/${id}/tools/${toolBackup.id}`,{description:toolBackup.description});
+    }
     const agent = await api.agent(id); const catalog = await api.variables(id);
     const restored = Object.fromEntries(fields.filter(k => Object.hasOwn(agent, k)).map(k => [k, agent[k]]));
     if (!restoredFieldsMatch(restored, settings) || catalog.length !== variables.length || variables.some(v => !catalog.some(a => fieldsMatch(a, v)))) throw new Error('Speechify restore was not verified.');
+    if(toolBackup&&endCall(agent)?.['description']!==toolBackup.description)throw new Error('The end-call restore was not verified.');
   }
   return entries.length;
 }

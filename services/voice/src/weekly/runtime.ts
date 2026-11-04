@@ -17,7 +17,8 @@ export function weeklyToken(attemptId: string): string {
   return createHmac('sha256',secret).update(`8and80:weekly:${attemptId}`).digest('base64url');
 }
 export function weeklyCallContext(attemptId: string, timezone: string | undefined, now: Date, hash?: string): string {
-  return JSON.stringify(weeklyToolsAllowed(hash) ? {available:true,attempt_id:attemptId,session_token:weeklyToken(attemptId),timezone:timezone??null,now:now.toISOString()} : {available:false});
+  const dialogue=process.env['WEEKLY_DIALOGUE_READY']==='1'||process.env['WEEKLY_DIALOGUE_PILOT']==='1'&&!!hash&&hash===process.env['WEEKLY_TOOLS_PILOT_HASH'];
+  return JSON.stringify(weeklyToolsAllowed(hash) ? {available:true,attempt_id:attemptId,session_token:weeklyToken(attemptId),timezone:timezone??null,now:now.toISOString(),...(dialogue?{dialogue_policy:'confirmed-actions-v1'}:{})} : {available:false});
 }
 const string=(v:unknown)=>typeof v==='string'?v:'';
 const object=(v:unknown):Record<string,unknown>=>v&&typeof v==='object'&&!Array.isArray(v)?v as Record<string,unknown>:{};
@@ -110,9 +111,9 @@ export async function weeklyTool(deps: LoopDeps, input: unknown, now=new Date())
         await invalidateReminder(tx,hash);
         await tx`update weekly_reminders set revision=revision+1,state='cancellation_unconfirmed',body_enc=null,updated_at=${now} where phone_hash=${hash}`;
         await tx`delete from weekly_reminder_drafts where phone_hash=${hash}`;
-        out={cancelled:false,future_delivery_stopped:true,delivery_unconfirmed:true,instruction:'Future unsent work was stopped, but the provider may already have accepted this message. Do not claim confirmed cancellation or recall.'};
+        out={cancelled:false,future_delivery_stopped:true,delivery_unconfirmed:true,user_message:'I’ve stopped any further attempt to send it, but it may already be on its way.',instruction:'Future unsent work was stopped, but the provider may already have accepted this message. Do not claim confirmed cancellation or recall.'};
       }
-      else if(!reminder || !['scheduled','queued'].includes(reminder.state))out={cancelled:false,reminder,instruction:'No pending reminder was cancelled. If already accepted or delivered, it cannot be recalled.'};
+      else if(!reminder || !['scheduled','queued'].includes(reminder.state))out={cancelled:false,reminder,user_message:'There is no pending reminder to cancel. Nothing was stopped by this request.',instruction:'No pending reminder was cancelled. If already accepted or delivered, it cannot be recalled.'};
       else {
         if(v['revision']!==reminder.revision)throw new WeeklyToolError('reminder_changed_read_status');
         await invalidateReminder(tx,hash);

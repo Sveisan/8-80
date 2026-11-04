@@ -5,6 +5,7 @@ import { queued, enqueue, dispatchMessage } from './messages/outbox.ts';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { weeklyTool } from './weekly/runtime.ts';
 import { weeklyWebhookArguments } from './weekly/transport.ts';
+import { weeklyToolFailure } from './weekly/errors.ts';
 import { WeeklyToolError } from './weekly/reminders.ts';
 import { weeklyOpenApi } from './weekly/tool-schema.ts';
 import { isIP } from 'node:net';
@@ -217,8 +218,8 @@ export function controlPlane(deps: LoopDeps, secret: string | readonly string[] 
           }
           return send(res, 200, await weeklyTool(deps, weeklyWebhookArguments(input)));
         } catch (error) {
-          const code = error instanceof WeeklyToolError ? error.code : error instanceof SyntaxError ? 'invalid_json' : 'tool_unavailable';
-          return send(res, code === 'request_too_large' ? 413 : code === 'unauthorized' ? 401 : code === 'invalid_json' ? 400 : code === 'tool_unavailable' ? 503 : 409, {error:code, instruction:code === 'tool_unavailable' ? 'Outcome unconfirmed. Check status or retry identical arguments and request_id. Do not claim success or failure.' : 'No action was confirmed by this request. Explain the problem without claiming success.'});
+          const failure=weeklyToolFailure(error);
+          return send(res,failure.status,failure.body);
         }
       }
       if (req.method === 'POST' && url.pathname === '/beliefs/tool') {

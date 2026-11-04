@@ -66,7 +66,7 @@ async function main(): Promise<void> {
       if (updated !== source) { await privateWrite(resolve(dir, `env-backup-${Date.now()}.txt`), source); await privateWrite(path, updated); }
       console.log('Verified agent IDs saved in .env. Credentials, launch flags and caller settings were not changed.');
     }
-    console.log('No calls, messages, purchases, phone reassignments or tool changes were made.');
+    console.log('No calls, messages, purchases or phone reassignments were made. Weekly built-in end-call descriptions are part of the verified source sync.');
     if (group === 'beliefs' || group === 'all') console.log('Beliefs capture-tool setup and real-call verification remain required. No BELIEFS_ approval flag was enabled.');
     if (mode === 'check' && reports.some(r => r.changed)) process.exitCode = 2;
   } finally { await lock.close(); await unlink(lockPath); }

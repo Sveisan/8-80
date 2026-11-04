@@ -1,5 +1,6 @@
 import { log } from '../log.ts';
 import { femaleAgents } from './voices.ts';
+import { dialogueAgent } from '../weekly/dialogue-policy.ts';
 
 export interface PlaceCallRequest {
   to: string;
@@ -64,7 +65,7 @@ export class SpeechifyAgent {
     const female = req.voice === 'female' ? femaleAgents() : undefined;
     if (req.voice === 'female' && !female) throw new Error('The female first and returning agents are not configured distinctly.');
     const body: Record<string, unknown> = {
-      agent_id: female ? (req.firstCall ? female.first : female.returning) : req.firstCall ? this.firstCallAgentId : this.agentId,
+      agent_id: dialogueAgent(req.variables?.['weekly_context'],req.firstCall===true,req.voice==='female')??(female ? (req.firstCall ? female.first : female.returning) : req.firstCall ? this.firstCallAgentId : this.agentId),
       to: req.to,
       ...(req.callerIdNumber ? { caller_id_number: req.callerIdNumber } : {}),
       ...(this.send.variables && req.variables ? { dynamic_variables: req.variables } : {}),

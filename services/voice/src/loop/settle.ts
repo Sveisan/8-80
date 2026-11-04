@@ -15,6 +15,7 @@ import { queued, dispatchMessage, enqueue } from '../messages/outbox.ts';
 import { Scheduler, flagForReview } from '../schedule/scheduler.ts';
 import { safetyTier, alertText } from '../call/safety.ts';
 import { observeTip } from '../weekly/tips.ts';
+import { dialoguePilotAllowed } from '../weekly/dialogue-policy.ts';
 
 export interface Settled {
   handled: boolean;
@@ -114,7 +115,7 @@ async function settleInside(
     return { handled: true, status: 'failed', why: 'no number on file' };
   }
 
-  const outcome = settle(transcript, deps.script, now);
+  const outcome = settle(transcript, deps.script, now,{strictActionAgreement:dialoguePilotAllowed(attempt.phoneHash)});
   // Before anything else acts on the call. The flag is what every later step
   // — the recap, the texts, the next call — reads and holds back for.
   const finding = safetyTier(transcript.turns, deps.script);

@@ -8,14 +8,14 @@ import { dayIn, extractCommitment } from '../src/call/commitment.ts';
 const script = parseScript(readFileSync(resolve(import.meta.dirname, '../../../SCRIPT.md'), 'utf8'));
 
 test('the commitment is taken from the line where the mentor reads it back', () => {
-  const c = extractCommitment("Right. Run three times, Wednesday. That's what I'll ask you about.", script);
+  const c = extractCommitment(script.get('next.confirm')!.replace('{{commitment}}','Run three times on Wednesday'), script,{strict:true});
   assert.ok(c);
   assert.equal(c.text, 'run three times');
   assert.equal(c.day, 'wednesday');
 });
 
 test('a read-back without a day still yields the commitment', () => {
-  const c = extractCommitment('Right. Call my sister. That is what I will ask you about.', script);
+  const c = extractCommitment(script.get('next.confirm')!.replace('{{commitment}}','Call my sister'), script,{strict:true});
   assert.ok(c);
   assert.match(c.text, /call my sister/);
 });

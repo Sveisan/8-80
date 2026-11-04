@@ -143,6 +143,39 @@ people or reading. Use ordinary message-delivery reports to inspect failures.
 
 ## Provider setup and deployment
 
+### Dialogue reliability pilot, 4 November
+
+Owner-call regressions now cover explicit action agreement, neutral history
+correction, acknowledgement versus goodbye, one platform opening, skipping
+already-answered questions, bounded cue repair, unclear facts and concrete tips.
+The action read-back asks what may be remembered; strict settlement requires a
+clear reply after that complete read-back. Courtesy, an unfinished correction or
+an agent-invented no-action line cannot create or clear an agreement.
+
+These changes are **isolated from the existing weekly agents**. Four private
+pilot agents use `SPEECHIFY_DIALOGUE_*_AGENT_ID`. `WEEKLY_DIALOGUE_PILOT=1` admits
+only `WEEKLY_TOOLS_PILOT_HASH`, and only when the existing tool readiness checks
+also pass. `WEEKLY_DIALOGUE_READY=0` and `WEEKLY_TOOLS_READY=0` remain in force.
+Versioned server context selects the private agent; ordinary contexts retain
+the existing routes and historical read-back policy. Never point a pilot ID at
+a live agent. The ordinary prompt sync refuses live weekly writes while this
+pilot is held; the private setup passes its explicit pilot scope.
+
+Both the common opening and the built-in end-call description are backed up,
+read back and restorable. Other tools and call/voice settings are preserved.
+The end-call description requires a completed goodbye before hangup. Text
+tests cannot establish actual audio playout; that remains a phone-test gate.
+
+Tool failures carry fixed `user_message` and `recovery` fields. Past local time,
+minimum delay and the thirty-day horizon have different explanations. Unknown
+provider failures remain unconfirmed and require status reconciliation.
+
+Promotion needs a successful owner phone test and no active calls before
+enabling both global readiness flags. Existing callers' stored notes and
+appointments are not migrated or rewritten for this pilot. The source reply
+probe catalogue is `quality/dialogue-cases.ts`; these fictional text probes
+cannot prove real tool execution or audible delivery.
+
 1. Apply migration `0029_weekly_tips_and_reminders.sql` before the new backend/tick.
 2. Set a separate `WEEKLY_TOOL_SECRET` of at least 32 random characters. Keep
    `WEEKLY_TOOLS_READY=0` while configuring. Do not reuse a webhook or payment secret.

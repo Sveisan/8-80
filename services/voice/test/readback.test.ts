@@ -30,7 +30,8 @@ test('half a read-back is not one', () => {
 });
 
 test('the commitment read-back that ends on a question still yields the commitment', () => {
-  const c = extractCommitment('Right. Call two members after standup, Thursday. Will you?', script);
+  const legacy=new Map(script).set('next.confirm','Right. {{commitment}}, {{day}}. Will you?');
+  const c = extractCommitment('Right. Call two members after standup, Thursday. Will you?', legacy);
   assert.equal(c?.text, 'call two members after standup');
   assert.equal(c?.day, 'thursday');
 });
@@ -46,6 +47,7 @@ test('a finished call keeps what was read back, and nothing that was not', () =>
         { speaker: 'agent', text: 'So the assumption is: nobody will pay for it.' },
         { speaker: 'caller', text: 'Yeah.' },
         { speaker: 'agent', text: 'Right. Ask two members for money after standup, Thursday. Will you?' },
+        { speaker: 'caller', text: 'Yes.' },
       ],
     },
     script,
@@ -73,7 +75,8 @@ test('"all right with that?" is not a commitment, and a call that reached none k
 });
 
 test('the read-back found without its closing words, when the turn opens on it', () => {
-  assert.equal(extractCommitment('Right — write five minutes of material, Thursday.', script)?.text, 'write five minutes of material');
+  assert.equal(extractCommitment('Let me check: write five minutes of material on Thursday.', script)?.text, 'write five minutes of material');
+  assert.equal(extractCommitment('Let me check: write five minutes of material on Thursday.', script,{strict:true}),undefined,'storage requires a complete proposal');
 });
 
 test('a correction to this year says back only that part, and the correction is what is kept', () => {
@@ -94,6 +97,6 @@ test('a correction to this year says back only that part, and the correction is 
 });
 
 test('a light remark after the read-back is not part of the commitment', () => {
-  const c = extractCommitment("Right — write five minutes of material. I'll ask how it went next time we talk. I'll be gentle. Mostly.", script);
+  const c = extractCommitment(script.get('next.confirm')!.replace('{{commitment}}','write five minutes of material')+" I'll be gentle. Mostly.", script);
   assert.equal(c?.text, 'write five minutes of material');
 });

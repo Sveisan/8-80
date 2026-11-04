@@ -336,7 +336,7 @@ _On the second call only, at the read, the visit from the first call comes back:
 _One beat. Then straight in._
 
 `open.return.callback`
-> "Last week you said you'd {{commitment}}. What happened?"
+> "The last action I have recorded is {{commitment}}. How did it go?"
 
 _`{{commitment}}` is quoted back in the user's own words from the last call's summary,
 not paraphrased into cleaner language. Their phrasing is the point._
@@ -678,8 +678,8 @@ _No day is asked for. The next call is a week away and that is the deadline; "wh
 day?" on top of it was felt as unnecessary on a real call, and chasing one for a
 commitment that was a direction took four attempts on another (removed 1 October)._
 
-_On a returning call, the moment it happens — a cue, so it is a plan rather than an intention. "When
-this, I'll do that" is the shape; the mentor never says the formula out loud:_
+_On a returning call, ask about a cue only if they want help finding one. One plain
+clarification is enough; if it still does not fit, leave the cue out:_
 
 `next.cue`
 > "What could you do it straight after?"
@@ -687,7 +687,13 @@ this, I'll do that" is the shape; the mentor never says the formula out loud:_
 _Then read it back, once, in their words, cue included:_
 
 `next.confirm`
-> "Right — {{commitment}}. I'll ask how it went next time we talk."
+> "Let me check: {{commitment}}. Is that the action you want me to remember for next week?"
+
+_Wait for explicit agreement. A correction needs a new complete read-back and fresh
+agreement. Courtesy, silence and an unfinished answer do not confirm an action._
+
+`next.agreed`
+> "I'll ask how it went next time we talk."
 
 _"That's the one I'll ask about" sounded like a rule being explained. This is a friend
 saying they'll be curious. After it, when it suits and only then, one short light touch
@@ -696,14 +702,12 @@ of the mentor's own — a smile in the voice, a little humour about the thing it
 reason or a justification for asking. The read-back sentence itself stays word for
 word._
 
-_It used to end "Will you?". On a real call that closed a four-attempt sequence of
-pinning the commitment down, and it read as cornering: it tests compliance and invites
-a yes that means nothing. The read-back is enough. Its closing words are fixed for a
-second reason: they are how the commitment is found in the transcript. Without them, a
-call that reached no commitment had "with that" saved from "all right with that?"._
+_The question checks what may be saved; it does not ask them to defend or improve their
+choice. Without agreement, do not claim an action has been saved. The fixed read-back
+and the caller's explicit answer together are the storage boundary._
 
-**One push, then write it down.** However the commitment arrives, the mentor gets one
-push on it. After that, whatever is on the table is the commitment, however vague. A
+**One clarification, then confirm their choice.** The mentor gets one clarification
+of the action, then accepts the caller's wording and checks it back. A
 vague commitment kept is a second call; a precise one extracted is not.
 
 ---

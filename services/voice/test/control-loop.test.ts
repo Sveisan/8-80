@@ -198,6 +198,7 @@ test('a finished call is stored and the recap goes out', { skip: skip() }, async
     completed('conv_1', [
       { role: 'user', content: 'I got out on the Monday.' },
       { role: 'assistant', content: readBack },
+      { role: 'user', content: 'Yes, that is the action I chose.' },
     ]),
     deps(),
   );

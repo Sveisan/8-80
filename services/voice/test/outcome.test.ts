@@ -43,6 +43,7 @@ test('a real call yields the commitment from the read-back', () => {
         { speaker: 'agent', text: 'What happened?' },
         { speaker: 'caller', text: 'I got out on the Monday and then it fell apart.' },
         { speaker: 'agent', text: readBack },
+        { speaker: 'caller', text: 'Yes, that is right.' },
       ],
     }),
     script,

@@ -45,7 +45,7 @@ test('a whole free month preserves context, delivers each recap once and stops p
     assert.equal(placed[week]!.firstCall,week===0);
     if(week) assert.equal(placed[week]!.variables?.['last_commitment'],'book a lesson');
     const turns = week===0 ? [{role:'assistant',content:map},{role:'user',content:'Yes, that is right.'},{role:'assistant',content:script.get('onboarding.confirmed')!}] : [{role:'user',content:'I did it. This week I will book a lesson.'}];
-    turns.push({role:'assistant',content:action});
+    turns.push({role:'assistant',content:action},{role:'user',content:'Yes, that is the action I chose.'});
     const payload={event:'conversation.completed',conversation_id:`month-${week+1}`,status:'completed',duration_ms:600_000,messages:turns};
     assert.equal((await settleConversation(payload,deps,undefined,new Date(+at+600_000))).handled,true);
     assert.equal((await settleConversation(payload,deps,undefined,new Date(+at+601_000))).handled,false);

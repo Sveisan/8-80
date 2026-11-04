@@ -4,11 +4,10 @@ import type { ScriptLines } from '../script.ts';
 /**
  * What they committed to, taken from the line where the mentor reads it back.
  *
- * SCRIPT.md pins the commitment on purpose — `next.confirm` is "Right.
- * {{commitment}}, {{day}}. Will you?" — and that read-back
- * is the one moment in the call where the thing is stated plainly, by us, in
- * their words. So we take it from there rather than guessing at the caller's
- * transcript, where the commitment is buried in the reasoning around it.
+ * SCRIPT.md pins a complete proposal on purpose. Extract its wording rather
+ * than guessing at a task from the caller's discussion. Parsing a proposal
+ * does not authorize storage: strict settlement also requires the caller's
+ * explicit agreement after the complete read-back.
  *
  * If the read-back never happened, no commitment was reached, and saying so is
  * correct: next week's call must not open by quoting something they never said.
