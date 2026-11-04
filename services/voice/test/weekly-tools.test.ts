@@ -4,7 +4,7 @@ import type { AddressInfo } from 'node:net';
 import { createHmac } from 'node:crypto';
 import { openTestDb } from './helpers/db.ts';
 import { weeklyCallContext, weeklyToolsAllowed, weeklyToken, weeklyTool } from '../src/weekly/runtime.ts';
-import { reminderTime, queueDueReminders, pruneWeekly } from '../src/weekly/reminders.ts';
+import { reminderTime, relativeReminderTime, reminderLocalTime, queueDueReminders, pruneWeekly } from '../src/weekly/reminders.ts';
 import { CANDIDATES, EXPERIMENT, chooseWinner, observeTip, optimizeTips, tipReport, type ExperimentGroup } from '../src/weekly/tips.ts';
 import { weeklyOpenApi } from '../src/weekly/tool-schema.ts';
 import { weeklyWebhookArguments } from '../src/weekly/transport.ts';
@@ -55,7 +55,7 @@ after(async()=>{await db?.close();});
 test('only editorial scores above seven have live copy; provider prompts require server results and explicit confirmation',()=>{
   assert.equal(CANDIDATES.length,20);
   for(const [id,,score] of CANDIDATES)assert.equal(script.has(`tips.${id}`),score>7,id);
-  assert.equal(CANDIDATES.filter(c=>c[2]>7).length,14);
+  assert.equal(CANDIDATES.filter(c=>c[2]>7).length,12);
   for(const first of [true,false]){
     const p=weeklyPrompt(first);assert.match(p,/\{\{weekly_context\}\}/);assert.match(p,/reminder_prepare/);assert.match(p,/explicit agreement/);assert.match(p,/at most one tip/);
   }
@@ -81,6 +81,33 @@ test('Speechify transport unwraps only a named tool envelope and rejects ambiguo
     {...envelope(args),session_token:'outer-credential'},{...envelope(args),command:'tips_off'}]){
     assert.throws(()=>weeklyWebhookArguments(input),/unauthorized/);
   }
+});
+
+test('relative time uses server elapsed minutes across midnight and DST, independently of UTC display',()=>{
+  const at=new Date('2026-11-04T10:38:27Z');
+  assert.equal(relativeReminderTime(5,at).toISOString(),'2026-11-04T10:43:27.000Z');
+  assert.deepEqual(reminderLocalTime(relativeReminderTime(5,at),'Europe/Oslo'),{date:'2026-11-04',time:'11:43'});
+  assert.deepEqual(reminderLocalTime(relativeReminderTime(5,new Date('2026-11-04T22:58Z')),'Europe/Oslo'),{date:'2026-11-05',time:'00:03'});
+  assert.deepEqual(reminderLocalTime(relativeReminderTime(5,new Date('2027-03-28T00:58Z')),'Europe/Oslo'),{date:'2027-03-28',time:'03:03'});
+  for(const minutes of [1,0,-2,5.5,'5',43201])assert.throws(()=>relativeReminderTime(minutes,at),/whole_minutes/);
+});
+
+test('relative create and revision-guarded shifts return server local proposals before confirmation',options,async()=>{
+  await enrolled();
+  const status=await call('status');assert.equal(status['time'],'12:00');
+  let p=await call('reminder_prepare',{text:'Short break',after_minutes:5});
+  assert.equal(p['time'],'12:05');assert.equal(p['date'],'2026-11-03');assert.equal(p['timezone'],'Europe/Oslo');
+  assert.equal((await db!.sql`select * from weekly_reminders`).length,0);
+  const created=await call('reminder_confirm',{draft_id:p['draft_id'],confirmed:true});
+  const revision=(created['reminder'] as {revision:number}).revision;
+  await assert.rejects(call('reminder_prepare',{text:'Short break',shift_minutes:2,revision:revision-1}),/revision_required/);
+  await assert.rejects(call('reminder_prepare',{text:'Short break',after_minutes:5,date:'2026-11-03',time:'12:05'}),/one_time_mode/);
+  await assert.rejects(call('reminder_prepare',{text:'Short break',after_minutes:5,shift_minutes:2}),/one_time_mode/);
+  p=await call('reminder_prepare',{text:'Short break',shift_minutes:2,revision},new Date(+now+60000));
+  assert.equal(p['time'],'12:07','shift starts at the pending due time, not current time');
+  const changed=await call('reminder_confirm',{draft_id:p['draft_id'],confirmed:true},new Date(+now+60000));
+  assert.equal((changed['reminder'] as {at:string}).at,new Date(+now+7*60000).toISOString());
+  assert.equal((await call('reminder_cancel',{revision:revision+1},new Date(+now+60000)))['cancelled'],true);
 });
 
 test('pilot setup authorizes only its test caller until global activation',()=>{

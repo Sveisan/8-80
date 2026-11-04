@@ -2523,12 +2523,6 @@ _Explicit opt-in. Generic messages only: no private call details on a lock scree
 
 <!-- Weekly service tips: scored catalogue and experiment contract live in docs/weekly-tips-and-reminders.md. -->
 
-`tips.01`
-> "You can ask me how this service works whenever you like."
-
-`tips.02`
-> "If you'd like, I can explain a couple of things you can use these calls for."
-
 `tips.04`
 > "If you'd rather think out loud than answer questions, just say."
 

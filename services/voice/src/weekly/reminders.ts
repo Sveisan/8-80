@@ -31,6 +31,17 @@ export function reminderTime(date: string, time: string, zone: string, now: Date
   if (+at<+now+2*MINUTE || +at>+now+30*86400_000) throw new WeeklyToolError('choose_time_two_minutes_to_thirty_days_ahead');
   return at;
 }
+export function reminderLocalTime(at:Date,zone:string):{date:string;time:string} {
+  const parts=new Intl.DateTimeFormat('sv-SE',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(at).replace(',','').split(' ');
+  return {date:parts[0]!,time:parts[1]!};
+}
+/** Relative requests use elapsed time on the server, never model timezone arithmetic. */
+export function relativeReminderTime(value:unknown,now:Date,existing?:Date):Date {
+  if(typeof value!=='number'||!Number.isInteger(value)||Math.abs(value)>43200||(!existing&&value<2)||value===0)throw new WeeklyToolError('whole_minutes_required');
+  const at=new Date(+(existing??now)+value*MINUTE);
+  if(+at<+now+2*MINUTE||+at>+now+30*86400_000)throw new WeeklyToolError('choose_time_two_minutes_to_thirty_days_ahead');
+  return at;
+}
 export async function reminderView(sql: Database, hash: string) {
   const [row]=await sql`select r.revision,r.body_enc,r.due_at,r.timezone,r.state,m.status as dispatch_state from weekly_reminders r
     left join message_outbox m on m.event_key='reminder:'||r.phone_hash||':'||r.revision::text where r.phone_hash=${hash}`;
