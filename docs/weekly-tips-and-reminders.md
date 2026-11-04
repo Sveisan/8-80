@@ -144,6 +144,14 @@ people or reading. Use ordinary message-delivery reports to inspect failures.
    Every request copies attempt_id/session_token from the private weekly_context
    dynamic variable, not from caller speech. Do not attach it to Beliefs agents.
    The repository does not assume an undocumented provider tools-write schema.
+   Speechify's webhook worker sends `{arguments, timestamp, tool_call_id, tool_name}`;
+   the endpoint unwraps `arguments` only for `weekly_assist`, then applies the same
+   attempt HMAC and authorization as a direct flat request. Mixed outer credentials
+   are refused. The 4 November owner call exposed this transport mismatch: the
+   model passed correct credentials, but the flat-only endpoint returned 401.
+   The provider's `Speechify-Webhook-Test: true` connection probe always performs
+   no action, even if it carries valid action arguments. A successful probe proves
+   connectivity only; an actual call must still verify model use and delivery.
 4. Sync the weekly prompts and the `weekly_context` variable using the existing
    `speechify:sync -- --group weekly` check/apply workflow. Existing custom variables
    are preserved; the existing 20-variable capacity check still applies.

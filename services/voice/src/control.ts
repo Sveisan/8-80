@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { queued, enqueue, dispatchMessage } from './messages/outbox.ts';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { weeklyTool } from './weekly/runtime.ts';
+import { weeklyWebhookArguments } from './weekly/transport.ts';
 import { WeeklyToolError } from './weekly/reminders.ts';
 import { weeklyOpenApi } from './weekly/tool-schema.ts';
 import { isIP } from 'node:net';
@@ -208,7 +209,13 @@ export function controlPlane(deps: LoopDeps, secret: string | readonly string[] 
         try {
           const body = await rawBody(req, 6000);
           if (body.length > 6000) return send(res, 413, { error: 'request_too_large' });
-          return send(res, 200, await weeklyTool(deps, JSON.parse(body.toString('utf8'))));
+          const input:unknown=JSON.parse(body.toString('utf8'));
+          // Speechify's operator probe carries no session authority. It can check
+          // transport, but must never execute an action.
+          if(req.headers['speechify-webhook-test']==='true'){
+            return send(res,200,{ok:true,probe:true,action_performed:false});
+          }
+          return send(res, 200, await weeklyTool(deps, weeklyWebhookArguments(input)));
         } catch (error) {
           const code = error instanceof WeeklyToolError ? error.code : error instanceof SyntaxError ? 'invalid_json' : 'tool_unavailable';
           return send(res, code === 'request_too_large' ? 413 : code === 'unauthorized' ? 401 : code === 'invalid_json' ? 400 : code === 'tool_unavailable' ? 503 : 409, {error:code, instruction:code === 'tool_unavailable' ? 'Outcome unconfirmed. Check status or retry identical arguments and request_id. Do not claim success or failure.' : 'No action was confirmed by this request. Explain the problem without claiming success.'});
