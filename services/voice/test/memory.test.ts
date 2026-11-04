@@ -75,6 +75,62 @@ test('ordinary browser and SMS credentials cannot reveal private context', optio
   });
 });
 
+test('normal SMS sign-in also opens only the verified caller’s memory for a fixed 15 minutes', options, async () => {
+  await enrol();
+  const other = '+4793000009';
+  await db!.store.upsertProfile(other, { name: 'Other caller' });
+  await db!.store.record(other, { at: new Date().toISOString(), durationMs: 300_000, commitment: 'Other private commitment', goals: 'Other private goals' });
+  await serve(async base => {
+    const requested = await fetch(`${base}/access`, form({ phone }));
+    assert.equal(requested.status, 200);
+    const id = hidden(await requested.text(), 'id');
+    const code = texts[0]?.match(/\b\d{6}\b/)?.[0]; assert.ok(code);
+    const wrong = await fetch(`${base}/access/verify`, form({ phone, id, code: 'invalid' }));
+    assert.equal(wrong.status, 400);
+    assert.equal(wrong.headers.getSetCookie().length, 0);
+    assert.equal((await db!.sql`select code from links where purpose = 'memory'`).length, 0);
+
+    const verified = await fetch(`${base}/access/verify`, form({ phone: other, id, code }));
+    assert.equal(verified.status, 303);
+    assert.match(verified.headers.get('location') ?? '', /^\/r\/[a-z2-9]+$/);
+    const cookies = verified.headers.getSetCookie();
+    assert.equal(cookies.length, 2);
+    const memory = cookies.find(c => c.startsWith('memory=')); assert.ok(memory);
+    assert.match(memory, /Path=\/memory; Max-Age=900; HttpOnly; SameSite=Strict; Secure/);
+    const memoryCode = memory.split(';')[0]!.slice('memory='.length);
+    const cookie = cookies.map(c => c.split(';')[0]).join('; ');
+    const [issued] = await db!.sql<{ phone_hash: string; created_at: Date; expires_at: Date }[]>`
+      select phone_hash, created_at, expires_at from links where code = ${memoryCode}
+    `;
+    assert.ok(issued);
+    assert.equal(issued.phone_hash, hash, 'changing the hidden number cannot retarget fresh proof');
+    assert.equal(+issued.expires_at - +issued.created_at, 900_000);
+
+    for (const path of [verified.headers.get('location')!, '/me']) {
+      const account = await fetch(`${base}${path}`, get(cookie));
+      assert.equal(account.status, 200);
+      assert.doesNotMatch(await account.text(), /Private commitment|Other private commitment/);
+      assert.equal(account.headers.getSetCookie().length, 0, 'account visits cannot renew private access');
+    }
+    const page = await fetch(`${base}/memory`, get(cookie));
+    assert.equal(page.status, 200, 'normal sign-in needs no second SMS for corrections');
+    const html = await page.text();
+    assert.match(html, /Private commitment/);
+    assert.doesNotMatch(html, /Other private commitment|Other private goals/);
+    assert.equal(page.headers.getSetCookie().length, 0, 'reading private context cannot extend the session');
+    const [unchanged] = await db!.sql`select expires_at from links where code = ${memoryCode}`;
+    assert.equal(+unchanged!.expires_at, +issued.expires_at);
+    assert.equal((await new Links(db!.sql).open(memoryCode, new Date(+issued.created_at + 900_000), 'memory')).ok, false, 'server expiry rejects the exact 15-minute boundary');
+
+    await db!.sql`update links set expires_at = now() - interval '1 second' where code = ${memoryCode}`;
+    const expired = await fetch(`${base}/memory`, get(cookie));
+    assert.equal(expired.status, 303);
+    assert.equal(expired.headers.get('location'), '/access?for=memory');
+    assert.equal((await fetch(`${base}/me`, get(cookie))).status, 200, 'the account session survives memory expiry');
+    assert.equal(texts.length, 1, 'only the original sign-in code was sent');
+  });
+});
+
 test('fresh verification opens only its own notes; correction preserves account state and escapes markup', options, async () => {
   await enrol();
   const [before] = await db!.sql`select next_call_at, trial_ends_at, onboarding, call_number, paused from callers`;
