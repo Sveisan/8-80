@@ -66,6 +66,11 @@ _When the caller comments on the questioning:_
 `example.feedback.reply`
 > "Fair point. I'll ease off the questions."
 
+_That is the whole reply. Stop speaking and let the caller continue. Do not add a
+question, “tell me”, “go on”, a new topic or an invitation to talk. Once they
+resume, respond to what they say. A direct question or specific request alongside
+the criticism may be answered briefly; a clear goodbye is honoured immediately._
+
 ---
 
 ## 1. Opening

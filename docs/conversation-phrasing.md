@@ -34,3 +34,17 @@ partly and undone counters, duplicate webhook handling and preserved goals.
 These changes build on the isolated dialogue pilot. Readiness flags, bookings,
 caller access and patience settings are unchanged. The existing owner phone test
 remains necessary to establish audible delivery before promoting the pilot.
+
+## Giving the caller room after criticism
+
+An agent acknowledged that the conversation felt like an interview, then
+immediately said “Tell me what's been on your mind”. The prompt now makes the
+acknowledgement a complete turn. A question, imperative, topic change or an
+invitation to talk is not appended. The older instruction to simplify a question
+applies when the caller asks for clarification, not when they criticise the
+questioning. The caller can resume naturally; a direct request or explicit
+goodbye still takes priority.
+
+Provider reply probes retain the original criticism test and add requests for
+thinking space, a caller resuming after the pause, and criticism accompanied by
+an explicit goodbye. These text probes cannot establish actual silence duration.
