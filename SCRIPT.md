@@ -918,6 +918,16 @@ If the mentor genuinely must fill:
 
 _`silence.patience` at most once per call. Twice is nagging._
 
+_A plain "thank you", "thanks" or "takk" while an open question is still waiting
+for an answer gets only `silence.soft`, then the caller keeps the floor. It is
+not a technical fault, a reason to retry or an ending. A genuine reported error
+is handled from that actual information. Closed-question agreement and explicit
+action confirmation keep their own rules._
+
+_"I would like to say more" means let them continue, without another question or
+an instruction. "Could you ask me something to help explain?" is different: one
+concrete follow-up can help. Never require a question just to complete a turn._
+
 **But a phone line is not a room.** Waiting is right for a few seconds. Ten seconds of
 nothing after a question usually means they did not hear it, or the mentor did not hear
 them. The last real call asked "Which day?" and then said nothing for two minutes, until

@@ -95,3 +95,27 @@ covers courtesy → fresh read-back → explicit yes. The probe explicitly fails
 logistics or goodbye. Backend confirmation remains independently strict.
 An opening update is acknowledged with one clear factual event, rather than a
 generic claim that the caller has something to work with.
+
+## Listening without a fabricated error or an extra question
+
+The female first-call acknowledgement probe repeatedly returned a technical-error
+sentence after “Thank you”, while the test API reported no underlying error.
+Its cause could not be established from that result. An unanswered open question
+now has an explicit short listening reply, “Mm.”, followed by waiting. Courtesy
+cannot create a fault, retry request or close. Actual reported runtime/tool
+errors still use their verified explanation, and closed-question and action
+agreement rules are unchanged.
+
+The previous concrete-follow-up fixture asked a question even though the caller
+explicitly wanted to say more. That original caller sentence is retained in a
+separate caller-continues probe, which requires giving them the floor. The
+concrete-follow-up probe now has the caller explicitly asking for a question to
+help explain. Both behaviours remain tested; patience is not traded for a forced
+question. The acknowledgement probe now runs on returning agents as well.
+
+Judge examples explicitly accept a listening “Mm.” without requiring a permission
+statement. A factual acknowledgement before a missing situation check can also
+be a short accurate paraphrase; it need not repeat every detail or include a
+politeness marker. Negative examples still reject a naked situation question,
+invented events, a fabricated fault and an extra question when the caller wants
+to continue. Provider verdicts and actual replies remain available for review.
