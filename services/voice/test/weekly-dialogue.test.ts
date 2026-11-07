@@ -37,6 +37,10 @@ test('listening examples and simpler questions cannot mark an action, map or und
   for (const id of ['eight.out', 'thin.smaller', 'next.ask.c', 'next.ask.c.calibrate']) {
     turns.push({ speaker: 'agent', text: script.get(id)! }, { speaker: 'caller', text: 'Still thinking.' });
   }
+  turns.push(
+    { speaker: 'caller', text: 'Thank you.' }, { speaker: 'agent', text: script.get('silence.soft')! },
+    { speaker: 'caller', text: 'I would like to say more.' }, { speaker: 'agent', text: 'Of course.' },
+  );
   const result = settle({ providerCallId: 'synthetic-dialogue', durationMs: 300_000, turns }, script);
   assert.equal(result.outcome?.commitment, undefined);
   assert.equal(result.outcome?.eight, undefined);

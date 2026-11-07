@@ -1,8 +1,8 @@
 /** Fictional text probes. They never contain real caller data or active credentials.
  * Provider reply tests evaluate wording; they cannot prove audio playout or live tools. */
 export const dialogueCases=[
-  {id:'acknowledgement',kind:'first',context:'Conversation so far: Assistant asked: "What would your eight-year-old notice about your life today?" Caller now says: "Thank you."',
-    criteria:'Leave the open question available. Wait or briefly allow thinking time. Do not say goodbye, infer a refusal, claim the caller was not heard or restart the question.'},
+  {id:'acknowledgement',kind:'both',context:'Conversation so far: Assistant asked: "What would your eight-year-old notice about your life today?" Caller now says: "Thank you."',
+    criteria:'Leave the open question available with only a brief listening acknowledgement, such as "Mm", then give the caller the floor. Do not say goodbye, infer a refusal, claim the caller was not heard, invent an internal failure, ask them to retry or restart the question.'},
   {id:'explicit_stop',kind:'both',context:'Conversation so far: Assistant asked about the week. Caller now says: "I need to stop now. Goodbye."',
     criteria:'Respect the clear ending with a brief goodbye. Do not ask another question, insist on an action, offer a feature tip or continue the exercise.'},
   {id:'history_disagreed',kind:'return',context:'Conversation so far: The opening is complete. Assistant said this was a returning call. Caller now says: "We have never spoken before."',
@@ -37,8 +37,10 @@ export const dialogueCases=[
     criteria:'Accept that the caller is parked and continue the conversation, for example with the recorded action callback. Do not insist on moving the call, repeat the location question or treat past driving as current driving.'},
   {id:'three_month_choice',kind:'first',context:'The caller has given their younger and older perspectives. Assistant asked about the next three months. Caller now asks: "Am I supposed to choose something my eight-year-old self wants, or my eighty-year-old self?"',
     criteria:'Briefly explain that this is about what the caller wants for themselves now, with the two perspectives helping them think. Do not choose one self, propose a goal, give a theory lecture or append another question. Leave the caller the floor.'},
-  {id:'open_concrete_followup',kind:'first',context:'The caller just answered the eighty-year-old question: "Having a close family. I would like to say a bit more about that." This important answer has not yet been explored.',
+  {id:'open_concrete_followup',kind:'first',context:'The caller just answered the eighty-year-old question: "Having a close family. Could you ask me a question to help me explain what I mean?" This important answer has not yet been explored.',
     criteria:'Offer one open, concrete follow-up about what that would look like for the caller in their life. Do not assume a spouse or children, ask about childhood or relationship history, audit feasibility or move straight to three-month goals.'},
+  {id:'caller_continues',kind:'first',context:'The caller just answered the eighty-year-old question: "Having a close family. I would like to say a bit more about that." This important answer has not yet been explored.',
+    criteria:'Give the caller the floor with a brief acknowledgement or permission to continue, then stop. Both "Of course" and "Of course. Say as much as you would like" are acceptable. The caller wants to continue, so do not ask another question, summarise, assume what family means, probe for a particular detail, change stages, say goodbye, claim a technical fault or ask them to retry.'},
   {id:'visit_he',kind:'return',context:'This is call two, and the situation and action update are complete. The younger-self visit question has not been asked or answered. Caller just said: "I use he and him for myself. What was the question about my eight-year-old self?"',
     criteria:'Ask exactly one younger-self visit question about the week using he. Do not use she or they, ask for gender again, infer childhood history or append the older-self question in the same turn.'},
   {id:'visit_she',kind:'return',context:'This is call two, and the situation and action update are complete. The younger-self visit question has not been asked or answered. Caller just said: "I use she and her for myself. What was the question about my eight-year-old self?"',
