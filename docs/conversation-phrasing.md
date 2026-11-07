@@ -112,3 +112,10 @@ separate caller-continues probe, which requires giving them the floor. The
 concrete-follow-up probe now has the caller explicitly asking for a question to
 help explain. Both behaviours remain tested; patience is not traded for a forced
 question. The acknowledgement probe now runs on returning agents as well.
+
+Judge examples explicitly accept a listening “Mm.” without requiring a permission
+statement. A factual acknowledgement before a missing situation check can also
+be a short accurate paraphrase; it need not repeat every detail or include a
+politeness marker. Negative examples still reject a naked situation question,
+invented events, a fabricated fault and an extra question when the caller wants
+to continue. Provider verdicts and actual replies remain available for review.
