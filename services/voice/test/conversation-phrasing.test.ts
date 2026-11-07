@@ -39,6 +39,19 @@ test('both voices have a familiar returning opening, with no duplicate younger-s
   assert.equal(script.get('nothing.c'), 'Mm.');
 });
 
+test('a situation check, personalised goodbye and pronoun variants cannot record caller facts', () => {
+  const result = outcome([
+    a(line('open.return.situation')), c('I am at home.'),
+    a(line('eight.door.he')), c('Playing football.'),
+    a(line('eight.door.she')), c('Seeing friends.'),
+    a(line('work.year.clarify')), c('I am still thinking.'),
+    a(line('close.end', { name: 'Synthetic' })), c('Bye.'),
+  ]);
+  for (const key of ['eight', 'eighty', 'goals', 'commitment', 'lastWeek', 'onboardingComplete'] as const) {
+    assert.equal(result[key], undefined, `${key} needs its own confirmation or result marker`);
+  }
+});
+
 test('the new map and a corrected action keep their exact content after clear agreement', () => {
   const result = outcome([
     a("Let me say it back. Your eight-year-old self would love football and jokes. By eighty, you'd like time with family. And in the next three months, learn to sail. Have I got that right?"),

@@ -139,7 +139,7 @@ that this is an AI, that it keeps notes, and that they can stop._
 > "Ten minutes today for what matters to you. Then a shorter call each week."
 
 `open.first.first_question`
-> "Are you at home or somewhere else?"
+> "Are you at home, out somewhere, or driving?"
 
 _Where they are decides how the eight-year-old arrives. The exercise is Eirik's: the
 child as a visitor, judging the life they have now. On this line long silences turn
@@ -155,7 +155,7 @@ _Out — walking, at work, anywhere that is not their own place — the same pre
 perspective, without a task to remember for later:_
 
 `eight.out`
-> "Think of your life as it is today. What would make your eight-year-old self grin?"
+> "Think of your life as it is today. What would make your eight-year-old self smile?"
 
 _Driving — none of it. The call is offered back:_
 
@@ -198,20 +198,26 @@ reaction. "Right — got it" is a form being filled in._
 _After eight, one follow-up if something lit up. Then:_
 
 `read.first.eighty`
-> "Now picture yourself at eighty, looking back. What would you be glad you made time for?"
+> "Now picture yourself at eighty, looking back. What would you be glad you made time for throughout your life?"
 
 _This is the long-term list, and it is often the most important thing said on the call.
 "Family" is not a word to read back and move past; it is a door. Once, on whatever they
 said with the most weight:_
 
 `work.more`
-> "Say a bit more about that?"
+> "Could you say a bit more about what that would look like for you?"
 
 _Take what comes, without digging into how they came to want it — that is the person,
 not the goal (§9b). Then closer in:_
 
 `work.year`
-> "And looking at the next three months, what would you like to be different?"
+> "Now, thinking about your life today, what would you like to do or change for yourself in the next three months?"
+
+_This is the caller's own choice now. Both perspectives can inform it; neither imagined
+self is somebody they have to please. If they ask whose wishes to follow, answer briefly:_
+
+`work.year.clarify`
+> "This is about what you want for yourself now. The two perspectives are just ways to help you think."
 
 _This is the short-term list: things with a next step. Let them name several; that is
 what this question is for. Once, on the one they seem most drawn to:_
@@ -324,7 +330,8 @@ thing.
 
 ### 1b. Every call after
 
-_No preamble, no "how are you", no weather. The value here is that it remembers._
+_A short greeting and one situation check, not a new introduction. The value here is
+that it remembers, while fitting the situation they are in today._
 
 `open.return.greet`
 > "Hello again, {{name}}."
@@ -332,12 +339,34 @@ _No preamble, no "how are you", no weather. The value here is that it remembers.
 _Their first name, from sign-up — never the full name. Used here and at most once more
 in a call, never as lubricant mid-sentence._
 
+_After their reply, only if they have not already said where they are:_
+
+`open.return.situation`
+> "Are you at home, out somewhere, or driving?"
+
+_Wait for the answer before the callback. Do not ask for an address or repeat a
+situation they have already explained. If driving, offer a callback using
+`eight.driving` and the reschedule path; leave the reflection and action questions
+until they are parked. If they cannot talk comfortably, honour that too._
+
 _On the second call only, at the read, the visit from the first call comes back:_
 
 `eight.door`
-> "If your eight-year-old self had visited this week, what would they have enjoyed?"
+> "If your eight-year-old self had visited this week, which part would have been the most fun?"
 
-_One beat. Then straight in._
+_If the caller has explicitly used he or she about themselves, use that pronoun instead:_
+
+`eight.door.he`
+> "If your eight-year-old self had visited this week, what would he have enjoyed?"
+
+`eight.door.she`
+> "If your eight-year-old self had visited this week, what would she have enjoyed?"
+
+_Choose one wording. Never infer their gender from a name or their chosen mentor voice,
+and never add a question about gender just to choose this line. When unknown, or when
+they use another pronoun, use the wording without a pronoun above._
+
+_After the situation check, follow up what they chose last time:_
 
 `open.return.callback`
 > "Last time, you said: {{commitment}}. How did it go?"
@@ -777,7 +806,7 @@ than from what the caller said: a parser confident enough to spot "could we do T
 instead" in free speech is confident enough to spot it where it is not._
 
 `setup.save_number`
-> "You can save this number as 8&80 so you recognise the next call."
+> "You can add 8&80 to your contacts from your call page. Just tap 'Add 8&80 to contacts' and save the contact card."
 
 _Said once, on the first call, and never again. It is a small thing that does real work:
 a scheduled call from a saved contact is answered, and an unknown number ringing at eight
@@ -832,9 +861,14 @@ than on anything about them. Good for a first call._
 Then:
 
 `close.end`
-> "Goodbye for now."
+> "It was good to talk with you, {{name}}. Take care."
 
-_And hang up. No lingering, no second goodbye, no "have a great week"._
+_Use their first name only if known and not already used twice. Keep the goodbye
+suited to the conversation: a lighter ending may refer briefly to an ordinary detail
+they offered, such as "Enjoy the walk. Take care." Do not invent a plan, repeat a
+sensitive disclosure or turn the action into a performance expectation. After a
+difficult call or an early stop, a simple "Take care" fits better than claiming the
+conversation went well. One goodbye, no new question; let it finish before hanging up._
 
 ---
 
@@ -1852,17 +1886,18 @@ there is — so the page does not ask "every week from now on" as it does after 
 call. The button is still `page.move`._
 
 `page.contact`
-> "Save me as a contact"
+> "Add 8&80 to contacts"
 
 `page.contact.detail`
-> "So it says 8&80 when I ring, not a number you don't know."
+> "Download the contact card, then save it on your phone to recognise your next call."
 
-_Above the time picker, before the first call only. Carriers here never show a caller's
+_Above the time picker, before and after the first call. Carriers here never show a caller's
 name, so the only way "8&80" is on the screen on the day — rather than a number that looks
 exactly like a cold call — is their own address book, and the minute after signing up is
-when they are most willing to put it there. One tap: iOS opens "Add contact" straight from
-the file, Android opens it from the download. `setup.save_number` still asks once on the
-first call, for whoever skipped this._
+when they are most willing to put it there. The button downloads a vCard; the phone's
+contact app handles the final save. No number needs typing, and the website cannot save
+it automatically. `setup.save_number` points to this on the first call for whoever
+skipped it; the link remains available on later visits._
 
 `contact.name`
 > "8&80"

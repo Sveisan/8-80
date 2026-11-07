@@ -46,11 +46,15 @@ test('a name with a comma or semicolon does not break the card', () => {
   assert.ok(card.includes('FN:Eight\\, and\\; eighty\r\n'));
 });
 
-test('the page offers the card before the first call, and only when asked to', () => {
+test('the page offers the card before and after the first call, only when a number is available', () => {
   const first = new Date('2026-10-06T06:00:00Z');
   const offered = reschedulePage(OSLO, script, 'en', undefined, undefined, { first, contact: true });
   assert.ok(offered.includes('href="/contact.vcf"'));
   assert.ok(offered.indexOf('href="/contact.vcf"') < offered.indexOf('name="weekday"'), 'above the time, not under it');
+  const returning = reschedulePage(OSLO, script, 'en', undefined, undefined, { next: first, beforeFirst: false, contact: true });
+  assert.ok(returning.includes('href="/contact.vcf"'));
+  assert.ok(returning.includes('download="8and80.vcf"'));
+  assert.ok(returning.includes('Add 8&amp;80 to contacts'));
   const without = reschedulePage(OSLO, script, 'en', undefined, undefined, { first });
   assert.ok(!without.includes('/contact.vcf'));
 });

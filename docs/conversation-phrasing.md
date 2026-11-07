@@ -48,3 +48,32 @@ goodbye still takes priority.
 Provider reply probes retain the original criticism test and add requests for
 thinking space, a caller resuming after the pause, and criticism accompanied by
 an explicit goodbye. These text probes cannot establish actual silence duration.
+
+## Clearer language, situation and a personal close
+
+Use familiar English: the younger self now smiles rather than grins. The older
+perspective explicitly looks across the caller's life, while the three-month
+question asks what they want for themselves now. A requested clarification makes
+clear that neither imagined self has to be pleased. The optional longer-goal
+follow-up stays open while asking what that would look like for the caller.
+
+Every returning call establishes today's situation before the callback, unless
+the caller already gave it. An update offered in the opening is still accepted
+without repeating it. Driving leads to a callback when parked; past driving does
+not block a caller who is parked now. No address is requested.
+
+The second-call visit can use he or she when the caller explicitly used that
+pronoun about themselves. Otherwise use a question without a pronoun. A name and
+the chosen mentor voice are never evidence of the caller's gender. No profile
+field or gender question is added.
+
+The goodbye can use the known first name or an ordinary detail actually shared
+in the call. It remains brief, with a simpler ending for an early stop or a
+difficult call. It cannot add a question or invent familiarity. Audible goodbye
+still precedes the end-call tool.
+
+The existing vCard download remains on the call page after the first call too.
+The button explicitly says “Add 8&80 to contacts”; the first-call suggestion
+points to it. The user confirms the save in their phone's contact app, without
+typing a number. Confirmation, result and memory extraction templates are
+unchanged.
