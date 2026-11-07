@@ -3,6 +3,7 @@ import type { ScriptLines } from '../script.ts';
 import { describeAppointment, type Slot } from '../schedule/time.ts';
 import type { Sms } from './types.ts';
 import { OptedOut } from './types.ts';
+import { contactCardUrl } from '../link/vcard.ts';
 
 /**
  * The one text before the first call.
@@ -31,9 +32,12 @@ export async function textBeforeFirstCall(
   if (!template) return false;
 
   const when = describeAppointment(first, slot.timezone);
+  const card = contactCardUrl(link);
+  const reminder = card ? deps.script.get('sms.welcome.contact')?.replace('{{contact_link}}', card) : undefined;
+  const body = [template.replace('{{when}}', when).replace('{{link}}', link), reminder].filter(Boolean).join('\n');
 
   try {
-    await deps.sms.send(phone, template.replace('{{when}}', when).replace('{{link}}', link));
+    await deps.sms.send(phone, body);
   } catch (e) {
     if (deps.sms.transactional) throw e;
     // Somebody who opted out before they were ever enrolled has said no in

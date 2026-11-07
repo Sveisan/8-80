@@ -210,6 +210,38 @@ test('a finished call is stored and the recap goes out', { skip: skip() }, async
   assert.ok(mail[0]?.recap.body.includes('run three times'));
 });
 
+test('only the first completed call recap reminds about the card; webhook replay preserves mail and memory', { skip: skip() }, async () => {
+  const previous = process.env['SMS_FROM_NUMBER'];
+  process.env['SMS_FROM_NUMBER'] = '+4790008800';
+  try {
+    const phone = '+4790000111';
+    await enrol(phone, { email: 'synthetic@example.com' });
+    await tick(deps(), NOW);
+    const map = script.get('read.first.keep')!.replace('{{eight}}', 'drawing').replace('{{eighty}}', 'family').replace('{{goals}}', 'learn to sail');
+    const first = completed('conv_1', [
+      { role: 'assistant', content: map }, { role: 'user', content: 'Yes.' },
+      { role: 'assistant', content: script.get('onboarding.confirmed')! },
+      { role: 'assistant', content: readBack }, { role: 'user', content: 'Yes.' },
+    ]);
+    await settleConversation(first, deps(), undefined, NOW);
+    await settleConversation(first, deps(), undefined, NOW);
+    assert.equal(mail.length, 1);
+    assert.equal(mail[0]!.recap.contact?.url, 'https://8and80.example/contact.vcf');
+    assert.equal(texts.length, 0, 'the reminder uses the recap, not an extra SMS');
+    const next = new Date(+NOW + 7 * 86400_000);
+    await tick(deps(), next);
+    await settleConversation(completed('conv_2', [{ role: 'assistant', content: readBack }, { role: 'user', content: 'Yes.' }]), deps(), undefined, next);
+    assert.equal(mail.length, 2);
+    assert.equal(mail[1]!.recap.contact, undefined);
+    const caller = await (store as NonNullable<typeof store>).load(phone);
+    assert.equal(caller.lastCommitment, 'run three times');
+    assert.equal(caller.goals, 'learn to sail');
+    assert.equal(caller.eight, 'drawing');
+  } finally {
+    if (previous === undefined) delete process.env['SMS_FROM_NUMBER']; else process.env['SMS_FROM_NUMBER'] = previous;
+  }
+});
+
 /**
  * Two things a call cannot do, and one text between them.
  *

@@ -30,6 +30,18 @@ export function contactNumber(env: NodeJS.ProcessEnv = process.env): string | un
   return /^\+[1-9]\d{6,14}$/.test(n) ? n : undefined;
 }
 
+/** Public download, with no account token. Offer it only when a usable card exists. */
+export function contactCardUrl(site: string, env: NodeJS.ProcessEnv = process.env): string | undefined {
+  if (!contactNumber(env)) return undefined;
+  try {
+    const base = new URL(site);
+    if (base.protocol !== 'https:' || base.username || base.password) return undefined;
+    return new URL('/contact.vcf', base).href;
+  } catch {
+    return undefined;
+  }
+}
+
 /** brand/assets/mark-contact.png — the mark on Night, square, so a circle crop of it still reads. */
 let photo: string | undefined;
 const photoBase64 = (): string => (photo ??= readFileSync(resolve(repoRoot, 'brand', 'assets', 'mark-contact.png')).toString('base64'));

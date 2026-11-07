@@ -126,12 +126,13 @@ export function reschedulePage(
       ? `<h1>${say('page.ended')}</h1><p class="now">${say('page.ended.detail')}</p>`
       : `<h1>${say(first && view.fresh ? 'page.booked' : 'page.title')}</h1>`;
 
-  // Keep caller recognition available above the time picker on later visits too.
-  // Keep it a secondary link so the appointment and reschedule control stand out.
+  // Offer the optional save immediately after booking, with the appointment still first.
+  // Keep a quieter download available on later visits too.
   const contact = view.contact && arranging
     ? `
-    <a class="contact-link" href="/contact.vcf" download="8and80.vcf">${say('page.contact')}</a>
-    <p class="hint">${say('page.contact.detail')}</p>`
+    ${booking ? `<p>${say('page.contact.first')}</p>` : ''}
+    <a class="contact-link${booking ? ' save' : ''}" href="/contact.vcf" download="8and80.vcf" aria-describedby="contact-help">${say('page.contact')}</a>
+    <p class="hint" id="contact-help">${say(booking ? 'page.contact.first.detail' : 'page.contact.detail')}</p>`
     : '';
 
   // Before the first call a new time is the booking, so "every week" is not

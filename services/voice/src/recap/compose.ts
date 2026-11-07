@@ -27,6 +27,8 @@ export interface Recap {
   date?: string;
   /** The durable controls destination, or a billing action for a billing letter. */
   action?: { label: string; url: string };
+  /** Optional contact-card reminder in the first call's recap only. */
+  contact?: { label: string; url: string };
   /**
    * Their own words and the day they named, kept apart.
    *
@@ -44,6 +46,8 @@ export interface RecapContext {
   trialEnds?: string;
   /** A recoverable destination, with no bearer credential or personal data. */
   controlUrl?: string;
+  /** Public contact-card download, supplied only for the first completed call. */
+  contactUrl?: string;
   /** How the next call was referred to out loud, e.g. "Tuesday at nine". */
   nextSlot?: string;
   /**
@@ -123,13 +127,18 @@ export function composeRecap(outcome: CallOutcome, script: ScriptLines, ctx: Rec
 
   if (ctx.trialEnds) paragraphs.push(part('quiet', (script.get('email.trial.reminder') ?? '').replace('{{when}}', ctx.trialEnds)));
 
+  const contactLabel = script.get('page.contact');
+  const contactReminder = script.get('email.contact.reminder');
+  const contact = ctx.contactUrl && contactLabel && contactReminder ? { label: contactLabel, url: ctx.contactUrl } : undefined;
+  if (contact) paragraphs.push(part('quiet', contactReminder));
+
   // Last, always, and never dropped by the empty-slot rule above: it has no
   // slots to be empty. An email that ends on "We spoke for eight minutes." is
   // the one that arrived reading as blank.
   paragraphs.push(part('signoff', fill(script.get('email.signoff'))));
 
   const subjectKey = outcome.commitment ? 'email.subject' : 'email.subject.none';
-  const subject = fill(script.get(subjectKey)) ?? fill(script.get('email.subject.none')) ?? '';
+  const subject = fill(script.get(subjectKey)) || fill(script.get('email.subject.none')) || '';
 
   const parts = paragraphs.filter((p): p is RecapPart => p !== undefined);
 
@@ -137,9 +146,10 @@ export function composeRecap(outcome: CallOutcome, script: ScriptLines, ctx: Rec
   const action = ctx.controlUrl && label ? { label, url: ctx.controlUrl } : undefined;
   return {
     ...(action ? { action } : {}),
+    ...(contact ? { contact } : {}),
     // A commitment with no day reads "run three times, ." without the trim.
     subject: subject.replace(/[—–-]\s*$/, '').trim(),
-    body: [...parts.map((p) => p.text), ...(action ? [`${action.label}: ${action.url}`] : [])].join('\n\n'),
+    body: [...parts.flatMap((p) => p.role === 'signoff' && contact ? [`${contact.label}: ${contact.url}`, p.text] : [p.text]), ...(action ? [`${action.label}: ${action.url}`] : [])].join('\n\n'),
     parts,
     ...(outcome.commitment
       ? {
