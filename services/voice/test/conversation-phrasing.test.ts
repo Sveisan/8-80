@@ -108,6 +108,13 @@ test('the previous pilot action question stays strict across a wording release',
   assert.equal(outcome([a(old), c('Thanks.')]).commitment, undefined);
 });
 
+test('courtesy followed by a fresh full read-back and explicit yes saves exactly the chosen action', () => {
+  const readback = line('next.confirm', { commitment: 'phone the sailing school' });
+  assert.equal(outcome([a(readback), c('Right, thank you.'), a(line('next.agreed'))]).commitment, undefined);
+  const result = outcome([a(readback), c('Right, thank you.'), a(readback), c('Yes, exactly.'), a(line('next.agreed'))]);
+  assert.equal(result.commitment, 'phone the sailing school');
+});
+
 test('old no-action wording keeps its historical policy without weakening pilot agreement', () => {
   const turns = [c("I'd rather skip choosing anything today."), a('We can leave it there this week.')];
   const transcript = { providerCallId: 'synthetic-old-no-action', durationMs: 300_000, turns };
