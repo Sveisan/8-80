@@ -44,13 +44,8 @@ export interface LetterOptions {
   /** The day of the call, already in the caller's zone and language. */
   date?: string;
   /**
-   * One link, for the one letter that cannot do its job without one.
-   *
-   * The recap has none and will never have one — BRAND.md §1, a promise kept
-   * turning into a campaign. A letter that says the free month is over and
-   * does not say where to continue is not restraint, it is a dead end. Set as
-   * text rather than a button for the same reason the rest of this is: it is
-   * correspondence, and correspondence does not have buttons.
+   * The controls or billing destination, set as a text link. The first recap
+   * may also carry the owner's requested contact-card reminder on Recap.contact.
    */
   action?: { label: string; url: string };
 }
@@ -164,6 +159,9 @@ export function letterHtml(recap: Recap, options: LetterOptions = {}): string {
   const action = act
     ? `\n            <tr><td style="padding:0 0 26px;font-size:16px;line-height:1.65;"><a href="${esc(act.url)}" style="color:${C.accent};text-decoration:underline;" class="wordmark">${esc(act.label)}</a></td></tr>`
     : '';
+  const contact = recap.contact
+    ? `\n            <tr><td style="font-size:16px;line-height:1.65;"><a href="${esc(recap.contact.url)}" style="display:inline-block;padding:12px 0;color:${C.accent};text-decoration:underline;" class="wordmark">${esc(recap.contact.label)}</a></td></tr>`
+    : '';
 
   const letter = recap.parts
     .filter((p) => !(quoted && p.role === 'lead'))
@@ -175,13 +173,13 @@ export function letterHtml(recap: Recap, options: LetterOptions = {}): string {
           : '';
       // The action sits after the body and before the sign-off, where a
       // postscript would go in a letter that had one.
-      const before = p.role === 'signoff' ? action : '';
+      const before = p.role === 'signoff' ? contact + action : '';
       return `${before}${rule}<tr><td class="${p.role}" style="${STYLE[p.role]}color:${INK[p.role]};">${esc(p.text)}</td></tr>`;
     })
     .join('\n            ');
 
   return `<!doctype html>
-<html lang="en">
+<html lang="en" dir="ltr">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -201,7 +199,7 @@ export function letterHtml(recap: Recap, options: LetterOptions = {}): string {
 </style>
 </head>
 <body style="margin:0;padding:0;background:${C.bg};" class="ground">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${C.bg};" class="ground">
+  <table lang="en" dir="ltr" role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${C.bg};" class="ground">
     <tr>
       <td align="center" style="padding:48px 24px 60px;">
         <!--[if mso]><table role="presentation" width="500" align="center" cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->

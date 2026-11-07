@@ -137,6 +137,26 @@ test('an existing caller entering signup is recovered without changing their tri
   assert.equal(texts.length, 0, 'no second welcome or verification send');
 });
 
+test('a verified booking offers the contact card and sends one existing confirmation SMS with its download', options, async () => {
+  const booking = signup();
+  const code = await new Pending(db!.sql).start(booking);
+  await serve(async base => {
+    const verified = await fetch(`${base}/start/verify`, post({ phone: booking.phone, code }));
+    assert.equal(verified.status, 303);
+    const cookie = verified.headers.get('set-cookie')!.split(';')[0]!;
+    const page = await (await fetch(`${base}/me`, { headers: { cookie } })).text();
+    assert.ok(page.includes('class="contact-link save"'));
+    assert.ok(page.includes('href="/contact.vcf"'));
+    assert.ok(page.indexOf('class="appointment"') < page.indexOf('href="/contact.vcf"'));
+    assert.equal(texts.length, 1);
+    assert.ok(texts[0]!.includes('https://8and80.example/contact.vcf'));
+    assert.ok(texts[0]!.includes('https://8and80.example/r/'), 'call controls remain available');
+    const repeated = await fetch(`${base}/start/verify`, post({ phone: booking.phone, code }));
+    assert.equal(repeated.status, 400);
+    assert.equal(texts.length, 1, 'replaying verification cannot send a contact reminder twice');
+  });
+});
+
 test('a failed welcome still lands a verified new caller on a usable confirmation', options, async () => {
   const booking = signup();
   const code = await new Pending(db!.sql).start(booking);

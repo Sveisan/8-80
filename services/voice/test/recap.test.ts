@@ -35,6 +35,7 @@ test('nothing in it congratulates anyone', () => {
 
 test('a commitment with no day does not leave a dangling comma or dash', () => {
   const r = composeRecap({ ...call, commitment: 'start the thing' }, script, { nextSlot: 'next week' });
+  assert.equal(r.subject, script.get('email.subject.none'), 'a call with no named day still has a usable email subject');
   assert.ok(!/,\s*\./.test(r.body), r.body);
   assert.ok(!/[—–-]\s*$/.test(r.subject), r.subject);
 });
@@ -105,4 +106,23 @@ test('recaps carry a durable controls destination in both plain text and HTML', 
   assert.ok(recap.body.includes('Manage your calls: https://8and80.example/me'));
   assert.ok(letterHtml(recap).includes('href="https://8and80.example/me"'));
   assert.ok(!recap.body.includes('/r/'), 'email navigation does not carry a bearer credential');
+});
+
+test('the first recap carries an optional contact reminder in HTML and plain text, without changing the action', async () => {
+  const { letterHtml } = await import('../src/recap/letter.ts');
+  const contactUrl = 'https://8and80.example/contact.vcf';
+  const recap = composeRecap({ ...call, commitment: 'phone the sailing school' }, script, { contactUrl, controlUrl: 'https://8and80.example/me' });
+  assert.equal(recap.contact?.url, contactUrl);
+  assert.ok(recap.body.includes(`Add 8&80 to contacts: ${contactUrl}`));
+  assert.ok(recap.body.includes(script.get('email.contact.reminder')!));
+  assert.equal(recap.said?.commitment, 'phone the sailing school');
+  const html = letterHtml(recap);
+  assert.ok(html.includes(`href="${contactUrl}"`));
+  assert.ok(html.includes('Add 8&amp;80 to contacts'));
+  assert.ok(html.includes('href="https://8and80.example/me"'));
+  assert.doesNotMatch(html, /\{\{/);
+  const weekly = composeRecap(call, script);
+  assert.equal(weekly.contact, undefined);
+  assert.ok(!weekly.body.includes('contact card'));
+  assert.ok(!letterHtml(weekly).includes('contact.vcf'));
 });

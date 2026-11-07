@@ -16,6 +16,7 @@ import { Scheduler, flagForReview } from '../schedule/scheduler.ts';
 import { safetyTier, alertText } from '../call/safety.ts';
 import { observeTip } from '../weekly/tips.ts';
 import { dialoguePilotAllowed } from '../weekly/dialogue-policy.ts';
+import { contactCardUrl } from '../link/vcard.ts';
 
 export interface Settled {
   handled: boolean;
@@ -165,10 +166,13 @@ async function settleInside(
       await milestone(deps.store.raw, attempt.phoneHash, 'conversation_completed', attempt.id, now, attempt.cycleKey);
     }
     const publicUrl = config.link.publicUrl().replace(/\/$/, '');
+    // record() has advanced 1 to 2: this is the recap of their first completed call.
+    const contactUrl = caller.callNumber === 2 ? contactCardUrl(publicUrl) : undefined;
     const account = await accountState(deps.store.raw, attempt.phoneHash, now);
     const recap = composeRecap(outcome.outcome, deps.script, {
       ...(account?.billing === 'trialing' && account.trialEnds && slot ? { trialEnds: describeAppointment(account.trialEnds, slot.timezone, caller.language) } : {}),
       ...(publicUrl ? { controlUrl: `${publicUrl}/me` } : {}),
+      ...(contactUrl ? { contactUrl } : {}),
       // The next CALL, not the day the commitment lands on. Those are different
       // days, and this line is the one the caller would act on.
       ...(nextSaid ? { nextSlot: nextSaid } : {}),

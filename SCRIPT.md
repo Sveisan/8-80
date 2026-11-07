@@ -1247,12 +1247,19 @@ _Short on purpose. This arrives while somebody is in a meeting._
 `sms.welcome`
 > "8&80 here. Your first call is {{when}}. If that's wrong, or you'd rather not: {{link}}"
 
+`sms.welcome.contact`
+> "Save 8&80 so you recognise the call: {{contact_link}}"
+
+_Append the contact-card reminder to this same SMS when a working download is
+configured. The download is public and contains no account token. Never send a
+second SMS just for the card; the move/stop link stays in the confirmation._
+
 _Sent once, when somebody is first given a slot, and never again. Until it existed the
 first contact anybody had with this product was an unknown number ringing them on a
 Tuesday morning — which is indistinguishable from a cold call, and is a poor start for a
 thing whose entire proposition is that it turns up when it said it would._
 
-_It says when, offers the way out in the same breath, and stops. Not a welcome, not an
+_It says when, offers the way out and a way to recognise the number. Not a welcome, not an
 explanation of the framework, not what to expect from the call: the call explains itself,
 and a text that sells it before it happens is the marketing this product does not do._
 
@@ -1888,6 +1895,12 @@ call. The button is still `page.move`._
 `page.contact`
 > "Add 8&80 to contacts"
 
+`page.contact.first`
+> "You can save 8&80 so you recognise your first call."
+
+`page.contact.first.detail`
+> "The card has our name and number ready. Download it and save it on your phone."
+
 `page.contact.detail`
 > "Download the contact card, then save it on your phone to recognise your next call."
 
@@ -1897,7 +1910,9 @@ exactly like a cold call — is their own address book, and the minute after sig
 when they are most willing to put it there. The button downloads a vCard; the phone's
 contact app handles the final save. No number needs typing, and the website cannot save
 it automatically. `setup.save_number` points to this on the first call for whoever
-skipped it; the link remains available on later visits._
+skipped it; the link remains available on later visits. On the first-booking
+confirmation, show the short explanation and a prominent download button directly
+after the appointment. Saving the card is optional and never holds up booking._
 
 `contact.name`
 > "8&80"
@@ -2178,6 +2193,13 @@ permissions. Neither screen displays stored commitments, goals or other private 
 
 `email.controls`
 > "Manage your calls"
+
+`email.contact.reminder`
+> "If you haven't saved 8&80 yet, add the contact card so you recognise the next call."
+
+_Only in the recap of the first completed call, with the direct contact-card
+download in both HTML and plain text. Add it to that existing email; do not send a
+separate reminder or repeat it in every weekly recap._
 
 `access.privacy`
 > "Privacy and contact"

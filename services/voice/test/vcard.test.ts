@@ -2,7 +2,8 @@ import { test, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import type { AddressInfo } from 'node:net';
 import { loadScript } from '../src/script.ts';
-import { contactNumber, vcard } from '../src/link/vcard.ts';
+import { contactCardUrl, contactNumber, vcard } from '../src/link/vcard.ts';
+import { textBeforeFirstCall } from '../src/sms/welcome.ts';
 import { reschedulePage } from '../src/link/page.ts';
 import { controlPlane } from '../src/control.ts';
 import type { LoopDeps } from '../src/loop/deps.ts';
@@ -25,6 +26,34 @@ test('the number on the card is E.164 exactly, or there is no card', () => {
   assert.equal(contactNumber({ SMS_FROM_NUMBER: '+4790008800', SPEECHIFY_CALLER_ID_NUMBER: '+4740008800' }), '+4790008800');
   assert.equal(contactNumber({ SMS_FROM_NUMBER: '90008800' }), undefined, 'no country code is not a number a handset will match');
   assert.equal(contactNumber({}), undefined);
+});
+
+test('message downloads require a service number and HTTPS, without carrying an account token', () => {
+  const env = { SMS_FROM_NUMBER: '+4790008800' };
+  assert.equal(contactCardUrl('https://8and80.example/r/private-token?account=secret#private', env), 'https://8and80.example/contact.vcf');
+  assert.equal(contactCardUrl('https://8and80.example', {}), undefined);
+  for (const site of ['', 'not a URL', 'http://8and80.example', 'javascript:alert(1)', 'https://user:password@8and80.example']) {
+    assert.equal(contactCardUrl(site, env), undefined, site);
+  }
+});
+
+test('the booking confirmation includes the contact reminder in the same SMS and keeps call controls', async () => {
+  process.env['SMS_FROM_NUMBER'] = '+4790008800';
+  const sent: string[] = [];
+  const deps = { script, sms: { send: async (_phone: string, body: string) => { sent.push(body); } } };
+  const controls = 'https://8and80.example/r/booking-token';
+  assert.equal(await textBeforeFirstCall('+4790000000', new Date('2026-10-06T06:00:00Z'), OSLO, deps, controls), true);
+  assert.equal(sent.length, 1);
+  assert.ok(sent[0]!.includes(controls));
+  assert.ok(sent[0]!.includes('https://8and80.example/contact.vcf'));
+  assert.match(sent[0]!, /Save 8&80 so you recognise the call/);
+  assert.doesNotMatch(sent[0]!, /\{\{/);
+  delete process.env['SMS_FROM_NUMBER'];
+  sent.length = 0;
+  await textBeforeFirstCall('+4790000000', new Date('2026-10-06T06:00:00Z'), OSLO, deps, controls);
+  assert.equal(sent.length, 1);
+  assert.ok(sent[0]!.includes(controls));
+  assert.ok(!sent[0]!.includes('contact.vcf'), 'no reminder for an unavailable download');
 });
 
 test('the card is vCard 3.0, named from SCRIPT.md, with the number and a photo', () => {
@@ -50,11 +79,14 @@ test('the page offers the card before and after the first call, only when a numb
   const first = new Date('2026-10-06T06:00:00Z');
   const offered = reschedulePage(OSLO, script, 'en', undefined, undefined, { first, contact: true });
   assert.ok(offered.includes('href="/contact.vcf"'));
+  assert.ok(offered.includes('class="contact-link save"'));
+  assert.ok(offered.includes('aria-describedby="contact-help"'));
   assert.ok(offered.indexOf('href="/contact.vcf"') < offered.indexOf('name="weekday"'), 'above the time, not under it');
   const returning = reschedulePage(OSLO, script, 'en', undefined, undefined, { next: first, beforeFirst: false, contact: true });
   assert.ok(returning.includes('href="/contact.vcf"'));
   assert.ok(returning.includes('download="8and80.vcf"'));
   assert.ok(returning.includes('Add 8&amp;80 to contacts'));
+  assert.ok(!returning.includes('class="contact-link save"'), 'later visits keep a quiet optional link');
   const without = reschedulePage(OSLO, script, 'en', undefined, undefined, { first });
   assert.ok(!without.includes('/contact.vcf'));
 });
