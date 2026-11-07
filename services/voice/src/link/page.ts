@@ -56,7 +56,7 @@ export interface PageView {
   /** Minutes after signing up: the page says it is done before offering anything. */
   fresh?: boolean;
   /**
-   * Offer the contact card. Only before the first call, and only when there is
+   * Offer the contact card before and after the first call, only when there is
    * a number to put on it: a card with no number, or the wrong one, is worse
    * than none — it is saved, and then never matches.
    */
@@ -126,7 +126,7 @@ export function reschedulePage(
       ? `<h1>${say('page.ended')}</h1><p class="now">${say('page.ended.detail')}</p>`
       : `<h1>${say(first && view.fresh ? 'page.booked' : 'page.title')}</h1>`;
 
-  // Before the first call, offer caller recognition above the time picker.
+  // Keep caller recognition available above the time picker on later visits too.
   // Keep it a secondary link so the appointment and reschedule control stand out.
   const contact = view.contact && arranging
     ? `

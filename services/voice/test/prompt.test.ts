@@ -110,12 +110,13 @@ test('the first call is curious about goals and never audits or schedules them',
 });
 
 test('the first call runs from easy to real: eight, eighty, this year, then the one thing', () => {
-  const p = buildInstructions(loadScript(), { callNumber: 1 });
+  const script = loadScript();
+  const p = buildInstructions(script, { callNumber: 1 });
   const at = (s: string) => p.indexOf(s);
   const order = [
     'knocking on your door',
     "Now picture yourself at eighty, looking back",
-    'the next three months, what would you like to be different?',
+    script.get('work.year')!,
     'Let me say it back.',
     'Which of those would you like to focus on',
     "What's one thing you'd like to do towards that",
@@ -225,7 +226,7 @@ test('no prompt asks for, pins or expects a day for the one thing', () => {
 test('the eight-year-old visits their present life at home or out, without homework or a second question', () => {
   const script = loadScript();
   const p = buildInstructions(loadScript(), { callNumber: 1 });
-  assert.match(p, /Are you at home or somewhere else/);
+  assert.ok(p.includes(script.get('open.first.first_question')!));
   assert.match(p, /knocking on your door right now/);
   const out = script.get('eight.out')!;
   assert.ok(p.includes(out));

@@ -243,6 +243,33 @@ test('before the first call, a new time moves the booking, and there is no week 
   });
 });
 
+test('the real account page keeps the downloadable contact card after onboarding', { skip: skip() }, async () => {
+  const phone = '+4790000110';
+  process.env['SMS_FROM_NUMBER'] = '+4790008800';
+  try {
+    await serving(async (base) => {
+      const cookie = await signUp(base, phone);
+      const before = await (await fetch(`${base}/me`, withCookie(cookie))).text();
+      assert.ok(before.includes('href="/contact.vcf"'));
+      await (store as NonNullable<typeof store>).record(phone, {
+        at: new Date().toISOString(), durationMs: 1, onboardingComplete: true,
+        eight: 'drawing', eighty: 'family', goals: 'learn to sail',
+      });
+      const after = await (await fetch(`${base}/me`, withCookie(cookie))).text();
+      assert.ok(after.includes('href="/contact.vcf"'));
+      const card = await fetch(`${base}/contact.vcf`);
+      assert.equal(card.status, 200);
+      assert.match(card.headers.get('content-disposition') ?? '', /attachment; filename="8and80\.vcf"/);
+      assert.ok((await card.text()).includes('TEL;TYPE=CELL,VOICE:+4790008800'));
+      const caller = await (store as NonNullable<typeof store>).load(phone);
+      assert.equal(caller.goals, 'learn to sail');
+      assert.equal(caller.eight, 'drawing');
+    });
+  } finally {
+    delete process.env['SMS_FROM_NUMBER'];
+  }
+});
+
 test('after a call, goals can be added from the link and are never shown back', { skip: skip() }, async () => {
   const phone = '+4790000108';
   const s_ = store as NonNullable<typeof store>;

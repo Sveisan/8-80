@@ -532,8 +532,8 @@ async function yourPage(
       // Until there has been a call there is no list to add to — the first
       // call makes it, and does not read anything added before.
       goals: !before,
-      // Before the first call, so the first ring already has a name on it.
-      contact: before && !!contactNumber(),
+      // Let returning callers add the card too, if they skipped it at sign-up.
+      contact: !!contactNumber(),
       ...(next ? { next, ...(before ? { first: next } : {}) } : {}),
       ...extra,
     };
