@@ -59,11 +59,13 @@ follow-up stays open while asking what that would look like for the caller.
 
 Every returning call establishes today's situation before the callback, unless
 the caller already gave it. An update offered in the opening is still accepted
-without repeating it. Driving leads to a callback when parked; past driving does
+without repeating it. If the situation is still unknown, acknowledge that update
+before the situation question in the same turn. Driving leads to a callback when parked; past driving does
 not block a caller who is parked now. No address is requested.
 
 The second-call visit can use he or she when the caller explicitly used that
-pronoun about themselves. Otherwise use a question without a pronoun. A name and
+pronoun about themselves; choose that corresponding version when known.
+Otherwise use a question without a pronoun. A name and
 the chosen mentor voice are never evidence of the caller's gender. No profile
 field or gender question is added.
 
@@ -77,3 +79,9 @@ The button explicitly says “Add 8&80 to contacts”; the first-call suggestion
 points to it. The user confirms the save in their phone's contact app, without
 typing a number. Confirmation, result and memory extraction templates are
 unchanged.
+
+The spontaneous-update probe now includes the caller saying they are at home,
+so its ban on repeating an opening check still tests answered information. A
+separate probe requires acknowledgement plus the new situation check when an
+opening update contains no location. This distinguishes a first situation check
+from repeating one, as the updated call flow requires.
