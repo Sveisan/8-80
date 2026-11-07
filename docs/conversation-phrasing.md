@@ -85,3 +85,11 @@ so its ban on repeating an opening check still tests answered information. A
 separate probe requires acknowledgement plus the new situation check when an
 opening update contains no location. This distinguishes a first situation check
 from repeating one, as the updated call flow requires.
+
+Manual review also caught a provider judge accepting the agreement marker after
+“Right, thank you”. The action-agreement gate now comes before feature and close
+instructions; that exact courtesy response gets only a brief confirmation
+question. The probe explicitly fails the agreement marker and any premature
+logistics or goodbye. Backend confirmation remains independently strict.
+An opening update is acknowledged with one clear factual event, rather than a
+generic claim that the caller has something to work with.
