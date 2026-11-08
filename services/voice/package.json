@@ -35,7 +35,8 @@
     "beliefs:prompt": "node --import tsx src/beliefs/prompt-cli.ts",
     "beliefs:requests": "tsx src/beliefs/requests-cli.ts",
     "quality:weekly": "tsx src/quality/cli.ts",
-    "unblock:prompt": "node --import tsx src/unblock/prompt-cli.ts"
+    "unblock:prompt": "node --import tsx src/unblock/prompt-cli.ts",
+    "unblock:chapters": "node --import tsx src/unblock/chapters.ts"
   },
   "dependencies": {
     "dotenv": "^16.4.5",

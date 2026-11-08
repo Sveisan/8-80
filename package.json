@@ -41,7 +41,8 @@
     "beliefs:prompt": "npm run -w @8and80/voice beliefs:prompt --",
     "beliefs:requests": "npm run -w @8and80/voice beliefs:requests --",
     "quality:weekly": "npm run -w @8and80/voice quality:weekly --",
-    "unblock:prompt": "npm run -w @8and80/voice unblock:prompt --"
+    "unblock:prompt": "npm run -w @8and80/voice unblock:prompt --",
+    "unblock:chapters": "npm run -w @8and80/voice unblock:chapters --"
   },
   "devDependencies": {
     "@eslint/js": "^9.13.0",

@@ -2,7 +2,7 @@
 
 Design edition, 8 November 2026. This folder is a product specification and three original script packs. Nothing here is implemented beyond `npm run unblock:prompt`, which prints the packs for review. It is not a launch approval, and none of its rules have been tested with a caller.
 
-Read with: [articulations](articulations.md) (the language bank) · [research and boundaries](research.md) · scripts for [opening](opening-script.md), [weekly](weekly-script.md) and [light](light-script.md) calls.
+Read with: [articulations](articulations.md) (the language bank) · [research and boundaries](research.md) · scripts for [opening](opening-script.md), [weekly](weekly-script.md) and [light](light-script.md) calls · [chapters](chapters.md) (one per month, chapter 1 is the arc below).
 
 ## Product decision
 
