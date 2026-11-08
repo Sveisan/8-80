@@ -18,7 +18,8 @@ import { decrypt } from '../store/crypto.ts';
  * Nothing here trusts a webhook body for access: the subscription is always re-read from the provider under the caller lock.
  */
 type Standing = 'awaiting_payment' | 'active' | 'past_due' | 'ended';
-const REF = 'unblock:';
+// Stripe silently drops a client_reference_id with anything but letters, digits, '-' and '_'.
+const REF = 'unblock_';
 
 export function standingFor(was: string, sub: Pick<Subscription, 'standing'>): Standing {
   if (sub.standing === 'active') return 'active';

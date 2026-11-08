@@ -83,7 +83,7 @@ test('the quality review resolves only weekly calls, never an Unblock or Beliefs
   try {
     const hash = phoneKey('+4790000990');
     await db.store.upsertProfile('+4790000990', { name: 'x' });
-    const [e] = await db.sql`insert into unblock_enrollments(phone_hash,checkout_reference,programme_enc,consent_version,consent_at) values(${hash},'unblock:q','x','v',now()) returning id`;
+    const [e] = await db.sql`insert into unblock_enrollments(phone_hash,checkout_reference,programme_enc,consent_version,consent_at) values(${hash},'unblock_q','x','v',now()) returning id`;
     await db.sql`insert into call_attempts(id,phone_hash,scheduled_for,status,provider_call_id) values('a-weekly',${hash},now(),'completed','conv-weekly'),('a-unblock',${hash},now() + interval '1 hour','completed','conv-unblock')`;
     await db.sql`insert into unblock_sessions(id,phone_hash,programme_id,kind,snapshot_enc) values('a-unblock',${hash},${e!['id']},'weekly','x')`;
     assert.deepEqual(await weeklyAttempt(db.sql, 'conv-weekly'), { id: 'a-weekly' });

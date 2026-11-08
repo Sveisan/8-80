@@ -123,7 +123,7 @@ test('events that are not Unblock\'s are left to the weekly product; weekly bill
   assert.equal(await syncUnblockSubscription(deps(), subEvent('sub_weekly'), {}, now), undefined, 'an unknown subscription is not Unblock\'s');
   assert.equal(await syncUnblockSubscription(deps(), { type: 'invoice.created', data: { object: { object: 'invoice' } } }, {}, now), undefined);
   assert.equal(await syncUnblockSubscription(deps(), checkoutEvent('beliefs:abc'), {}, now), undefined, 'a Beliefs reference is not Unblock\'s');
-  assert.equal(await syncUnblockSubscription(deps(), checkoutEvent('unblock:unknown'), {}, now), false, 'an Unblock reference with no enrolment is acknowledged and ignored');
+  assert.equal(await syncUnblockSubscription(deps(), checkoutEvent('unblock_unknown'), {}, now), false, 'an Unblock reference with no enrolment is acknowledged and ignored');
   await activate();
   assert.equal(await syncUnblockSubscription(deps(), subEvent(), {}, now), true, 'later events are found by the stored subscription id');
   // The weekly sync cannot match an Unblock subscription id to any caller, so it changes nothing.

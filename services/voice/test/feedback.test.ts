@@ -114,7 +114,7 @@ test('a short call or one that ended early waits for the next call', { skip: ski
 test('Unblock and Beliefs calls never count toward, or trigger, the weekly feedback survey', { skip: skip() }, async () => {
   await caller('+4790000207');
   const hash = phoneKey('+4790000207');
-  const [e] = await sql`insert into unblock_enrollments(phone_hash,checkout_reference,programme_enc,consent_version,consent_at) values(${hash},${'unblock:fb'},'x','v',now()) returning id`;
+  const [e] = await sql`insert into unblock_enrollments(phone_hash,checkout_reference,programme_enc,consent_version,consent_at) values(${hash},${'unblock_fb'},'x','v',now()) returning id`;
   const [b] = await sql`insert into belief_enrollments(phone_hash,checkout_reference,practice_enc,consent_version,consent_at) values(${hash},${'beliefs:fb'},'x','v',now()) returning id`;
   for (const [i, [table, programme]] of ([['unblock_sessions', e!['id']], ['belief_sessions', b!['id']]] as const).entries()) {
     const id = randomUUID();

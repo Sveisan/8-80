@@ -111,7 +111,7 @@ export class UnblockRepository {
     if (contact && (contact.name.trim() || contact.email.trim())) programme.contact = { name: contact.name.trim().slice(0, 80), email: contact.email.trim().slice(0, 254) };
     const id = randomUUID();
     await this.sql`insert into unblock_enrollments (id,checkout_reference,phone_hash,programme_enc,consent_version,consent_at)
-      values (${id},${'unblock:' + id},${hash},${encrypt(JSON.stringify(programme))},'unblock-v1',${now}) on conflict do nothing`;
+      values (${id},${'unblock_' + id},${hash},${encrypt(JSON.stringify(programme))},'unblock-v1',${now}) on conflict do nothing`;
     return id;
   }
   /** Private-account actions (pause/resume) with the page's revision guard; voice uses `confirm` after a signed completion. */

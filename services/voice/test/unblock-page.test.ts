@@ -69,7 +69,7 @@ test('account shows the wish with earlier versions, blocks, steps with outcomes 
 });
 
 test('payment: no checkout link unless the subscription product is configured; a provider link carries the enrolment reference', () => {
-  assert.equal(unblockCheckout('unblock:synthetic'), '', 'not configured');
+  assert.equal(unblockCheckout('unblock_synthetic'), '', 'not configured');
   const html = unblockPage('account', { programme: emptyProgramme(), paid: false, scheduled: true });
   assert.ok(html.includes('Checkout is not available here yet')); assert.ok(!html.includes('data-seam="subscription"'), 'no subscription controls before there is a subscription');
   assert.ok(unblockPage('account', { programme: emptyProgramme(), scheduled: true, checkout: 'https://buy.stripe.com/synthetic' }).includes('href="https://buy.stripe.com/synthetic"'));

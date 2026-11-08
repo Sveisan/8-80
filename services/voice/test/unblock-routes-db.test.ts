@@ -130,6 +130,7 @@ test('payment: before authoritative payment calls stay off, nothing in the route
   assert.ok(page!.body.includes('Start Unblock')); assert.ok(!page!.body.includes('Your next call'));
   const link = page!.body.match(/href="(https:\/\/buy\.stripe\.com[^"]+)"/)![1]!.replaceAll('&amp;', '&');
   assert.equal(new URL(link).searchParams.get('client_reference_id'), (await row()).enrollment.checkout_reference, 'the checkout carries the enrolment reference');
+  assert.match(new URL(link).searchParams.get('client_reference_id') ?? '', /^[A-Za-z0-9_-]{1,200}$/, 'Stripe silently drops any other client_reference_id');
   assert.ok(!page!.body.includes('data-preview-controls')); assert.ok(page!.body.includes('data-seam="subscription"'));
   for (const action of ['pay', 'sim_call', 'sim_light', 'sim_missed', 'activate', 'standing'])
     assert.equal((await priv(token, '/unblock/action', csrfForm(token, { action, standing: 'active', revision: '1' })))!.status, 409, action);
