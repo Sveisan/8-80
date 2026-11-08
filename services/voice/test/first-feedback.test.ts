@@ -34,7 +34,7 @@ beforeEach(async () => {
     SMS_FROM_NUMBER:'+4791000000', SPEECHIFY_CALLER_ID_NUMBER:'+4791000000', SPEECHIFY_AGENT_ID:'male-return', SPEECHIFY_FIRST_CALL_AGENT_ID:'male-first',
     SPEECHIFY_FEMALE_AGENT_ID:'female-return', SPEECHIFY_FEMALE_FIRST_CALL_AGENT_ID:'female-first'});
   texts=[]; wire.length=0;
-  if (db) await db.sql`truncate belief_sessions, belief_refund_requests, belief_enrollments, journey_events, journey_counts, message_attempts, message_outbox, callers, links, signups, call_attempts`;
+  if (db) await db.sql`truncate belief_sessions,unblock_sessions, belief_refund_requests, belief_enrollments,unblock_enrollments, journey_events, journey_counts, message_attempts, message_outbox, callers, links, signups, call_attempts`;
 });
 after(async()=>{await db?.close();});
 

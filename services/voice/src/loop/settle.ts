@@ -1,5 +1,6 @@
 import { milestone } from '../journey/measure.ts';
 import { settleBeliefs } from '../beliefs/runtime.ts';
+import { settleUnblock } from '../unblock/runtime.ts';
 import { accountState } from '../link/account.ts';
 import { log } from '../log.ts';
 import { settle } from '../call/outcome.ts';
@@ -57,6 +58,8 @@ export async function settleConversation(
 ): Promise<Settled> {
   const module = await settleBeliefs(payload, deps, headerEvent, now);
   if (module) return module;
+  const unblock = await settleUnblock(payload, deps, headerEvent, now);
+  if (unblock) return unblock;
   const transcript = toTranscript(payload);
   const attempt = await deps.scheduler.attemptForConversation(transcript.providerCallId);
   if (!attempt) return { handled: false, why: 'no attempt for this conversation' };

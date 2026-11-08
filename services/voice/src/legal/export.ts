@@ -18,11 +18,13 @@ export async function composeExport(
   store: PostgresStore,
   phone: string,
   script: ScriptLines,
-  options: { includeBeliefs?: boolean } = {},
+  options: { includeBeliefs?: boolean; includeUnblock?: boolean } = {},
 ): Promise<Recap | undefined> {
   // Older weekly bearer links must not expose the new private programme.
   // Only fresh, scoped Beliefs access can request the complete download.
   const includeBeliefs = options.includeBeliefs === true;
+  // The complete owner download covers every module; a base link covers none of them.
+  const includeUnblock = options.includeUnblock ?? includeBeliefs;
   const line = (key: string): string => script.get(key) ?? '';
   const subject = line('email.export.subject');
   const lead = line('email.export.lead');
@@ -33,6 +35,7 @@ export async function composeExport(
     select scheduled_for, status, duration_ms
     from call_attempts where phone_hash = ${phoneKey(phone)}
       and (${includeBeliefs} or id not in (select id from belief_sessions where phone_hash = ${phoneKey(phone)}))
+      and (${includeUnblock} or id not in (select id from unblock_sessions where phone_hash = ${phoneKey(phone)}))
     order by scheduled_for desc
   `;
   const meta = await store.raw<
@@ -101,11 +104,13 @@ export async function composeExport(
   const [profile] = await store.raw`select * from callers where phone_hash = ${hash}`;
   if (!profile) return undefined;
   const attempts = await store.raw`select * from call_attempts where phone_hash = ${hash}
-    and (${includeBeliefs} or id not in (select id from belief_sessions where phone_hash = ${hash})) order by scheduled_for`;
+    and (${includeBeliefs} or id not in (select id from belief_sessions where phone_hash = ${hash}))
+    and (${includeUnblock} or id not in (select id from unblock_sessions where phone_hash = ${hash})) order by scheduled_for`;
   const feedbackRows = await store.raw`select * from feedback where phone_hash = ${hash}`;
   const deliveries = await store.raw`select event, received_at, verdict, body_enc from webhook_deliveries where conversation_id in (
     select provider_call_id from call_attempts where phone_hash = ${hash} and provider_call_id is not null
-      and (${includeBeliefs} or id not in (select id from belief_sessions where phone_hash = ${hash}))) order by received_at`;
+      and (${includeBeliefs} or id not in (select id from belief_sessions where phone_hash = ${hash}))
+      and (${includeUnblock} or id not in (select id from unblock_sessions where phone_hash = ${hash}))) order by received_at`;
   const credentials = await store.raw`select purpose, created_at, expires_at from links where phone_hash = ${hash}`;
   const pendingSignup = await store.raw`select phone_enc, email_enc, name, timezone, slot_weekday, slot_minute, attempts, expires_at, created_at from signups where phone_hash = ${hash}`;
   const recovery = await store.raw`select attempts, consumed, expires_at, window_at, sent_at, sends from access_codes where phone_hash = ${hash}`;
@@ -120,6 +125,10 @@ export async function composeExport(
   const beliefEnrollments = includeBeliefs ? await store.raw`select * from belief_enrollments where phone_hash = ${hash}` : [];
   const beliefRefunds = includeBeliefs ? await store.raw`select r.* from belief_refund_requests r join belief_enrollments e on e.id=r.programme_id where e.phone_hash=${hash}` : [];
   const beliefSessions = includeBeliefs ? await store.raw`select * from belief_sessions where phone_hash = ${hash} order by created_at` : [];
+  const unblockEnrollments = includeUnblock ? await store.raw`select * from unblock_enrollments where phone_hash = ${hash}` : [];
+  const unblockSessions = includeUnblock ? await store.raw`select * from unblock_sessions where phone_hash = ${hash} order by created_at` : [];
+  const [privateUnblock] = includeUnblock ? [] : await store.raw`select phone_hash from unblock_enrollments where phone_hash = ${hash}`;
+  if (privateUnblock) parts.push({role:'body',text:'Your private Unblock programme is available through fresh phone verification at /unblock/access. Its account download includes your complete 8&80 record.'});
   const [privateProgramme] = includeBeliefs ? [] : await store.raw`select phone_hash from belief_enrollments where phone_hash = ${hash}`;
   if (privateProgramme) parts.push({role:'body',text:'Your private Beliefs programme is available through fresh phone verification at /beliefs/access. Its account download includes your complete 8&80 record.'});
   const messages = messageRows.map(({ payload_enc, recipient_enc, ...meta }) => ({ ...meta,
@@ -144,7 +153,7 @@ export async function composeExport(
     catch { return {...metadata,body}; }
   };
   const unseal = (row: Record<string, unknown>): Record<string, unknown> => Object.fromEntries(Object.entries(row).map(([key, value]) => [key.endsWith('_enc') ? key.slice(0, -4) : key, key.endsWith('_enc') && typeof value === 'string' ? decrypt(value) : value]));
-  parts.push({ role: 'body', text: JSON.stringify({ profile: unseal(profile), callAttempts: attempts, beliefs: beliefEnrollments.map(unseal), beliefSessions: beliefSessions.map(unseal), beliefRefundRequests:beliefRefunds, feedback: feedbackRows.map(unseal), retainedCallDeliveries: deliveries.map(safeDelivery), accessExpiry: credentials, pendingSignup: pendingSignup.map(unseal), recovery, journey, messages, messageAttempts,
+  parts.push({ role: 'body', text: JSON.stringify({ profile: unseal(profile), callAttempts: attempts, beliefs: beliefEnrollments.map(unseal), beliefSessions: beliefSessions.map(unseal), beliefRefundRequests:beliefRefunds, unblock: unblockEnrollments.map(unseal), unblockSessions: unblockSessions.map(unseal), feedback: feedbackRows.map(unseal), retainedCallDeliveries: deliveries.map(safeDelivery), accessExpiry: credentials, pendingSignup: pendingSignup.map(unseal), recovery, journey, messages, messageAttempts,
     reminders:reminders.map(unseal), reminderDrafts:reminderDrafts.map(unseal), tipAssignments, tipOffers:tipOffers.map(unseal), weeklyToolRequests:toolRequests.map(unseal) }, null, 2) });
   const quiet = line('email.export.quiet');
   if (quiet) parts.push({ role: 'quiet', text: quiet });
