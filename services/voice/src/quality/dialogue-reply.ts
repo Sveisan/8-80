@@ -21,6 +21,7 @@ export function dialogueReplyFailures(id: string, reply: unknown): string[] {
     if (/keep that for next time|focus on this week/i.test(reply)) failures.push('map_agreement_skipped');
   }
   if (['complete_short_reply', 'agreed_action_okay'].includes(id) && /sorry|go ahead|go on|please continue/i.test(reply)) failures.push('false_interruption_repair');
+  if (['spontaneous_update','situation_known'].includes(id) && /what (?:did|has).*chang|how did (?:it|that|the proposal) go|what happened/i.test(reply)) failures.push('completed_result_asked_again');
   if (id === 'listening_sound_feedback') {
     if (!/sounds|interrupt|\bm+m+\b|\bhmm\b/i.test(reply) || /ease off.*questions/i.test(reply)) failures.push('wrong_feedback_response');
     if (/\?|\btell me\b|\bgo on\b|\bgo ahead\b/i.test(reply)) failures.push('feedback_floor_taken');

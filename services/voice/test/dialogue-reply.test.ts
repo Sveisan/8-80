@@ -34,6 +34,11 @@ test('complete short answers do not license a false interruption apology', () =>
   assert.deepEqual(check('agreed_action_okay', 'Take care.'), []);
   assert.deepEqual(check('agreed_action_okay', 'Sorry, please go ahead.'), ['false_interruption_repair']);
 });
+test('a completed opening update cannot be asked for again as a result follow-up',()=>{
+  assert.ok(check('spontaneous_update','That feedback points to a real change in the product and the price. What did it change, if anything?').includes('completed_result_asked_again'));
+  assert.ok(check('situation_known','So you did it. What did doing it change, if anything?').includes('completed_result_asked_again'));
+  assert.deepEqual(check('situation_known','So you did it.'),[]);
+});
 test('a provider pass cannot override a spoken quiet turn or an incomplete matrix', () => {
   const input=[{role:'female-first',case:'thinking_fragments',status:'completed',verdict:'passed',passed:true,reply:'Mm.'}];
   const report=dialogueBatchReport(input);
