@@ -5,7 +5,8 @@ import { decrypt, encrypt } from '../store/crypto.ts';
 import { nextSlotAfter, parseLocalTime, parseWeekday } from '../schedule/time.ts';
 import { PracticeError } from '../beliefs/model.ts';
 import { appointmentInput } from '../beliefs/repository.ts';
-import { applyCommand, DEFAULT_LIGHT_DAYS, DEFAULT_LIGHT_MINUTE, emptyProgramme, firstWeekly, lightEnabled, nextLight, parseDays, type Command, type Programme, type Schedule } from './model.ts';
+import { withinCoverage } from './coverage.ts';
+import { applyCommand, DEFAULT_LIGHT_DAYS, DEFAULT_LIGHT_MINUTE, emptyProgramme, firstWeekly, lightEnabled, nextLight, parseDays, slotKind, type Command, type Programme, type Schedule } from './model.ts';
 
 export interface Enrollment {
   id: string; is_current: boolean; checkout_reference: string; phone_hash: string; programme_enc: string; revision: number; timezone: string;
@@ -114,6 +115,54 @@ export class UnblockRepository {
       await tx`update unblock_enrollments set timezone = ${s.timezone}, weekly_weekday = ${s.weekday}, weekly_minute = ${s.weekly},
         light_weekdays = ${s.lightDays}::integer[], light_minute = ${s.lightMinute},
         opening_at = ${p.openingHeld ? null : s.opening}, next_weekly_at = ${nextWeekly}, next_light_at = ${light}, updated_at = ${now} where id = ${loaded.enrollment.id}`;
+    });
+  }
+
+  /**
+   * Move or skip the one next call without changing the usual times. `kind` is `call` (the opening or weekly conversation) or `light` (skip only).
+   * A weekly call can only move later, inside its own week: the claim sets the following call from the clock, so an earlier time would ring again at the usual slot.
+   */
+  async occurrence(hash: string, form: URLSearchParams, now = new Date()): Promise<void> {
+    await transaction(this.sql, async tx => {
+      const [caller] = await tx`select held_for_review,all_calls_stopped,sms_opt_out,slot_weekday,slot_minute,timezone from callers where phone_hash=${hash} for update`;
+      const loaded = await new UnblockRepository(tx, this.programmeId).load(hash);
+      if (!caller || !loaded) throw new PracticeError('enrollment_unknown');
+      const { enrollment: e, programme: p } = loaded;
+      if (e.standing !== 'active' || caller['held_for_review'] || caller['all_calls_stopped'] || caller['sms_opt_out'] || p.state !== 'active') throw new PracticeError('calls_held');
+      const kind = form.get('kind'); const skip = form.get('action') === 'skip';
+      if (kind !== 'call' && kind !== 'light') throw new PracticeError('schedule_invalid');
+      const inflight = await tx`select id from call_attempts where phone_hash=${hash} and status in ('claimed','placed','settling') limit 1`;
+      if (inflight.length) throw new PracticeError('call_in_progress');
+      const stage = slotKind(p); const slot = scheduleOf(e);
+      const regular = (after: Date): Date | null => e.weekly_weekday !== null && e.weekly_minute !== null ? nextSlotAfter(after, { weekday: e.weekly_weekday, minute: e.weekly_minute, timezone: e.timezone }) : null;
+      let current: Date | null; let column: 'opening_at' | 'next_weekly_at' | 'next_light_at';
+      if (kind === 'light') { column = 'next_light_at'; current = e.next_light_at; if (!skip || !lightEnabled(p, slot)) throw new PracticeError('calls_held'); }
+      else {
+        if (!stage || stage === 'light') throw new PracticeError('calls_held');
+        column = stage === 'opening' && e.opening_at && (!e.next_weekly_at || e.opening_at <= e.next_weekly_at) ? 'opening_at' : 'next_weekly_at';
+        current = e[column];
+      }
+      if (!current || current <= now || current.toISOString() !== form.get('expected_at')) throw new PracticeError('page_changed');
+      if (skip) {
+        if (column === 'next_light_at') { await tx`update unblock_enrollments set next_light_at=${nextLight(current, slot.lightWeekdays, slot.lightMinute!, e.timezone)},updated_at=${now} where id=${e.id}`; return; }
+        if (column === 'opening_at') { await tx`update unblock_enrollments set opening_at=null,next_weekly_at=coalesce(next_weekly_at,${regular(current)}),updated_at=${now} where id=${e.id}`; return; }
+        await tx`update unblock_enrollments set next_weekly_at=${regular(current)},updated_at=${now} where id=${e.id}`; return;
+      }
+      const at = appointmentInput(form, e.timezone, now);
+      if (column === 'next_weekly_at' && stage === 'weekly') {
+        const following = regular(current);
+        if (at <= current) throw new PracticeError('occurrence_too_early');
+        if (following && at >= following) throw new PracticeError('occurrence_too_late');
+      }
+      if (column === 'opening_at' && e.next_weekly_at && at >= e.next_weekly_at) throw new PracticeError('occurrence_too_late');
+      if (!withinCoverage(at)) throw new PracticeError('outside_coverage');
+      const nearby: Date[] = []; const before = new Date(+at - 45 * 60_000);
+      if (column !== 'next_light_at' && lightEnabled(p, slot)) nearby.push(nextLight(before, slot.lightWeekdays, slot.lightMinute!, e.timezone)!, ...(e.next_light_at ? [e.next_light_at] : []));
+      if (column === 'opening_at' && e.next_weekly_at) nearby.push(e.next_weekly_at);
+      if (caller['slot_weekday'] !== null && caller['slot_minute'] !== null) nearby.push(nextSlotAfter(before, { weekday: Number(caller['slot_weekday']), minute: Number(caller['slot_minute']), timezone: String(caller['timezone']) }));
+      if (nearby.some(other => Math.abs(+at - +other) < 45 * 60_000)) throw new PracticeError('calls_too_close');
+      if (column === 'opening_at') await tx`update unblock_enrollments set opening_at=${at},updated_at=${now} where id=${e.id}`;
+      else await tx`update unblock_enrollments set next_weekly_at=${at},updated_at=${now} where id=${e.id}`;
     });
   }
 }

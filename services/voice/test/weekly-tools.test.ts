@@ -52,6 +52,25 @@ beforeEach(async()=>{
 });
 after(async()=>{await db?.close();});
 
+test('the weekly tool refuses an Unblock or Beliefs session, even with a valid weekly token',options,async()=>{
+  const sessions=[['unblock-session','unblock_sessions'],['beliefs-session','belief_sessions']] as const;
+  for(const [i,[id,table]] of sessions.entries()){
+    const at=new Date(+now-(i+1)*3600_000);await enrolled(at,id);
+    if(table==='unblock_sessions'){
+      await db!.sql`insert into unblock_enrollments(id,checkout_reference,phone_hash,programme_enc,consent_version,consent_at) values(${'p-'+id},${'ref-'+id},${hash},'x','v',${now})`;
+      await db!.sql`insert into unblock_sessions(id,phone_hash,programme_id,kind,week,snapshot_enc) values(${id},${hash},${'p-'+id},'light',0,'x')`;
+    } else {
+      await db!.sql`insert into belief_enrollments(id,checkout_reference,phone_hash,practice_enc,consent_version,consent_at) values(${'p-'+id},${'ref-'+id},${hash},'x','v',${now})`;
+      await db!.sql`insert into belief_sessions(id,phone_hash,programme_id,kind,snapshot_enc) values(${id},${hash},${'p-'+id},'daily','x')`;
+    }
+    await assert.rejects(call('status',{},at,id),/session_closed/,id);
+    await assert.rejects(call('reminder_prepare',{text:'Take five minutes to meditate',date:'2026-11-04',time:'10:00'},at,id),/session_closed/,id);
+  }
+  assert.equal((await db!.sql`select count(*)::int as n from weekly_reminder_drafts`)[0]!['n'],0);
+  // The same call, from a plain weekly attempt, is accepted: the refusal is about the session kind.
+  const plain=new Date(+now-3*3600_000);await enrolled(plain,'plain-weekly-session');
+  assert.equal(typeof (await call('status',{},plain,'plain-weekly-session'))['tips_enabled'],'boolean');
+});
 test('only editorial scores above seven have live copy; provider prompts require server results and explicit confirmation',()=>{
   assert.equal(CANDIDATES.length,20);
   for(const [id,,score] of CANDIDATES)assert.equal(script.has(`tips.${id}`),score>7,id);

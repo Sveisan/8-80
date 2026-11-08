@@ -51,6 +51,7 @@ import { beliefTool } from './beliefs/runtime.ts';
 import { syncBeliefPurchase } from './beliefs/billing.ts';
 import { PracticeError } from './beliefs/model.ts';
 import { unblockTool } from './unblock/runtime.ts';
+import { unblockRoutes } from './unblock/routes.ts';
 import { unblockWebhookArguments, UNBLOCK_TOOL_PATH } from './unblock/protocol.ts';
 import { signupRoutes } from './signup/routes.ts';
 import { ANSWER_MAX, isPreview, openFeedback, saveFeedback } from './feedback/feedback.ts';
@@ -243,6 +244,10 @@ export function controlPlane(deps: LoopDeps, secret: string | readonly string[] 
       }
       if (url.pathname === '/beliefs' || url.pathname.startsWith('/beliefs/')) {
         const answer = await beliefRoutes(req, url, deps, clientOf(req));
+        if (answer) return html(res, answer.status, answer.body, answer.headers);
+      }
+      if (url.pathname === '/unblock' || url.pathname.startsWith('/unblock/')) {
+        const answer = await unblockRoutes(req, url, deps, clientOf(req));
         if (answer) return html(res, answer.status, answer.body, answer.headers);
       }
 
