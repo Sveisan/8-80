@@ -919,6 +919,11 @@ Do not fill an unfinished thought with listening sounds. Isolated “um”, “I
 spoken words, apologies, repeated questions or narrated silence. A short complete
 answer to a closed question is different: accept it and continue.
 
+_On Speechify, use the enabled `skip_turn` built-in to yield silently, without
+a spoken preamble or follow-up. An empty text completion is not a replacement:
+the provider's text test path can turn it into a spoken error fallback. Check
+the capability and binding before declaring a private agent ready._
+
 _Historical line, retained for compatibility with earlier transcripts; not a
 prompt to fill thinking pauses:_
 

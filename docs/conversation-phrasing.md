@@ -144,3 +144,15 @@ end-call tool alone. `captureReport.ending.speechOrderValid` rejects speech afte
 or across that tool even if an earlier farewell was in the correct order.
 These are text and timestamp gates; actual silence and audible playout still
 require another explicitly requested phone test. No global rollout is implied.
+
+Speechify's capability catalogue identifies `skip_turn` as a worker tool that
+stays quiet for one turn. Quiet instructions now explicitly use that built-in;
+private readiness requires it to be enabled. Native text probes with an empty
+completion produced the provider's standard error fallback. Tool and simulation
+probes also failed to demonstrate the built-in, so no such result can count as a
+silence pass. Retain these failures rather than weakening the expected behaviour.
+The post-end-call speech case is covered by timestamp capture, since asking a
+text endpoint for another reply after hangup cannot model a closed voice session.
+Transcript quality reports now count repeated listening sounds and flag apology
+repairs after complete acknowledgements as review signals, without claiming
+that text alone proves an audible interruption.

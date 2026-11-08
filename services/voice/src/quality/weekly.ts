@@ -19,11 +19,18 @@ export function weeklyQuality(t:CallTranscript,context:QualityContext={kind:'unk
   const stacked:{agentTurn:number;questions:number}[]=[];
   const repeated:{firstAgentTurn:number;agentTurn:number}[]=[];
   const long:{agentTurn:number;words:number}[]=[];
+  const listeningSounds:{agentTurn:number}[]=[];
+  const falseRepairCandidates:{agentTurn:number}[]=[];
   const seen=new Map<string,number>();
   let agentTurns=0,questionRun=0,maxQuestionRun=0,questionTurns=0,maxAgentWords=0;
-  for(const turn of turns){
+  for(const [index,turn] of turns.entries()){
     if(turn.speaker!=='agent')continue;
     agentTurns++;
+    if (/^(mm|mhm|hmm|uh huh)$/.test(words(turn.text))) listeningSounds.push({agentTurn:agentTurns});
+    if (/^sorry[\s,—-]*(?:please )?(?:go ahead|go on)[.!\s]*$/i.test(turn.text)
+      && /^(okay|ok|sure does)$/.test(words(turns[index-1]?.text??''))
+      && turns[index-1]?.speaker==='caller' && turns[index-2]?.speaker==='agent'
+      && !turns[index-2]!.text.includes('?')) falseRepairCandidates.push({agentTurn:agentTurns});
     const questions=questionParts(turn.text);
     const n=words(turn.text).split(' ').filter(Boolean).length;
     maxAgentWords=Math.max(maxAgentWords,n);
@@ -49,6 +56,8 @@ export function weeklyQuality(t:CallTranscript,context:QualityContext={kind:'unk
       stackedQuestionTurns:stacked.slice(0,50),stackedQuestionTurnCount:stacked.length,
       repeatedQuestionCandidates:repeated.slice(0,50),repeatedQuestionCandidateCount:repeated.length,
       longAgentTurns:long.slice(0,50),longAgentTurnCount:long.length},
+    listening:{soundTurns:listeningSounds.slice(0,50),soundTurnCount:listeningSounds.length,
+      repeatedSoundsRequireReview:listeningSounds.length>1,falseInterruptionRepairCandidates:falseRepairCandidates.slice(0,50)},
     memory:{priorContext:context.priorCommitment===undefined?'unknown':meaningful?'provided':'none',verbatimPriorCommitmentReference:mentioned},
     humanReview:{followupRelevance:'unrated',repeatedFollowups:'unrated',warmth:'unrated',pressure:'unrated',endingAppropriate:'unrated',
       interruptions:'requires_audio_or_timing',responseLatency:'requires_audio_or_timing'},

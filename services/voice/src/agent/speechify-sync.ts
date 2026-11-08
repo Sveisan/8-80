@@ -224,7 +224,8 @@ export async function syncAgents(api: SpeechifySettingsApi, options: SyncOptions
     const settingsChanged = !entry.agent || !fieldsMatch(entry.agent, wanted);
     const toolBefore=entry.agent?endCall(entry.agent):undefined;
     const toolChanged=!!spec.endCallDescription&&toolBefore?.['description']!==spec.endCallDescription;
-    const ready=(agent:Json)=>toolsPresent(agent,spec.role.startsWith('belief-'),!spec.role.startsWith('belief-')&&env['WEEKLY_TOOLS_READY']==='1')&&(!spec.endCallDescription||endCall(agent)?.['description']===spec.endCallDescription);
+    const ready=(agent:Json)=>toolsPresent(agent,spec.role.startsWith('belief-'),!spec.role.startsWith('belief-')&&env['WEEKLY_TOOLS_READY']==='1')&&(!spec.endCallDescription||endCall(agent)?.['description']===spec.endCallDescription)
+      && (!options.dialoguePilot || spec.role.startsWith('belief-') || (agent['tools'] as Json[]).some(t=>t['kind']==='builtin'&&t['name']==='skip_turn'&&t['enabled']!==false&&record(t['config'])['builtin']==='skip_turn'));
     const changed = settingsChanged || variablesChanged || toolChanged;
     if (!apply) {
       const report: SyncReport = { role: spec.role, id: id ?? '', changed, created: !id, tools: entry.agent && ready(entry.agent) ? 'present' : 'unverified' };

@@ -114,8 +114,20 @@ test('live weekly prompt writes are blocked while dialogue changes are held in p
   await assert.rejects(syncAgents(p.api,options({env:{SPEECHIFY_AGENT_ID:'agent_return',WEEKLY_DIALOGUE_PILOT:'1',WEEKLY_DIALOGUE_READY:'0'}})),/held in pilot/);
   assert.equal(p.requests.length,0);
   p.agents['pilot_return']=structuredClone(p.agents['agent_return']!);p.variables['pilot_return']=structuredClone(p.variables['agent_return']!);
+  (p.agents['pilot_return']!['tools'] as unknown[]).push({kind:'builtin',name:'skip_turn',enabled:true,config:{builtin:'skip_turn'}});
   await syncAgents(p.api,options({dialoguePilot:true,env:{SPEECHIFY_AGENT_ID:'pilot_return',WEEKLY_DIALOGUE_PILOT:'1',WEEKLY_DIALOGUE_READY:'0'}}));
   assert.equal(p.agents['pilot_return']!['prompt'],spec.prompt);assert.equal(p.agents['agent_return']!['prompt'],'Old');
+});
+
+test('private dialogue readiness requires a real enabled skip_turn built-in',async()=>{
+  const p=provider();
+  const opts=options({apply:false,dialoguePilot:true});
+  assert.equal((await syncAgents(p.api,opts))[0]!.tools,'unverified');
+  const tools=p.agents['agent_return']!['tools'] as unknown[];
+  tools.push({kind:'builtin',name:'skip_turn',enabled:false,config:{builtin:'skip_turn'}});
+  assert.equal((await syncAgents(p.api,opts))[0]!.tools,'unverified');
+  tools.pop();tools.push({kind:'builtin',name:'skip_turn',enabled:true,config:{builtin:'skip_turn'}});
+  assert.equal((await syncAgents(p.api,opts))[0]!.tools,'present');
 });
 
 test('enabled weekly service tools must be read back on each agent before routing is ready', async () => {

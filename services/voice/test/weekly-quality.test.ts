@@ -9,6 +9,18 @@ import {qualityFixtures} from '../src/quality/fixtures.ts';
 import type {CallTranscript} from '../src/call/outcome.ts';
 
 const fixture=(id:string)=>qualityFixtures.find(f=>f.id===id)!;
+test('repeated listening sounds and apologies after complete acknowledgements are visible for review',()=>{
+  const r=weeklyQuality({providerCallId:'fictional',durationMs:100000,turns:[
+    {speaker:'caller',text:'I would like to make...'},{speaker:'agent',text:'Mm.'},
+    {speaker:'caller',text:'some...'},{speaker:'agent',text:'Mm.'},
+    {speaker:'caller',text:'time for sailing.'},{speaker:'agent',text:'That is the action I will ask about.'},
+    {speaker:'caller',text:'Okay.'},{speaker:'agent',text:'Sorry, please go ahead.'},
+  ]});
+  assert.equal(r.listening.soundTurnCount,2);assert.equal(r.listening.repeatedSoundsRequireReview,true);
+  assert.deepEqual(r.listening.falseInterruptionRepairCandidates,[{agentTurn:4}]);
+  assert.equal(r.humanReview.interruptions,'requires_audio_or_timing');
+  assert.doesNotMatch(JSON.stringify(r),/sailing|fictional|please go ahead/);
+});
 test('a natural closing without a question is not a failure',()=>{
   const f=fixture('return-natural-close');const report=weeklyQuality(f.transcript,f.context);
   assert.equal(report.structural.stackedQuestionTurnCount,0);assert.equal(report.structural.repeatedQuestionCandidateCount,0);

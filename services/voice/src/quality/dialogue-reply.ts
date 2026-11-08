@@ -1,5 +1,6 @@
 import { loadScript } from '../script.ts';
 import { weeklyReadBackSpan } from '../call/weekly-lines.ts';
+import { dialogueCases } from './dialogue-cases.ts';
 
 const quiet = new Set(['acknowledgement', 'caller_continues', 'thinking_fragments', 'thinking_after_patience', 'quiet_after_sound_feedback', 'returned_goodbye', 'after_end_tool']);
 const map = new Set(['complete_short_reply', 'full_map_before_confirmation', 'partial_map_repair']);
@@ -34,4 +35,29 @@ export function dialogueReplyFailures(id: string, reply: unknown): string[] {
     if (id === 'ignored_answer_feedback' && reply.includes('?')) failures.push('feedback_floor_taken');
   }
   return failures;
+}
+
+/** Require the full four-agent matrix, both the provider verdict and our hard
+ * gates. Output contains no dialogue, identity or provider rationale. */
+export function dialogueBatchReport(input: unknown) {
+  if (!Array.isArray(input) || input.length > 1000) throw new Error('Expected a bounded dialogue result array.');
+  const roles = ['first', 'return', 'female-first', 'female-return'];
+  const rows = input.map((item: unknown) => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) throw new Error('Invalid dialogue result.');
+    const row = item as Record<string, unknown>;
+    const role = String(row['role']), id = String(row['case']);
+    const failures = dialogueReplyFailures(id, row['reply']);
+    const scenario = dialogueCases.find(c => c.id === id);
+    if (scenario && 'expectedTool' in scenario && row['toolCalled'] !== scenario.expectedTool) failures.push('expected_tool_not_observed');
+    const providerPassed = row['status'] === 'completed' && row['verdict'] === 'passed' && row['passed'] === true;
+    return { role, case: id, providerPassed, failures, passed: providerPassed && failures.length === 0 };
+  });
+  const perRole = Object.fromEntries(roles.map(role => {
+    const expected = dialogueCases.filter(c => !('requiresTools' in c) && (c.kind === 'both' || c.kind === (role.endsWith('first') ? 'first' : 'return')));
+    const actual = rows.filter(r => r.role === role);
+    const complete = actual.length === expected.length && expected.every(c => actual.filter(r => r.case === c.id).length === 1);
+    return [role, { expected: expected.length, total: actual.length, passed: actual.filter(r => r.passed).length, complete }];
+  }));
+  const complete = rows.every(r => roles.includes(r.role)) && Object.values(perRole).every(r => r.complete);
+  return { total: rows.length, passed: rows.filter(r => r.passed).length, complete, approved: complete && rows.every(r => r.passed), perRole, failures: rows.filter(r => !r.passed) };
 }

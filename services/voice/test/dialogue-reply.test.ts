@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { dialogueReplyFailures as check } from '../src/quality/dialogue-reply.ts';
+import { dialogueReplyFailures as check, dialogueBatchReport } from '../src/quality/dialogue-reply.ts';
 
 test('thinking fragments and a returned goodbye reject the spoken failures from the owner test', () => {
   for (const id of ['acknowledgement', 'caller_continues', 'thinking_fragments', 'thinking_after_patience', 'quiet_after_sound_feedback', 'returned_goodbye', 'after_end_tool']) {
@@ -33,4 +33,15 @@ test('the first map must carry all perspectives before the agreement marker', ()
 test('complete short answers do not license a false interruption apology', () => {
   assert.deepEqual(check('agreed_action_okay', 'Take care.'), []);
   assert.deepEqual(check('agreed_action_okay', 'Sorry, please go ahead.'), ['false_interruption_repair']);
+});
+test('a provider pass cannot override a spoken quiet turn or an incomplete matrix', () => {
+  const input=[{role:'female-first',case:'thinking_fragments',status:'completed',verdict:'passed',passed:true,reply:'Mm.'}];
+  const report=dialogueBatchReport(input);
+  assert.equal(report.approved,false);assert.equal(report.complete,false);assert.equal(report.passed,0);
+  assert.deepEqual(report.failures[0]?.failures,['speech_in_quiet_turn','expected_tool_not_observed']);
+  assert.equal(dialogueBatchReport([{...input[0],reply:''}]).passed,0,'empty text alone cannot prove skip_turn');
+  assert.equal(dialogueBatchReport([{...input[0],reply:'',toolCalled:'skip_turn'}]).passed,1);
+  assert.equal(dialogueBatchReport([{...input[0],reply:'',verdict:'failed',passed:false}]).passed,0);
+  assert.equal(dialogueBatchReport([]).approved,false);
+  assert.equal(dialogueBatchReport([input[0],input[0]]).complete,false);
 });
