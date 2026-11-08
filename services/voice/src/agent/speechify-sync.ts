@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
-import { agentKeys, type AgentRole, type PromptSpec } from './prompt-pack.ts';
+import { agentKeys, isManagedModuleRole, moduleToolName, type AgentRole, type PromptSpec } from './prompt-pack.ts';
 
 type Json = Record<string, unknown>;
 export interface Variable extends Json { key: string; type: string; }
@@ -139,10 +139,10 @@ function restoredFieldsMatch(actual: Json, before: Json): boolean {
     return value && typeof value === 'object' && !Array.isArray(value) ? !!got && typeof got === 'object' && !Array.isArray(got) && restoredFieldsMatch(got as Json, value as Json) : isDeepStrictEqual(value, got);
   });
 }
-function toolsPresent(agent: Json, beliefs: boolean, weekly = false): boolean {
+function toolsPresent(agent: Json, moduleTool: string | undefined, weekly = false): boolean {
   const tools = agent['tools']; if (!Array.isArray(tools)) return false;
   const names = tools.flatMap(t => { if (!t || typeof t !== 'object' || Array.isArray(t)) return []; const v = record(t); if(v['enabled']===false)return []; const c = typeof v['config'] === 'object' && v['config'] ? record(v['config']) : {}; return [v['name'], c['builtin']]; });
-  return names.includes('end_call') && (!beliefs || names.includes('capture_belief')) && (!weekly || names.includes('weekly_assist'));
+  return names.includes('end_call') && (!moduleTool || names.includes(moduleTool)) && (!weekly || names.includes('weekly_assist'));
 }
 function endCall(agent:Json):Json|undefined {
   const tools=agent['tools'];if(!Array.isArray(tools))return undefined;
@@ -158,7 +158,7 @@ function privateUrl(value: string | undefined): string {
 }
 export async function syncAgents(api: SpeechifySettingsApi, options: SyncOptions): Promise<SyncReport[]> {
   const { specs, env, state, apply } = options; const now = options.now ?? new Date();
-  if(apply&&env['WEEKLY_DIALOGUE_PILOT']==='1'&&env['WEEKLY_DIALOGUE_READY']!=='1'&&!options.dialoguePilot&&specs.some(s=>!s.role.startsWith('belief-')))throw new Error('Dialogue changes are held in pilot. Use the dialogue pilot setup; live weekly agents require a successful phone test before promotion.');
+  if(apply&&env['WEEKLY_DIALOGUE_PILOT']==='1'&&env['WEEKLY_DIALOGUE_READY']!=='1'&&!options.dialoguePilot&&specs.some(s=>!isManagedModuleRole(s.role)))throw new Error('Dialogue changes are held in pilot. Use the dialogue pilot setup; live weekly agents require a successful phone test before promotion.');
   const resolved = specs.map(spec => ({ spec, id: env[agentKeys[spec.role]]?.trim() || state.ids[spec.role] }));
   const ids = resolved.flatMap(v => v.id ? [resourceId(v.id)] : []);
   if (new Set(ids).size !== ids.length) throw new Error('Two roles point to the same agent. Separate the IDs before uploading different prompts.');
@@ -175,7 +175,7 @@ export async function syncAgents(api: SpeechifySettingsApi, options: SyncOptions
   const voice = env['SPEECHIFY_SETUP_VOICE_ID']?.trim() || templateTts?.['voice_id'];
   const entries: { spec: PromptSpec; id?: string; agent?: Json; currentVariables: Variable[]; variables: Variable[]; wanted: Json; create?: Json }[] = [];
   for (const { spec, id } of resolved) {
-    const beliefs = spec.role.startsWith('belief-');
+    const beliefs = isManagedModuleRole(spec.role);
     const female = spec.role.startsWith('female-');
     const femaleVoice = env['SPEECHIFY_FEMALE_VOICE_ID']?.trim();
     if (female && !femaleVoice) throw new Error('Set SPEECHIFY_FEMALE_VOICE_ID to a verified female voice before syncing the female agents.');
@@ -198,7 +198,7 @@ export async function syncAgents(api: SpeechifySettingsApi, options: SyncOptions
       const sourceId = spec.role === 'female-first' ? env['SPEECHIFY_FIRST_CALL_AGENT_ID'] : env['SPEECHIFY_AGENT_ID'];
       if (!sourceId) throw new Error('Configure both existing weekly agents before adding a female pair.');
       const source = await api.agent(resourceId(sourceId));
-      if (!toolsPresent(source, false)) throw new Error('The source weekly agent must have end_call configured before adding a female pair.');
+      if (!toolsPresent(source, undefined)) throw new Error('The source weekly agent must have end_call configured before adding a female pair.');
       if (typeof source['first_message'] !== 'string') throw new Error('The source weekly greeting could not be read.');
       wanted['first_message'] = spec.firstMessage??source['first_message'];
       if (create) {
@@ -214,7 +214,7 @@ export async function syncAgents(api: SpeechifySettingsApi, options: SyncOptions
     if (!recovered?.id || recovered.agent?.['name'] !== recovered.spec.name || recovered.agent?.['is_public'] !== false) throw new Error('The supplied recovery ID does not identify the expected private setup agent. No configuration was changed.');
   }
   // Read and validate every selected agent before the first provider write.
-  if (apply) await options.saveBackup({ version: 1, at: now.toISOString(), agents: entries.flatMap(e => e.id && e.agent ? [{ role: e.spec.role, id: e.id, agent: Object.fromEntries(ownedFields.filter(k => Object.hasOwn(e.agent!, k) && (k !== 'first_message' || e.spec.firstMessage!==undefined || e.spec.role.startsWith('belief-') || e.spec.role.startsWith('female-')) && (k !== 'tts' || e.spec.role.startsWith('female-'))).map(k => [k, e.agent![k]])), variables: e.currentVariables,...(e.spec.endCallDescription&&endCall(e.agent)?{endCall:{id:resourceId(endCall(e.agent)!['id']),description:String(endCall(e.agent)!['description']??'')}}:{}) }] : []) });
+  if (apply) await options.saveBackup({ version: 1, at: now.toISOString(), agents: entries.flatMap(e => e.id && e.agent ? [{ role: e.spec.role, id: e.id, agent: Object.fromEntries(ownedFields.filter(k => Object.hasOwn(e.agent!, k) && (k !== 'first_message' || e.spec.firstMessage!==undefined || isManagedModuleRole(e.spec.role) || e.spec.role.startsWith('female-')) && (k !== 'tts' || e.spec.role.startsWith('female-'))).map(k => [k, e.agent![k]])), variables: e.currentVariables,...(e.spec.endCallDescription&&endCall(e.agent)?{endCall:{id:resourceId(endCall(e.agent)!['id']),description:String(endCall(e.agent)!['description']??'')}}:{}) }] : []) });
   if (apply && state.pending) { delete state.pending; await options.saveState(state); }
   const reports: SyncReport[] = [];
   for (const entry of entries) {
@@ -224,7 +224,7 @@ export async function syncAgents(api: SpeechifySettingsApi, options: SyncOptions
     const settingsChanged = !entry.agent || !fieldsMatch(entry.agent, wanted);
     const toolBefore=entry.agent?endCall(entry.agent):undefined;
     const toolChanged=!!spec.endCallDescription&&toolBefore?.['description']!==spec.endCallDescription;
-    const ready=(agent:Json)=>toolsPresent(agent,spec.role.startsWith('belief-'),!spec.role.startsWith('belief-')&&env['WEEKLY_TOOLS_READY']==='1')&&(!spec.endCallDescription||endCall(agent)?.['description']===spec.endCallDescription);
+    const ready=(agent:Json)=>toolsPresent(agent,moduleToolName(spec.role),!isManagedModuleRole(spec.role)&&env['WEEKLY_TOOLS_READY']==='1')&&(!spec.endCallDescription||endCall(agent)?.['description']===spec.endCallDescription);
     const changed = settingsChanged || variablesChanged || toolChanged;
     if (!apply) {
       const report: SyncReport = { role: spec.role, id: id ?? '', changed, created: !id, tools: entry.agent && ready(entry.agent) ? 'present' : 'unverified' };
