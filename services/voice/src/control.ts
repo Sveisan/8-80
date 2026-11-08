@@ -49,6 +49,7 @@ import { accessRoutes } from './access/routes.ts';
 import { beliefRoutes } from './beliefs/routes.ts';
 import { beliefTool } from './beliefs/runtime.ts';
 import { syncBeliefPurchase } from './beliefs/billing.ts';
+import { syncUnblockSubscription } from './unblock/billing.ts';
 import { PracticeError } from './beliefs/model.ts';
 import { unblockTool } from './unblock/runtime.ts';
 import { unblockRoutes } from './unblock/routes.ts';
@@ -344,6 +345,8 @@ export function controlPlane(deps: LoopDeps, secret: string | readonly string[] 
         try {
           const module = await syncBeliefPurchase(deps, payload, req.headers);
           if (module !== undefined) return send(res, 200, { handled: module });
+          const unblock = await syncUnblockSubscription(deps, payload, req.headers);
+          if (unblock !== undefined) return send(res, 200, { handled: unblock });
         } catch { return send(res, 503, { error: 'payment confirmation pending' }); }
         const read = vendor.read(req.headers, payload);
         if (!read.ok) {

@@ -77,6 +77,12 @@ export async function deleteAccount(deps: LoopDeps, phone: string, hash: string)
       const sub = await gatewayFor(deps).cancel(providerFor(row.billing_provider), row.ls_subscription_id);
       if (sub.subscriptionId !== row.ls_subscription_id || sub.customerId !== row.ls_customer_id || (!sub.cancelAtPeriodEnd && sub.standing !== 'ended')) throw new BillingUnavailable();
     }
+    // Unblock is its own subscription: leaving 8&80 cancels it too, and a failed cancellation keeps the account.
+    const unblock = await tx<{ id: string; subscription_id: string; customer_id: string | null; provider: string | null }[]>`select id, subscription_id, customer_id, provider from unblock_enrollments where phone_hash = ${hash} and subscription_id is not null for update`;
+    for (const sub of unblock) {
+      const result = await gatewayFor(deps).cancel(providerFor(sub.provider), sub.subscription_id);
+      if (result.subscriptionId !== sub.subscription_id || (sub.customer_id && result.customerId !== sub.customer_id) || (!result.cancelAtPeriodEnd && result.standing !== 'ended')) throw new BillingUnavailable();
+    }
     return deps.store.forget(phone, tx);
   });
 }

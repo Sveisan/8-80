@@ -80,6 +80,8 @@ export function readLemonWebhook(headers: Record<string, string | string[] | und
   if (hash) change.phoneHash = hash;
   const ends = str(attrs?.['ends_at']) ?? str(attrs?.['renews_at']);
   if (ends) change.endsAt = ends;
+  const products = [attrs?.['variant_id'], attrs?.['product_id']].map(v => str(v) ?? num(v)).filter((v): v is string => !!v);
+  if (!invoice && products.length) change.productIds = products;
 
   return { ok: true, change };
 }

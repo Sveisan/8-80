@@ -1,13 +1,19 @@
+import { config } from '../config.ts';
+import { providerUrl } from '../billing/gateway.ts';
+import { payments } from '../billing/notice.ts';
+import { unblockConfig } from './config.ts';
+import { unblockReadiness } from './readiness.ts';
+
 /**
- * PAYMENT SEAM. Unblock moves to a monthly subscription; the subscription work replaces this file's body.
- *
- * Contract the account and preview rely on:
- *  - `unblockCheckout(reference)` returns a provider-owned HTTPS checkout URL for the enrolment's
- *    `checkout_reference`, or '' while checkout is unavailable (the account then says so, never a dead link).
- *  - Only an authoritative provider state may move `unblock_enrollments.standing` from `awaiting_payment`
- *    to `active`. Nothing in the page or route layer does that. The preview simulates it in memory only.
+ * Hosted subscription checkout for Unblock. The enrolment's `checkout_reference` rides along (Stripe `client_reference_id`,
+ * Lemon Squeezy custom data) and comes back on the first webhook, which is the only thing tying a provider subscription to an enrolment.
+ * Returns '' while checkout is unavailable (the account then says so, never a dead link). A redirect from the checkout proves nothing:
+ * only an authoritative provider read in ./billing.ts moves `standing` from `awaiting_payment` to `active`.
+ * The price is whatever the provider's product is (UNBLOCK_CHECKOUT_URL, UNBLOCK_PRODUCT_ID); no amount is in code.
  */
 export function unblockCheckout(reference: string): string {
-  void reference; // the subscription work builds the checkout URL from this
-  return '';
+  const c = unblockConfig();
+  if (unblockReadiness().length) return '';
+  try { return payments().checkout(providerUrl(c.checkout, config.billing.provider()), reference); }
+  catch { return ''; }
 }
