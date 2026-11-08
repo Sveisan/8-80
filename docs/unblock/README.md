@@ -47,7 +47,7 @@ Each weekly call opens by asking what happened with last week's step. Done, part
 
 **The ledger is the centrepiece.** Light calls default to three evenings a week at a time the caller chooses; they can choose none. Without light calls, each weekly call asks for one moment from the past week instead, so the ledger is never empty by week 4. The closing call reads back up to five of the caller's own entries, verbatim, chosen by recency and spread — never ranked by the model for "positivity".
 
-## Data (planned, not built)
+## Data (implemented; see [contracts](contracts.md))
 
 ```
 unblock_enrollment  caller, consent, schedule (weekly day/time, light days/time, zone), state, completed_at
@@ -60,9 +60,9 @@ unblock_closing     text, carry_text
 
 All personal text encrypted at rest, caller words only, read-back and explicit agreement before canonical save — the same staged-session and signed-transcript rule Beliefs uses (`docs/beliefs/contracts.md`). The model may classify a block's `kind` only if the caller agrees with the classification; otherwise `unsure`.
 
-Planned tool: `capture_unblock`, same envelope as `capture_belief` (`session_id`, `session_token`, `event_id`, verbatim `caller_text`, optional `command`). Commands: `wish`, `block`, `step`, `step_outcome`, `light`, `closing`, `light_schedule`, `pause`. Every caller utterance is sent for the shared safety keyword check.
+Tool: `capture_unblock`, same envelope as `capture_belief` (`session_id`, `session_token`, `event_id`, verbatim `caller_text`, optional `command`). Commands: `wish`, `block`, `step`, `step_outcome`, `light`, `closing`, `light_schedule`, `pause`. Every caller utterance is sent for the shared safety keyword check.
 
-## Sendouts
+## Sendouts (implemented)
 
 | Moment | Message |
 | --- | --- |
@@ -71,7 +71,29 @@ Planned tool: `capture_unblock`, same envelope as `capture_belief` (`session_id`
 | Missed call | One recovery notice; no repeat ringing, no catch-up calls |
 | Closing | One content-free SMS that the ledger is in the private account |
 
-No email or SMS contains a wish, block, step or ledger entry.
+No email or SMS contains a wish, block, step or ledger entry, and no bearer link carries one: the SMS route is always `/unblock/access`, which needs a fresh phone code.
+
+The verification codes (join and return) are the only other messages the web pages send. A purchase-confirmation message belongs to the payment seam below and is not built yet.
+
+## Private account and pages (implemented)
+
+| Route | What it does |
+| --- | --- |
+| `/unblock` | Landing: promise, the opening call, regular calls, light calls, AI disclosure, price label (`UNBLOCK_PRICE_LABEL`, never invented) |
+| `/unblock/join` | Preferred name, optional support email, editable +47 phone, adult/AI/service consent; sends a code, creates nothing until it is verified |
+| `/unblock/access`, `/unblock/verify` | Returning owner, fresh phone verification; unknown numbers get the identical response and no message. Verification sets a scoped, HttpOnly, one-hour `unblock` cookie |
+| `/unblock/schedule` | IANA zone (Oslo fallback), first conversation, regular day/time, light evenings (default Mon/Wed/Fri 19:00, or "No light calls"). All inputs live in one component, `scheduleInputs()`, so a calls-per-month control can replace it |
+| `/unblock/account` | The wish and earlier versions, named blocks, steps by week with outcomes, the light ledger, the closing reflection when it exists, next call with move/skip (a light call can only be skipped), pause/resume, full download, whole-account deletion, sign out. A quiet footer line may mention the sibling programme; nowhere else does |
+
+Same invariants as Beliefs: CSRF tokens separated by product, same-site checks, `no-store`/`no-referrer`, escaped caller words, one hashed inline script, rate limits, no personal text in SMS, email or URLs. A weekly call can only be moved later within its own week, because the claim derives the following call from the clock.
+
+**Payment seam.** `src/unblock/payment.ts` (`unblockCheckout`) is a stub: Unblock is moving to a monthly subscription and that work fills it in. Nothing in the pages or routes can set `standing` to `active`; only an authoritative provider state may. The account also holds a labelled, non-working placeholder for subscription controls. The preview simulates payment through the same seam, in memory.
+
+## Review it
+
+`npm run unblock:preview` opens a loopback-only walkthrough at http://127.0.0.1:8771/unblock (`UNBLOCK_PREVIEW_PORT` to change). Use synthetic information and code **000000**. Payment and calls are simulated and nothing leaves the preview; data expires after an hour. Preview controls (in the account, never mounted in production) simulate a held opening or regular call, a light call, or a missed call, so the whole arc can be clicked through, including what the closing call would read back from the light ledger.
+
+`npm run unblock:doctor` reports configuration names and readiness only, never values.
 
 ## Open owner decisions
 

@@ -1,6 +1,6 @@
 # Unblock — implemented data, event and tool contracts
 
-Backend core, 8 November 2026. Source: `services/voice/src/unblock/{model,protocol,repository,runtime,config,readiness,coverage}.ts`, migration `0030_unblock_programme.sql`. It mirrors [Beliefs](../beliefs/contracts.md) and reuses its helpers (`wording`, `PracticeError`, caller-word matching, agreement guards, `appointmentInput`, shared outbox, caller lock, `call_attempts`). Not a launch approval; no web page, billing flow, Speechify provisioning or preview exists yet.
+Backend core, 8 November 2026. Source: `services/voice/src/unblock/{model,protocol,repository,runtime,config,readiness,coverage}.ts`, migration `0030_unblock_programme.sql`. It mirrors [Beliefs](../beliefs/contracts.md) and reuses its helpers (`wording`, `PracticeError`, caller-word matching, agreement guards, `appointmentInput`, shared outbox, caller lock, `call_attempts`). Not a launch approval; the web pages (`routes.ts`, `page.ts`) and the loopback preview exist, see the [README](README.md); the billing flow is only a seam (`payment.ts`).
 
 ## Records
 
