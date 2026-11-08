@@ -1,30 +1,14 @@
 import { resourceId } from '../agent/speechify-sync.ts';
+import { UNBLOCK_TOOL_NAME, UNBLOCK_TOOL_PARAMS as PROTOCOL_PARAMS, UNBLOCK_TOOL_PATH } from './protocol.ts';
 
-export const UNBLOCK_TOOL_NAME = 'capture_unblock';
-export const UNBLOCK_TOOL_PATH = '/unblock/tool';
 export const UNBLOCK_AGENT_KEYS = ['UNBLOCK_OPENING_AGENT_ID', 'UNBLOCK_WEEKLY_AGENT_ID', 'UNBLOCK_LIGHT_AGENT_ID'] as const;
 export const UNBLOCK_AGENT_ROLES = ['unblock-opening', 'unblock-weekly', 'unblock-light'] as const;
 export type UnblockToolMode = 'check' | 'prepare' | 'enable' | 'disable';
 
 export interface ToolParam { name: string; type: 'string' | 'boolean' | 'integer'; required: boolean }
-// TODO(conductor): this list must match UNBLOCK_TOOL_PARAMS in src/unblock/protocol.ts once the backend lands.
-export const UNBLOCK_TOOL_PARAMS: readonly ToolParam[] = [
-  { name: 'session_id', type: 'string', required: true },
-  { name: 'session_token', type: 'string', required: true },
-  { name: 'event_id', type: 'string', required: true },
-  { name: 'caller_text', type: 'string', required: true },
-  { name: 'command', type: 'string', required: false },
-  { name: 'confirmed', type: 'boolean', required: false },
-  { name: 'text', type: 'string', required: false },
-  { name: 'why_text', type: 'string', required: false },
-  { name: 'kind', type: 'string', required: false },
-  { name: 'outcome', type: 'string', required: false },
-  { name: 'outcome_text', type: 'string', required: false },
-  { name: 'carry_text', type: 'string', required: false },
-  { name: 'days', type: 'string', required: false },
-  { name: 'time', type: 'string', required: false },
-  { name: 'week', type: 'integer', required: false },
-];
+// One source of truth: the backend's tool contract. The console definition must match it exactly.
+export { UNBLOCK_TOOL_NAME, UNBLOCK_TOOL_PATH };
+export const UNBLOCK_TOOL_PARAMS: readonly ToolParam[] = PROTOCOL_PARAMS.map(({ name, type, required }) => ({ name, type, required }));
 
 /** A message that is safe to print: it never contains provider content. */
 export class ToolSetupError extends Error {}
