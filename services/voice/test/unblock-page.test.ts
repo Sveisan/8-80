@@ -36,12 +36,12 @@ test('page headers keep the display script hashed, forbid framing and referrers,
   assert.notEqual(csrfFor('same-token'), beliefsCsrf('same-token'));
 });
 
-test('copy: plain, no streaks, scores, counts or praise; no one-time, five-week or last-call language', () => {
+test('copy: plain, no streaks, scores, counts or praise; no one-time, five-week or old last-call language', () => {
   const pages = [unblockPage('landing', { available: true, price: 'Synthetic price label' }), unblockPage('landing', { preview: true }), aboutPage({ support: 'mailto:x@example.com', supportHours: 'Synthetic hours' }),
     unblockPage('join'), unblockPage('verify'), unblockPage('schedule', {}), unblockPage('account', { programme: filled(), paid: true }), unblockPage('account', { programme: finishCall(filled(), 'weekly', 1), paid: true })];
   for (const html of pages) {
     const text = html.replace(/<style>[\s\S]*?<\/style>|<script>[\s\S]*?<\/script>|<section data-seam="subscription"[\s\S]*?<\/section>/g, '');
-    assert.doesNotMatch(text, /streak|\bscore|well done|great job|congratulat|proud of|you.ve completed|five weeks|one-time(?!-code)|last call|per month|no subscription/i);
+    assert.doesNotMatch(text, /streak|\bscore|well done|great job|congratulat|proud of|you.ve completed|five weeks|one-time(?!-code)|last Unblock call|no subscription/i);
   }
   const landing = pages[0]!;
   assert.ok(landing.includes('See the light in your own life — and take the step that has been waiting.')); assert.ok(landing.includes('Each month is a chapter'));
@@ -68,15 +68,46 @@ test('account shows the wish with earlier versions, blocks, steps with outcomes 
   assert.ok(fresh.includes('after your first conversation')); assert.ok(fresh.includes('Start Unblock'));
 });
 
-test('payment is a clearly marked seam: no checkout link by default, and no working subscription controls', () => {
-  assert.equal(unblockCheckout('unblock:synthetic'), '');
+test('payment: no checkout link unless the subscription product is configured; a provider link carries the enrolment reference', () => {
+  assert.equal(unblockCheckout('unblock:synthetic'), '', 'not configured');
   const html = unblockPage('account', { programme: emptyProgramme(), paid: false, scheduled: true });
-  assert.ok(html.includes('Checkout is not available here yet')); assert.ok(html.includes('data-seam="subscription"'));
-  const seam = html.match(/<section data-seam="subscription"[\s\S]*?<\/section>/)![0];
-  assert.doesNotMatch(seam, /<form|<button|<input|<a /);
+  assert.ok(html.includes('Checkout is not available here yet')); assert.ok(!html.includes('data-seam="subscription"'), 'no subscription controls before there is a subscription');
   assert.ok(unblockPage('account', { programme: emptyProgramme(), scheduled: true, checkout: 'https://buy.stripe.com/synthetic' }).includes('href="https://buy.stripe.com/synthetic"'));
 });
 
+const sub = (over: Partial<NonNullable<Parameters<typeof unblockPage>[1]>['sub']> = {}) => ({ standing: 'active', cancelling: false, callsPerMonth: 4, pendingCalls: null, manageable: true, ...over });
+const card = (html: string): string => html.match(/<section data-seam="subscription"[\s\S]*?<\/section>/)?.[0] ?? '';
+test('subscription card: status line, calls per month with the next-chapter note, pause or resume, cancel and billing', () => {
+  const programme = filled();
+  const active = card(unblockPage('account', { programme, paid: true, sub: sub({ paidUntil: '2026-12-10T10:00:00Z' }), csrf: 'c' }));
+  for (const text of ['Active. Renews around 10 December 2026', 'name="calls"', 'Save calls per month', 'Pause my calls', 'does not pause billing', 'Cancel at the end of this period', 'Manage billing', 'applies from your next chapter'])
+    assert.ok(active.includes(text), text);
+  assert.equal((active.match(/<option /g) ?? []).length, 8, 'one to eight');
+  assert.ok(active.includes('<option value="4" selected>'));
+  const pending = card(unblockPage('account', { programme, paid: true, sub: sub({ pendingCalls: 6 }), csrf: 'c' }));
+  assert.ok(pending.includes('This chapter keeps 4. From your next chapter: 6.') && pending.includes('<option value="6" selected>'));
+  const cancelling = card(unblockPage('account', { programme, paid: true, sub: sub({ cancelling: true, paidUntil: '2026-12-10T10:00:00Z' }), csrf: 'c' }));
+  assert.ok(cancelling.includes('Cancelling on 10 December 2026. Your calls continue until then.')); assert.ok(!cancelling.includes('Cancel at the end of this period'));
+  const paused = card(unblockPage('account', { programme: { ...programme, state: 'paused' }, paid: true, sub: sub(), csrf: 'c' }));
+  assert.ok(paused.includes('Paused. No calls') && paused.includes('Resume my calls') && !paused.includes('Pause my calls'));
+  const late = card(unblockPage('account', { programme, paid: true, sub: sub({ standing: 'past_due' }), csrf: 'c' }));
+  assert.ok(late.includes('Payment problem') && late.includes('Manage billing'));
+  const ended = card(unblockPage('account', { programme: { ...programme, state: 'completed' }, paid: false, sub: sub({ standing: 'ended', manageable: false }), csrf: 'c' }));
+  assert.ok(ended.includes('Ended.') && !ended.includes('<form'));
+  assert.doesNotMatch(active, /streak|\bscore|well done|great job/i);
+});
+test('the schedule step asks for calls per month, one to eight, default four', () => {
+  const html = unblockPage('schedule', {});
+  assert.ok(html.includes('Calls per month') && html.includes('<option value="4" selected>')); assert.equal((html.match(/<select id="[^"]*calls"[\s\S]*?<\/select>/)![0].match(/<option /g) ?? []).length, 8);
+  assert.ok(unblockPage('schedule', { calls: 7 }).includes('<option value="7" selected>'));
+  assert.equal(scheduleInput(normaliseSchedule(new URLSearchParams([['weekly', '17:00'], ['weekday', '0'], ['calls', '2']])), now).calls, 2);
+  assert.equal(scheduleInput(normaliseSchedule(new URLSearchParams([['weekly', '17:00'], ['weekday', '0']])), now).calls, undefined);
+  for (const bad of ['0', '9', 'x']) assert.throws(() => scheduleInput(normaliseSchedule(new URLSearchParams([['weekly', '17:00'], ['weekday', '0'], ['calls', bad]])), now), /calls_invalid/);
+  // Five or more calls a month add a second day, three days later: a light call near it is refused.
+  const base: [string, string][] = [['weekly', '17:00'], ['weekday', '0'], ['light_choice', 'evenings'], ['light_day', '3'], ['light', '17:20']];
+  assert.doesNotThrow(() => scheduleInput(normaliseSchedule(new URLSearchParams([...base, ['calls', '4']])), now));
+  assert.throws(() => scheduleInput(normaliseSchedule(new URLSearchParams([...base, ['calls', '5']])), now), /calls_too_close/);
+});
 test('schedule: inputs live in one component; default three evenings, explicit none, and a choice without evenings is refused', () => {
   const html = unblockPage('schedule', {});
   assert.ok(scheduleInputs({}).includes('Regular call · day') && html.includes('Regular call · day'));

@@ -33,7 +33,7 @@ export const messages: Record<string, string> = {
   timezone_invalid: 'Choose a valid timezone, such as Europe/Oslo.',
   onboarding_time_invalid: 'Choose a first conversation time in the future, within the next 30 days.',
   nonexistent_local_time: 'That local time does not exist when the clocks change. Choose another time.',
-  calls_too_close: 'Leave at least 45 minutes between a light call and your weekly call.',
+  calls_too_close: 'Leave at least 45 minutes between a light call and your regular calls (with five or more calls a month, a second regular day is added three days after your usual one).',
   base_calls_too_close: 'Leave at least 45 minutes between these calls and your weekly 8&80 call.',
   outside_coverage: 'Choose call times within the human response hours shown below. Contact us if you need another time.',
   occurrence_too_late: 'Choose a time after your usual one and before the following usual call, or skip this call instead.',
@@ -41,5 +41,7 @@ export const messages: Record<string, string> = {
   call_in_progress: 'A call is already being placed. Change the next call after it finishes.',
   calls_held: 'Calls are paused or on hold. Contact us if you need help before changing this call.',
   days_invalid: 'Check the days you chose for light calls.',
+  calls_invalid: 'Choose between 1 and 8 calls a month.',
+  billing_unavailable: 'Billing is not available right now. Please try again later.',
   time_invalid: 'Check the time you chose for light calls.',
 };

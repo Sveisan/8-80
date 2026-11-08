@@ -53,7 +53,7 @@ beforeEach(async () => {
     UNBLOCK_ENABLED: 'true', UNBLOCK_LIVE_CALLS: 'false', UNBLOCK_SAFETY_APPROVED: 'true', UNBLOCK_SCRIPTS_APPROVED: 'true', UNBLOCK_AGENTS_VERIFIED: 'true', UNBLOCK_PRICE_VERIFIED: 'true',
     UNBLOCK_PRICE_LABEL: 'Synthetic price label', UNBLOCK_PRODUCT_ID: 'synthetic-product', UNBLOCK_CHECKOUT_URL: 'https://buy.stripe.com/synthetic', UNBLOCK_SUPPORT_HOURS: 'Synthetic staffed window',
     UNBLOCK_OPENING_AGENT_ID: 'synthetic-open', UNBLOCK_WEEKLY_AGENT_ID: 'synthetic-weekly', UNBLOCK_LIGHT_AGENT_ID: 'synthetic-light', UNBLOCK_TOOL_SECRET: 'u'.repeat(40),
-    UNBLOCK_COVERAGE_START: '00:00', UNBLOCK_COVERAGE_END: '24:00', TWILIO_ACCOUNT_SID: 'synthetic', TWILIO_AUTH_TOKEN: 'synthetic', SMS_FROM_NUMBER: '+4791000001', SPEECHIFY_API_KEY: 'synthetic', SPEECHIFY_WEBHOOK_SECRET: 'synthetic' });
+    UNBLOCK_COVERAGE_START: '00:00', UNBLOCK_COVERAGE_END: '24:00', TWILIO_ACCOUNT_SID: 'synthetic', TWILIO_AUTH_TOKEN: 'synthetic', SMS_FROM_NUMBER: '+4791000001', SPEECHIFY_API_KEY: 'synthetic', SPEECHIFY_WEBHOOK_SECRET: 'synthetic', BILLING_PROVIDER: 'stripe', STRIPE_SECRET_KEY: 'synthetic', STRIPE_WEBHOOK_SECRET: 'synthetic' });
   delete process.env['OPERATOR_PHONE_BACKUP'];
 });
 after(async () => db?.close());
@@ -124,16 +124,21 @@ test('an enrolled caller sees only their own words; another account\'s credentia
   assert.ok(!(await priv(otherToken, '/unblock/account'))!.body.includes('My private wish'));
 });
 
-test('payment is a seam: before authoritative payment calls stay off, nothing in the routes can activate the account, and preview controls do not exist', options, async () => {
+test('payment: before authoritative payment calls stay off, nothing in the routes can activate the account, and preview controls do not exist', options, async () => {
   const token = await enroll({ standing: 'awaiting_payment' });
   const page = await priv(token, '/unblock/account');
-  assert.ok(page!.body.includes('Start Unblock')); assert.ok(page!.body.includes('Checkout is not available here yet')); assert.ok(!page!.body.includes('Your next call'));
+  assert.ok(page!.body.includes('Start Unblock')); assert.ok(!page!.body.includes('Your next call'));
+  const link = page!.body.match(/href="(https:\/\/buy\.stripe\.com[^"]+)"/)![1]!.replaceAll('&amp;', '&');
+  assert.equal(new URL(link).searchParams.get('client_reference_id'), (await row()).enrollment.checkout_reference, 'the checkout carries the enrolment reference');
   assert.ok(!page!.body.includes('data-preview-controls')); assert.ok(page!.body.includes('data-seam="subscription"'));
   for (const action of ['pay', 'sim_call', 'sim_light', 'sim_missed', 'activate', 'standing'])
     assert.equal((await priv(token, '/unblock/action', csrfForm(token, { action, standing: 'active', revision: '1' })))!.status, 409, action);
   assert.equal((await row()).enrollment.standing, 'awaiting_payment');
   await db!.sql`update unblock_enrollments set standing='payment_hold'`; assert.ok((await priv(token, '/unblock/account'))!.body.includes('payment needs review'));
   await assert.rejects(() => repo().occurrence(hash, new URLSearchParams({ action: 'skip', kind: 'call', expected_at: '2026-11-10T17:00:00.000Z' }), now), /calls_held/);
+  // Without the product configured there is no checkout link, only an honest note.
+  await db!.sql`update unblock_enrollments set standing='awaiting_payment'`; process.env['UNBLOCK_CHECKOUT_URL'] = '';
+  const closed = await priv(token, '/unblock/account'); assert.ok(closed!.body.includes('Checkout is not available here yet')); assert.ok(!closed!.body.includes('buy.stripe.com'));
 });
 
 test('schedule: saved with default three light evenings, a clear none, coverage and spacing rules, and an opening time before the first call', options, async () => {
