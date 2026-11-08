@@ -100,8 +100,9 @@ generic claim that the caller has something to work with.
 
 The female first-call acknowledgement probe repeatedly returned a technical-error
 sentence after “Thank you”, while the test API reported no underlying error.
-Its cause could not be established from that result. An unanswered open question
-now has an explicit short listening reply, “Mm.”, followed by waiting. Courtesy
+Its cause could not be established from that result. The first fix used “Mm.”,
+followed by waiting; the owner voice test exposed how repeated listening sounds
+interrupt thinking. The current instruction is to wait without spoken words. Courtesy
 cannot create a fault, retry request or close. Actual reported runtime/tool
 errors still use their verified explanation, and closed-question and action
 agreement rules are unchanged.
@@ -113,9 +114,33 @@ concrete-follow-up probe now has the caller explicitly asking for a question to
 help explain. Both behaviours remain tested; patience is not traded for a forced
 question. The acknowledgement probe now runs on returning agents as well.
 
-Judge examples explicitly accept a listening “Mm.” without requiring a permission
-statement. A factual acknowledgement before a missing situation check can also
+The quiet-turn probes now require an empty spoken reply and reject “Mm.”,
+narrated silence and fabricated faults. A factual acknowledgement before a missing situation check can also
 be a short accurate paraphrase; it need not repeat every detail or include a
 politeness marker. Negative examples still reject a naked situation question,
 invented events, a fabricated fault and an extra question when the caller wants
 to continue. Provider verdicts and actual replies remain available for review.
+
+## Regressions from the owner's first voice test
+
+Fictional cases reproduce unfinished words across pauses, repeated patience,
+criticism of listening sounds, continuing quietly after that criticism, a new
+money goal, an ignored-answer complaint, complete short replies, partial map
+confirmation and the returned goodbye. All four private agents run the applicable
+cases. Provider verdicts are supplemented by `dialogueReplyFailures`: silence and
+the complete fixed map cannot pass on the strength of an LLM judge alone.
+
+The first map checkpoint requires eight, eighty and three-month goals before
+explicit agreement and the onboarding marker. A goals-only yes requires a full
+map repair. Database journey tests prove that a premature marker leaves onboarding
+unfinished while preserving an explicitly agreed action, and that the repaired
+map reaches the next call. Existing result-registration tests remain in the full suite.
+
+The prompt distinguishes a thinking fragment from a complete short answer;
+the latter no longer licenses an interruption apology. New goals receive a short
+factual response before a next question. Feedback about sounds gets a response
+about sounds, followed by quiet. At the close, a returned courtesy leads to the
+end-call tool alone. `captureReport.ending.speechOrderValid` rejects speech after
+or across that tool even if an earlier farewell was in the correct order.
+These are text and timestamp gates; actual silence and audible playout still
+require another explicitly requested phone test. No global rollout is implied.

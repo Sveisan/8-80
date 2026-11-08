@@ -73,6 +73,35 @@ beforeEach(async () => {
 });
 after(async () => { globalThis.fetch = nativeFetch; await db?.close(); });
 
+for (const repaired of [false, true]) test(`goals-only confirmation cannot complete the map; full repair persists all parts: ${repaired}`, options, async () => {
+  await enrol();
+  const d=deps();await tick(d,now);
+  const lines:Array<['user'|'assistant',string]>=[
+    ['user','Playing games matters to my younger self. Time with family matters at eighty. I want to learn to sail.'],
+    ['assistant','So, the next three months: learn to sail. Have I got that right?'],['user','Yes.'],
+  ];
+  if(repaired)lines.push(['assistant',fill('read.first.keep',{eight:'playing games',eighty:'time with family',goals:'learn to sail'})],['user','Yes, exactly.']);
+  lines.push(['assistant',fill('onboarding.confirmed')],['user','I choose to phone the sailing school.'],
+    ['assistant',fill('next.confirm',{commitment:'phone the sailing school'})],['user','Yes.'],['assistant',fill('next.agreed')]);
+  const payload=event('wire_1',lines);
+  await settleConversation(payload,d,undefined,now);
+  await settleConversation(payload,d,undefined,now);
+  const saved=await db!.store.load(phoneA);
+  assert.equal(saved.lastCommitment,'phone the sailing school');
+  assert.equal(saved.eight,repaired?'playing games':undefined);
+  assert.equal(saved.eighty,repaired?'time with family':undefined);
+  assert.equal(saved.goals,repaired?'learn to sail':undefined);
+  assert.equal(saved.onboarding,repaired?'complete':'in_progress');
+  assert.equal(saved.callNumber,2,'duplicate webhook must not advance the call again');
+  await tick(d,nextWeek);
+  const next=wire[1]!,vars=next['dynamic_variables'] as Record<string,string>;
+  assert.equal(next['agent_id'],repaired?'return-agent':'first-agent');
+  assert.equal(vars['last_commitment'],'phone the sailing school');
+  assert.equal(vars['own_eight'],repaired?'playing games':NOTHING_RECORDED);
+  assert.equal(vars['own_eighty'],repaired?'time with family':NOTHING_RECORDED);
+  assert.equal(vars['own_goals'],repaired?'learn to sail':NOTHING_RECORDED);
+});
+
 test('signed webhook → encrypted memory → next outbound request and prompt, isolated for two callers', options, async t => {
   await enrol(); await enrol(phoneB);
   const d = deps();

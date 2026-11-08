@@ -112,7 +112,9 @@ test('the first call is curious about goals and never audits or schedules them',
 test('the first call runs from easy to real: eight, eighty, this year, then the one thing', () => {
   const script = loadScript();
   const p = buildInstructions(script, { callNumber: 1 });
-  const at = (s: string) => p.indexOf(s);
+  // The map also appears in an early invariant; stage order concerns the
+  // numbered route, not that independent reminder of the memory contract.
+  const at = (s: string) => p.indexOf(s, p.indexOf('1–2. The opening'));
   const order = [
     'knocking on your door',
     "Now picture yourself at eighty, looking back",
