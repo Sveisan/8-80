@@ -71,3 +71,23 @@ test('private file review prints signals only and malformed source never leaks d
     assert.ok(!bad.stderr.includes('private-secret-sentence'));assert.ok(!bad.stderr.includes(file));assert.ok(!bad.stderr.includes('synthetic-secret'));
   }finally{rmSync(dir,{recursive:true,force:true});}
 });
+
+import { openTestDb } from './helpers/db.ts';
+import { weeklyAttempt } from '../src/quality/lookup.ts';
+import { phoneKey } from '../src/store/postgres.ts';
+
+const lookupDb = await openTestDb('quality_lookup');
+test('the quality review resolves only weekly calls, never an Unblock or Beliefs conversation', { skip: typeof lookupDb === 'string' ? lookupDb : false }, async () => {
+  process.env['DATA_ENCRYPTION_KEY'] = Buffer.alloc(32, 9).toString('base64');
+  const db = lookupDb as Exclude<typeof lookupDb, string>;
+  try {
+    const hash = phoneKey('+4790000990');
+    await db.store.upsertProfile('+4790000990', { name: 'x' });
+    const [e] = await db.sql`insert into unblock_enrollments(phone_hash,checkout_reference,programme_enc,consent_version,consent_at) values(${hash},'unblock_q','x','v',now()) returning id`;
+    await db.sql`insert into call_attempts(id,phone_hash,scheduled_for,status,provider_call_id) values('a-weekly',${hash},now(),'completed','conv-weekly'),('a-unblock',${hash},now() + interval '1 hour','completed','conv-unblock')`;
+    await db.sql`insert into unblock_sessions(id,phone_hash,programme_id,kind,snapshot_enc) values('a-unblock',${hash},${e!['id']},'weekly','x')`;
+    assert.deepEqual(await weeklyAttempt(db.sql, 'conv-weekly'), { id: 'a-weekly' });
+    assert.equal(await weeklyAttempt(db.sql, 'conv-unblock'), undefined);
+    assert.equal(await weeklyAttempt(db.sql, 'conv-none'), undefined);
+  } finally { await db.close(); }
+});

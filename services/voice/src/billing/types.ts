@@ -16,6 +16,8 @@ export interface Change {
   phoneHash?: string;
   /** When a cancelled subscription actually runs out. */
   endsAt?: string;
+  /** The provider's price / variant / product ids on the subscription, when the payload carries them. Used to tell products apart. */
+  productIds?: string[];
 }
 
 export type Read = { ok: true; change: Change } | { ok: false; why: string; shape: string };

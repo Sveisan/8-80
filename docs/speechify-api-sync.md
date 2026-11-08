@@ -52,6 +52,38 @@ npm run speechify:sync -- --group beliefs --apply --write-ids
 
 `--write-ids` changes only the selected agent-ID keys and makes a private `.env` backup first. It refuses to save a new routing ID when the required tool names cannot be verified. No `BELIEFS_` launch flag is enabled. The shared scheduler and service pick up changed routing IDs through the normal deployment/restart procedure; this command does not restart them.
 
+## Unblock agents
+
+```bash
+cd /opt/8-80
+npm run speechify:sync -- --group unblock --apply
+```
+
+This configures the opening, weekly and light roles of the Unblock module with the same rules as Beliefs, and `--group all` includes them. Prompts come from `docs/unblock/{opening,weekly,light}-script.md`; the fixed first messages come from `UNBLOCK_GREETINGS` in `prompt-pack.ts` (the scripts state the same lines). Each role declares `unblock_context`, `call_kind`, `week`, `session_id` and `session_token`. Provider memory and audio recording are off, AMD is a complete object (voicemail and unavailable hang up, IVR proceeds), the completion callback is `PUBLIC_URL/webhooks/speechify`, and created agents are private. Creation, restore points, `--check` and `--write-ids` behave as for Beliefs.
+
+- Routing keys: `UNBLOCK_OPENING_AGENT_ID`, `UNBLOCK_WEEKLY_AGENT_ID`, `UNBLOCK_LIGHT_AGENT_ID`. The `UNBLOCK_ENABLED` and `UNBLOCK_SAFETY_APPROVED` flags are never written by this command.
+- Required tools are `end_call` and `capture_unblock`. `--write-ids` refuses to save a new routing ID until both are listed and enabled on the agent.
+- The sync does not create or attach the tool. The owner creates the `capture_unblock` definition once in the browser console; `npm run unblock:tools` then verifies it and attaches it to the three agents (below).
+
+### Attaching the Unblock tool
+
+```bash
+npm run unblock:tools -- --check   --tool-id TOOL_ID
+npm run unblock:tools -- --prepare --tool-id TOOL_ID
+npm run unblock:tools -- --enable  --tool-id TOOL_ID
+npm run unblock:tools -- --disable --tool-id TOOL_ID
+```
+
+`TOOL_ID` is the ID of the owner-created definition. The command takes the three agent IDs from the `UNBLOCK_*_AGENT_ID` keys, or from the private sync state when the keys are not yet saved. Before any write it verifies that the definition is named `capture_unblock`, is a `webhook`, uses `POST`, targets exactly `PUBLIC_URL/unblock/tool` over HTTPS, and has exactly the reviewed parameter list (names, types, required flags; defined as `UNBLOCK_TOOL_PARAMS` in `src/unblock/tools-core.ts`). Any difference stops it without changes. It refuses to overwrite a different tool already named `capture_unblock`.
+
+- `--check` verifies the definition and the attachment on all three agents; it writes nothing.
+- `--prepare` attaches the definition to each agent that lacks it, then sets it disabled.
+- `--enable` / `--disable` switch the attached tool on or off.
+- Every change is read back: the tool must be in the intended state, `end_call` must still be enabled and no other binding may have changed.
+- A private backup of the definition and all bindings is written to `.speechify-sync/unblock-tools` before changes. Do not paste its contents.
+
+The tool-creation API is unverified, so the definition is created in the browser. The owner checklist is in [unblock/speechify-setup.md](unblock/speechify-setup.md). Real-call verification is still required; a verified tool binding is not proof that a call works.
+
 ## Failure and restore
 
 All selected roles, variable limits and required creation settings are checked before the first provider write. A private restore point is saved and its filename reported before uploads start. Each upload is read back and reported immediately, so a later role's failure does not hide completed uploads. A later failure can leave earlier roles updated; the operation is not a multi-agent transaction. Rerun it to finish a confirmed configuration, or use the reported restore point.

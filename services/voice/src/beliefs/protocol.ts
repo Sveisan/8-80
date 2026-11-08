@@ -130,12 +130,12 @@ export function verifiedPractice(snapshot: Snapshot, callerTranscript: string | 
   }
   return snapshot.practice;
 }
-function explicitAgreement(text:string):boolean {
+export function explicitAgreement(text:string):boolean {
   const n=normalise(text);
   if(/\b(no|nope|nei|incorrect|wrong)\b|\bnot (quite |really )?(right|correct|exactly)\b|\b(don t|do not) (agree|understand)\b|\bikke (riktig|enig)\b/u.test(n))return false;
   return hasAgreement(n);
 }
-function hasAgreement(text:string):boolean {
+export function hasAgreement(text:string):boolean {
   return /\b(yes|yep|yeah|exactly|correct|agree|understand|ja|jepp|riktig|enig|forstår)\b|\bthat s right\b/iu.test(normalise(text));
 }
 export function fullCoverage(snapshot: Snapshot, kind: Kind): boolean {

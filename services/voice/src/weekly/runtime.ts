@@ -36,7 +36,7 @@ export async function weeklyTool(deps: LoopDeps, input: unknown, now=new Date())
     if(!weeklyToolsAllowed(hash))throw new WeeklyToolError('unauthorized');
     const [caller]=await tx`select * from callers where phone_hash=${hash} for update`;
     const [attempt]=await tx`select * from call_attempts where id=${id} for update`;
-    const [belief]=await tx`select id from belief_sessions where id=${id}`;
+    const [belief]=await tx`select id from belief_sessions where id=${id} union all select id from unblock_sessions where id=${id}`;
     if(!caller || !attempt || belief || !['placed','active'].includes(attempt['status'])
       || !attempt['started_at'] || +now-+attempt['started_at']>45*60_000 || now<attempt['started_at'])throw new WeeklyToolError('session_closed');
     const reminder=await reminderView(tx,hash);

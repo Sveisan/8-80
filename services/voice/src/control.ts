@@ -49,7 +49,11 @@ import { accessRoutes } from './access/routes.ts';
 import { beliefRoutes } from './beliefs/routes.ts';
 import { beliefTool } from './beliefs/runtime.ts';
 import { syncBeliefPurchase } from './beliefs/billing.ts';
+import { syncUnblockSubscription } from './unblock/billing.ts';
 import { PracticeError } from './beliefs/model.ts';
+import { unblockTool } from './unblock/runtime.ts';
+import { unblockRoutes } from './unblock/routes.ts';
+import { unblockWebhookArguments, UNBLOCK_TOOL_PATH } from './unblock/protocol.ts';
 import { signupRoutes } from './signup/routes.ts';
 import { ANSWER_MAX, isPreview, openFeedback, saveFeedback } from './feedback/feedback.ts';
 import { feedbackGonePage, feedbackPage, feedbackThanksPage } from './feedback/page.ts';
@@ -229,8 +233,22 @@ export function controlPlane(deps: LoopDeps, secret: string | readonly string[] 
           return send(res, 200, await beliefTool(deps, JSON.parse(body.toString('utf8'))));
         } catch (error) { return send(res, error instanceof PracticeError && error.code === 'unauthorized' ? 401 : 409, { error: error instanceof PracticeError ? error.code : 'tool unavailable' }); }
       }
+      if (req.method === 'POST' && url.pathname === UNBLOCK_TOOL_PATH) {
+        try {
+          const body = await rawBody(req);
+          if (body.length > 24000) return send(res, 413, { error: 'request too large' });
+          const input: unknown = JSON.parse(body.toString('utf8'));
+          // Speechify's operator probe carries no session authority and never executes an action.
+          if (req.headers['speechify-webhook-test'] === 'true') return send(res, 200, { ok: true, probe: true, action_performed: false });
+          return send(res, 200, await unblockTool(deps, unblockWebhookArguments(input)));
+        } catch (error) { return send(res, error instanceof PracticeError && error.code === 'unauthorized' ? 401 : 409, { error: error instanceof PracticeError ? error.code : 'tool unavailable' }); }
+      }
       if (url.pathname === '/beliefs' || url.pathname.startsWith('/beliefs/')) {
         const answer = await beliefRoutes(req, url, deps, clientOf(req));
+        if (answer) return html(res, answer.status, answer.body, answer.headers);
+      }
+      if (url.pathname === '/unblock' || url.pathname.startsWith('/unblock/')) {
+        const answer = await unblockRoutes(req, url, deps, clientOf(req));
         if (answer) return html(res, answer.status, answer.body, answer.headers);
       }
 
@@ -327,6 +345,8 @@ export function controlPlane(deps: LoopDeps, secret: string | readonly string[] 
         try {
           const module = await syncBeliefPurchase(deps, payload, req.headers);
           if (module !== undefined) return send(res, 200, { handled: module });
+          const unblock = await syncUnblockSubscription(deps, payload, req.headers);
+          if (unblock !== undefined) return send(res, 200, { handled: unblock });
         } catch { return send(res, 503, { error: 'payment confirmation pending' }); }
         const read = vendor.read(req.headers, payload);
         if (!read.ok) {
