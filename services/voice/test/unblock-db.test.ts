@@ -14,7 +14,7 @@ import { controlPlane } from '../src/control.ts';
 import { dispatchMessage } from '../src/messages/outbox.ts';
 import { UnblockRepository } from '../src/unblock/repository.ts';
 import { claimUnblock, closeUnblockSession, settleUnblock, tickUnblock, unblockTool } from '../src/unblock/runtime.ts';
-import { emptyProgramme, finishCall, type Programme } from '../src/unblock/model.ts';
+import { chapterComplete, emptyProgramme, finishCall, type Programme } from '../src/unblock/model.ts';
 import { sessionToken as beliefToken } from '../src/beliefs/protocol.ts';
 import { sessionToken } from '../src/unblock/protocol.ts';
 
@@ -197,7 +197,7 @@ test('choosing light evenings by voice stores them and schedules the next one', 
   const e = (await programme()).enrollment; assert.deepEqual(e.light_weekdays, [2, 4]); assert.equal(e.light_minute, 1200);
   assert.ok([2, 4].includes(new Date(e.next_light_at!.getTime() + 3600_000).getUTCDay()));
 });
-test('the whole arc: opening, three weekly calls, then a closing call that reads back the ledger and stops every future call', options, async () => {
+test('the first month: opening, three weekly calls, then a closing call that reads back the ledger and ends the chapter, not the programme', options, async () => {
   await enroll({ due: 'opening' }); const before = await db!.store.load(phone);
   await call(now, [['learn to sail. Yes.', { command: 'wish', text: 'learn to sail' }], ['I will phone the club. Yes.', { command: 'step', text: 'phone the club' }]]);
   for (let w = 1; w <= 3; w++) {
@@ -232,13 +232,13 @@ test('the whole arc: opening, three weekly calls, then a closing call that reads
   const closing = await call(day(35), [['What was already here was a lot. Take the evenings with me. Yes.', { command: 'closing', text: 'What was already here was a lot', carry_text: 'Take the evenings with me' }]]);
   assert.equal(closing.s.week, 4); assert.equal(closing.result!.status, 'completed');
   const done = await programme();
-  assert.equal(done.programme.state, 'completed'); assert.equal(done.programme.closing!.carryText, 'Take the evenings with me');
-  assert.equal(done.enrollment.next_weekly_at, null); assert.equal(done.enrollment.next_light_at, null); assert.equal(done.enrollment.opening_at, null); assert.ok(done.enrollment.completed_at);
-  const notices = (await db!.sql`select payload_enc from message_outbox where reference=${closing.s.id}`); assert.equal(notices.length, 1);
-  const text = decrypt(notices[0]!['payload_enc']); assert.ok(text.includes('last call') && text.includes('/unblock/access')); assert.ok(!text.includes('evenings') && !text.includes('already here'));
-  await db!.sql`update unblock_enrollments set next_weekly_at=${day(42)},next_light_at=${day(42)} where phone_hash=${hash}`;
-  assert.equal((await claimUnblock(deps(), day(42))).length, 0, 'no call after completion');
-  await assert.rejects(() => repo().command(hash, { type: 'resume' }, 'after-complete'));
+  assert.equal(done.programme.state, 'active', 'the programme completes only when the subscription ends'); assert.equal(done.programme.closing!.carryText, 'Take the evenings with me');
+  assert.equal(done.programme.weeksHeld, 4); assert.equal(chapterComplete(done.programme), true); assert.equal(done.enrollment.completed_at, null);
+  assert.equal((await db!.sql`select count(*)::int as n from message_outbox where reference=${closing.s.id}`)[0]!['n'], 0, 'a close that is not the last call sends no goodbye text');
+  // The chapter is complete: the same weekly slot places nothing until the next billing month starts a new chapter.
+  await db!.sql`update unblock_enrollments set next_weekly_at=${day(42)} where phone_hash=${hash}`;
+  assert.equal((await claimUnblock(deps(), day(42))).length, 0, 'no further call in a finished chapter');
+  assert.ok((await programme()).enrollment.next_weekly_at! > day(42), 'the waiting slot is consumed, not queued');
   assert.deepEqual(await db!.store.load(phone), before, 'the weekly counter and memories were never touched');
 });
 test('safety keywords hold the whole account with a content-free alert and repeated flags create one alert', options, async () => {
@@ -364,5 +364,5 @@ test('the HTTP route /unblock/tool authenticates, answers the provider probe wit
 function fakeReady(): void {
   for (const key of ['UNBLOCK_ENABLED', 'UNBLOCK_LIVE_CALLS', 'UNBLOCK_SAFETY_APPROVED', 'UNBLOCK_SCRIPTS_APPROVED', 'UNBLOCK_AGENTS_VERIFIED', 'UNBLOCK_PRICE_VERIFIED']) process.env[key] = 'true';
   Object.assign(process.env, { UNBLOCK_PRICE_LABEL: 'Synthetic price', UNBLOCK_CHECKOUT_URL: 'https://buy.stripe.com/synthetic', UNBLOCK_PRODUCT_ID: 'prod_synthetic', UNBLOCK_SUPPORT_HOURS: 'Synthetic staffed test window', SUPPORT_EMAIL: 'support@example.com',
-    UNBLOCK_OPENING_AGENT_ID: 'synthetic-opening', UNBLOCK_WEEKLY_AGENT_ID: 'synthetic-weekly', UNBLOCK_LIGHT_AGENT_ID: 'synthetic-light', TWILIO_ACCOUNT_SID: 'synthetic', TWILIO_AUTH_TOKEN: 'synthetic', SMS_FROM_NUMBER: '+4791000000', SPEECHIFY_API_KEY: 'synthetic', SPEECHIFY_WEBHOOK_SECRET: 'synthetic' });
+    UNBLOCK_OPENING_AGENT_ID: 'synthetic-opening', UNBLOCK_WEEKLY_AGENT_ID: 'synthetic-weekly', UNBLOCK_LIGHT_AGENT_ID: 'synthetic-light', TWILIO_ACCOUNT_SID: 'synthetic', TWILIO_AUTH_TOKEN: 'synthetic', SMS_FROM_NUMBER: '+4791000000', SPEECHIFY_API_KEY: 'synthetic', SPEECHIFY_WEBHOOK_SECRET: 'synthetic', BILLING_PROVIDER: 'stripe', STRIPE_SECRET_KEY: 'synthetic', STRIPE_WEBHOOK_SECRET: 'synthetic' });
 }

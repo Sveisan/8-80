@@ -218,6 +218,13 @@
       "when": 1794166407385,
       "tag": "0030_unblock_programme",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1794168908180,
+      "tag": "0031_unblock_subscription",
+      "breakpoints": true
     }
   ]
 }

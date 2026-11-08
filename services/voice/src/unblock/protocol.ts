@@ -1,8 +1,9 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { obj, str } from '../billing/types.ts';
 import { PracticeError, wording } from '../beliefs/model.ts';
+import { themeOfCall } from './chapters.ts';
 import { containsWords, explicitAgreement, hasAgreement, normalise } from '../beliefs/protocol.ts';
-import { applyCommand, ARC_WEEKS, callHeld, currentWish, localDay, parseBlockKind, parseDays, parseOutcome, parseTime, VOICE_COMMANDS, type CallKind, type Command, type Programme } from './model.ts';
+import { applyCommand, callHeld, callsOf, chapterOfMonthOf, currentWish, isCloseWeek, localDay, parseBlockKind, parseDays, parseOutcome, parseTime, VOICE_COMMANDS, type CallKind, type Command, type Programme } from './model.ts';
 
 export type Kind = CallKind;
 export interface Receipt { id: string; callerText: string; command: Command; }
@@ -47,6 +48,11 @@ export function unblockWebhookArguments(input: unknown): unknown {
   return args;
 }
 
+/** A wish that exists may be reworded only where the chapter's theme for this call says so, or in an open call. */
+function wishMayChange(p: Programme, week: number): boolean {
+  const theme = themeOfCall(chapterOfMonthOf(p), week, callsOf(p));
+  return !theme || theme.saves === 'wish' || theme.revisesWish === true;
+}
 const DAY_WORDS = [['sun', 'søn'], ['mon', 'man'], ['tue', 'tir'], ['wed', 'ons'], ['thu', 'tor'], ['fri', 'fre'], ['sat', 'lør']];
 function quoted(text: string, value: unknown): string {
   const words = wording(value); if (!containsWords(text, words)) throw new PracticeError('caller_words_required'); return words;
@@ -58,8 +64,11 @@ function weekParam(value: unknown, expected: number): void {
   if (n !== expected) throw new PracticeError('week_mismatch');
 }
 
+/** Returns an error code when the spoken light times would break the scheduling rules the account enforces (coverage hours, spacing). */
+export type ScheduleGuard = (days: readonly number[], minute: number) => string | undefined;
+
 /** Tool input is untrusted. Whitelist by call type; week, dates and sources never come from the model. */
-export function capture(snapshot: Snapshot, kind: Kind, week: number, timezone: string, input: unknown, now = new Date()): Snapshot {
+export function capture(snapshot: Snapshot, kind: Kind, week: number, timezone: string, input: unknown, now = new Date(), guard?: ScheduleGuard): Snapshot {
   const v = obj(input); const id = wording(v?.['event_id'], 100); const callerText = wording(v?.['caller_text'], 16000);
   const existing = snapshot.receipts.find(r => r.id === id);
   const type = str(v?.['command']) ?? ''; let command: Command;
@@ -67,22 +76,25 @@ export function capture(snapshot: Snapshot, kind: Kind, week: number, timezone: 
   const confirmation = (): void => { if (!confirmed || !hasAgreement(callerText)) throw new PracticeError('caller_confirmation_required'); };
   const allowed = (...kinds: Kind[]): void => { if (!kinds.includes(kind)) throw new PracticeError('command_not_allowed'); };
   const p = snapshot.programme;
+  // A retry of an accepted save is compared with the stored receipt below; state-dependent permissions were checked when it was first accepted.
+  const replay = !!existing;
+  const close = isCloseWeek(p, week);
   if (!(VOICE_COMMANDS as readonly string[]).includes(type)) throw new PracticeError('command_not_allowed');
   confirmation();
   switch (type) {
     case 'wish': {
       allowed('opening', 'weekly');
-      // Revision is a week-3 act; an unfinished wish stage may be completed in weeks 1-2.
-      if (kind === 'weekly' && (week >= ARC_WEEKS || (currentWish(p) && week !== 3))) throw new PracticeError('command_not_allowed');
+      // The close never changes the wish. An unfinished wish stage may be completed in any other call; a revision needs a call whose chapter theme allows it (or an open call).
+      if (kind === 'weekly' && !replay && (close || (currentWish(p) && !wishMayChange(p, week)))) throw new PracticeError('command_not_allowed');
       command = { type, text: quoted(callerText, v?.['text']), why: optionalQuoted(callerText, v?.['why_text']) }; break;
     }
     case 'block': {
-      allowed('weekly'); if (week >= ARC_WEEKS) throw new PracticeError('command_not_allowed');
+      allowed('weekly'); if (close) throw new PracticeError('command_not_allowed');
       weekParam(v?.['week'], week);
       command = { type, text: quoted(callerText, v?.['text']), kind: parseBlockKind(v?.['kind']), week }; break;
     }
     case 'step': {
-      allowed('opening', 'weekly'); if (kind === 'weekly' && week >= ARC_WEEKS) throw new PracticeError('command_not_allowed');
+      allowed('opening', 'weekly'); if (kind === 'weekly' && close) throw new PracticeError('command_not_allowed');
       const forWeek = kind === 'opening' ? 1 : week + 1; weekParam(v?.['week'], forWeek);
       command = { type, week: forWeek, text: quoted(callerText, v?.['text']) }; break;
     }
@@ -95,7 +107,7 @@ export function capture(snapshot: Snapshot, kind: Kind, week: number, timezone: 
       command = { type, text: quoted(callerText, v?.['text']), occurredOn: localDay(now, timezone), source: kind === 'light' ? 'light_call' : 'weekly_call', week }; break;
     }
     case 'closing': {
-      allowed('weekly'); if (week !== ARC_WEEKS) throw new PracticeError('command_not_allowed');
+      allowed('weekly'); if (!close) throw new PracticeError('command_not_allowed');
       command = { type, text: quoted(callerText, v?.['text']), carryText: optionalQuoted(callerText, v?.['carry_text']) }; break;
     }
     case 'light_schedule': {
@@ -104,6 +116,7 @@ export function capture(snapshot: Snapshot, kind: Kind, week: number, timezone: 
         allowed('opening', 'weekly');
         if (days.some(d => !words.some(w => DAY_WORDS[d]!.some(p => w.startsWith(p))))) throw new PracticeError('caller_words_required');
         command = { type, days, minute: parseTime(v?.['time']) };
+        const problem = guard?.(days, command.minute!); if (problem) throw new PracticeError(problem);
       } else {
         // Declining or stopping light calls is allowed wherever the caller says it.
         if (!/\b(no|not|stop|don t|dont|nei|ikke|slutt|stopp)\b/u.test(normalise(callerText))) throw new PracticeError('caller_confirmation_required');
@@ -151,7 +164,7 @@ export function verifiedProgramme(snapshot: Snapshot, callerTranscript: string |
   }
   return snapshot.programme;
 }
-export const heldCall = (snapshot: Snapshot, kind: Kind, week: number): boolean => callHeld(kind, week, snapshot.receipts.map(r => r.command.type));
+export const heldCall = (snapshot: Snapshot, kind: Kind, week: number): boolean => callHeld(kind, week, snapshot.receipts.map(r => r.command.type), callsOf(snapshot.programme));
 
 /** Closed sessions retain identifiers and capture kinds, not another copy of private words. */
 export function closedSnapshot(snapshot: Snapshot, kind: Kind, week: number, canonicalVerified = false): string {

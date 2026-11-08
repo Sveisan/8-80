@@ -8,7 +8,7 @@ The language bank. Same standing as SCRIPT.md for this module: the idea is said 
 
 > You already know what you want. You have known for a while. Something has kept it a wish — usually the fear of losing what you have. And all the while, your life has had more light in it than you could see from inside the stuck place.
 >
-> Unblock is five weeks of calls to take one step toward the wish, and to notice the light that was already there.
+> Unblock is a monthly subscription of calls to take one step toward the wish, and to notice the light that was already there.
 
 ## Seven ideas the module stands on
 

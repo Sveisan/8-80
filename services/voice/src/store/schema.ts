@@ -536,6 +536,12 @@ export const unblockEnrollments = pgTable('unblock_enrollments', {
   productId: text('product_id'),
   paidAt: timestamp('paid_at', { withTimezone: true }), amountMinor: integer('amount_minor'), currency: text('currency'),
   completedAt: timestamp('completed_at', { withTimezone: true }),
+  // Monthly subscription (migration 0031): provider ids and standing come only from authoritative provider reads.
+  subscriptionId: text('subscription_id').unique(), cancelAtPeriodEnd: boolean('cancel_at_period_end').notNull().default(false), paidUntil: timestamp('paid_until', { withTimezone: true }),
+  // Chapter clock: the billing month anchored at first activation. chapter/year/chapter_started_at mirror the encrypted programme for operators.
+  callsPerMonth: integer('calls_per_month').notNull().default(4), pendingCallsPerMonth: integer('pending_calls_per_month'),
+  chapter: integer('chapter').notNull().default(1), year: integer('year').notNull().default(1),
+  chapterStartedAt: timestamp('chapter_started_at', { withTimezone: true }), anchorAt: timestamp('anchor_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(), updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, t=>[uniqueIndex('unblock_enrollments_current_idx').on(t.phoneHash).where(sql`${t.isCurrent} = true`), index('unblock_enrollments_owner_idx').on(t.phoneHash)]);
 

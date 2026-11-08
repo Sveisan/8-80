@@ -1,11 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { PracticeError } from '../src/beliefs/model.ts';
-import { applyCommand, arc, callHeld, callWeek, currentWish, emptyProgramme, finishCall, firstWeekly, lightEnabled, nextLight, parseDays, parseTime, selectLedgerReadback, slotKind, voiceProgramme, type Command, type LedgerEntry, type Programme } from '../src/unblock/model.ts';
+import { applyCommand, arc, callHeld, callWeek, callsOf, chapterComplete, currentWish, emptyProgramme, finishCall, firstWeekly, isCloseWeek, lightEnabled, monthOf, nextLight, parseCalls, parseDays, parseTime, rollChapter, selectLedgerReadback, slotKind, voiceProgramme, type Command, type LedgerEntry, type Programme } from '../src/unblock/model.ts';
 import { capture, closedSnapshot, sessionToken, UNBLOCK_TOOL_PARAMS, unblockWebhookArguments, verifiedProgramme, verifySessionToken, heldCall, type Kind, type Snapshot } from '../src/unblock/protocol.ts';
 import { scheduleInput } from '../src/unblock/repository.ts';
 import { unblockReadiness } from '../src/unblock/readiness.ts';
 
+type Ctx = { is_close: boolean; sign_off: { mode: string; next_chapter_title?: string; next_call_local?: string; next_call_weekday?: string }; ledger_readback: { text: string }[]; month_words?: { steps: { text: string }[]; moments: { text: string }[] }; chapter_theme: string };
 const now = new Date('2026-11-10T18:00:00Z');
 let event = 0;
 const run = (p: Programme, c: Command) => applyCommand(p, c, 'event-' + (++event), now);
@@ -15,17 +16,68 @@ const send = (s: Snapshot, kind: Kind, week: number, said: string, fields: Recor
   capture(s, kind, week, 'Europe/Oslo', { event_id: 'e' + (++n), caller_text: said, confirmed: true, ...fields }, now);
 const entry = (week: number, at: string, text = 'moment ' + at): LedgerEntry => ({ id: at, week, occurredOn: at.slice(0, 10), text, source: 'light_call', at });
 
-test('arc derives only from verified calls: opening, weeks 1-4, complete', () => {
+test('arc derives only from verified calls: opening, the calls of a month, then the chapter is complete until the next month; completion only when the subscription ends', () => {
   let p = emptyProgramme();
   assert.deepEqual(arc(p), { stage: 'opening' }); assert.equal(slotKind(p), 'opening'); assert.equal(callWeek(p, 'opening'), 0);
   p = finishCall(p, 'opening', 0); assert.deepEqual(arc(p), { stage: 'week', week: 1 }); assert.equal(slotKind(p), 'weekly');
   p = finishCall(p, 'weekly', 2); assert.equal(p.weeksHeld, 0, 'a call for a different week never skips ahead');
   for (let w = 1; w <= 3; w++) { p = finishCall(p, 'weekly', w); assert.deepEqual(arc(p), { stage: 'week', week: w + 1 }); }
-  assert.equal(callWeek(p, 'light'), 4);
+  assert.equal(callWeek(p, 'light'), 4); assert.equal(chapterComplete(p), false);
   p = finishCall(p, 'weekly', 4);
-  assert.equal(p.state, 'completed'); assert.deepEqual(arc(p), { stage: 'complete' }); assert.equal(slotKind(p), undefined);
-  assert.deepEqual(finishCall(p, 'weekly', 4), p, 'a finished programme never changes');
-  assert.equal(lightEnabled(p, { lightWeekdays: [1], lightMinute: 600 }), false);
+  assert.equal(p.state, 'active', 'finishing the close does not end the programme'); assert.equal(chapterComplete(p), true);
+  assert.equal(callWeek(p, 'light'), 4, 'a light call after the close stays in the finished chapter');
+  assert.equal(lightEnabled(p, { lightWeekdays: [1], lightMinute: 600 }), true, 'light calls continue while the subscription does');
+  assert.deepEqual(finishCall(p, 'weekly', 4), p, 'a close is never held twice');
+  // The next billing month: a new chapter with its own number of calls, the old closing archived.
+  const closed = run(p, { type: 'closing', text: 'Home', carryText: 'Keep going' });
+  const next = rollChapter(closed, 2, new Date('2026-12-10T10:00:00Z'));
+  assert.equal(monthOf(next), 2); assert.equal(next.weeksHeld, 0); assert.equal(callsOf(next), 2); assert.equal(next.closing, null);
+  assert.deepEqual(next.closings!.map(c => [c.text, c.month]), [['Home', 1]]);
+  assert.deepEqual(arc(next), { stage: 'week', week: 1 });
+  const ended = { ...next, state: 'completed' as const };
+  assert.deepEqual(arc(ended), { stage: 'complete' }); assert.equal(slotKind(ended), undefined); assert.equal(lightEnabled(ended, { lightWeekdays: [1], lightMinute: 600 }), false);
+});
+test('calls per month: 1 to 8, and call n is the close wherever n falls', () => {
+  assert.equal(parseCalls('1'), 1); assert.equal(parseCalls(8), 8);
+  for (const bad of ['0', '9', '', 'x', '2.5', null, undefined]) assert.throws(() => parseCalls(bad), /calls_invalid/);
+  for (const n of [1, 2, 6, 8]) {
+    let p = finishCall(emptyProgramme(), 'opening', 0); p = { ...p, chapterCalls: n };
+    for (let w = 1; w <= n; w++) {
+      assert.equal(isCloseWeek(p, w), w === n); assert.deepEqual(arc(p), { stage: 'week', week: w });
+      assert.equal(callHeld('weekly', w, w === n ? ['closing'] : ['step'], n), true);
+      assert.equal(callHeld('weekly', n, ['step'], n), false, 'the close needs the verified closing');
+      p = finishCall(p, 'weekly', w);
+    }
+    assert.equal(chapterComplete(p), true);
+  }
+});
+test('chapter scoping: steps, blocks, moments and closings belong to their month, and the same call number repeats in the next month', () => {
+  let p = finishCall(emptyProgramme(), 'opening', 0); p = run(p, { type: 'wish', text: 'Learn to sail', why: '' });
+  p = run(p, { type: 'step', week: 1, text: 'First month step' }); p = run(p, { type: 'light', text: 'A first month moment', occurredOn: '2026-11-09', source: 'light_call', week: 1 });
+  p = rollChapter({ ...p, weeksHeld: 4 }, 3, now);
+  p = run(p, { type: 'step', week: 1, text: 'Second month step' }); p = run(p, { type: 'step_outcome', week: 1, outcome: 'done', outcomeText: '' });
+  assert.deepEqual(p.steps.map(s => [s.month, s.week, s.outcome]), [[1, 1, null], [2, 1, 'done']]);
+  const context = voiceProgramme(p, { kind: 'weekly', week: 1, preferredName: 'A' }) as { steps: { text: string }[]; chapter: { number: number; calls_this_month: number } };
+  assert.deepEqual(context.steps.map(s => s.text), ['Second month step']); assert.deepEqual([context.chapter.number, context.chapter.calls_this_month], [2, 3]);
+  assert.throws(() => run(p, { type: 'step', week: 4, text: 'Beyond the month' }), /week_invalid/);
+});
+test('the close context: read-back, the month in the caller\'s words and a personal sign-off; other calls carry only the next call', () => {
+  let p = finishCall(emptyProgramme(), 'opening', 0); p = { ...p, chapterCalls: 2 };
+  p = run(p, { type: 'step', week: 1, text: 'Phone the club' }); p = run(p, { type: 'light', text: 'Rain on stone', occurredOn: '2026-11-09', source: 'light_call', week: 1 });
+  const at = new Date('2026-11-12T17:00:00Z');
+  const first = voiceProgramme(p, { kind: 'weekly', week: 1, preferredName: 'Mari', nextCallAt: at, schedule: { timezone: 'Europe/Oslo', weeklyWeekday: 4, weeklyMinute: 1080, lightWeekdays: [], lightMinute: null } }) as Ctx;
+  assert.equal(first.is_close, false); assert.equal(first.sign_off.mode, 'continue'); assert.equal(first.sign_off.next_call_weekday, 'Thursday'); assert.equal(first.sign_off.next_chapter_title, undefined);
+  assert.deepEqual(first.ledger_readback, []); assert.equal(first.month_words, undefined); assert.ok(first.chapter_theme.includes('CALL 1 OF 2'));
+  p = finishCall(p, 'weekly', 1);
+  const close = voiceProgramme(p, { kind: 'weekly', week: 2, preferredName: 'Mari', nextCallAt: at }) as Ctx;
+  assert.equal(close.is_close, true); assert.equal(close.sign_off.mode, 'continue'); assert.equal(close.sign_off.next_chapter_title, 'The First Mile'); assert.ok(close.sign_off.next_call_local!.includes('Thursday'));
+  assert.deepEqual(close.ledger_readback.map((e: { text: string }) => e.text), ['Rain on stone']);
+  assert.deepEqual(close.month_words!.steps.map((e: { text: string }) => e.text), ['Phone the club']); assert.deepEqual(close.month_words!.moments.map((e: { text: string }) => e.text), ['Rain on stone']);
+  assert.ok(close.chapter_theme.includes('Never add facts') && close.chapter_theme.includes('map'), 'the picture is used as a summary of the caller\'s own words');
+  assert.equal((voiceProgramme(p, { kind: 'weekly', week: 2, preferredName: 'Mari', cancelling: true }) as Ctx).sign_off.mode, 'ending');
+  assert.equal((voiceProgramme(p, { kind: 'weekly', week: 2, preferredName: 'Mari', ended: true }) as Ctx).sign_off.mode, 'ending');
+  assert.deepEqual((voiceProgramme(run(p, { type: 'pause' }), { kind: 'weekly', week: 2, preferredName: 'Mari', nextCallAt: at }) as Ctx).sign_off, { mode: 'paused' });
+  const text = JSON.stringify(close.sign_off); assert.doesNotMatch(text, /price|offer|buy|subscri|renew/i);
 });
 test('light calls need an opened, active, unfinished programme and a chosen schedule', () => {
   const s = { lightWeekdays: [1, 3, 5], lightMinute: 1140 };
@@ -181,6 +233,41 @@ test('weekly command whitelist follows the arc week', () => {
   const closing = send(base(4), 'weekly', 4, 'The wish and what is here are both mine. Keep the evenings. Yes.', { command: 'closing', text: 'The wish and what is here are both mine', carry_text: 'Keep the evenings' });
   assert.equal(closing.programme.closing!.carryText, 'Keep the evenings');
   assert.equal(heldCall(closing, 'weekly', 4), true); assert.equal(heldCall(base(4), 'weekly', 4), false);
+});
+test('a retry of an accepted first wish is idempotent even though a wish now exists; a different retry still conflicts', () => {
+  const p0 = finishCall(emptyProgramme(), 'opening', 0);
+  const call = { event_id: 'first-wish', caller_text: 'I want to learn to sail. Yes.', confirmed: true, command: 'wish', text: 'learn to sail' };
+  const once = capture(fresh(p0), 'weekly', 2, 'Europe/Oslo', call, now);
+  assert.equal(currentWish(once.programme)!.text, 'learn to sail');
+  const again = capture(once, 'weekly', 2, 'Europe/Oslo', call, now);
+  assert.equal(again, once, 'the stored receipt answers the retry');
+  assert.throws(() => capture(once, 'weekly', 2, 'Europe/Oslo', { ...call, text: 'learn to sail', why_text: 'sail' }, now), /event_conflict/);
+  assert.throws(() => capture(once, 'weekly', 2, 'Europe/Oslo', { ...call, event_id: 'second-wish', caller_text: 'I want to write instead. Yes.', text: 'write instead' }, now), /command_not_allowed/, 'a new wish in an ordinary theme is still refused');
+});
+test('wish changes follow the chapter theme of the call, not week 3', () => {
+  const inChapter = (month: number, calls: number, held: number): Snapshot => {
+    let p = finishCall(emptyProgramme(), 'opening', 0); p = run(p, { type: 'wish', text: 'sail', why: '' });
+    return fresh({ ...p, month, chapterCalls: calls, weeksHeld: held });
+  };
+  const change = (snap: Snapshot, week: number) => send(snap, 'weekly', week, 'I want to write instead. Yes.', { command: 'wish', text: 'write instead' });
+  // Chapter 6, four calls: its third theme ("Does it still fit") saves the wish.
+  assert.equal(currentWish(change(inChapter(6, 4, 2), 3).programme)!.version, 2);
+  assert.throws(() => change(inChapter(6, 4, 0), 1), /command_not_allowed/);
+  // Chapter 6 with three calls: the themes are spread (1 and 3), so call 2 is the third theme.
+  assert.equal(currentWish(change(inChapter(6, 3, 1), 2).programme)!.version, 2);
+  // Chapter 12 and an open call (six calls): the caller leads.
+  assert.equal(currentWish(change(inChapter(12, 6, 3), 4).programme)!.version, 2);
+  // Chapter 2 never revises the wish in its themes, and the close never does.
+  assert.throws(() => change(inChapter(2, 4, 2), 3), /command_not_allowed/);
+  assert.throws(() => change(inChapter(6, 4, 3), 4), /command_not_allowed/);
+});
+test('spoken light times obey the same scheduling rules as the account', () => {
+  const guard = (days: readonly number[], minute: number) => (days.includes(2) && Math.abs(minute - 1080) < 45 ? 'calls_too_close' : minute > 1200 ? 'outside_coverage' : undefined);
+  const call = (fields: Record<string, unknown>, said = 'Tuesday at six in the evening. Yes.') => capture(fresh(), 'opening', 0, 'Europe/Oslo', { event_id: 'ls-' + (++n), caller_text: said, confirmed: true, command: 'light_schedule', ...fields }, now, guard);
+  assert.throws(() => call({ days: 'tue', time: '18:10' }), /calls_too_close/);
+  assert.throws(() => call({ days: 'tue', time: '22:00' }, 'Tuesday at ten at night. Yes.'), /outside_coverage/);
+  assert.deepEqual(call({ days: 'tue', time: '20:00' }, 'Tuesday at eight. Yes.').programme.light!.days, [2]);
+  assert.deepEqual(call({ days: '' }, 'No more evening calls please. Yes.').programme.light!.days, [], 'stopping light calls is never blocked');
 });
 test('light moments take server date and source, at most five per session, and may come from a weekly call', () => {
   let s = fresh(finishCall(emptyProgramme(), 'opening', 0));

@@ -1,9 +1,14 @@
 import { randomUUID, createHash } from 'node:crypto';
 import { PracticeError, wording } from '../beliefs/model.ts';
-import { localDate, nextSlotAfter, parseLocalTime, parseWeekday, zonedTimeToUtc } from '../schedule/time.ts';
+import { describeAppointment, localDate, nextSlotAfter, parseLocalTime, parseWeekday, zonedTimeToUtc } from '../schedule/time.ts';
+import { CHAPTER_WEEKS, MAX_CALLS, MIN_CALLS, chapterOfMonth, chapterPos, chapterTheme, type Chapter } from './chapters.ts';
 
-/** The programme is finite: one opening call, four weekly calls, the last of which is the closing call. */
-export const ARC_WEEKS = 4;
+/**
+ * The programme follows a monthly subscription, one chapter per month. Inside a chapter the calls are numbered 1..n
+ * (n = calls per month, 1-8, default 4) and call n is always the chapter close. Month 1 also has an opening call that is not counted.
+ */
+export const DEFAULT_CALLS = CHAPTER_WEEKS;
+export { MAX_CALLS, MIN_CALLS };
 export const LEDGER_READBACK_MAX = 5;
 /** First weekly call is never sooner than this after a verified opening call. */
 export const FIRST_WEEK_GAP_DAYS = 5;
@@ -15,13 +20,22 @@ export type BlockKind = 'limit' | 'prediction' | 'unsure';
 export type Outcome = 'done' | 'partly' | 'not' | 'changed';
 export type LightSource = 'light_call' | 'weekly_call';
 export interface Wish { version: number; text: string; why: string; at: string; }
-export interface Block { id: string; wishVersion: number; text: string; kind: BlockKind; week: number; at: string; }
-export interface Step { week: number; text: string; outcome: Outcome | null; outcomeText: string; at: string; outcomeAt?: string; }
-export interface LedgerEntry { id: string; week: number; occurredOn: string; text: string; source: LightSource; at: string; }
-export interface Closing { text: string; carryText: string; at: string; }
+/** `month` scopes an entry to its chapter (1 when absent: entries from before chapters existed). `week` is the call number inside that chapter. */
+export interface Block { id: string; wishVersion: number; text: string; kind: BlockKind; week: number; at: string; month?: number; }
+export interface Step { week: number; text: string; outcome: Outcome | null; outcomeText: string; at: string; outcomeAt?: string; month?: number; }
+export interface LedgerEntry { id: string; week: number; occurredOn: string; text: string; source: LightSource; at: string; month?: number; }
+export interface Closing { text: string; carryText: string; at: string; month?: number; }
 export interface Programme {
   schema: 1; revision: number; state: 'active' | 'paused' | 'completed';
+  /** Verified held calls in the current chapter (not counting the opening call). */
   openingHeld: boolean; weeksHeld: number;
+  /** Chapter sequence number: month 1 is chapter 1, month 13 is chapter 2 of year 2 (see chapterPos). Absent = 1. */
+  month?: number;
+  /** Calls in the current chapter including the close, frozen at chapter start. Absent = 4. */
+  chapterCalls?: number;
+  chapterStartedAt?: string;
+  /** Closings of finished chapters; `closing` is the current chapter's. */
+  closings?: Closing[];
   wishes: Wish[]; blocks: Block[]; steps: Step[]; ledger: LedgerEntry[]; closing: Closing | null;
   /** The caller's last spoken light-call choice. Empty days means "no light calls". */
   light?: { days: number[]; minute: number | null; seq: number };
@@ -47,28 +61,60 @@ export const emptyProgramme = (): Programme => ({
 });
 export const currentWish = (p: Programme): Wish | undefined => p.wishes.at(-1);
 
-/** Where the caller is in the arc. Derived only from verified calls, never from the calendar. */
+export const monthOf = (p: Programme): number => p.month ?? 1;
+export const chapterOfMonthOf = (p: Programme): Chapter => chapterOfMonth(monthOf(p));
+export const callsOf = (p: Programme): number => p.chapterCalls ?? DEFAULT_CALLS;
+/** True when every call of the current chapter, including the close, has been held. The next chapter starts with the next billing month. */
+export const chapterComplete = (p: Programme): boolean => p.openingHeld && p.weeksHeld >= callsOf(p);
+export const isCloseWeek = (p: Programme, week: number): boolean => week >= callsOf(p);
+export const monthEntries = <T extends { month?: number }>(p: Programme, list: readonly T[], month = monthOf(p)): T[] => list.filter(e => (e.month ?? 1) === month);
+
+/** Where the caller is. Derived only from verified held calls, never from the calendar. The programme only completes when the subscription ends. */
 export type Arc = { stage: 'opening' } | { stage: 'week'; week: number } | { stage: 'complete' };
 export function arc(p: Programme): Arc {
-  if (p.state === 'completed' || p.weeksHeld >= ARC_WEEKS) return { stage: 'complete' };
+  if (p.state === 'completed') return { stage: 'complete' };
   if (!p.openingHeld) return { stage: 'opening' };
-  return { stage: 'week', week: p.weeksHeld + 1 };
+  return { stage: 'week', week: Math.min(p.weeksHeld + 1, callsOf(p)) };
 }
 /** What the single recurring weekly slot delivers next. A missed call is not made up: the same stage is offered at the next slot. */
 export function slotKind(p: Programme): CallKind | undefined {
   const a = arc(p);
   return a.stage === 'opening' ? 'opening' : a.stage === 'week' ? 'weekly' : undefined;
 }
-/** The value of {{week}}: 0 for the opening call, 1..4 otherwise. */
+/** The value of {{week}}: 0 for the opening call, otherwise the call number inside the chapter (1..calls). */
 export function callWeek(p: Programme, kind: CallKind): number {
   if (kind === 'opening') return 0;
   const a = arc(p);
-  return a.stage === 'week' ? a.week : ARC_WEEKS;
+  return a.stage === 'week' ? a.week : callsOf(p);
+}
+
+/** A new chapter after the previous one's close: step 1 of the next chapter, calls frozen for the month. Pure. */
+export function rollChapter(current: Programme, calls: number, startedAt: Date): Programme {
+  const p = structuredClone(current);
+  if (p.closing) (p.closings ??= []).push({ ...p.closing, month: p.closing.month ?? monthOf(p) });
+  p.closing = null; p.month = monthOf(p) + 1; p.weeksHeld = 0; p.chapterCalls = parseCalls(calls); p.chapterStartedAt = startedAt.toISOString(); p.revision++;
+  return p;
+}
+/** First activation of the subscription (or a return after it ended with no chapter in progress): the chapter clock starts. Pure. */
+export function startChapter(current: Programme, calls: number, startedAt: Date): Programme {
+  const p = structuredClone(current);
+  p.month = monthOf(p); p.weeksHeld = p.weeksHeld ?? 0; p.chapterCalls = parseCalls(calls); p.chapterStartedAt = startedAt.toISOString(); p.revision++;
+  return p;
+}
+/** Shorten the current chapter so the call being claimed is its close (the period is ending or no later slot remains). Pure. */
+export function closeAt(current: Programme, week: number): Programme {
+  if (week >= callsOf(current)) return current;
+  const p = structuredClone(current); p.chapterCalls = week; p.revision++;
+  return p;
+}
+export function parseCalls(value: unknown): number {
+  const n = typeof value === 'string' && /^\d+$/.test(value.trim()) ? Number(value) : value;
+  return typeof n === 'number' && Number.isInteger(n) && n >= MIN_CALLS && n <= MAX_CALLS ? n : fail('calls_invalid');
 }
 
 export interface Schedule { timezone: string; weeklyWeekday: number | null; weeklyMinute: number | null; lightWeekdays: number[]; lightMinute: number | null; }
 export function lightEnabled(p: Programme, s: Pick<Schedule, 'lightWeekdays' | 'lightMinute'>): boolean {
-  return p.state === 'active' && p.openingHeld && arc(p).stage === 'week' && s.lightWeekdays.length > 0 && s.lightMinute !== null;
+  return p.state === 'active' && p.openingHeld && s.lightWeekdays.length > 0 && s.lightMinute !== null;
 }
 export function nextLight(after: Date, days: readonly number[], minute: number, timezone: string): Date | null {
   return days.length ? new Date(Math.min(...days.map(weekday => +nextSlotAfter(after, { weekday, minute, timezone })))) : null;
@@ -105,46 +151,84 @@ export function parseBlockKind(value: unknown): BlockKind {
 }
 
 /**
- * Up to five entries for the closing call, verbatim and never ranked by content.
- * Newest entry of each programme week in turn (latest week first), so the read-back
- * is both recent and spread across the weeks; output is chronological.
+ * Up to `max` entries for the closing call, verbatim and never ranked by content.
+ * Newest entry of each group in turn (latest group first), so the read-back is both recent and spread;
+ * output is chronological. Groups are the call number inside a chapter, or the chapter itself for the year read-back.
  */
-export function selectLedgerReadback(ledger: readonly LedgerEntry[], max = LEDGER_READBACK_MAX): LedgerEntry[] {
-  const weeks = [...new Set(ledger.map(e => e.week))].sort((a, b) => b - a);
-  const queues = new Map(weeks.map(w => [w, ledger.filter(e => e.week === w).sort((a, b) => b.at.localeCompare(a.at) || b.occurredOn.localeCompare(a.occurredOn))]));
+export function selectLedgerReadback(ledger: readonly LedgerEntry[], max = LEDGER_READBACK_MAX, group: (e: LedgerEntry) => number = e => e.week): LedgerEntry[] {
+  const keys = [...new Set(ledger.map(group))].sort((a, b) => b - a);
+  const queues = new Map(keys.map(w => [w, ledger.filter(e => group(e) === w).sort((a, b) => b.at.localeCompare(a.at) || b.occurredOn.localeCompare(a.occurredOn))]));
   const picked: LedgerEntry[] = [];
   while (picked.length < Math.min(max, ledger.length)) {
-    for (const w of weeks) { const next = queues.get(w)!.shift(); if (next && picked.length < max) picked.push(next); }
+    for (const w of keys) { const next = queues.get(w)!.shift(); if (next && picked.length < max) picked.push(next); }
   }
   return picked.sort((a, b) => a.at.localeCompare(b.at) || a.occurredOn.localeCompare(b.occurredOn));
 }
+/** What the close reads back: this chapter's ledger, or for the year chapter one-per-chapter across the year. */
+export function closeReadback(p: Programme, chapter: Chapter): LedgerEntry[] {
+  if (chapter.readback === 'chapter') return selectLedgerReadback(monthEntries(p, p.ledger));
+  const year = chapterPos(monthOf(p)).year;
+  return selectLedgerReadback(p.ledger.filter(e => chapterPos(e.month ?? 1).year === year), LEDGER_READBACK_MAX, e => e.month ?? 1);
+}
+
+export interface SignOffInput { cancelling: boolean; ended: boolean; nextCallAt: Date | null; }
+export type SignOff = { mode: 'continue' | 'paused' | 'ending'; next_chapter_title?: string; next_call_local?: string; next_call_weekday?: string };
+/**
+ * What the guide may say at the end of a call. Facts only: never a price, an offer or a sales line.
+ * continue: the real next call (and, after a close, the next chapter's title). paused: calls are paused until the caller resumes in the account.
+ * ending: the subscription is ending, so this is the last call for now and everything stays in the private account.
+ */
+export function signOff(p: Programme, input: SignOffInput, timezone: string, close: boolean): SignOff {
+  if (p.state === 'paused') return { mode: 'paused' };
+  if (input.ended || p.state === 'completed' || (input.cancelling && close)) return { mode: 'ending' };
+  const out: SignOff = { mode: 'continue' };
+  if (close) out.next_chapter_title = chapterOfMonth(monthOf(p) + 1).title;
+  if (input.nextCallAt) {
+    out.next_call_local = describeAppointment(input.nextCallAt, timezone);
+    out.next_call_weekday = new Intl.DateTimeFormat('en-GB', { timeZone: timezone, weekday: 'long' }).format(input.nextCallAt);
+  }
+  return out;
+}
 
 /** A human-support address has no purpose in a voice prompt or tool response. */
-export function voiceProgramme(p: Programme, ctx: { kind: CallKind; week: number; preferredName: string; schedule?: Schedule }): Record<string, unknown> {
+export function voiceProgramme(p: Programme, ctx: { kind: CallKind; week: number; preferredName: string; schedule?: Schedule; cancelling?: boolean; ended?: boolean; nextCallAt?: Date | null }): Record<string, unknown> {
   const wish = currentWish(p);
-  const week4 = ctx.kind === 'weekly' && ctx.week === ARC_WEEKS;
+  const weekly = ctx.kind === 'weekly';
+  const calls = callsOf(p), month = monthOf(p), pos = chapterPos(month), chapter = chapterOfMonth(month);
+  const close = weekly && isCloseWeek(p, ctx.week);
   const slot = ctx.schedule && ctx.schedule.weeklyWeekday !== null && ctx.schedule.weeklyMinute !== null
     ? { weekday: ctx.schedule.weeklyWeekday, time: clock(ctx.schedule.weeklyMinute), timezone: ctx.schedule.timezone } : undefined;
   const lightOn = ctx.schedule ? lightEnabled(p, ctx.schedule) : false;
+  const steps = monthEntries(p, p.steps);
+  const moments = monthEntries(p, p.ledger);
+  const tz = ctx.schedule?.timezone ?? 'Europe/Oslo';
   return {
     state: p.state,
     stage: ctx.kind === 'opening' ? 'opening' : ctx.kind === 'light' ? 'light' : `week_${ctx.week}`,
+    chapter: { number: pos.number, year: pos.year, title: chapter.title, calls_this_month: calls, call: weekly ? ctx.week : 0 },
+    ...(weekly ? { chapter_theme: chapterTheme(chapter, Math.min(ctx.week, calls), calls) } : {}),
+    is_close: close,
+    sign_off: signOff(p, { cancelling: !!ctx.cancelling, ended: !!ctx.ended, nextCallAt: ctx.nextCallAt ?? null }, tz, close),
     wish: wish ? { version: wish.version, text: wish.text, why_text: wish.why } : null,
     blocks: p.blocks.filter(b => !wish || b.wishVersion === wish.version).map(b => ({ text: b.text, kind: b.kind })),
-    steps: p.steps.map(s => ({ week: s.week, text: s.text, outcome: s.outcome, outcome_text: s.outcomeText })),
-    last_step: p.steps.find(s => s.week === ctx.week && s.outcome === null)?.text ?? null,
+    steps: steps.map(s => ({ week: s.week, text: s.text, outcome: s.outcome, outcome_text: s.outcomeText })),
+    last_step: steps.find(s => s.week === ctx.week && s.outcome === null)?.text ?? null,
     light_calls: { enabled: lightOn, days: ctx.schedule?.lightWeekdays ?? [], time: ctx.schedule?.lightMinute != null ? clock(ctx.schedule.lightMinute) : null },
     ledger_count: p.ledger.length,
-    ledger_readback: week4 ? selectLedgerReadback(p.ledger).map(e => ({ occurred_on: e.occurredOn, text: e.text })) : [],
+    ledger_readback: close ? closeReadback(p, chapter).map(e => ({ occurred_on: e.occurredOn, text: e.text })) : [],
+    // The caller's own saved words for this month, only for the close: the guide builds the summary from these and nothing else.
+    ...(close ? { month_words: { steps: steps.map(s => ({ text: s.text, outcome: s.outcome, outcome_text: s.outcomeText })),
+      moments: selectLedgerReadback(moments, 10).map(e => ({ occurred_on: e.occurredOn, text: e.text })),
+      blocks: monthEntries(p, p.blocks).map(b => ({ text: b.text, kind: b.kind })) } } : {}),
     call_context: { preferred_name: ctx.preferredName, call_kind: ctx.kind, week: ctx.week, ...(slot ? { weekly_slot: slot } : {}) },
   };
 }
 const clock = (m: number): string => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 
 /** Capture kinds that count as a held call; interrupted calls keep their verified saves but do not advance the arc. */
-export function callHeld(kind: CallKind, week: number, captured: readonly string[]): boolean {
+export function callHeld(kind: CallKind, week: number, captured: readonly string[], calls = DEFAULT_CALLS): boolean {
   if (kind === 'light') return true;
-  if (kind === 'weekly' && week === ARC_WEEKS) return captured.includes('closing');
+  if (kind === 'weekly' && week >= calls) return captured.includes('closing');
   return captured.some(t => t !== 'pause');
 }
 /** Advance the arc after a verified held call. Runs on the canonical aggregate only. */
@@ -154,7 +238,6 @@ export function finishCall(current: Programme, kind: CallKind, week: number): Pr
   if (kind === 'opening' && !p.openingHeld) { p.openingHeld = true; p.revision++; }
   if (kind === 'weekly' && p.openingHeld && week === p.weeksHeld + 1) {
     p.weeksHeld = week; p.revision++;
-    if (week >= ARC_WEEKS) p.state = 'completed';
   }
   return p;
 }
@@ -183,19 +266,19 @@ export function applyCommand(current: Programme, command: Command, eventId: stri
     case 'block': {
       const wish = currentWish(p) ?? fail('wish_required');
       if (p.blocks.length >= 100) fail('blocks_full');
-      p.blocks.push({ id: randomUUID(), wishVersion: wish.version, text: wording(command.text), kind: parseBlockKind(command.kind), week: command.week, at });
+      p.blocks.push({ id: randomUUID(), wishVersion: wish.version, text: wording(command.text), kind: parseBlockKind(command.kind), week: command.week, at, month: monthOf(p) });
       break;
     }
     case 'step': {
-      if (!Number.isInteger(command.week) || command.week < 1 || command.week > ARC_WEEKS) fail('week_invalid');
-      const text = wording(command.text), existing = p.steps.find(s => s.week === command.week);
+      if (!Number.isInteger(command.week) || command.week < 1 || command.week > callsOf(p)) fail('week_invalid');
+      const text = wording(command.text), existing = p.steps.find(s => s.week === command.week && (s.month ?? 1) === monthOf(p));
       if (existing) { if (existing.outcome !== null) fail('step_locked'); existing.text = text; existing.at = at; }
-      else p.steps.push({ week: command.week, text, outcome: null, outcomeText: '', at });
-      p.steps.sort((a, b) => a.week - b.week);
+      else p.steps.push({ week: command.week, text, outcome: null, outcomeText: '', at, month: monthOf(p) });
+      p.steps.sort((a, b) => (a.month ?? 1) - (b.month ?? 1) || a.week - b.week);
       break;
     }
     case 'step_outcome': {
-      const step = p.steps.find(s => s.week === command.week) ?? fail('step_unknown');
+      const step = p.steps.find(s => s.week === command.week && (s.month ?? 1) === monthOf(p)) ?? fail('step_unknown');
       if (step.outcome !== null) fail('outcome_recorded');
       step.outcome = parseOutcome(command.outcome);
       step.outcomeText = typeof command.outcomeText === 'string' && command.outcomeText.trim() ? wording(command.outcomeText) : '';
@@ -205,12 +288,12 @@ export function applyCommand(current: Programme, command: Command, eventId: stri
     case 'light': {
       if (!DATE.test(command.occurredOn) || !['light_call', 'weekly_call'].includes(command.source)) fail('light_invalid');
       if (p.ledger.length >= 500) fail('ledger_full');
-      p.ledger.push({ id: randomUUID(), week: command.week, occurredOn: command.occurredOn, text: wording(command.text), source: command.source, at });
+      p.ledger.push({ id: randomUUID(), week: command.week, occurredOn: command.occurredOn, text: wording(command.text), source: command.source, at, month: monthOf(p) });
       break;
     }
     case 'closing': {
       if (p.closing) fail('closing_recorded');
-      p.closing = { text: wording(command.text), carryText: typeof command.carryText === 'string' && command.carryText.trim() ? wording(command.carryText) : '', at };
+      p.closing = { text: wording(command.text), carryText: typeof command.carryText === 'string' && command.carryText.trim() ? wording(command.carryText) : '', at, month: monthOf(p) };
       break;
     }
     case 'light_schedule': {
