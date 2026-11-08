@@ -142,3 +142,12 @@ test('the trial letter still works whichever vendor is live', () => {
   assert.ok(letter);
   assert.ok(letterHtml(letter).includes('href="https://buy.stripe.com/abc?client_reference_id=x"'));
 });
+
+test('a subscription carries both its price ids and their product ids, so a product id can identify it', () => {
+  const read = readStripeWebhook({}, { type: 'customer.subscription.updated', data: { object: {
+    object: 'subscription', id: 'sub_p', customer: 'cus_p', status: 'active',
+    items: { data: [{ price: { id: 'price_a', product: 'prod_unblock' } }, { plan: { id: 'plan_b', product: { id: 'prod_obj' } } }] },
+  } } });
+  assert.ok(read.ok);
+  assert.deepEqual(read.change.productIds?.sort(), ['plan_b', 'price_a', 'prod_obj', 'prod_unblock']);
+});

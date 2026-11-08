@@ -124,7 +124,11 @@ export function readStripeWebhook(headers: Record<string, string | string[] | un
     const periods = Array.isArray(items) ? items.map(i => Number(obj(i)?.['current_period_end'])).filter(Number.isFinite) : [];
     const ends = num(object['cancel_at']) ?? num(object['current_period_end']) ?? (periods.length ? String(Math.min(...periods)) : undefined);
     if (ends) change.endsAt = new Date(Number(ends) * 1000).toISOString();
-    const priced = Array.isArray(items) ? items.flatMap(i => [str(obj(obj(i)?.['price'])?.['id']), str(obj(obj(i)?.['plan'])?.['id'])]).filter((v): v is string => !!v) : [];
+    // Price/plan ids and their product ids: a product id survives a later price change.
+    const priced = Array.isArray(items) ? items.flatMap(i => {
+      const price = obj(obj(i)?.['price']); const plan = obj(obj(i)?.['plan']);
+      return [str(price?.['id']), str(plan?.['id']), idOf(price?.['product']), idOf(plan?.['product'])];
+    }).filter((v): v is string => !!v) : [];
     if (priced.length) change.productIds = [...new Set(priced)];
     return { ok: true, change };
   }
