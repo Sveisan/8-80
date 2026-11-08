@@ -96,6 +96,14 @@ test('subscription card: status line, calls per month with the next-chapter note
   assert.ok(ended.includes('Ended.') && !ended.includes('<form'));
   assert.doesNotMatch(active, /streak|\bscore|well done|great job/i);
 });
+test('the account offers no pause or resume before the subscription is active, and never counts calls held', () => {
+  const idle = unblockPage('account', { programme: filled(), paid: false, scheduled: true, csrf: 'c' });
+  assert.ok(!idle.includes('Pause my calls') && !idle.includes('Resume my calls'));
+  assert.ok(!unblockPage('account', { programme: { ...filled(), state: 'paused' }, paid: false, csrf: 'c' }).includes('Resume my calls'));
+  assert.ok(!card(unblockPage('account', { programme: filled(), paid: false, sub: sub({ standing: 'awaiting_payment', manageable: false }), csrf: 'c' })).includes('Pause my calls'));
+  const done = unblockPage('account', { programme: { ...filled(), chapterCalls: 4, weeksHeld: 4 }, paid: true, sub: sub(), csrf: 'c' });
+  assert.doesNotMatch(done, /all held|\b\d+ of \d+\b/); assert.ok(done.includes('This chapter is set to 4'));
+});
 test('the schedule step asks for calls per month, one to eight, default four', () => {
   const html = unblockPage('schedule', {});
   assert.ok(html.includes('Calls per month') && html.includes('<option value="4" selected>')); assert.equal((html.match(/<select id="[^"]*calls"[\s\S]*?<\/select>/)![0].match(/<option /g) ?? []).length, 8);

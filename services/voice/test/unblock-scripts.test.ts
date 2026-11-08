@@ -25,3 +25,9 @@ for (const kind of UNBLOCK_KINDS) {
     assert.doesNotMatch(spoken, /manifest|destiny|universe|unlock your potential/i);
   });
 }
+
+test('unblock weekly: neither the close nor an ordinary call promises a time it does not have', () => {
+  const script = readUnblockScript('weekly');
+  assert.match(script, /If next_call_local is missing, name the chapter and say "I'll be in touch soon"; never promise a day or time you do not have/);
+  assert.match(script, /If sign_off\.next_call_local is missing, say "Talk to you soon" and promise no time/);
+});

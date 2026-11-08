@@ -40,7 +40,7 @@ export function upcoming(e: Enrollment, p: Programme, now: Date): { call?: NextC
   const stage = slotKind(p);
   const pointers = [e.opening_at, e.next_weekly_at].filter((d): d is Date => !!d && d > now).sort((a, b) => +a - +b);
   const call = stage && pointers[0] ? { at: pointers[0].toISOString(), text: describeAppointment(pointers[0], e.timezone), kind: 'call' as const,
-    label: stage === 'opening' ? 'Opening conversation' : chapterComplete(p) ? 'Regular call · first of the next chapter' : `Regular call · ${Math.min(p.weeksHeld + 1, callsOf(p))} of ${callsOf(p)} this month`, moveable: true, weekly: stage === 'weekly' && pointers[0] === e.next_weekly_at } : undefined;
+    label: stage === 'opening' ? 'Opening conversation' : chapterComplete(p) ? 'First call of the next chapter' : p.weeksHeld + 1 >= callsOf(p) ? 'Regular call · your chapter close' : 'Regular call', moveable: true, weekly: stage === 'weekly' && pointers[0] === e.next_weekly_at } : undefined;
   const lit = e.next_light_at && e.next_light_at > now && lightEnabled(p, scheduleOf(e)) ? e.next_light_at : undefined;
   const light = lit ? { at: lit.toISOString(), text: describeAppointment(lit, e.timezone), kind: 'light' as const, label: 'Light call', moveable: false, weekly: false } : undefined;
   return { call, light };

@@ -49,7 +49,7 @@ test('preview walks the whole journey: join, verify, schedule, simulated payment
     assert.ok(w.html().includes('Where you landed')); assert.ok(w.html().includes('Synthetic carry'));
     assert.ok(!w.html().includes('Your calls have ended'), 'the close ends the chapter, not the programme'); assert.ok(!w.html().includes('Opening conversation'));
     assert.ok(w.html().includes('Simulate the next chapter (billing month) starting'), 'the next chapter waits for the next billing month');
-    await w.post('/unblock/action', { action: 'sim_month' }); assert.ok(w.html().includes('This month · The First Mile')); assert.ok(w.html().includes('1 of 4 this month'));
+    await w.post('/unblock/action', { action: 'sim_month' }); assert.ok(w.html().includes('This month · The First Mile')); assert.doesNotMatch(w.html().replace(/<style>[\s\S]*?<\/style>/g, ''), /\b\d+ of \d+\b|all held/, 'calls held are never counted');
     assert.ok(w.html().includes('Where you landed · The Wish'), 'the first chapter\'s closing is kept under its chapter');
     assert.ok(!/five weeks|one-time|last Unblock call/i.test(w.html()));
     assert.equal((w.html().match(/Beliefs/g) ?? []).length, 1, 'one quiet mention of Beliefs, in the footer');
@@ -71,12 +71,27 @@ test('preview: subscription controls with simulated standing: calls per month ap
     assert.equal((await w.post('/unblock/action', { action: 'calls', calls: '9' })).status, 400);
     for (let i = 0; i < 6; i++) await w.post('/unblock/action', { action: 'sim_call' });
     assert.ok(w.html().includes('Where you landed')); await w.post('/unblock/action', { action: 'sim_month' });
-    assert.ok(w.html().includes('1 of 3 this month') && w.html().includes('3 a month'), 'the pending choice starts with the new month');
+    assert.ok(w.html().includes('3 a month'), 'the pending choice starts with the new month'); assert.doesNotMatch(w.html().replace(/<style>[\s\S]*?<\/style>/g, ''), /\b\d+ of \d+\b|all held/);
     await w.post('/unblock/action', { action: 'pause' }); assert.ok(w.html().includes('does not pause billing') || w.html().includes('Resume my calls'));
     await w.post('/unblock/action', { action: 'resume' });
     await w.post('/unblock/action', { action: 'billing' }); assert.ok(w.html().includes('not part of this preview'));
     await w.post('/unblock/action', { action: 'cancel' }); assert.ok(w.html().includes('Cancelling on')); assert.ok(w.html().includes('Your calls continue until then'));
     await w.post('/unblock/action', { action: 'sim_end' }); assert.ok(w.html().includes('Ended.')); assert.ok(!w.html().includes('Skip this call'));
+  } finally { await w.close(); }
+});
+
+test('preview: nothing to pause or end before payment; a simulated end cannot be run early; the next light evening follows simulated time', async () => {
+  const w = await walk();
+  try {
+    await w.get('/unblock/join'); await w.post('/unblock/join', { phone: '+4791000013', consent: 'yes' }); await w.post('/unblock/verify', { code: '000000' });
+    await w.post('/unblock/action', schedule);
+    assert.ok(!w.html().includes('Pause my calls') && !w.html().includes('Resume my calls'), 'no pause control before the subscription is active');
+    assert.equal((await w.post('/unblock/action', { action: 'sim_end' })).status, 400); assert.ok(!w.html().includes('Your calls have ended'));
+    await w.post('/unblock/action', { action: 'pay' }); assert.ok(w.html().includes('Opening conversation') && w.html().includes('Pause my calls'));
+    await w.post('/unblock/action', { action: 'sim_call' });
+    const light = () => w.html().match(/Next light call: <time datetime="([^"]+)"/)![1]!;
+    const first = light(); await w.post('/unblock/action', { action: 'sim_light' }); await w.post('/unblock/action', { action: 'sim_light' });
+    assert.ok(+new Date(light()) > +new Date(first) + 86400_000, 'the light card moves on with the simulated days');
   } finally { await w.close(); }
 });
 

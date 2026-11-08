@@ -48,7 +48,7 @@ export function previewServer(): Server {
     const submitted = req.method === 'POST' ? await readForm(req) : undefined;
     const tz = s.schedule?.timezone ?? 'Europe/Oslo';
     const slot = (): Schedule => ({ timezone: tz, weeklyWeekday: s.schedule?.weekday ?? null, weeklyMinute: s.schedule?.weekly ?? null, lightWeekdays: s.schedule?.lightDays ?? [], lightMinute: s.schedule?.lightMinute ?? null });
-    const callCard = (): NextCall | undefined => s.nextCall && s.programme.state === 'active' && s.paid ? { at: s.nextCall.toISOString(), text: describeAppointment(s.nextCall, tz), kind: 'call', label: s.programme.openingHeld ? (chapterComplete(s.programme) ? 'Regular call · first of the next chapter' : `Regular call · ${s.programme.weeksHeld + 1} of ${callsOf(s.programme)} this month`) : 'Opening conversation', moveable: true, weekly: s.programme.openingHeld && !chapterComplete(s.programme) } : undefined;
+    const callCard = (): NextCall | undefined => s.nextCall && s.programme.state === 'active' && s.paid ? { at: s.nextCall.toISOString(), text: describeAppointment(s.nextCall, tz), kind: 'call', label: s.programme.openingHeld ? (chapterComplete(s.programme) ? 'First call of the next chapter' : s.programme.weeksHeld + 1 >= callsOf(s.programme) ? 'Regular call · your chapter close' : 'Regular call') : 'Opening conversation', moveable: true, weekly: s.programme.openingHeld && !chapterComplete(s.programme) } : undefined;
     const lightCard = (): NextCall | undefined => s.nextLight && s.programme.state === 'active' && s.paid ? { at: s.nextLight.toISOString(), text: describeAppointment(s.nextLight, tz), kind: 'light', label: 'Light call', moveable: false, weekly: false } : undefined;
     const readback = selectLedgerReadback(monthEntries(s.programme, s.programme.ledger));
     const waiting = (): boolean => chapterComplete(s.programme);
@@ -107,7 +107,7 @@ export function previewServer(): Server {
         if (action === 'calls') { setCalls(parseCalls(form.get('calls') ?? '')); return redirect('/unblock/account'); }
         if (action === 'cancel') { s.cancelling = true; s.note = 'Your subscription will end at the end of the period you have paid for. Your calls continue until then.'; return redirect('/unblock/account'); }
         if (action === 'billing') { s.note = 'The billing portal belongs to the payment provider and is not part of this preview.'; return redirect('/unblock/account'); }
-        if (action === 'sim_end') { s.ended = true; s.programme = { ...s.programme, state: 'completed' }; s.nextCall = undefined; s.nextLight = undefined; return redirect('/unblock/account'); }
+        if (action === 'sim_end') { if (!s.paid) throw new PracticeError('calls_held'); s.ended = true; s.programme = { ...s.programme, state: 'completed' }; s.nextCall = undefined; s.nextLight = undefined; return redirect('/unblock/account'); }
         if (action === 'sim_month') {
           if (!waiting()) throw new PracticeError('calls_held');
           const calls = s.pending ?? s.calls; s.calls = calls; s.pending = null; s.virtual = new Date(+s.virtual + 30 * 86400_000);
@@ -134,6 +134,8 @@ export function previewServer(): Server {
             if (!p().openingHeld || p().state !== 'active') throw new PracticeError('calls_held');
             s.virtual = new Date(+s.virtual + 86400_000);
             run({ type: 'light', text: SYNTHETIC.light[p().ledger.length % SYNTHETIC.light.length]!, occurredOn: localDay(s.virtual, tz), source: 'light_call', week: p().weeksHeld + 1 });
+            // The next light evening follows simulated time, like the ledger date does.
+            if (s.schedule.lightMinute !== null) s.nextLight = nextLight(s.virtual, s.schedule.lightDays, s.schedule.lightMinute, tz) ?? undefined;
           } else if (!p().openingHeld) {
             run({ type: 'wish', text: SYNTHETIC.wish, why: SYNTHETIC.why });
             run({ type: 'step', week: 1, text: SYNTHETIC.steps[0]! });

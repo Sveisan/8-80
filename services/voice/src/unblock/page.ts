@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { MARK } from '../link/page.ts';
 import { localDisplayScript } from '../beliefs/display.ts';
 import { back, css, escape, field, hidden, journeyCss, link, localValue } from '../beliefs/page.ts';
-import { DEFAULT_CALLS, DEFAULT_LIGHT_DAYS, DEFAULT_LIGHT_MINUTE, MAX_CALLS, MIN_CALLS, callsOf, chapterComplete, currentWish, monthOf, type Programme } from './model.ts';
+import { DEFAULT_CALLS, DEFAULT_LIGHT_DAYS, DEFAULT_LIGHT_MINUTE, MAX_CALLS, MIN_CALLS, callsOf, currentWish, monthOf, type Programme } from './model.ts';
 import { chapterOfMonth, chapterPos } from './chapters.ts';
 import { LIGHT_DAY_ORDER, WEEKDAYS } from './forms.ts';
 
@@ -130,7 +130,7 @@ function subscriptionCard(o: PageOptions): string {
           : sub.cancelling ? `Cancelling${until ? ` on ${escape(until)}` : ' at the end of this billing period'}. Your calls continue until then.`
             : paused ? 'Paused. No calls are placed until you resume.' : `Active${until ? `. Renews around ${escape(until)}` : ''}.`;
   const live = sub.standing === 'active' || sub.standing === 'past_due';
-  const calls = `<h3>Calls per month</h3><p class="quiet">${sub.pendingCalls ? `This chapter keeps ${sub.callsPerMonth}. From your next chapter: ${sub.pendingCalls}.` : `${sub.callsPerMonth} a month.`} The price is the same whatever you choose. A change applies from your next chapter.${p.chapterCalls ? ` This chapter has ${callsOf(p)}${chapterComplete(p) ? ', all held' : ''}.` : ''}</p>`
+  const calls = `<h3>Calls per month</h3><p class="quiet">${sub.pendingCalls ? `This chapter keeps ${sub.callsPerMonth}. From your next chapter: ${sub.pendingCalls}.` : `${sub.callsPerMonth} a month.`} The price is the same whatever you choose. A change applies from your next chapter.${p.chapterCalls ? ` This chapter is set to ${callsOf(p)}.` : ''}</p>`
     + form('/unblock/action', hidden('action', 'calls') + `<label for="calls">Calls per month</label><select id="calls" name="calls">${Array.from({ length: MAX_CALLS - MIN_CALLS + 1 }, (_, i) => i + MIN_CALLS).map(n => `<option value="${n}" ${n === (sub.pendingCalls ?? sub.callsPerMonth) ? 'selected' : ''}>${n}</option>`).join('')}</select>`, 'Save calls per month', o);
   const pause = live && p.state === 'active' ? `<p class="quiet spaced">Pausing stops calls straight away. It does not pause billing: your subscription keeps renewing while calls are paused. To stop being billed, cancel.</p>${form('/unblock/action', hidden('action', 'pause'), 'Pause my calls', o)}`
     : live && paused ? form('/unblock/action', hidden('action', 'resume'), 'Resume my calls', o) : '';
@@ -154,13 +154,13 @@ function account(o: PageOptions): string {
   const paused = p.state === 'paused';
   return `<section class="account stack">${back('/unblock', 'Unblock')}<h1>Your Unblock</h1><p class="quiet">${escape(intro)}</p>
     ${o.held ? '<p class="notice">Calls are on hold. Contact us before restarting.</p>' : ''}${o.paymentHold ? '<p class="notice">Your payment needs review. Calls are on hold; contact us for help.</p>' : ''}
-    ${purchase}${paused ? '<p class="notice">Your calls are paused. Your words stay here.</p>' : ''}${o.sub ? '' : paused ? form('/unblock/action', hidden('action', 'resume'), 'Resume my calls', o) : ''}
+    ${purchase}${paused ? '<p class="notice">Your calls are paused. Your words stay here.</p>' : ''}${o.sub || !o.paid ? '' : paused ? form('/unblock/action', hidden('action', 'resume'), 'Resume my calls', o) : ''}
     ${!paused && !o.held && !o.paymentHold ? nextCard(o) : ''}${!paused && o.paid && !o.next && !finished && !o.held ? `<p>${link('/unblock/schedule', 'Choose your times', true)}</p>` : ''}
     ${!paused && !o.held && !o.paymentHold && !finished && o.paid ? lightCard(o) : ''}
     ${finished ? '<article class="card"><h2>Your calls have ended</h2><p>No more calls will be placed. Revisiting this page does not start anything.</p></article>' : ''}
     ${chapterSection(p)}${wishSection(p)}${blockSection(p)}${stepSection(p)}${ledgerSection(p)}${closingSection(p)}
     ${subscriptionCard(o)}${o.controls ?? ''}
-    <hr class="divider"><div class="actions">${!finished ? link('/unblock/schedule', 'Change my usual times', true) : ''}${!finished && p.state === 'active' && !o.sub ? form('/unblock/action', hidden('action', 'pause'), 'Pause my calls', o) : ''}</div>${help}
+    <hr class="divider"><div class="actions">${!finished ? link('/unblock/schedule', 'Change my usual times', true) : ''}${!finished && p.state === 'active' && !o.sub && o.paid ? form('/unblock/action', hidden('action', 'pause'), 'Pause my calls', o) : ''}</div>${help}
     ${!o.preview ? `<details class="spaced"><summary>Your data and account</summary><p class="quiet">Download everything we hold about you, in your own words. Deleting erases your entire 8&80 account, including weekly calls and any other 8&80 programme, and stops all calls.</p>${form('/unblock/action', hidden('action', 'export'), 'Download my data', o)}${form('/unblock/action', hidden('action', 'delete') + field('Type DELETE to erase your entire 8&80 account', 'confirmation', '', 'text', 'required'), 'Delete my whole account', o)}</details>` : ''}
     ${form('/unblock/action', hidden('action', 'signout'), 'Sign out', o)}</section>`;
 }
