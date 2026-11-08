@@ -40,7 +40,7 @@ try{
     if(!config.database.url)throw Error('Database configuration is missing.');
     const store=new PostgresStore(config.database.url);
     try{
-      const attempts=await store.raw`select a.id,s.id as belief_id from call_attempts a left join belief_sessions s on s.id=a.id where a.provider_call_id=${id}`;
+      const attempts=await store.raw`select a.id,coalesce(s.id,u.id) as belief_id from call_attempts a left join belief_sessions s on s.id=a.id left join unblock_sessions u on u.id=a.id where a.provider_call_id=${id}`;
       if(attempts.length!==1 || attempts[0]!['belief_id'])throw Error('No unambiguous weekly call is available for this identifier.');
       const delivery=await new Deliveries(store.raw).body(id);
       if(!delivery)throw Error('No retained delivery is available. This command does not fetch or retain older provider data.');
