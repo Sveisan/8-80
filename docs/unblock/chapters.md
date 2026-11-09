@@ -12,7 +12,7 @@ The picture is one long walk. It borrows nothing from any book; see [research](r
 | --- | --- | --- | --- |
 | 1 | The Wish | A map drawn long ago and folded away in a drawer | One wish in their words, what has kept it a wish, first steps, the light ledger started |
 | 2 | The First Mile | New boots are stiff; the rubbing is the boots learning your feet | A step small enough to keep doing every week, and a month of it in their record |
-| 3 | Companions | Some people carry water, some point the way, some add weight | One person who knows about the wish, and one clear thing asked for |
+| 3 | Companions | Some people carry water, some point the way, some add weight | One person — or group or community — who knows about the wish, and one clear thing asked for |
 | 4 | Making Room | A pack only holds so much | One thing set down or made smaller — only if it was theirs to set down |
 | 5 | Losing the Trail | The path disappears for a stretch; that is part of the route | One setback looked at plainly, and a way back they chose |
 | 6 | The Well | Halfway: rest, drink, look back before looking ahead | A halfway account, and whether the wish still fits |
