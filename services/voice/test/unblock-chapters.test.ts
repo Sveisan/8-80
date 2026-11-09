@@ -35,7 +35,7 @@ for (const c of CHAPTERS) {
     const text = allText(c);
     assert.doesNotMatch(text, /Coelho|Alchemist|Bayer|Personal Legend|Maktub|\btreasure|\bomens?\b/i);
     assert.doesNotMatch(text, /manifest|destiny|universe|unlock your potential|transform your life|streak|score|level up/i);
-    assert.doesNotMatch(text, /\b(this|next|past|coming) week\b|\ba week to\b|free month/i, 'calls are not weekly for everyone');
+    assert.doesNotMatch(text, /\b(this|next|past|coming|each) week\b|\ba week to\b|free month/i, 'calls are not weekly for everyone');
   });
 
   test(`chapter ${c.number}: renders a theme for every call of a month of 1 to ${MAX_CALLS} calls`, () => {

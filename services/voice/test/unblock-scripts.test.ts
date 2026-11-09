@@ -18,7 +18,7 @@ for (const kind of UNBLOCK_KINDS) {
   test(`unblock ${kind}: fits questions to any life and any call rhythm`, () => {
     assert.match(script, /FIT THE QUESTION TO THEIR LIFE/);
     const spoken = [...script.matchAll(/"([^"]+)"/g)].map((m) => m[1]!).filter((line) => !/never|unless/i.test(line));
-    for (const line of spoken) assert.doesNotMatch(line, /\b(this|next|past|coming) week\b|weekly call|free month/i, line);
+    for (const line of spoken) assert.doesNotMatch(line, /\b(this|next|past|coming|each|every) week\b|weekly call|free month/i, line);
   });
 
   test(`unblock ${kind}: stops on a safety hold`, () => {
