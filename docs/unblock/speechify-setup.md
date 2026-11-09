@@ -52,6 +52,16 @@ Parameters. Names must match exactly. Add all 15.
 
 Save it, then copy its tool ID (shown in the console or its URL). Do not attach it to any agent by hand; the server does that.
 
+## Step 2b (browser): add `end_call` to each of the three agents
+
+Agents created through the API get **no built-in tools**, and the server refuses to attach `capture_unblock` or save routing IDs until `end_call` is present and enabled. Step 3 otherwise fails with "Read-back did not verify the intended binding and existing tools". Built-ins are per agent, so this cannot be copied from the weekly agents.
+
+For each of *8&80 Unblock · opening*, *· weekly* and *· light*: open the agent → **Tools** → **Add built-in** → **End call**. Keep the name `end_call`, set the description to:
+
+> End the call after the closing line has been said, or when the caller says they want to stop. Never end while the caller is still speaking.
+
+Then **Add built-in**, and check that its switch is on.
+
 ## Step 3 (server): verify and attach
 
 Replace `TOOL_ID` with the ID from step 2.
