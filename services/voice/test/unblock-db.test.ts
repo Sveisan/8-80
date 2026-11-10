@@ -284,7 +284,7 @@ test('an uncertain provider placement is never retried and the sweep closes the 
   const first = await tickUnblock(deps(), now, fetcher); assert.deepEqual([first.claimed, first.failed], [1, 1]);
   await tickUnblock(deps(), new Date(+now + 60000), fetcher); assert.equal(requests, 1);
   const [attempt] = await db!.sql`select id,status,note from call_attempts`; assert.equal(attempt!['status'], 'claimed'); assert.ok(attempt!['note'].includes('do not redial'));
-  assert.equal(await sweep(deps(), 60 * 60_000, new Date(+now + 3 * 3600_000)), 1);
+  assert.equal(await sweep(deps(), 60 * 60_000, new Date(Date.now() + 3 * 3600_000)), 1);
   assert.equal((await db!.sql`select status from call_attempts`)[0]!['status'], 'failed'); assert.equal((await db!.sql`select complete from unblock_sessions`)[0]!['complete'], true);
   assert.equal(await closeUnblockSession(deps(), attempt!['id'], now), true);
   const [message] = await db!.sql`select kind,payload_enc from message_outbox where reference=${attempt!['id']}`; assert.equal(message!['kind'], 'unblock'); assert.ok(decrypt(message!['payload_enc']).includes('/unblock/access'));
