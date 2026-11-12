@@ -44,7 +44,7 @@ Unblock is its own monthly subscription from day one, separate from the weekly 8
 
 | Call | Target | Theme (chapter 1 shown) | What the caller leaves with |
 | --- | --- | --- | --- |
-| Opening (month 1 only) | 20–25 min | **The wish.** What have you wanted for a long time and kept as "someday"? Regret test from the 80-year-old, pull test from the 8-year-old | One wish in their words; why it matters; the first step; whether they want light calls |
+| Opening (month 1 only) | 15–20 min | **The wish.** What have you wanted for a long time and kept as "someday"? Regret test from the 80-year-old, pull test from the 8-year-old | One wish in their words; why it matters; the first step; whether they want light calls |
 | Theme 1 | 10–15 min | **What keeps it a wish.** What would moving toward it risk? Which parts are real limits and which are predictions? | Named blocks (their words); a step sized to what's real |
 | Theme 2 | 10–15 min | **Signs.** What has already been pointing this way — moments of aliveness, people, small lucky openings, things they keep returning to? | Signs in their words; a step that follows one |
 | Theme 3 | 10–15 min | **The hard stretch.** What got harder once they started? What did that teach? Keep, shrink or change the step — or the wish | An honest account of the hard part; the next step or a deliberate pause |

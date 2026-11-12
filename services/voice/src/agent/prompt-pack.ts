@@ -30,9 +30,9 @@ export const BELIEF_GREETINGS = {
 } as const;
 /** Fixed first messages; the scripts state the same lines. Keep them in sync with docs/unblock. */
 export const UNBLOCK_GREETINGS = {
-  opening: "Hi, it's 8 and 80 Unblock. Is now still a good time to talk?",
-  weekly: "Hi, it's 8 and 80 Unblock. Is now still a good time?",
-  light: "Hi, it's 8 and 80 Unblock — a quick one.",
+  opening: "Hi, it's your Unblock call from 8 and 80. Is now still a good time to talk?",
+  weekly: "Hi, it's your Unblock call from 8 and 80. Is now still a good time?",
+  light: "Hi, it's your Unblock call from 8 and 80 — just a quick one.",
 } as const;
 export const UNBLOCK_VARIABLES = ['unblock_context', 'call_kind', 'week', 'session_id', 'session_token'] as const;
 
