@@ -1,4 +1,5 @@
 import { guidedReminderPilotSpec } from '../weekly/guided-pilot.ts';
+import { weeklySpeechifyDefaults } from '../weekly/transport.ts';
 
 export const GUIDED_FAKE_CONTEXT = JSON.stringify({available:true,attempt_id:'fictional-guided-attempt',session_token:'fictional-invalid-credential',timezone:'Europe/Oslo',guided_test:'reminder-v1'});
 /** Speechify's project catalogue forbids a second definition with the live
@@ -23,7 +24,8 @@ export const guidedReminderCases: GuidedCase[] = [
   {id:'thinking_fragments',context:'The full SMS proposal is awaiting confirmation. Assistant has already said Take your time once. Caller now says Um, I... and pauses before finishing.',expectedTool:'skip_turn'},
   {id:'courtesy_is_not_consent',context:'The full initial SMS proposal is awaiting explicit confirmation. Caller replies only Right, thank you. No yes or scheduling request has been given.',expectedTool:'skip_turn'},
   {id:'confirm_initial',context:'Assistant read the full current proposal for one SMS and asked whether to schedule it. Current draft_id is fictional-draft-1. Caller now explicitly says Yes, that is correct. Please schedule it.',expectedTool:'weekly_assist',expectedArguments:{command:'reminder_confirm',draft_id:'fictional-draft-1',confirmed:true},forbiddenArguments:['date','time','after_minutes','shift_minutes','revision','text']},
-  {id:'prepare_move',context:'The initial reminder_confirm succeeded with saved:true, reminder:{state:scheduled,at:2030-11-13T13:10:00Z,revision:3,text:Take a five-minute break.}. Continue the agreed guided move step, preparing a proposal before any new save.',expectedTool:'weekly_assist',expectedArguments:{command:'reminder_prepare',text:'Take a five-minute break.',shift_minutes:2,revision:3},forbiddenArguments:['date','time','after_minutes','draft_id','confirmed']},
+  {id:'offer_move',context:'The initial reminder_confirm succeeded with saved:true, reminder:{state:scheduled,at:2030-11-13T13:10:00Z,revision:3,text:Take a five-minute break.}. The next step is to propose moving it two minutes later. The caller has not yet agreed to start the move step.',criteria:'Briefly acknowledge the initial save, explain the two-minute move step and ask whether to prepare that new proposal. Do not claim it is already moved, read an invented new local time, restart the test greeting, ask a weekly question or close.'},
+  {id:'prepare_move',context:'The initial reminder_confirm succeeded with saved:true, reminder:{state:scheduled,at:2030-11-13T13:10:00Z,revision:3,text:Take a five-minute break.}. Assistant asked whether to prepare a proposal two minutes later. Caller says Yes, prepare the new proposal. Prepare it before any new save.',expectedTool:'weekly_assist',expectedArguments:{command:'reminder_prepare',text:'Take a five-minute break.',shift_minutes:2,revision:3},forbiddenArguments:['date','time','after_minutes','draft_id','confirmed']},
   {id:'move_proposal_waits',context:'The initial reminder was saved. The latest shift reminder_prepare returned draft_id:fictional-draft-2, text:Take a five-minute break., date:2030-11-13, time:14:12, timezone:Europe/Oslo, replaces_existing:true, channel:sms. No confirmation of this replacement has been given.',criteria:'Read back this one SMS with the exact text, full date, new local time and timezone. Explain that it replaces the existing reminder and ask for agreement, then stop. Do not claim the move is saved or the test is complete, cancel the reminder, or ask a weekly question.'},
   {id:'confirm_move',context:'Assistant read the full replacement SMS proposal and asked for confirmation. Current replacement draft_id is fictional-draft-2. Caller says Yes, move it to that new time.',expectedTool:'weekly_assist',expectedArguments:{command:'reminder_confirm',draft_id:'fictional-draft-2',confirmed:true},forbiddenArguments:['date','time','after_minutes','shift_minutes','revision','text']},
   {id:'offer_cancellation',context:'The replacement reminder_confirm succeeded with saved:true and reminder:{state:scheduled,at:2030-11-13T13:12:00Z,revision:4}. This is the guided test. No cancellation request has yet been given.',criteria:'Briefly acknowledge the successful move, explain that cancellation is the final test step so the test SMS will not be sent, and ask whether to cancel. Do not claim it is already cancelled, say the test passed, ask a weekly question or say goodbye.'},
@@ -41,15 +43,15 @@ export function guidedReminderNativePlan(sourceCommit:string) {
   return {version:2,sourceCommit,specs:[{role:'guided-reminder',...guidedReminderPilotSpec()}],values:{weekly_context:GUIDED_FAKE_CONTEXT},cases:guidedReminderCases,
     definitions:guidedReminderCases.map(c=>({role:'guided-reminder',case:c.id,definition:{name:'8&80 fictional guided reminder · '+c.id,
       description:'Synthetic test; endpoint-free client tools, fake credentials, no phone call or SMS.',
-      ...(c.expectedTool?{type:'tool',config:{context:c.context,expected_tool:c.expectedTool}}:
-        {type:'reply',config:{context:c.context,success_criteria:c.criteria,success_examples:[],failure_examples:[]}})}})),voiceVerified:false};
+      ...(c.expectedTool?{type:'tool',config:{context:(c.id==='ready_reads_status'?'':'The caller already agreed to the guided test greeting. The test is in progress, not at the start. ')+c.context,expected_tool:c.expectedTool}}:
+        {type:'reply',config:{context:'The caller already agreed to the guided test greeting. The test is in progress, not at the start. '+c.context,success_criteria:c.criteria,success_examples:[],failure_examples:[]}})}})),voiceVerified:false};
 }
 
 /** Tool intent and arguments, never evidence of an actual send or audio. */
 export function guidedReminderRunReport(id:string,input:unknown) {
   const c=guidedReminderCases.find(c=>c.id===id);if(!c)throw new Error('Unknown guided case.');
   const obj=(v:unknown):Record<string,unknown>=>v&&typeof v==='object'&&!Array.isArray(v)?v as Record<string,unknown>:{};
-  const run=obj(nativeGuidedObservation(input)),result=obj(run['result']),tool=obj(result['tool_call']),reply=obj(result['reply']),args=obj(tool['tool_args']);
+  const run=obj(nativeGuidedObservation(input)),result=obj(run['result']),tool=obj(result['tool_call']),reply=obj(result['reply']),args=weeklySpeechifyDefaults(obj(tool['tool_args']));
   const failures:string[]=[];
   if(run['status']!=='completed'||run['verdict']!=='passed'||result['passed']!==true||run['error'])failures.push('provider_not_passed');
   if(c.expectedTool){

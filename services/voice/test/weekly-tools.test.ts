@@ -7,7 +7,7 @@ import { weeklyCallContext, weeklyToolsAllowed, weeklyToken, weeklyTool } from '
 import { reminderTime, relativeReminderTime, reminderLocalTime, queueDueReminders, pruneWeekly } from '../src/weekly/reminders.ts';
 import { CANDIDATES, EXPERIMENT, chooseWinner, observeTip, optimizeTips, tipReport, type ExperimentGroup } from '../src/weekly/tips.ts';
 import { weeklyOpenApi } from '../src/weekly/tool-schema.ts';
-import { weeklyWebhookArguments } from '../src/weekly/transport.ts';
+import { weeklyWebhookArguments, weeklySpeechifyDefaults } from '../src/weekly/transport.ts';
 import { dispatchMessages, dispatchMessage } from '../src/messages/outbox.ts';
 import { SendFailure } from '../src/messages/types.ts';
 import { loadScript } from '../src/script.ts';
@@ -103,6 +103,19 @@ test('Speechify transport unwraps only a named tool envelope and rejects ambiguo
   }
 });
 
+test('Speechify empty optional defaults cannot create a competing time mode or manufacture consent',()=>{
+  const raw={attempt_id:attempt,session_token:'synthetic',command:'reminder_prepare',text:'Short break',after_minutes:10,shift_minutes:0,date:'',time:'',draft_id:'',revision:0,confirmed:false,tip_id:'',response:''};
+  const normalized=weeklyWebhookArguments(envelope(raw));
+  assert.deepEqual(normalized,{attempt_id:attempt,session_token:'synthetic',command:'reminder_prepare',text:'Short break',after_minutes:10});
+  assert.equal(raw.shift_minutes,0,'normalization must not mutate the provider record');
+  assert.equal(weeklyWebhookArguments(raw),raw,'flat API requests remain strict');
+  assert.equal(weeklySpeechifyDefaults({...raw,shift_minutes:2})['shift_minutes'],2,'a meaningful competing shift must survive for rejection');
+  assert.equal(weeklySpeechifyDefaults({...raw,date:'2030-11-13'})['date'],'2030-11-13','a meaningful competing date must survive');
+  assert.equal(weeklySpeechifyDefaults({command:'reminder_prepare',shift_minutes:0})['shift_minutes'],0,'an actual zero shift must still fail validation');
+  for(const confirmed of [false,null])assert.equal(weeklySpeechifyDefaults({command:'reminder_confirm',draft_id:'draft',confirmed})['confirmed'],confirmed);
+  assert.equal(weeklySpeechifyDefaults({command:'reminder_cancel',revision:0})['revision'],0,'an invalid cancellation revision cannot be invented');
+});
+
 test('relative time uses server elapsed minutes across midnight and DST, independently of UTC display',()=>{
   const at=new Date('2026-11-04T10:38:27Z');
   assert.equal(relativeReminderTime(5,at).toISOString(),'2026-11-04T10:43:27.000Z');
@@ -141,20 +154,24 @@ test('pilot setup authorizes only its test caller until global activation',()=>{
 
 test('guided owner lifecycle stays unscheduled until confirmation and sends no SMS after cancellation',options,async()=>{
   await enrolled();process.env['WEEKLY_TOOLS_READY']='0';process.env['WEEKLY_TOOLS_PILOT_HASH']=hash;
-  const initial=await call('reminder_prepare',{text:GUIDED_REMINDER_TEXT,after_minutes:GUIDED_REMINDER_DELAY_MINUTES});
-  assert.equal((await call('status'))['reminder'],null,'thinking after a proposal cannot create a pending reminder');
-  await assert.rejects(call('reminder_confirm',{draft_id:initial['draft_id'],confirmed:false}),/explicit_confirmation/);
+  const worker=(command:string,extra:Record<string,unknown>={},at=now)=>weeklyTool(deps(),weeklyWebhookArguments(envelope({
+    attempt_id:attempt,session_token:weeklyToken(attempt),command,request_id:`guided-request-${++requests}`,
+    text:'',date:'',time:'',after_minutes:0,shift_minutes:0,draft_id:'',revision:0,confirmed:false,tip_id:'',response:'',...extra,
+  })),at);
+  const initial=await worker('reminder_prepare',{text:GUIDED_REMINDER_TEXT,after_minutes:GUIDED_REMINDER_DELAY_MINUTES});
+  assert.equal((await worker('status'))['reminder'],null,'thinking after a proposal cannot create a pending reminder');
+  await assert.rejects(worker('reminder_confirm',{draft_id:initial['draft_id'],confirmed:false}),/explicit_confirmation/);
   const args={draft_id:initial['draft_id'],confirmed:true,request_id:'guided-initial-confirm'};
-  const created=await call('reminder_confirm',args);
-  assert.equal((await call('reminder_confirm',args))['replayed'],true,'an identical retry cannot duplicate the SMS');
+  const created=await worker('reminder_confirm',args);
+  assert.equal((await worker('reminder_confirm',args))['replayed'],true,'an identical retry cannot duplicate the SMS');
   const r=created['reminder'] as {revision:number;at:string};
-  const replacement=await call('reminder_prepare',{text:GUIDED_REMINDER_TEXT,shift_minutes:GUIDED_REMINDER_SHIFT_MINUTES,revision:r.revision},new Date(+now+30_000));
-  assert.equal(((await call('status'))['reminder'] as {at:string}).at,r.at,'a move proposal cannot change the saved time');
-  const changed=await call('reminder_confirm',{draft_id:replacement['draft_id'],confirmed:true},new Date(+now+40_000));
+  const replacement=await worker('reminder_prepare',{text:GUIDED_REMINDER_TEXT,shift_minutes:GUIDED_REMINDER_SHIFT_MINUTES,revision:r.revision},new Date(+now+30_000));
+  assert.equal(((await worker('status'))['reminder'] as {at:string}).at,r.at,'a move proposal cannot change the saved time');
+  const changed=await worker('reminder_confirm',{draft_id:replacement['draft_id'],confirmed:true},new Date(+now+40_000));
   const moved=changed['reminder'] as {revision:number;at:string};
   assert.equal(+new Date(moved.at)-+new Date(r.at),GUIDED_REMINDER_SHIFT_MINUTES*60_000);
-  assert.equal((await call('reminder_cancel',{revision:moved.revision},new Date(+now+50_000)))['cancelled'],true);
-  const final=(await call('status'))['reminder'] as {state:string};assert.equal(final.state,'cancelled');
+  assert.equal((await worker('reminder_cancel',{revision:moved.revision},new Date(+now+50_000)))['cancelled'],true);
+  const final=(await worker('status'))['reminder'] as {state:string};assert.equal(final.state,'cancelled');
   await queueDueReminders(deps(),new Date(+now+20*60_000));
   await dispatchMessages(deps(),new Date(+now+20*60_000));assert.deepEqual(texts,[]);
   const [row]=await db!.sql`select body_enc from weekly_reminders where phone_hash=${hash}`;assert.equal(row!['body_enc'],null);

@@ -39,7 +39,8 @@ const credentials={attempt_id:'fictional-guided-attempt',session_token:'fictiona
 test('guided evidence rejects wrong timing modes, stale revision, wrong draft and absent consent',()=>{
   const initial={...credentials,command:'reminder_prepare',text:'Take a five-minute break.',after_minutes:10};
   assert.equal(guidedReminderRunReport('prepare_initial',toolRun('weekly_assist',initial)).passed,true);
-  for(const extra of [{date:'2030-11-13'},{time:null},{shift_minutes:2},{confirmed:true},{session_token:'another-context'}]){
+  assert.equal(guidedReminderRunReport('prepare_initial',toolRun('weekly_assist',{...initial,date:'',time:null,shift_minutes:0,revision:0,confirmed:false,draft_id:''})).passed,true,'empty provider defaults use the same canonicalization as the real webhook');
+  for(const extra of [{date:'2030-11-13'},{time:'14:00'},{shift_minutes:2},{confirmed:true},{session_token:'another-context'}]){
     assert.equal(guidedReminderRunReport('prepare_initial',toolRun('weekly_assist',{...initial,...extra})).passed,false);
   }
   const move={...credentials,command:'reminder_prepare',text:'Take a five-minute break.',shift_minutes:2,revision:3};

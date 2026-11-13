@@ -238,6 +238,13 @@ guide describes the steps as complete. Thinking, courtesy and silence are not
 confirmation. An operator must reconcile and clean up a test aborted before
 cancellation; never leave it waiting for a later phone retest.
 
+Speechify may populate optional fields with empty strings, false and zero.
+Only its named webhook envelope canonicalizes those empty defaults. A nonzero
+competing shift or a meaningful date is retained and rejected as ambiguous;
+zero-only time requests still fail, false/null never become consent, and a
+cancellation revision is never invented. Flat API calls retain strict input.
+Native tool-argument checks use the same canonicalization as the real webhook.
+
 `weekly/guided-pilot.ts` refuses ordinary identities, both global readiness
 flags and existing weekly-agent IDs. It keeps the same call-attempt HMAC but
 omits the weekly dialogue routing marker, so only an explicitly selected guide
