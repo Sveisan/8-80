@@ -156,3 +156,42 @@ text endpoint for another reply after hangup cannot model a closed voice session
 Transcript quality reports now count repeated listening sounds and flag apology
 repairs after complete acknowledgements as review signals, without claiming
 that text alone proves an audible interruption.
+
+## Native result contracts and release gates
+
+The earlier 82/104 report mixed two contracts: every scenario was created as a
+`reply` test, including 22 cases whose hard check required an observed tool call.
+Speechify's [native test API](https://docs.speechify.ai/agents/api-reference/v1/agents/tests/post)
+distinguishes `reply` from `tool`; their result variants expose different fields.
+`nativeDialogueDefinition` now selects `tool` with `context` and `expected_tool`
+for those 22 cases. All original cases remain. Two new cases from the latest
+owner feedback add reopening a close and a second clarification, bringing the
+four-role matrix to 112 (90 wording and 22 tool-selection checks).
+
+`normalizeNativeDialogueRun` validates the variant, verdict and observed tool
+selection. A missing spoken response remains `not_exposed`. Mixed tool-plus-speech
+results, empty wording, generic provider fallback, unknown roles and wrong result
+variants cannot become passes. The review CLI prints fixed diagnostics for malformed
+private input rather than echoing its contents or path.
+
+Version 2 of the report separates wording and tool intent. Native function
+selection alone never establishes that the voice worker stayed silent, played
+the farewell or disconnected at the right moment. `approvedForPhonePilot` requires
+the complete matrix and all wording/selection checks; `approved` remains false
+because the report contains no voice observations. For an explicitly agreed
+owner test, the CLI can check only that narrower gate:
+
+```sh
+node --import tsx services/voice/src/quality/dialogue-reply-cli.ts PRIVATE_RESULTS.json --for-phone-pilot
+```
+
+Without that flag, an unverified voice release remains blocked. No readiness
+flag, agent routing, real booking or memory is changed by reviewing a file.
+The live test still checks thinking pauses, reopening the close, a complete
+confirmed map, an explicitly agreed action and the returning call's use of it.
+An end-call tool record is not evidence that the goodbye was audible.
+
+The latest closing regression gives the floor back when a caller says they have
+one more thing before the call ends. Earlier closing agreement cannot override
+that request. A second clarification is anchored in the caller's stated goal;
+the repair ladder must not turn into a third broad question or a supplied action.

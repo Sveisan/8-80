@@ -1,6 +1,7 @@
 import { loadScript } from '../script.ts';
 import { weeklyReadBackSpan } from '../call/weekly-lines.ts';
 import { dialogueCases } from './dialogue-cases.ts';
+import { dialogueScenario, isNativeErrorReply } from './dialogue-native.ts';
 
 const quiet = new Set(['acknowledgement', 'caller_continues', 'thinking_fragments', 'thinking_after_patience', 'quiet_after_sound_feedback', 'returned_goodbye', 'after_end_tool']);
 const map = new Set(['complete_short_reply', 'full_map_before_confirmation', 'partial_map_repair']);
@@ -11,8 +12,17 @@ const normalized = (text: string) => text.toLowerCase().replace(/[’']/g, '').r
  * checks generated text only, not whether a voice runtime plays it correctly. */
 export function dialogueReplyFailures(id: string, reply: unknown): string[] {
   if (typeof reply !== 'string') return ['missing_reply'];
+  if (isNativeErrorReply(reply)) return ['provider_error_fallback'];
   if (quiet.has(id)) return reply.trim() ? ['speech_in_quiet_turn'] : [];
+  if (!reply.trim()) return ['empty_reply'];
   const failures: string[] = [];
+  if (id === 'caller_reopens_close') {
+    if (/\?|\btell me\b|\bgo on\b|\bgo ahead\b|\b(?:goodbye|bye|take care|next time|end_call)\b/i.test(reply)) failures.push('caller_floor_or_reopened_close_ignored');
+  }
+  if (id === 'clarification_twice') {
+    if (/what (?:would move|is one thing|could move)|sorry.*(?:go ahead|continue)|phone the sailing school|call the sailing school/i.test(reply)) failures.push('clarification_repeated_or_action_invented');
+    if ((reply.match(/\?/g) ?? []).length > 1) failures.push('stacked_clarification_questions');
+  }
   if (map.has(id)) {
     const readback = weeklyReadBackSpan([reply], loadScript(), 'read.first.keep');
     if (!readback || normalized(readback.values['eight'] ?? '') !== 'playing games'
@@ -38,8 +48,9 @@ export function dialogueReplyFailures(id: string, reply: unknown): string[] {
   return failures;
 }
 
-/** Require the full four-agent matrix, both the provider verdict and our hard
- * gates. Output contains no dialogue, identity or provider rationale. */
+/** Require the full matrix and hard wording/selection checks. Tool-only native
+ * results establish intent, not audible silence: a separate voice gate remains.
+ * Output contains no dialogue, identity or provider rationale. */
 export function dialogueBatchReport(input: unknown) {
   if (!Array.isArray(input) || input.length > 1000) throw new Error('Expected a bounded dialogue result array.');
   const roles = ['first', 'return', 'female-first', 'female-return'];
@@ -47,11 +58,19 @@ export function dialogueBatchReport(input: unknown) {
     if (!item || typeof item !== 'object' || Array.isArray(item)) throw new Error('Invalid dialogue result.');
     const row = item as Record<string, unknown>;
     const role = String(row['role']), id = String(row['case']);
-    const failures = dialogueReplyFailures(id, row['reply']);
-    const scenario = dialogueCases.find(c => c.id === id);
-    if (scenario && 'expectedTool' in scenario && row['toolCalled'] !== scenario.expectedTool) failures.push('expected_tool_not_observed');
+    const scenario = dialogueScenario(role, id);
+    const toolCase = 'expectedTool' in scenario;
+    const toolOnly = toolCase && row['testType'] === 'tool';
+    const failures = toolOnly ? [] : dialogueReplyFailures(id, row['reply']);
+    if (toolCase) {
+      if (row['testType'] !== 'tool') failures.push('wrong_native_test_type');
+      if (row['toolCalled'] !== scenario.expectedTool) failures.push('expected_tool_not_observed');
+      // A tool-result variant does not expose spoken text. Do not silently
+      // accept a contradictory reply supplied alongside that variant.
+      if (toolOnly && row['reply'] !== undefined) failures.push('ambiguous_spoken_evidence');
+    } else if (row['testType'] !== undefined && row['testType'] !== 'reply') failures.push('wrong_native_test_type');
     const providerPassed = row['status'] === 'completed' && row['verdict'] === 'passed' && row['passed'] === true;
-    return { role, case: id, providerPassed, failures, passed: providerPassed && failures.length === 0 };
+    return { role, case: id, evidence:toolCase?'tool_intent_only':'wording', providerPassed, failures, passed: providerPassed && failures.length === 0 };
   });
   const perRole = Object.fromEntries(roles.map(role => {
     const expected = dialogueCases.filter(c => !('requiresTools' in c) && (c.kind === 'both' || c.kind === (role.endsWith('first') ? 'first' : 'return')));
@@ -60,5 +79,15 @@ export function dialogueBatchReport(input: unknown) {
     return [role, { expected: expected.length, total: actual.length, passed: actual.filter(r => r.passed).length, complete }];
   }));
   const complete = rows.every(r => roles.includes(r.role)) && Object.values(perRole).every(r => r.complete);
-  return { total: rows.length, passed: rows.filter(r => r.passed).length, complete, approved: complete && rows.every(r => r.passed), perRole, failures: rows.filter(r => !r.passed) };
+  const count = (evidence:string) => ({total:rows.filter(r=>r.evidence===evidence).length,passed:rows.filter(r=>r.evidence===evidence&&r.passed).length});
+  return {
+    version:2,total:rows.length,passed:rows.filter(r=>r.passed).length,complete,
+    checks:{wording:count('wording'),toolIntent:count('tool_intent_only')},
+    approvedForPhonePilot:complete&&rows.every(r=>r.passed),
+    // This report has no voice observations. Never promote a release on the
+    // basis of an absent tool-test reply or a successful function selection.
+    approved:false,voiceVerification:'required',
+    quietTurnVoiceChecks:rows.filter(r=>r.evidence==='tool_intent_only').map(r=>({role:r.role,case:r.case})),
+    perRole,failures:rows.filter(r=>!r.passed),
+  };
 }
