@@ -7,6 +7,7 @@ import { readBookingSlot, type Invalid, type Signup } from './form.ts';
 import { describeAppointment, nextSlotAfter } from '../schedule/time.ts';
 import { BUSY, MOTION, busyLabel, mascot } from './mascot.ts';
 import { timePicker, TIME_PICKER_SCRIPT } from './time-picker.ts';
+import { feedbackWidget } from '../product-feedback/widget.ts';
 
 const esc = (s: string): string =>
   s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
@@ -395,6 +396,6 @@ function shell(body: string, language = 'en', wide = false): string {
 ${FOUNDATION_CSS}${CONTROL_CSS}${SIGNUP_CSS}
 </style>
 </head>
-<body><main${wide ? ' class="signup-wide"' : ''}>${body}</main>${BUSY}${MOTION}</body>
+<body><main${wide ? ' class="signup-wide"' : ''}>${body}</main>${BUSY}${MOTION}${feedbackWidget()}</body>
 </html>`;
 }

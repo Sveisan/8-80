@@ -107,6 +107,7 @@ export async function composeExport(
     and (${includeBeliefs} or id not in (select id from belief_sessions where phone_hash = ${hash}))
     and (${includeUnblock} or id not in (select id from unblock_sessions where phone_hash = ${hash})) order by scheduled_for`;
   const feedbackRows = await store.raw`select * from feedback where phone_hash = ${hash}`;
+  const productFeedbackRows = await store.raw`select id,payload_enc,state,created_at,expires_at,improved from product_feedback where phone_hash=${hash}`;
   const deliveries = await store.raw`select event, received_at, verdict, body_enc from webhook_deliveries where conversation_id in (
     select provider_call_id from call_attempts where phone_hash = ${hash} and provider_call_id is not null
       and (${includeBeliefs} or id not in (select id from belief_sessions where phone_hash = ${hash}))
@@ -156,7 +157,7 @@ export async function composeExport(
   };
   const unseal = (row: Record<string, unknown>): Record<string, unknown> => Object.fromEntries(Object.entries(row).map(([key, value]) => [key.endsWith('_enc') ? key.slice(0, -4) : key, key.endsWith('_enc') && typeof value === 'string' ? decrypt(value) : value]));
   parts.push({ role: 'body', text: JSON.stringify({ profile: unseal(profile), callAttempts: attempts, beliefs: beliefEnrollments.map(unseal), beliefSessions: beliefSessions.map(unseal), beliefRefundRequests:beliefRefunds, unblock: unblockEnrollments.map(unseal), unblockSessions: unblockSessions.map(unseal), feedback: feedbackRows.map(unseal), retainedCallDeliveries: deliveries.map(safeDelivery), accessExpiry: credentials, pendingSignup: pendingSignup.map(unseal), recovery, journey, messages, messageAttempts,
-    encouragementPreferences:encouragementPreferences.map(unseal), encouragementDeliveries:encouragementDeliveries.map(unseal),
+    productFeedback:productFeedbackRows.map(unseal), encouragementPreferences:encouragementPreferences.map(unseal), encouragementDeliveries:encouragementDeliveries.map(unseal),
     reminders:reminders.map(unseal), reminderDrafts:reminderDrafts.map(unseal), tipAssignments, tipOffers:tipOffers.map(unseal), weeklyToolRequests:toolRequests.map(unseal) }, null, 2) });
   const quiet = line('email.export.quiet');
   if (quiet) parts.push({ role: 'quiet', text: quiet });

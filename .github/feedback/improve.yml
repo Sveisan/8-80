@@ -1,0 +1,213 @@
+# Install this file as .github/workflows/improve.yml in the PRIVATE tracker only.
+# Enable its repository variable only after completing docs/product-feedback.md.
+name: Prepare feedback improvement
+on:
+  issues:
+    types: [opened]
+  workflow_dispatch:
+    inputs:
+      issue:
+        description: Private feedback issue number
+        required: true
+        type: number
+permissions:
+  contents: read
+concurrency:
+  group: feedback-${{ github.event.issue.number || inputs.issue }}
+  cancel-in-progress: false
+jobs:
+  prepare:
+    if: github.event.repository.private == true && vars.FEEDBACK_AUTOMATION_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      contents: read
+      issues: read
+      actions: read
+    outputs:
+      base: ${{ steps.prepare.outputs.base }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: Sveisan/8-80
+          ref: claude/8-80-prompt-v3-f9tk4m
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - id: prepare
+        run: node scripts/feedback/prepare.mjs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          FEEDBACK_ISSUE: ${{ github.event.issue.number || inputs.issue }}
+          FEEDBACK_REPORTER: ${{ vars.FEEDBACK_REPORTER }}
+          FEEDBACK_SERVICE_URL: ${{ vars.FEEDBACK_SERVICE_URL }}
+          FEEDBACK_WORKER_TOKEN: ${{ secrets.FEEDBACK_WORKER_TOKEN }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: private-report
+          path: .feedback-private/
+          include-hidden-files: true
+          retention-days: 1
+  implement:
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    outputs:
+      result: ${{ steps.codex.outputs.final-message }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: Sveisan/8-80
+          ref: ${{ needs.prepare.outputs.base }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --ignore-scripts
+      - uses: actions/download-artifact@v4
+        with:
+          name: private-report
+          path: .feedback-private/
+      # Must be the last step. No publishing, production or worker token in this job.
+      - uses: openai/codex-action@v1
+        id: codex
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          prompt-file: .github/feedback/implement.md
+          sandbox: workspace-write
+          safety-strategy: drop-sudo
+          codex-args: '["--ephemeral", "--output-schema", ".github/feedback/result.schema.json"]'
+  scope:
+    needs: [prepare, implement]
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    outputs:
+      ready: ${{ steps.patch.outputs.ready }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: Sveisan/8-80
+          ref: ${{ needs.prepare.outputs.base }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: private-report
+          path: .feedback-private/
+      - id: patch
+        run: node scripts/feedback/materialize.mjs
+        env:
+          FEEDBACK_RESULT: ${{ needs.implement.outputs.result }}
+  validate:
+    needs: [prepare, implement, scope]
+    if: needs.scope.outputs.ready == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: test-only
+          POSTGRES_DB: eight80_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: Sveisan/8-80
+          ref: ${{ needs.prepare.outputs.base }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Apply already screened candidate, without downloading customer files
+        run: node scripts/feedback/materialize.mjs --without-private-report
+        env:
+          FEEDBACK_RESULT: ${{ needs.implement.outputs.result }}
+      # Candidate code runs in a disposable container without runner credentials,
+      # GitHub artifact credentials, customer files or production configuration.
+      - name: Validate inside a secret-free disposable container
+        run: >-
+          docker run --rm --network host --shm-size=1g
+          -v "$PWD:/app" -w /app
+          -e TEST_DATABASE_URL=postgres://postgres:test-only@127.0.0.1:5432/eight80_test
+          node:22-bookworm bash -euc
+          'npm ci --ignore-scripts && npm run check && npx playwright install --with-deps chromium webkit && npm run design:test -- --grep-invert @visual'
+  review:
+    needs: [prepare, implement, scope, validate]
+    if: needs.scope.outputs.ready == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      result: ${{ steps.codex.outputs.final-message }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: Sveisan/8-80
+          ref: ${{ needs.prepare.outputs.base }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: private-report
+          path: .feedback-private/
+      - run: node scripts/feedback/review-prepare.mjs
+        env:
+          FEEDBACK_RESULT: ${{ needs.implement.outputs.result }}
+      - uses: openai/codex-action@v1
+        id: codex
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          prompt-file: .github/feedback/review.md
+          sandbox: read-only
+          safety-strategy: drop-sudo
+          codex-args: '["--ephemeral", "--output-schema", ".github/feedback/review.schema.json"]'
+  publish:
+    needs: [prepare, implement, scope, validate, review]
+    if: always() && needs.prepare.result == 'success' && needs.validate.result == 'success' && needs.scope.outputs.ready == 'true' && needs.review.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: Sveisan/8-80
+          ref: ${{ needs.prepare.outputs.base }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: private-report
+          path: .feedback-private/
+      - run: node scripts/feedback/publish.mjs
+        env:
+          FEEDBACK_RESULT: ${{ needs.implement.outputs.result }}
+          FEEDBACK_REVIEW: ${{ needs.review.outputs.result }}
+          FEEDBACK_CODE_TOKEN: ${{ secrets.FEEDBACK_CODE_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
+          FEEDBACK_SERVICE_URL: ${{ vars.FEEDBACK_SERVICE_URL }}
+          FEEDBACK_WORKER_TOKEN: ${{ secrets.FEEDBACK_WORKER_TOKEN }}
+  needs-input:
+    needs: [prepare, implement, validate, review, publish]
+    if: always() && needs.prepare.result == 'success' && needs.publish.result != 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: Sveisan/8-80
+          ref: ${{ needs.prepare.outputs.base }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: private-report
+          path: .feedback-private/
+      - run: node scripts/feedback/needs-input.mjs
+        env:
+          FEEDBACK_SERVICE_URL: ${{ vars.FEEDBACK_SERVICE_URL }}
+          FEEDBACK_WORKER_TOKEN: ${{ secrets.FEEDBACK_WORKER_TOKEN }}

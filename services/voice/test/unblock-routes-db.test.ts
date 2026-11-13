@@ -47,7 +47,7 @@ async function enroll(opts: { programme?: Programme; standing?: string } = {}) {
 const row = async () => (await repo().load(hash))!;
 
 beforeEach(async () => {
-  if (db) await db.sql`truncate unblock_sessions,unblock_enrollments,belief_refund_requests,belief_sessions,belief_enrollments,callers,call_attempts,links,signups,access_codes,message_outbox,message_attempts,feedback,journey_events,journey_tracking,journey_counts,webhook_deliveries,heartbeats`;
+  if (db) await db.sql`truncate product_feedback,unblock_sessions,unblock_enrollments,belief_refund_requests,belief_sessions,belief_enrollments,callers,call_attempts,links,signups,access_codes,message_outbox,message_attempts,feedback,journey_events,journey_tracking,journey_counts,webhook_deliveries,heartbeats`;
   texts = []; clients = 0;
   Object.assign(process.env, { DATA_ENCRYPTION_KEY: Buffer.alloc(32, 15).toString('base64'), PUBLIC_URL: 'https://8and80.example', OPERATOR_PHONE: '+4791000000', SUPPORT_EMAIL: 'support@example.com',
     UNBLOCK_ENABLED: 'true', UNBLOCK_LIVE_CALLS: 'false', UNBLOCK_SAFETY_APPROVED: 'true', UNBLOCK_SCRIPTS_APPROVED: 'true', UNBLOCK_AGENTS_VERIFIED: 'true', UNBLOCK_PRICE_VERIFIED: 'true',

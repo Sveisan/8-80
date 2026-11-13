@@ -11,6 +11,7 @@ import type { ScriptLines } from '../script.ts';
 import { describeAppointment, type Slot } from '../schedule/time.ts';
 import { BUSY, MOTION, busyLabel } from '../signup/mascot.ts';
 import { timePicker, TIME_PICKER_SCRIPT } from '../signup/time-picker.ts';
+import { feedbackWidget } from '../product-feedback/widget.ts';
 
 /** Weekday names come from the locale, not from a list in this file. */
 const dayNames = (language: string, weekday: 'long' | 'short' = 'long'): string[] => {
@@ -462,7 +463,7 @@ export function shell(body: string, language = 'en'): string {
 ${FOUNDATION_CSS}${CONTROL_CSS}${ACCOUNT_CSS}
 </style>
 </head>
-<body><main>${body}</main>${BUSY}${MOTION}</body>
+<body><main>${body}</main>${BUSY}${MOTION}${feedbackWidget()}</body>
 </html>`;
 }
 

@@ -23,7 +23,7 @@ after(async () => {
 });
 
 beforeEach(async () => {
-  if (sql) await sql`truncate belief_sessions,unblock_sessions, belief_refund_requests, belief_enrollments,unblock_enrollments, message_attempts, message_outbox, callers, call_attempts, heartbeats`;
+  if (sql) await sql`truncate product_feedback,belief_sessions,unblock_sessions, belief_refund_requests, belief_enrollments,unblock_enrollments, message_attempts, message_outbox, callers, call_attempts, heartbeats`;
   process.env['DATA_ENCRYPTION_KEY'] = KEY;
 });
 

@@ -46,3 +46,4 @@ ngrok
 # Local visual QA
 output/
 .playwright-cli/
+.feedback-private/
