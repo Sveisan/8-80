@@ -226,6 +226,40 @@ old and new ticks against the same pending messages.
 
 ## Local verification
 
+### Guided owner phone pilot
+
+The guided reminder test is a separate private, unassigned agent. Its opening
+explains the real test SMS and the three steps; it does not run the weekly
+conversation. The guide prepares one SMS ten minutes ahead, reads the returned
+text/date/local time/timezone and waits for explicit agreement. It then proposes
+a two-minute shift with the current revision, waits again, and asks permission
+to cancel. A final status check must confirm no pending reminder before the
+guide describes the steps as complete. Thinking, courtesy and silence are not
+confirmation. An operator must reconcile and clean up a test aborted before
+cancellation; never leave it waiting for a later phone retest.
+
+`weekly/guided-pilot.ts` refuses ordinary identities, both global readiness
+flags and existing weekly-agent IDs. It keeps the same call-attempt HMAC but
+omits the weekly dialogue routing marker, so only an explicitly selected guide
+can receive the call. Do not add this agent to normal routes or assign it a
+phone number. It has no caller map or appointment variables.
+
+Export a committed source plan with `node --import tsx
+services/voice/src/quality/guided-reminder-cli.ts --plan PRIVATE_OUTPUT`.
+The plan includes normal dialogue regressions and the guided lifecycle. Native
+probes use endpoint-free client mocks with fictional credentials. Their tool
+arguments, pending confirmation and replies are checked independently of the
+provider judge. Review matching source/results with `--review PRIVATE_RESULTS`.
+No automatic result authorizes global activation or proves audible playout;
+the owner phone call must still pass. Update the actual private greeting as
+well as the prompt, and read both back before calling.
+
+The caller's actual profile and booking must remain unchanged. Returning
+profiles without a stored younger/older answer use the generic question;
+absence markers are never speech. A missing-SMS concern triggers status before
+returning to the exercise. The action acknowledgement no longer promises an
+unbooked follow-up.
+
 TypeScript, ESLint and diff whitespace checks pass. All **781 tests pass, with
 zero skips**, against a disposable PostgreSQL 18 database. The new coverage exercises
 real scheduler credential injection, HTTP proposal/confirmation, signed completion

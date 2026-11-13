@@ -29,7 +29,7 @@ test('the disclosure flows straight into the frame while availability and memory
 
 test('both voices have a familiar returning opening, with no duplicate younger-self question', () => {
   for (const spec of promptPack('weekly', { SPEECHIFY_FEMALE_VOICE_ID: 'synthetic' })) {
-    assert.equal(spec.firstMessage, spec.role.endsWith('first') ? "Hello — it's your 8 and 80 call. Is now still a good time?" : 'Hello again.');
+    assert.equal(spec.firstMessage, spec.role.endsWith('first') ? "Hello — it's your 8 and 80 call. Is now still a good time?" : "Hello again. It's your 8 and 80 weekly check-in. Is now a good time?");
   }
   const prompt = buildInstructions(script, { callNumber: 2, eight: 'games', eighty: 'family' });
   assert.match(prompt, /These are alternatives; never ask both/);

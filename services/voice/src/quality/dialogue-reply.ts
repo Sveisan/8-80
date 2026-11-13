@@ -16,6 +16,10 @@ export function dialogueReplyFailures(id: string, reply: unknown): string[] {
   if (quiet.has(id)) return reply.trim() ? ['speech_in_quiet_turn'] : [];
   if (!reply.trim()) return ['empty_reply'];
   const failures: string[] = [];
+  if (/nothing recorded|\{\{(?:own_|first_|last_|next_|booked_)/i.test(reply)) failures.push('internal_missing_data_spoken');
+  if (['confirmed_action_no_appointment','early_goodbye_no_appointment'].includes(id)
+    && /(?:ask|speak|talk|call|see you).{0,45}(?:next time|next week)|(?:next time|next week).{0,45}(?:ask|speak|talk|call)|another call.*booked/i.test(reply)) failures.push('unsupported_future_followup');
+  if (id === 'action_courtesy' && /I(?:'|’)ve got that|I have got that|I(?:'|’)ll ask how it went|I will ask how it went/i.test(reply)) failures.push('unconfirmed_action_claim');
   if (id === 'caller_reopens_close') {
     if (/\?|\btell me\b|\bgo on\b|\bgo ahead\b|\b(?:goodbye|bye|take care|next time|end_call)\b/i.test(reply)) failures.push('caller_floor_or_reopened_close_ignored');
   }

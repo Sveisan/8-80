@@ -19,6 +19,7 @@ import { controlPlane } from '../src/control.ts';
 import { composeExport } from '../src/legal/export.ts';
 import { tick } from '../src/loop/tick.ts';
 import { weeklyPrompt } from '../src/agent/prompt-pack.ts';
+import { GUIDED_REMINDER_DELAY_MINUTES, GUIDED_REMINDER_SHIFT_MINUTES, GUIDED_REMINDER_TEXT } from '../src/weekly/guided-pilot.ts';
 
 const opened=await openTestDb('weekly_tools');
 const db=typeof opened==='string'?undefined:opened;
@@ -136,6 +137,28 @@ test('pilot setup authorizes only its test caller until global activation',()=>{
   assert.equal(JSON.parse(weeklyCallContext(attempt,'Europe/Oslo',now,hash)).available,true);
   assert.equal(JSON.parse(weeklyCallContext(attempt,'Europe/Oslo',now,'another-account')).available,false);
   process.env['WEEKLY_TOOLS_READY']='1';assert.equal(weeklyToolsAllowed('another-account'),true);
+});
+
+test('guided owner lifecycle stays unscheduled until confirmation and sends no SMS after cancellation',options,async()=>{
+  await enrolled();process.env['WEEKLY_TOOLS_READY']='0';process.env['WEEKLY_TOOLS_PILOT_HASH']=hash;
+  const initial=await call('reminder_prepare',{text:GUIDED_REMINDER_TEXT,after_minutes:GUIDED_REMINDER_DELAY_MINUTES});
+  assert.equal((await call('status'))['reminder'],null,'thinking after a proposal cannot create a pending reminder');
+  await assert.rejects(call('reminder_confirm',{draft_id:initial['draft_id'],confirmed:false}),/explicit_confirmation/);
+  const args={draft_id:initial['draft_id'],confirmed:true,request_id:'guided-initial-confirm'};
+  const created=await call('reminder_confirm',args);
+  assert.equal((await call('reminder_confirm',args))['replayed'],true,'an identical retry cannot duplicate the SMS');
+  const r=created['reminder'] as {revision:number;at:string};
+  const replacement=await call('reminder_prepare',{text:GUIDED_REMINDER_TEXT,shift_minutes:GUIDED_REMINDER_SHIFT_MINUTES,revision:r.revision},new Date(+now+30_000));
+  assert.equal(((await call('status'))['reminder'] as {at:string}).at,r.at,'a move proposal cannot change the saved time');
+  const changed=await call('reminder_confirm',{draft_id:replacement['draft_id'],confirmed:true},new Date(+now+40_000));
+  const moved=changed['reminder'] as {revision:number;at:string};
+  assert.equal(+new Date(moved.at)-+new Date(r.at),GUIDED_REMINDER_SHIFT_MINUTES*60_000);
+  assert.equal((await call('reminder_cancel',{revision:moved.revision},new Date(+now+50_000)))['cancelled'],true);
+  const final=(await call('status'))['reminder'] as {state:string};assert.equal(final.state,'cancelled');
+  await queueDueReminders(deps(),new Date(+now+20*60_000));
+  await dispatchMessages(deps(),new Date(+now+20*60_000));assert.deepEqual(texts,[]);
+  const [row]=await db!.sql`select body_enc from weekly_reminders where phone_hash=${hash}`;assert.equal(row!['body_enc'],null);
+  assert.equal((await db!.sql`select count(*)::int as n from message_outbox where kind='reminder'`)[0]!['n'],0);
 });
 
 test('optimization withholds a winner for early data, overlapping intervals, sparse exposure or increased opt-outs',()=>{

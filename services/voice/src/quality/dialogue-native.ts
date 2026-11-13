@@ -54,12 +54,15 @@ export function normalizeNativeDialogueRun(role: string, id: string, input: unkn
   // Preserve any exposed speech even on a mixed/invalid tool result, so the
   // hard gate can reject it instead of manufacturing silence.
   const response = typeof reply['agent_response'] === 'string' ? reply['agent_response'] : undefined;
-  const called = ['skip_turn', 'end_call'].includes(String(tool['tool_called'])) ? String(tool['tool_called']) : null;
+  const called = ['skip_turn', 'end_call', 'weekly_assist'].includes(String(tool['tool_called'])) ? String(tool['tool_called']) : null;
+  const args = object(tool['tool_args']);
+  const argumentsPassed = !('expectedArguments' in scenario) || Object.entries(scenario.expectedArguments)
+    .every(([key,value])=>args[key]===value);
   const otherVariantAbsent = expectedType === 'tool'
     ? result['reply'] === undefined || result['reply'] === null
     : result['tool_call'] === undefined || result['tool_call'] === null;
   const variantPassed = expectedType === 'tool'
-    ? tool['passed'] === true && tool['tool_matched'] === true && 'expectedTool' in scenario && called === scenario.expectedTool && response === undefined
+    ? tool['passed'] === true && tool['tool_matched'] === true && 'expectedTool' in scenario && called === scenario.expectedTool && argumentsPassed && response === undefined
     : reply['passed'] === true && response !== undefined && response.trim().length > 0 && !isNativeErrorReply(response);
   const hasError = run['error'] !== undefined && run['error'] !== null && run['error'] !== '';
   return {

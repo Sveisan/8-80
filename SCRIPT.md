@@ -340,7 +340,7 @@ _A short greeting and one situation check, not a new introduction. The value her
 that it remembers, while fitting the situation they are in today._
 
 `open.return.greet`
-> "Hello again, {{name}}."
+> "Hello again, {{name}}. It's your 8 and 80 weekly check-in. Is now a good time?"
 
 _Their first name, from sign-up — never the full name. Used here and at most once more
 in a call, never as lubricant mid-sentence._
@@ -733,10 +733,11 @@ _Wait for explicit agreement. A correction needs a new complete read-back and fr
 agreement. Courtesy, silence and an unfinished answer do not confirm an action._
 
 `next.agreed`
-> "I'll ask how it went next time we talk."
+> "I've got that."
 
-_"That's the one I'll ask about" sounded like a rule being explained. This is a friend
-saying they'll be curious. After it, when it suits and only then, one short light touch
+_Confirm the agreement without promising a call that may not be booked. Appointment
+details belong in the close and come only from the dated appointment. After this,
+when it suits and only then, one short light touch
 of the mentor's own — a smile in the voice, a little humour about the thing itself
 (a brief response to the caller's own humour). Different every time, often nothing at all, and never a
 reason or a justification for asking. The read-back sentence itself stays word for
