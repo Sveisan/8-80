@@ -1,6 +1,19 @@
 import { guidedReminderPilotSpec } from '../weekly/guided-pilot.ts';
 
 export const GUIDED_FAKE_CONTEXT = JSON.stringify({available:true,attempt_id:'fictional-guided-attempt',session_token:'fictional-invalid-credential',timezone:'Europe/Oslo',guided_test:'reminder-v1'});
+/** Speechify's project catalogue forbids a second definition with the live
+ * webhook name. This endpoint-free alias exists only in native test overrides. */
+export const NATIVE_WEEKLY_MOCK_NAME = 'weekly_assist_guided_mock';
+export const NATIVE_GUIDED_ALIASES = {weekly_assist:NATIVE_WEEKLY_MOCK_NAME};
+export function nativeGuidedObservation(input:unknown):unknown {
+  if(!input||typeof input!=='object'||Array.isArray(input))return input;
+  const run=input as Record<string,unknown>,result=run['result'] as Record<string,unknown>|undefined;
+  const tool=result?.['tool_call'] as Record<string,unknown>|undefined;
+  if(result?.['test_type']!=='tool'||tool?.['tool_called']!==NATIVE_WEEKLY_MOCK_NAME||tool?.['expected_tool']!==NATIVE_WEEKLY_MOCK_NAME)return input;
+  // Preserve every observed argument, verdict and pass flag. Only undo the
+  // declared test-only name substitution before the source contract checks.
+  return {...run,result:{...result,tool_call:{...tool,tool_called:'weekly_assist',expected_tool:'weekly_assist'}}};
+}
 type GuidedCase = {id:string;context:string;criteria?:string;expectedTool?:string;expectedArguments?:Record<string,unknown>;forbiddenArguments?:string[]};
 export const guidedReminderCases: GuidedCase[] = [
   {id:'ready_reads_status',context:'The platform gave the complete guided reminder test greeting. Caller says Yes, I am ready. No status has been read yet.',expectedTool:'weekly_assist',expectedArguments:{command:'status'}},
@@ -36,7 +49,7 @@ export function guidedReminderNativePlan(sourceCommit:string) {
 export function guidedReminderRunReport(id:string,input:unknown) {
   const c=guidedReminderCases.find(c=>c.id===id);if(!c)throw new Error('Unknown guided case.');
   const obj=(v:unknown):Record<string,unknown>=>v&&typeof v==='object'&&!Array.isArray(v)?v as Record<string,unknown>:{};
-  const run=obj(input),result=obj(run['result']),tool=obj(result['tool_call']),reply=obj(result['reply']),args=obj(tool['tool_args']);
+  const run=obj(nativeGuidedObservation(input)),result=obj(run['result']),tool=obj(result['tool_call']),reply=obj(result['reply']),args=obj(tool['tool_args']);
   const failures:string[]=[];
   if(run['status']!=='completed'||run['verdict']!=='passed'||result['passed']!==true||run['error'])failures.push('provider_not_passed');
   if(c.expectedTool){
@@ -50,6 +63,7 @@ export function guidedReminderRunReport(id:string,input:unknown) {
     const text=typeof reply['agent_response']==='string'?reply['agent_response']:'';
     if(result['test_type']!=='reply'||reply['passed']!==true||!text.trim()||result['tool_call']!==undefined&&result['tool_call']!==null)failures.push('missing_or_mixed_reply');
     if(/nothing recorded|sorry.*something went wrong|eight.year.old|eighty.year.old|how (?:has|was) your week/i.test(text))failures.push('not_a_guided_test_reply');
+    if(/weekly_assist|session_token|attempt_id/i.test(text))failures.push('internal_control_name_spoken');
     if(['proposal_waits','move_proposal_waits','thinking_space'].includes(id)&&/(?:I(?:'|’)ve |I have |it is |it(?:'|’)s |reminder is )(?:saved|scheduled|moved|cancelled)/i.test(text))failures.push('premature_effect_claim');
     if(id==='failure_is_not_success'&&text.split(/[.!?]\s+/).some(s=>/^(?:yes[, ]+)?(?:it (?:worked|succeeded)|the test (?:passed|is complete)|(?:the reminder|the SMS|it) (?:is|has been) (?:scheduled|cancelled|saved|moved))\b/i.test(s.trim())))failures.push('unconfirmed_success_claim');
   }

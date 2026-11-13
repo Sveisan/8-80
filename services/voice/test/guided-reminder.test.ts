@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { assertGuidedPilot, guidedPilotVariables } from '../src/weekly/guided-pilot.ts';
 import { dialogueAgent } from '../src/weekly/dialogue-policy.ts';
 import { weeklyToken } from '../src/weekly/runtime.ts';
-import { guidedReminderCases, guidedReminderNativePlan, guidedReminderRunReport } from '../src/quality/guided-reminder.ts';
+import { guidedReminderCases, guidedReminderNativePlan, guidedReminderRunReport, nativeGuidedObservation, NATIVE_WEEKLY_MOCK_NAME } from '../src/quality/guided-reminder.ts';
 import { dialogueReplyFailures } from '../src/quality/dialogue-reply.ts';
 
 const hash='a'.repeat(64),env={WEEKLY_TOOLS_READY:'0',WEEKLY_DIALOGUE_READY:'0',WEEKLY_DIALOGUE_PILOT:'1',WEEKLY_TOOLS_PILOT_HASH:hash,
@@ -60,6 +60,15 @@ test('a missing observation or speech cannot be manufactured into a passed guide
   const plan=guidedReminderNativePlan('a'.repeat(40));
   assert.equal(plan.definitions.length,guidedReminderCases.length);assert.equal(plan.voiceVerified,false);
   assert.ok(plan.definitions.some(d=>d.definition.type==='tool')&&plan.definitions.some(d=>d.definition.type==='reply'));
+});
+test('the declared native alias cannot repair a failed verdict, wrong arguments or a different expected tool',()=>{
+  const run=toolRun(NATIVE_WEEKLY_MOCK_NAME,{...credentials,command:'status'});Object.assign(run.result.tool_call,{expected_tool:NATIVE_WEEKLY_MOCK_NAME});
+  assert.equal(guidedReminderRunReport('ready_reads_status',run).passed,true);
+  assert.equal(guidedReminderRunReport('ready_reads_status',{...run,verdict:'failed'}).passed,false);
+  assert.equal(guidedReminderRunReport('prepare_initial',run).passed,false);
+  const other={...run,result:{...run.result,tool_call:{...run.result.tool_call,expected_tool:'skip_turn'}}};
+  assert.equal(nativeGuidedObservation(other),other);
+  assert.equal(guidedReminderRunReport('ready_reads_status',other).passed,false);
 });
 test('observed missing-data and unsupported-followup replies cannot pass even with a positive model judge',()=>{
   assert.ok(dialogueReplyFailures('missing_older_profile',"By eighty, you'd like (nothing recorded). Was there anything this week that connected with that?").includes('internal_missing_data_spoken'));
