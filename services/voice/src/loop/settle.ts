@@ -1,4 +1,5 @@
 import { milestone } from '../journey/measure.ts';
+import { syncCalendarInvitations } from '../calendar/invitations.ts';
 import { settleBeliefs } from '../beliefs/runtime.ts';
 import { settleUnblock } from '../unblock/runtime.ts';
 import { accountState } from '../link/account.ts';
@@ -71,6 +72,7 @@ export async function settleConversation(
     const answer = await settleInside(payload, { ...deps, store: deps.store.in(tx), scheduler: new Scheduler(tx), sms: messages.sms, mailer: messages.mailer }, headerEvent, now);
     if (answer.handled) await observeTip(tx, attempt.id, transcript.turns.filter(t => t.speaker === 'agent').map(t => t.text), now);
     ids.push(...messages.ids);
+    if (answer.handled) ids.push(...await syncCalendarInvitations(tx, attempt.phoneHash, deps.script, now));
     // Silent/interrupted calls get a way back, with no invented next-week promise.
     if (answer.handled && ['silent', 'unverified', 'interrupted'].includes(answer.status ?? '') && !messages.ids.length) {
       const base = config.link.publicUrl().replace(/\/$/, '');

@@ -152,6 +152,26 @@ end up chasing one bad evening.
 `ENDPOINTING_SENSITIVITY`, 0..1, default 0.25. Lower is more patient. Every other
 threshold derives from it and the derived values are printed at the start of each run.
 
+## Calendar invitations
+
+Callers can opt in during signup or in **Your calls → Contact and preferences**.
+The service emails a single `.ics` invitation for the next booked weekly call and
+sends its successor after the current call finishes. It never creates a recurring
+calendar series. Other live programmes with explicitly booked calls receive their
+own invitations, without expanding their cadence into future weeks.
+
+Rescheduling updates the same calendar event. Skipping moves it to the replacement
+appointment; pausing, losing access or opting out cancels future invitations.
+Changing email cancels the old-address invitation and creates one at the new address.
+The existing encrypted email outbox handles idempotency, retries and stale-message
+suppression; the minute tick reconciles SMS and programme schedule changes too.
+
+Apply migration **0032_calendar_invitations** before starting this version. Delivery
+uses the existing `RESEND_API_KEY` and `RECAP_FROM_ADDRESS`; no calendar account
+connection is needed. Calendar-app handling still needs a real inbox check in Gmail,
+Outlook and Apple Calendar before launch. Local tests use synthetic providers and
+send no real invitations.
+
 ## Before a call reaches anyone who is not the author
 
 Work through [docs/VERIFY.md](docs/VERIFY.md). Vendor documentation hosts were

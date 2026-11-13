@@ -33,6 +33,8 @@ export const callers = pgTable(
     /** 'female' | 'male' | a provider voice name. Their choice, not a default. */
     voice: text('voice'),
     nudgesEnabled: boolean('nudges_enabled').notNull().default(false),
+    calendarInvitesEnabled: boolean('calendar_invites_enabled').notNull().default(false),
+    calendarSyncedAt: timestamp('calendar_synced_at', { withTimezone: true }),
     nextNudgeAt: timestamp('next_nudge_at', { withTimezone: true }),
     nudgeSequence: integer('nudge_sequence').notNull().default(0),
     tipsEnabled: boolean('tips_enabled').notNull().default(true),
@@ -143,6 +145,22 @@ export const callers = pgTable(
   ],
 );
 
+/** Current and recently finished calendar identities; addresses remain encrypted. */
+export const calendarInvitations = pgTable('calendar_invitations', {
+  id: text('id').primaryKey(),
+  phoneHash: text('phone_hash').notNull(),
+  sourceKey: text('source_key').notNull(),
+  scheduledAt: timestamp('scheduled_at', { withTimezone: true }).notNull(),
+  timezone: text('timezone').notNull(),
+  recipientEnc: text('recipient_enc'),
+  sequence: integer('sequence').notNull().default(0),
+  state: text('state').notNull().default('active'),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [
+  index('calendar_invitations_caller').on(t.phoneHash),
+  uniqueIndex('calendar_invitations_active_source').on(t.phoneHash, t.sourceKey).where(sql`${t.state} = 'active'`),
+]);
+
 /**
  * Somebody who has filled in the form and not yet proved they own the number.
  *
@@ -160,6 +178,7 @@ export const callers = pgTable(
  * changed their mind, and keeping their number for a week because they typed
  * it once is the behaviour this product exists to be the opposite of.
  */
+
 export const signups = pgTable(
   'signups',
   {
@@ -167,6 +186,7 @@ export const signups = pgTable(
     product: text('product').notNull().default('weekly'),
     voice: text('voice'),
     nudges: boolean('nudges').notNull().default(false),
+    calendarInvites: boolean('calendar_invites').notNull().default(false),
     /** Deterministic, so a second attempt from the same number replaces the first. */
     phoneHash: text('phone_hash').notNull(),
     phoneEnc: text('phone_enc').notNull(),

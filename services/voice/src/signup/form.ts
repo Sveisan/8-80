@@ -10,6 +10,7 @@ export interface Signup {
   timezone: string;
   voice?: 'female' | 'male';
   nudges?: boolean;
+  calendarInvites?: boolean;
 }
 
 export type Invalid = { field: keyof Signup; why: string };
@@ -82,7 +83,7 @@ export function readSignup(
   if (errors.length || !slot.ok) return { ok: false, errors };
   return {
     ok: true,
-    signup: { phone, email, name, ...slot.slot, ...(voice ? { voice: voice as 'female' | 'male' } : {}), ...(nudges ? { nudges: true } : {}) },
+    signup: { phone, email, name, ...slot.slot, ...(voice ? { voice: voice as 'female' | 'male' } : {}), ...(nudges ? { nudges: true } : {}), ...(form.get('calendar') === 'yes' ? { calendarInvites: true } : {}) },
   };
 }
 

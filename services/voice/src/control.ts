@@ -1,4 +1,5 @@
 import { serveDesignAsset } from './design-system/assets.ts';
+import { setCalendarInvitations, syncCalendarInvitations } from './calendar/invitations.ts';
 import { countRequest } from './journey/measure.ts';
 import twilio from 'twilio';
 import { randomUUID } from 'node:crypto';
@@ -603,6 +604,13 @@ async function yourPage(
     await measured(true);
     return await page(undefined, undefined, { scheduleNote: 'page.nudges.saved' });
   }
+  if (action === 'calendar-on' || action === 'calendar-off') {
+    if (action === 'calendar-on' && !caller.email) return await page(undefined, undefined, { scheduleNote: 'calendar.preference.email' });
+    const ids = await setCalendarInvitations(deps.store.raw, phoneHash, action === 'calendar-on', deps.script);
+    for (const id of ids) await dispatchMessage(deps, id);
+    await measured(true);
+    return await page(undefined, undefined, { scheduleNote: 'calendar.preference.saved' });
+  }
   if (action === 'feedback-on' || action === 'feedback-off') {
     await deps.store.raw`update callers set feedback_opt_out = ${action === 'feedback-off'} where phone_hash = ${phoneHash}`;
     await measured(true);
@@ -652,6 +660,7 @@ async function yourPage(
     const typed = (form.get('email') ?? '').trim();
     if (!EMAIL.test(typed)) return await page(caller.email, 'page.email.bad');
     await deps.store.upsertProfile(phone, { email: typed });
+    for (const id of await syncCalendarInvitations(deps.store.raw, phoneHash, deps.script)) await dispatchMessage(deps, id);
     await measured(true);
     log('caller.email_set', {});
     return await page(typed, 'page.email.saved');
@@ -691,6 +700,7 @@ async function yourPage(
   // Straight through the same path a text would take, so the two ways of
   // moving a call cannot drift apart.
   const out = await handleReply(phone, said, slot, { ...deps, sms: silent }, new Date(), { skipAt, language });
+  for (const id of await syncCalendarInvitations(deps.store.raw, phoneHash, deps.script)) await dispatchMessage(deps, id);
   await measured(['moved', 'moved_always', 'skipped', 'stopped', 'started'].includes(out.action));
   // Re-render persisted state after pause/resume, so a revisit shows the same
   // result. Recovery remains available if the credential later expires.

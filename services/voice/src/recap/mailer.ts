@@ -6,6 +6,7 @@ import type { Recap } from './compose.ts';
 import { letterHtml } from './letter.ts';
 import { ResendMailer } from './resend.ts';
 import type { Receipt, SendOptions, TransportInfo } from '../messages/types.ts';
+import { calendarFile } from '../calendar/ical.ts';
 
 export interface Mailer extends TransportInfo {
   send(to: string, recap: Recap, options?: SendOptions): Promise<void | Receipt>;
@@ -57,6 +58,7 @@ export class FileMailer implements Mailer {
     mkdirSync(this.dir, { recursive: true });
     const stem = resolve(this.dir, new Date().toISOString().replace(/[:.]/g, '-'));
     writeFileSync(`${stem}.txt`, `To: ${to}\nSubject: ${recap.subject}\n\n${recap.body}\n`);
+    if (recap.calendar) writeFileSync(`${stem}.ics`, calendarFile(recap.calendar, process.env['RECAP_FROM_ADDRESS'] ?? '8&80 <calls@example.com>', to));
     // Both parts, the same two a send would carry. The letter is the half that
     // is hard to check by reading the source, so it has to be openable.
     const markUrl = config.recap.markUrl();

@@ -10,8 +10,9 @@ import { OptedOut } from '../sms/types.ts';
 import type { Mailer } from '../recap/mailer.ts';
 import { SendFailure } from './types.ts';
 import { canRemind } from '../weekly/reminders.ts';
+import { bookedAppointments, callInProgress } from '../calendar/appointments.ts';
 
-export type MessageKind = 'call' | 'welcome' | 'recap' | 'billing' | 'trial' | 'feedback' | 'access' | 'signup' | 'reply' | 'export' | 'beliefs' | 'unblock' | 'safety' | 'operator' | 'nudge' | 'reminder';
+export type MessageKind = 'call' | 'welcome' | 'recap' | 'billing' | 'trial' | 'feedback' | 'access' | 'signup' | 'reply' | 'export' | 'beliefs' | 'unblock' | 'safety' | 'operator' | 'nudge' | 'reminder' | 'calendar';
 export interface Message {
   eventKey: string; phoneHash: string; channel: 'sms' | 'email'; kind: MessageKind;
   to: string; body: string | Recap; reference?: string; expiresAt?: Date;
@@ -60,16 +61,29 @@ export async function recoverMessages(deps: LoopDeps, now = new Date()): Promise
 /** Suppression is rechecked under the same caller lock used by deletion and controls. */
 async function suppression(sql: Database, row: Row, now: Date): Promise<string | undefined> {
   if (row.expires_at <= now) return 'expired';
-  const [caller] = await sql`select email_enc, next_call_at, paused, all_calls_stopped, held_for_review, sms_opt_out, feedback_opt_out, billing_status, cancel_at_period_end, paid_until, trial_ends_at, ls_subscription_id, nudges_enabled, nudge_sequence, timezone, call_number, onboarding from callers where phone_hash = ${row.phone_hash} for update`;
+  const [caller] = await sql`select email_enc, calendar_invites_enabled, next_call_at, paused, all_calls_stopped, held_for_review, sms_opt_out, feedback_opt_out, billing_status, cancel_at_period_end, paid_until, trial_ends_at, ls_subscription_id, nudges_enabled, nudge_sequence, timezone, call_number, onboarding from callers where phone_hash = ${row.phone_hash} for update`;
   if (row.kind === 'signup' || row.kind === 'access') {
     const valid = row.kind === 'signup'
       ? await sql`select id from signups where phone_hash = ${row.phone_hash} and id = ${row.reference} and expires_at > ${now} for update`
       : await sql`select id from access_codes where phone_hash = ${row.phone_hash} and id = ${row.reference} and consumed = false and expires_at > ${now} for update`;
     if (!valid.length || (row.kind === 'access' && !caller)) return 'superseded_code';
   } else if (!caller) return 'account_deleted';
-  const payload = row.payload_enc ? JSON.parse(decrypt(row.payload_enc)) as { appointment?: string | null } : undefined;
+  const payload = row.payload_enc ? JSON.parse(decrypt(row.payload_enc)) as { appointment?: string | null; body?: Recap } : undefined;
+  const calendar = row.kind === 'calendar' ? payload?.body?.calendar : undefined;
+  if (row.kind === 'calendar') {
+    const [invitation] = await sql`select * from calendar_invitations where id = ${row.reference} and phone_hash = ${row.phone_hash}`;
+    if (!calendar || !invitation || calendar.uid !== `${invitation['id']}@8and80` || calendar.sequence !== invitation['sequence'] || calendar.at !== invitation['scheduled_at'].toISOString()) return 'calendar_changed';
+    if (calendar.method === 'CANCEL') {
+      if (invitation['state'] !== 'cancelled' || !invitation['recipient_enc'] || !row.recipient_enc || decrypt(invitation['recipient_enc']) !== decrypt(row.recipient_enc)) return 'calendar_changed';
+    } else {
+      if (!caller?.['calendar_invites_enabled'] || invitation['state'] !== 'active') return 'calendar_disabled';
+      const appointments = await bookedAppointments(sql, row.phone_hash, now);
+      if (!appointments.some(a => a.key === invitation['source_key'] && +a.at === +invitation['scheduled_at'])) return 'appointment_changed';
+      if (await callInProgress(sql, row.phone_hash)) return 'wait_for_spacing';
+    }
+  }
   if (payload && 'appointment' in payload && payload.appointment !== (caller?.['next_call_at']?.toISOString() ?? null)) return 'appointment_changed';
-  if (!['safety','operator'].includes(row.kind) && row.channel === 'email' && row.recipient_enc && (!caller?.['email_enc'] || decrypt(row.recipient_enc) !== decrypt(caller['email_enc']))) return 'address_changed';
+  if (!['safety','operator'].includes(row.kind) && calendar?.method !== 'CANCEL' && row.channel === 'email' && row.recipient_enc && (!caller?.['email_enc'] || decrypt(row.recipient_enc) !== decrypt(caller['email_enc']))) return 'address_changed';
   if (!['safety','operator'].includes(row.kind) && row.channel === 'sms' && caller?.['sms_opt_out']) return 'carrier_opt_out';
   if (['call', 'welcome', 'feedback'].includes(row.kind) && caller?.['paused']) return 'calls_paused';
   if ((row.kind === 'beliefs' || row.kind === 'unblock') && caller?.['held_for_review']) return 'human_review';
