@@ -9,7 +9,7 @@ import { brandAssets } from './brand-assets.ts';
 
 export const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const localFonts = (value: string): string => value.replaceAll("url('/fonts/", "url('fonts/")
-  .replaceAll('href="/favicon.', 'href="assets/favicon.').replaceAll('href="/apple-touch-icon.png"', 'href="assets/apple-touch-icon.png"').replaceAll('="/brand/', '="assets/');
+  .replaceAll('href="/favicon.', 'href="assets/favicon.').replaceAll('href="/apple-touch-icon.png"', 'href="assets/apple-touch-icon.png"').replaceAll('="/brand/', '="assets/').replace(/[\t ]+$/gm, '');
 
 export function outputs(): Map<string, Buffer> {
   const files = brandAssets(root);
