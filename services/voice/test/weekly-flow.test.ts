@@ -45,7 +45,7 @@ test('a corrected map still needs a fresh answer after that correction', () => {
 test('every weekly route removes model hangup and puts one non-interruptible farewell before end', () => {
   for (const role of weeklyFlowRoles) {
     const flow = weeklyFlow(role);
-    for (const m of JSON.stringify(flow).matchAll(/\{\{([^}]+)\}\}/g)) assert.ok(CONSOLE_VARIABLES.includes(m[1]!), 'model-filled read-back slots must not become provider variables');
+    for (const m of JSON.stringify(flow).matchAll(/\{\{([^}]+)\}\}/g)) assert.ok(CONSOLE_VARIABLES.some(key => key === m[1]), 'model-filled read-back slots must not become provider variables');
     const phases = flow.nodes.filter(n => n.type === 'subagent');
     assert.ok(phases.length);
     for (const phase of phases) {
