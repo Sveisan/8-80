@@ -33,9 +33,17 @@ production deployment was made.
 
 ## Calendar client result
 
-**Awaiting the owner's result.** Confirm that the invitation creates one event,
-the time change updates that same event without duplication, and cancellation
-removes or marks that event cancelled in the receiving calendar application.
+**Not yet passed.** The owner reports that no test event is visible in their
+calendar and asks whether the invitations need to be added manually. Initial
+acceptance/addition of the first invitation has not been confirmed, and the
+receiving calendar application has not yet been identified. Creation, movement
+without duplication and cancellation therefore remain unverified in that client.
+
+The valid manual test order is to open and accept/add the initial invitation,
+confirm that the event is visible, then send a move and check that same event,
+and finally send a cancellation. The already sent sequence reached cancellation
+before the initial event was confirmed visible. Do not treat importing all three
+files as independent events as a successful update test.
 
 Provider delivery and attachment identity checks establish successful delivery
 and the intended update protocol. They do not establish how Gmail, Outlook or
