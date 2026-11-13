@@ -166,11 +166,14 @@ Changing email cancels the old-address invitation and creates one at the new add
 The existing encrypted email outbox handles idempotency, retries and stale-message
 suppression; the minute tick reconciles SMS and programme schedule changes too.
 
-Apply migration **0032_calendar_invitations** before starting this version. Delivery
+Apply migration **0034_calendar_invitations** before starting this version. Delivery
 uses the existing `RESEND_API_KEY` and `RECAP_FROM_ADDRESS`; no calendar account
 connection is needed. Calendar-app handling still needs a real inbox check in Gmail,
 Outlook and Apple Calendar before launch. Local tests use synthetic providers and
 send no real invitations.
+
+See [the calendar verification record](docs/calendar-invitations-verification.md)
+for the live invitation, move and cancellation tests and the remaining calendar-client check.
 
 ## Before a call reaches anyone who is not the author
 

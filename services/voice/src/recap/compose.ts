@@ -78,11 +78,19 @@ export interface RecapContext {
  */
 export function composeRecap(outcome: CallOutcome, script: ScriptLines, ctx: RecapContext = {}): Recap {
   const minutes = Math.max(1, Math.round(outcome.durationMs / 60_000));
+  // The complete map was confirmed in THIS call. Do not turn historical memory
+  // or an unconfirmed read-back into a new quotation, or invent a motive linking
+  // this longer view to the action. Long answers stay in memory, not an excerpt.
+  const perspective = outcome.onboardingComplete ? outcome.eighty?.trim() : undefined;
+  const sameWords = (value: string) => value.toLowerCase().replace(/[\p{P}\p{Z}\s]+/gu, '');
+  const longerView = perspective && perspective.length <= 240 && perspective !== '(nothing recorded)'
+    && sameWords(perspective) !== sameWords(outcome.commitment ?? '') ? perspective : '';
   const values: Record<string, string> = {
     commitment: outcome.commitment ?? '',
     day: outcome.day ?? '',
     minutes: String(minutes),
     next_slot: ctx.nextSlot ?? '',
+    eighty: longerView,
   };
 
   const fill = (text: string | undefined): string | undefined => {
@@ -119,13 +127,15 @@ export function composeRecap(outcome: CallOutcome, script: ScriptLines, ctx: Rec
       .trim();
   };
 
+  const perspectivePart = longerView ? part('body', fill(script.get('email.body.perspective'))) : undefined;
   const paragraphs: (RecapPart | undefined)[] = (
     outcome.commitment
       ? [
           part('lead', fill(script.get('email.body.commitment'))),
+          perspectivePart,
           part('body', fill(script.get('email.body.ask'))),
         ]
-      : [part('lead', fill(script.get('email.body.none')))]
+      : [part('lead', fill(script.get('email.body.none'))), perspectivePart]
   ).concat(part('quiet', fill(script.get(minutes === 1 ? 'email.body.logistics.one' : 'email.body.logistics'))));
 
   if (ctx.trialEnds) paragraphs.push(part('quiet', (script.get('email.trial.reminder') ?? '').replace('{{when}}', ctx.trialEnds)));

@@ -229,8 +229,22 @@
     {
       "idx": 32,
       "version": "7",
-      "when": 1794598601918,
-      "tag": "0032_calendar_invitations",
+      "when": 1794598771616,
+      "tag": "0032_encouragement_sms",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1794601536895,
+      "tag": "0033_product_feedback",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1794607258608,
+      "tag": "0034_calendar_invitations",
       "breakpoints": true
     }
   ]

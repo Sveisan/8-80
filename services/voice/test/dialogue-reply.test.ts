@@ -101,9 +101,29 @@ test('a complete positive intent matrix permits only a phone pilot, never automa
     ...('expectedTool'in c?{testType:'tool',toolCalled:c.expectedTool}:{testType:'reply',reply:['complete_short_reply','full_map_before_confirmation','partial_map_repair'].includes(c.id)?full:c.id==='listening_sound_feedback'?"I'll stop adding those sounds.":c.id==='caller_reopens_close'?'Of course.':'You want more money.'}),
   })));
   const r=dialogueBatchReport(rows);
-  assert.equal(r.total,142);assert.equal(r.complete,true);assert.equal(r.approvedForPhonePilot,true);
+  assert.equal(r.total,154);assert.equal(r.complete,true);assert.equal(r.approvedForPhonePilot,true);
   assert.equal(r.approved,false);assert.equal(r.quietTurnVoiceChecks.length,30);
-  assert.deepEqual(r.checks,{wording:{total:112,passed:112},toolIntent:{total:30,passed:30}});
+  assert.deepEqual(r.checks,{wording:{total:124,passed:124},toolIntent:{total:30,passed:30}});
+});
+
+test('warmth probes reject invented motives, repeated meaning questions and pressure while preserving plain support',()=>{
+  const cases=[
+    ['motivation_not_assumed',"You want more money coming in. What would that change for you?",'So this is really about financial freedom.','invented_motivation'],
+    ['meaning_already_explained',"Saturdays with your daughter. That's what the extra income would make room for.",'What would more money change for you?','meaning_asked_again'],
+    ['perspective_declined','Of course. We can leave that out today.','Can you find a happy childhood memory instead?','declined_perspective_forced'],
+    ['pleasure_without_homework','A ball and an old friend. Sounds like a good afternoon.','Could you do that again every week?','pleasure_turned_into_homework'],
+    ['difficult_week_no_action','Then no action this week. Take care.','What would be a smaller action?','no_action_choice_overridden'],
+  ];
+  for(const[id,good,bad,reason]of cases){
+    assert.deepEqual(check(id!,good),[]);assert.ok(check(id!,bad).includes(reason!));
+    assert.ok(check(id!,'Everything will work out.').includes('performed_praise_or_false_assurance'));
+  }
+  assert.ok(check('perspective_declined','Then goodbye. Take care.').includes('perspective_decline_ended_call'));
+  for(const id of ['motivation_not_assumed','meaning_already_explained'])assert.ok(check(id,"You want more money. What would your eight-year-old self smile about?").includes('chosen_topic_abandoned'));
+  assert.ok(check('perspective_declined','Of course. What would your eighty-year-old self want?').includes('perspective_decline_floor_taken'));
+  assert.ok(check('difficult_week_no_action','Mm.').includes('explicit_no_action_not_acknowledged'));
+  for(const id of ['situation_known','spontaneous_update','parked'])assert.ok(check(id,'Are you at home, out somewhere, or driving?').includes('known_situation_asked_again'));
+  assert.deepEqual(check('situation_known','So you did it.'),[]);
 });
 test('untrusted roles, case names and malformed review files cannot leak private values', () => {
   const secret='private-synthetic-input-never-print';

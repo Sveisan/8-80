@@ -49,7 +49,7 @@ beforeEach(async()=>{
     SMS_FROM_NUMBER:'+4791000000',SPEECHIFY_CALLER_ID_NUMBER:'+4791000000',SPEECHIFY_AGENT_ID:'return',SPEECHIFY_FIRST_CALL_AGENT_ID:'first',SPEECHIFY_FEMALE_AGENT_ID:'female-return',SPEECHIFY_FEMALE_FIRST_CALL_AGENT_ID:'female-first'});
   texts=[];requests=0;
   delete process.env['WEEKLY_TOOLS_PILOT_HASH'];
-  if(db)await db.sql`truncate weekly_reminder_drafts,weekly_reminders,weekly_tool_requests,weekly_tip_offers,weekly_tip_assignments,weekly_tip_experiments,weekly_tip_counters,belief_sessions,unblock_sessions,belief_refund_requests,belief_enrollments,unblock_enrollments,journey_events,message_attempts,message_outbox,call_attempts,callers,links,feedback,signups,access_codes`;
+  if(db)await db.sql`truncate product_feedback,weekly_reminder_drafts,weekly_reminders,weekly_tool_requests,weekly_tip_offers,weekly_tip_assignments,weekly_tip_experiments,weekly_tip_counters,belief_sessions,unblock_sessions,belief_refund_requests,belief_enrollments,unblock_enrollments,journey_events,message_attempts,message_outbox,call_attempts,callers,links,feedback,signups,access_codes`;
 });
 after(async()=>{await db?.close();});
 

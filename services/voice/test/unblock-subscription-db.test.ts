@@ -57,7 +57,7 @@ async function activate(at = now, over: Partial<Subscription> = {}) {
   return syncUnblockSubscription(deps(), checkoutEvent(e.checkout_reference), {}, at);
 }
 beforeEach(async () => {
-  if (db) await db.sql`truncate unblock_sessions,unblock_enrollments,belief_refund_requests,belief_sessions,belief_enrollments,callers,call_attempts,links,signups,access_codes,message_outbox,message_attempts,feedback,journey_events,journey_tracking,journey_counts,webhook_deliveries,heartbeats`;
+  if (db) await db.sql`truncate product_feedback,unblock_sessions,unblock_enrollments,belief_refund_requests,belief_sessions,belief_enrollments,callers,call_attempts,links,signups,access_codes,message_outbox,message_attempts,feedback,journey_events,journey_tracking,journey_counts,webhook_deliveries,heartbeats`;
   process.env['DATA_ENCRYPTION_KEY'] = Buffer.alloc(32, 16).toString('base64');
   for (const key of ['UNBLOCK_ENABLED', 'UNBLOCK_LIVE_CALLS', 'UNBLOCK_SAFETY_APPROVED', 'UNBLOCK_SCRIPTS_APPROVED', 'UNBLOCK_AGENTS_VERIFIED', 'UNBLOCK_PRICE_VERIFIED']) process.env[key] = 'true';
   Object.assign(process.env, { PUBLIC_URL: 'https://8and80.example', OPERATOR_PHONE: '+4791000000', SUPPORT_EMAIL: 'support@example.com', UNBLOCK_PRICE_LABEL: 'Synthetic price', UNBLOCK_PRODUCT_ID: price,

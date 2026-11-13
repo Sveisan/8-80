@@ -210,5 +210,10 @@ function confirmsMap(turns: readonly Turn[]): boolean {
 
 /** Narrow explicit choices, not a general intent classifier. */
 function explicitNoAction(text: string): boolean {
-  return /^(actually |then |no |nei )?(no (new )?(action|commitment)( this week)?|i (dont|do not) want (an action|a commitment)|ingen (handling|forpliktelse)( denne uken)?)\b/.test(normalise(text));
+  if (/^(actually |then |no |nei )?(no (new )?(action|commitment)( this week)?|i (dont|do not) want (an action|a commitment)|ingen (handling|forpliktelse)( denne uken)?)\b/.test(normalise(text))) return true;
+  // A caller can explain the week before declining a new action in the same
+  // turn. Accept only a complete first-person choice clause, not a quoted
+  // third-party remark, a request for advice or a temporary timing condition.
+  return text.split(/[.!?]+\s*|\r?\n/).some(clause =>
+    /^i (?:dont|do not) want to (?:choose|pick) (?:an?|a new) (?:action|commitment)(?: this week)?(?: either)?$/.test(normalise(clause)));
 }

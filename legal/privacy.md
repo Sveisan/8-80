@@ -74,6 +74,31 @@ We do not use analytics cookies.
 **Your feedback preference.** You can stop optional feedback requests separately
 from calls, recaps, verification codes and billing notices.
 
+**Optional product feedback.** If you open the Feedback button, a functional cookie
+lets this browser submit, review and remove its reports for 30 days. We encrypt your
+comment and any screenshot you deliberately attach, and keep them for up to 30 days.
+We retain a broad page category, screen dimensions, release version and processing
+status; we do not capture page contents, form fields or URL credentials. A daily
+rotating hash limits submissions without retaining the IP address. Reports linked
+to a verified weekly browser are included in account export and removed with the
+account. Other reports can be removed from the same browser, or expire automatically. GitHub stores only an
+opaque ticket reference in a private tracker. A restricted automated development
+workflow using GitHub and OpenAI may read the report to prepare a fix and tests;
+private processing artifacts and logs expire after one day. A processing copy can
+remain until then after you remove the report. Proposed code changes require
+manual approval before release. The original report and screenshot must not enter public code, tests, issues or PRs.
+
+**Optional encouragement by SMS.** Messages are off until you opt in on
+My page. We store frequency, tone, selected message types, quiet hours and timezone,
+strong-language choice, pause state and when you opted in. Your optional chosen
+focus and composed message text are encrypted. Recognition uses only an action
+you have reported completing; we do not infer your mood or invent progress.
+Messages and your optional “more like this” / “less like this” feedback are retained
+for 30 days. Feedback adjusts eligible wording within your choices; pilot and
+adaptive results are separated in aggregate reports. Preferences remain until you
+change them or delete the account. You can pause or stop encouragement on My page.
+Replying STOP stops calls and all SMS. Account export and deletion cover these records.
+
 **Feature tips and requested reminders.** We keep your preference for tips, a fixed
 sequence identifier and the topics already shown or declined until you delete your
 account, so we do not repeat them. Account-linked A/B assignments and tip offers,

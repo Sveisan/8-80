@@ -12,7 +12,7 @@ test('the one thing leads, because that is why anyone opens this', () => {
   });
   assert.ok(r.body.startsWith('run three times, Wednesday.'), r.body);
   assert.ok(r.subject.includes('Wednesday'));
-  assert.ok(r.body.includes('12 minutes'));
+  assert.doesNotMatch(r.body, /minutes|We spoke for/);
   assert.ok(r.body.includes('Tuesday at nine'));
   assert.ok(!r.body.includes('{{'), 'no slot may reach a reader');
 });
@@ -47,10 +47,10 @@ test('a broken SCRIPT.md shortens the email rather than breaking the send', () =
   assert.equal(r.subject, '');
 });
 
-test('a very short call still reads as a number of minutes', () => {
-  const r = composeRecap({ ...call, durationMs: 20_000, commitment: 'x', day: 'Monday' }, script, {});
-  assert.ok(r.body.includes('a minute.'), r.body);
-  assert.ok(!r.body.includes('1 minutes'), 'the product does not say "1 minutes"');
+test('short calls keep the appointment visible without a duration receipt', () => {
+  const r = composeRecap({ ...call, durationMs: 20_000, commitment: 'x', day: 'Monday' }, script, { nextSlot: 'Friday at 08:30' });
+  assert.match(r.body, /Next call, as booked when we spoke: Friday at 08:30\./);
+  assert.doesNotMatch(r.body, /minute|We spoke for/);
 });
 
 test('a sentence whose slot has no value is dropped, not sent hollow', () => {
@@ -60,14 +60,14 @@ test('a sentence whose slot has no value is dropped, not sent hollow', () => {
   const r = composeRecap({ at: '', durationMs: 600_000, commitment: 'run three times', day: 'Wednesday' }, script);
   assert.ok(!r.body.includes(' .'), r.body);
   assert.ok(!r.body.includes("I'll call you"), 'no next call to promise, so it does not promise one');
-  assert.match(r.body, /We spoke for 10 minutes\./);
+  assert.doesNotMatch(r.body, /Next call|We spoke for/);
 });
 
 test('sentences with no slots at all survive', () => {
   // `every` on an empty list is true, which dropped every fixed sentence in
   // the email the first time this filter was written — the subject included.
   const r = composeRecap({ at: '', durationMs: 600_000, commitment: 'run three times', day: 'Wednesday' }, script);
-  assert.match(r.body, /That's the one I'll ask you about\./);
+  assert.match(r.body, /We'll pick it up next time we talk\./);
   assert.equal(composeRecap({ at: '', durationMs: 600_000 }, script).subject, "This week's call");
 });
 
@@ -77,7 +77,7 @@ test('the email promises the next call, not the commitment day', () => {
     script,
     { nextSlot: 'Friday at 08:30' },
   );
-  assert.match(r.body, /next call was booked for Friday at 08:30\./);
+  assert.match(r.body, /Next call, as booked when we spoke: Friday at 08:30\./);
   assert.ok(!/I'll call you.*Wednesday/.test(r.body), 'the commitment lands on Wednesday; the call is on Friday');
 });
 
@@ -125,4 +125,46 @@ test('the first recap carries an optional contact reminder in HTML and plain tex
   assert.equal(weekly.contact, undefined);
   assert.ok(!weekly.body.includes('contact card'));
   assert.ok(!letterHtml(weekly).includes('contact.vcf'));
+});
+
+test('only a complete map confirmed in this call adds the longer view, separately from the action', async () => {
+  const { letterHtml } = await import('../src/recap/letter.ts');
+  const chosen={...call,commitment:'earn more money',eighty:'time with family & friends',onboardingComplete:true};
+  const before=structuredClone(chosen),recap=composeRecap(chosen,script);
+  assert.deepEqual(chosen,before,'composition cannot change memory or the chosen action');
+  assert.equal(recap.said?.commitment,'earn more money');
+  assert.equal(recap.said?.label,'This week');
+  assert.ok(recap.body.startsWith('earn more money.'));
+  assert.match(recap.body,/Your longer view: time with family & friends\./);
+  assert.doesNotMatch(recap.body,/because|freedom|security|financial independence|We'll ask/);
+  const html=letterHtml(recap);
+  assert.match(html,/Your longer view: time with family &amp; friends\./);
+  assert.ok(html.indexOf('earn more money')<html.indexOf('Your longer view'));
+});
+
+test('unconfirmed, missing, oversized or duplicate perspectives leave no invented or partial quotation', () => {
+  for(const outcome of [
+    {...call,commitment:'call the school',eighty:'unconfirmed family'},
+    {...call,commitment:'call the school',onboardingComplete:true},
+    {...call,commitment:'call the school',onboardingComplete:true,eighty:'(nothing recorded)'},
+    {...call,commitment:'call the school',onboardingComplete:true,eighty:'x'.repeat(241)},
+    {...call,commitment:'TIME with family.',onboardingComplete:true,eighty:'time with family'},
+  ]){
+    const recap=composeRecap(outcome,script);
+    assert.doesNotMatch(recap.body,/Your longer view|unconfirmed|nothing recorded|x{20}|\{\{/);
+  }
+  const none=composeRecap({...call,noAction:true,onboardingComplete:true,eighty:'time with friends'},script);
+  assert.equal(none.said,undefined);assert.match(none.body,/Your longer view: time with friends\./);
+  assert.doesNotMatch(none.body,/forgive|failed|No action chosen|you chose|That's the one/);
+});
+
+test('perspective content is escaped in HTML and is optional for historical script versions', async () => {
+  const { letterHtml } = await import('../src/recap/letter.ts');
+  const outcome={...call,onboardingComplete:true,eighty:'<img src=x onerror=alert(1)>',commitment:'call the school'};
+  const html=letterHtml(composeRecap(outcome,script));
+  assert.ok(html.includes('&lt;img src=x onerror=alert(1)&gt;'));
+  assert.ok(!html.includes('<img src=x'));
+  const old=new Map(script);old.delete('email.body.perspective');
+  const recap=composeRecap(outcome,old);
+  assert.equal(recap.said?.commitment,outcome.commitment);assert.doesNotMatch(recap.body,/<img|\{\{/);
 });
