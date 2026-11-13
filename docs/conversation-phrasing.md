@@ -172,6 +172,10 @@ remain unchanged in four additional tool-selection cases; the repeat case now
 includes that explicit request. A further case checks a caller reopening the
 close with their actual question already supplied. The complete matrix is 120:
 94 wording and 26 tool-selection checks, including all original 22 tool cases.
+Map-checkpoint contexts explicitly establish the completed opening. The reopened
+question has separate first/returning criteria: the first call looks across life,
+while the returning perspective looks back on the week. Neither restarts the
+exercise or relaxes the complete fixed map requirement.
 
 Correcting the test type alone was insufficient. Isolated provider controls
 showed that native tests resolve shared client tool definitions, while the

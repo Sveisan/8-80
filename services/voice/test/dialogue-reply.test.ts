@@ -33,6 +33,8 @@ test('a caller can reopen the close without losing the floor', () => {
   }
 });
 test('a caller reopening with a concrete question gets its answer without another close',()=>{
+  assert.deepEqual(check('reopened_close_question_return','It means looking back on this week at what your older self would be glad you made time for.'),[]);
+  assert.deepEqual(check('reopened_close_question_return','Of course.'),['reopened_question_not_answered']);
   assert.deepEqual(check('reopened_close_question','It means imagining your older self looking across your life at what matters.'),[]);
   assert.deepEqual(check('reopened_close_question','Of course.'),['reopened_question_not_answered']);
   assert.deepEqual(check('reopened_close_question','What was that?'),['reopened_question_replaced_or_closed']);

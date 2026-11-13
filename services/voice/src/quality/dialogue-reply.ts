@@ -19,7 +19,7 @@ export function dialogueReplyFailures(id: string, reply: unknown): string[] {
   if (id === 'caller_reopens_close') {
     if (/\?|\btell me\b|\bgo on\b|\bgo ahead\b|\b(?:goodbye|bye|take care|next time|end_call)\b/i.test(reply)) failures.push('caller_floor_or_reopened_close_ignored');
   }
-  if (id === 'reopened_close_question') {
+  if (['reopened_close_question','reopened_close_question_return'].includes(id)) {
     if (/^of course[.!]?$/i.test(reply.trim())) failures.push('reopened_question_not_answered');
     if (/\?|\b(?:goodbye|bye|take care|end_call)\b/i.test(reply)) failures.push('reopened_question_replaced_or_closed');
   }

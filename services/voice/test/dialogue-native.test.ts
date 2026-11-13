@@ -76,7 +76,7 @@ test('an ordinary spoken response is preserved for independent hard checks', () 
 });
 
 test('role, case and scope are validated without echoing untrusted input', () => {
-  for (const [role,id] of [['private-secret','thinking_fragments'],['first','private-secret'],['first','visit_he'],['first','concrete_function']]) {
+  for (const [role,id] of [['private-secret','thinking_fragments'],['first','private-secret'],['first','visit_he'],['first','concrete_function'],['return','reopened_close_question'],['first','reopened_close_question_return']]) {
     assert.throws(()=>nativeDialogueDefinition(role!,id!),/^Error: Unknown dialogue scenario or role\.$/);
   }
 });
