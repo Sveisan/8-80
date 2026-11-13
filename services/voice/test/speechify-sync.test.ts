@@ -130,6 +130,23 @@ test('private dialogue readiness requires a real enabled skip_turn built-in',asy
   assert.equal((await syncAgents(p.api,opts))[0]!.tools,'present');
 });
 
+test('weekly pilot silence requirements do not replace managed module capture tools',async()=>{
+  for(const [role,key,capture]of [
+    ['belief-onboarding','BELIEFS_ONBOARDING_AGENT_ID','capture_belief'],
+    ['unblock-opening','UNBLOCK_OPENING_AGENT_ID','capture_unblock'],
+  ] as const){
+    const p=provider();
+    const opts=options({apply:false,dialoguePilot:true,specs:[{...spec,role}],env:{[key]:'agent_return',PUBLIC_URL:'https://8and80.example',WEEKLY_TOOLS_READY:'1'}});
+    assert.equal((await syncAgents(p.api,opts))[0]!.tools,'unverified');
+    const tools=p.agents['agent_return']!['tools'] as unknown[];
+    tools.push({name:capture,kind:'webhook',enabled:true});
+    assert.equal((await syncAgents(p.api,opts))[0]!.tools,'present','module needs its own capture tool, not skip_turn or weekly_assist');
+    tools.pop();tools.push({name:capture,kind:'webhook',enabled:false});
+    assert.equal((await syncAgents(p.api,opts))[0]!.tools,'unverified','a disabled capture tool cannot make a module ready');
+    assert.ok(p.requests.every(r=>r.method==='GET'));
+  }
+});
+
 test('enabled weekly service tools must be read back on each agent before routing is ready', async () => {
   const p=provider();
   const setup=options({apply:false,env:{SPEECHIFY_AGENT_ID:'agent_return',WEEKLY_TOOLS_READY:'1'}});
