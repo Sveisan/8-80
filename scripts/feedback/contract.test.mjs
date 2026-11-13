@@ -20,6 +20,14 @@ test('policy refuses protected files, executable files, networking, private cont
   assert.throws(()=>validatePatch(diff(ui)+diff(regression),request));
   assert.throws(()=>parseResult('{"status":"ready","patch":4,"summary":"x"}'));
 });
+test('test callback mocks pass while production handlers and test networking remain blocked',()=>{
+  for(const callback of ['onload','onerror','onclick']) {
+    const mock=newTest.replace('export const syntheticRegression = true;',`class ElementStub { ${callback} = () => {}; }`);
+    assert.deepEqual(validatePatch(diff(ui)+mock,request),[ui,regression]);
+    assert.throws(()=>validatePatch(diff(ui,`const markup = '<img ${callback}="ready()">';`)+mock,request));
+    assert.throws(()=>validatePatch(diff(ui)+mock.replace('() => {}','() => fetch("/send")'),request));
+  }
+});
 test('materialization applies exactly the screened files and refuses conflicting patch headers',()=>{
   const cwd=mkdtempSync(join(tmpdir(),'8and80-patch-'));
   const git=(...args)=>execFileSync('git',args,{cwd,stdio:'pipe'});

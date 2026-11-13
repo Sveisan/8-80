@@ -27,8 +27,8 @@ export function validatePatch(patch, request) {
   const paths=[...patch.matchAll(/^diff --git a\/(\S+) b\/(\S+)$/gm)].map(m=>{if(m[1]!==m[2] || !allowedFile(m[1]))throw Error('Change needs a person');return m[1];});
   if (!paths.length || paths.length>10 || new Set(paths).size!==paths.length || !paths.some(p=>UI_FILES.has(p)) || !paths.some(testFile)) throw Error('Missing focused change or regression check');
   const added=patch.split('\n').filter(l=>l.startsWith('+')&&!l.startsWith('+++')).map(l=>l.slice(1)).join('\n');
-  // New network, process, data access and inline event handlers need explicit engineering review.
-  if (/process\s*\.|child_process|node:fs|readFile|writeFile|\beval\s*\(|new\s+Function|https?:\/\/|XMLHttpRequest|sendBeacon|\bfetch\s*\(|on(?:load|error|click)\s*=/i.test(added)) throw Error('Change exceeds automatic preparation scope');
+  // Network, process and data access restrictions apply to production and tests.
+  if (/process\s*\.|child_process|node:fs|readFile|writeFile|\beval\s*\(|new\s+Function|https?:\/\/|XMLHttpRequest|sendBeacon|\bfetch\s*\(/i.test(added)) throw Error('Change exceeds automatic preparation scope');
   const compact=s=>s.replace(/\s+/g,' ').trim();
   const comment=compact(String(request?.input?.comment ?? ''));
   const publicText=compact(added);
@@ -37,6 +37,10 @@ export function validatePatch(patch, request) {
   if(privateValues.some(v=>added.includes(v)))throw Error('Private value copied into patch');
   for(const section of patch.split(/^diff --git /m).slice(1)) {
     const path=/^a\/(\S+)/.exec(section)?.[1];
+    // Test-only image/element mocks need callback fields. Production additions
+    // still require explicit review; the test exception grants no network access.
+    const sectionAdded=section.split('\n').filter(l=>l.startsWith('+')&&!l.startsWith('+++')).join('\n');
+    if(path&&UI_FILES.has(path)&&/on(?:load|error|click)\s*=/i.test(sectionAdded))throw Error('Change exceeds automatic preparation scope');
     if(path&&testFile(path)&&section.split('\n').some(l=>l.startsWith('-')&&!l.startsWith('---')))throw Error('Existing regression checks cannot be weakened');
   }
   return paths;

@@ -61,7 +61,9 @@ schedules, authentication, billing, data/schema changes, dependencies, workflows
 and permissions need an engineer. The initial workflow never merges or deploys.
 
 The coding/review jobs have no code-publishing or production tokens. Codex is the
-last step in each job, with sandboxing and sudo removal. Publishing happens in a
+last step in each job, sandboxed under a separate unprivileged Linux account.
+The account has no sudo access. This follows the documented unprivileged-user
+strategy because sudo removal fails on the hosted runner’s protected D-Bus socket. Publishing happens in a
 fresh job. See the [Codex Action documentation](https://learn.chatgpt.com/docs/github-action.md).
 
 ## Initial activation
