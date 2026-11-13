@@ -206,7 +206,9 @@ test('the first call may notice one connection, repairs on a ladder, and never s
   const p = buildInstructions(loadScript(), { callNumber: 1 });
   assert.match(p, /THE ONE THING YOU NOTICE/);
   assert.match(p, /connection is clear in their own words and adds something/);
-  assert.match(p, /Never ask a third version/);
+  assert.match(p, /Never ask a third broad version/);
+  assert.match(p, /Only if the caller explicitly asks again what you mean about choosing an action/);
+  assert.match(p, /The cue question keeps its once-plus-one limit/);
   assert.match(p, /never say one back the first time you hear it/);
   assert.match(p, /You get ONE push/);
   assert.ok(!/"Which games\?"\)/.test(p), 'the example that got "Can\'t remember" is gone as a model');

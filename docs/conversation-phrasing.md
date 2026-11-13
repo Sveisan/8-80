@@ -169,8 +169,9 @@ owner feedback add reopening a close and a second clarification, bringing the
 four-role matrix to 112. A later check separated incoherent fragments (wait)
 from the caller explicitly requesting a repeat (speak). The original fragments
 remain unchanged in four additional tool-selection cases; the repeat case now
-includes that explicit request. The complete matrix is 116: 90 wording and 26
-tool-selection checks, including all original 22 tool cases.
+includes that explicit request. A further case checks a caller reopening the
+close with their actual question already supplied. The complete matrix is 120:
+94 wording and 26 tool-selection checks, including all original 22 tool cases.
 
 Correcting the test type alone was insufficient. Isolated provider controls
 showed that native tests resolve shared client tool definitions, while the
@@ -226,7 +227,9 @@ An end-call tool record is not evidence that the goodbye was audible.
 
 The latest closing regression gives the floor back when a caller says they have
 one more thing before the call ends. Earlier closing agreement cannot override
-that request; the reply is only “Of course.” A caller who resumes with a chosen
+that request; a pending contribution gets only “Of course.” If the caller already
+gives the question in that turn, answer it without making them repeat it.
+A caller who resumes with a chosen
 action gets an acknowledgement of their own choice, not a bare imperative.
 The first map and explicit action agreement remain required. When the caller
 explicitly asks again what action selection means, the final explanation is

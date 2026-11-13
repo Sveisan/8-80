@@ -32,6 +32,12 @@ test('a caller can reopen the close without losing the floor', () => {
     assert.deepEqual(check('caller_reopens_close',reply),['caller_floor_or_reopened_close_ignored']);
   }
 });
+test('a caller reopening with a concrete question gets its answer without another close',()=>{
+  assert.deepEqual(check('reopened_close_question','It means imagining your older self looking across your life at what matters.'),[]);
+  assert.deepEqual(check('reopened_close_question','Of course.'),['reopened_question_not_answered']);
+  assert.deepEqual(check('reopened_close_question','What was that?'),['reopened_question_replaced_or_closed']);
+  assert.deepEqual(check('reopened_close_question','Take care.'),['reopened_question_replaced_or_closed']);
+});
 test('a second clarification gets a concrete anchor rather than a third broad question or invented action', () => {
   assert.deepEqual(check('clarification_twice','Would you like to choose a small step about sailing, or leave it for now?'),[]);
   assert.deepEqual(check('clarification_twice','What would move that forward?'),['clarification_repeated_or_action_invented']);
@@ -93,9 +99,9 @@ test('a complete positive intent matrix permits only a phone pilot, never automa
     ...('expectedTool'in c?{testType:'tool',toolCalled:c.expectedTool}:{testType:'reply',reply:['complete_short_reply','full_map_before_confirmation','partial_map_repair'].includes(c.id)?full:c.id==='listening_sound_feedback'?"I'll stop adding those sounds.":c.id==='caller_reopens_close'?'Of course.':'You want more money.'}),
   })));
   const r=dialogueBatchReport(rows);
-  assert.equal(r.total,116);assert.equal(r.complete,true);assert.equal(r.approvedForPhonePilot,true);
+  assert.equal(r.total,120);assert.equal(r.complete,true);assert.equal(r.approvedForPhonePilot,true);
   assert.equal(r.approved,false);assert.equal(r.quietTurnVoiceChecks.length,26);
-  assert.deepEqual(r.checks,{wording:{total:90,passed:90},toolIntent:{total:26,passed:26}});
+  assert.deepEqual(r.checks,{wording:{total:94,passed:94},toolIntent:{total:26,passed:26}});
 });
 test('untrusted roles, case names and malformed review files cannot leak private values', () => {
   const secret='private-synthetic-input-never-print';
