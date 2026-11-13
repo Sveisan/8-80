@@ -1,6 +1,6 @@
 # Calendar invitation verification
 
-## Live delivery test — 13 November 2026
+## Initial delivery test — 13 November 2026
 
 Three one-off test messages were sent through the connected Resend account to the
 owner's existing 8&80 recap address. All three were independently retrieved from
@@ -31,24 +31,43 @@ full message payload is committed. The messages and appointments were marked
 `TEST`. No real phone call was scheduled, no caller profile was changed and no
 production deployment was made.
 
-## Calendar client result
+## Ordered Google Calendar test — 13 November 2026
 
-**Not yet passed.** The owner reports that no test event is visible in their
-calendar and asks whether the invitations need to be added manually. Initial
-acceptance/addition of the first invitation has not been confirmed, and the
-receiving calendar application has not yet been identified. Creation, movement
-without duplication and cancellation therefore remain unverified in that client.
+**Passed, as confirmed by the owner.** The first delivery cycle reached
+cancellation before initial acceptance and event visibility were confirmed, so
+it is counted only as delivery and protocol evidence. A fresh `TEST 2` event
+was then tested in order, waiting for the owner's confirmation at each stage.
 
-The valid manual test order is to open and accept/add the initial invitation,
-confirm that the event is visible, then send a move and check that same event,
-and finally send a cancellation. The already sent sequence reached cancellation
-before the initial event was confirmed visible. Do not treat importing all three
-files as independent events as a successful update test.
+| Case | Test appointment, Europe/Oslo | Method / sequence | Provider delivery | Owner's Google Calendar result |
+|---|---|---|---|---|
+| Invitation | 17 November, 10:00–10:15 | `REQUEST` / 0 | Delivered | Accepted; exactly one event visible |
+| Move | 17 November, 11:00–11:15 | `REQUEST` / 1 | Delivered | Same event moved; no duplicate |
+| Cancellation | Latest 11:00–11:15 appointment | `CANCEL` / 2 | Delivered | Event removed or marked cancelled |
 
-Provider delivery and attachment identity checks establish successful delivery
-and the intended update protocol. They do not establish how Gmail, Outlook or
-Apple Calendar actually rendered or applied the messages. Client compatibility
-must not be reported as passed before that result is observed or reported.
+The initial screenshot shows the native Gmail invitation card with **Yes**
+selected and one event at 10:00 in the Google Calendar side panel. The move
+screenshot shows the updated 11:00–11:15 time and retained acceptance. The owner
+explicitly confirmed movement without duplication and subsequently confirmed
+removal or cancellation. Their final answer does not distinguish between those
+two cancellation presentations.
+
+The actual sent attachments preserve the same `UID`, organizer, attendee and
+event title across all three messages. The move advances `SEQUENCE` from 0 to 1;
+the cancellation advances it to 2 and targets the moved event's exact start and
+end with `STATUS:CANCELLED`. Each message has a later `DTSTAMP`, a matching MIME
+method and a separate persisted email idempotency key. Test-only instructions
+change between stages; no real phone call was scheduled.
+
+Provider receipt IDs for the ordered test:
+
+- Invitation: `01a1d712-5c45-73ac-8f6c-e0a2dbb99113`.
+- Move: `01a1d718-ad92-7206-afd1-7e977290fce8`.
+- Cancellation: `01a1d71f-5e6a-78f2-975d-8d9e6b5fe821`.
+
+Initial acceptance was needed in this owner's setup. This test does not
+establish automatic addition before acceptance or compatibility with Outlook
+and Apple Calendar; those clients remain unverified. Recipient addresses,
+full payloads and private screenshots are not committed.
 
 ## Post-integration validation
 
@@ -65,8 +84,11 @@ must not be reported as passed before that result is observed or reported.
 The local WebKit run has pointer-interaction failures. The same failure was
 reproduced with a plain HTML radio input outside the app in both desktop and
 mobile WebKit contexts; an isolated retry of the first failing browser test also
-failed. These local results are not counted as a pass. The PR's independent CI
-results are recorded separately when they complete.
+failed. These local results are not counted as a pass. Independent GitHub CI
+passed both `check` and `visual-regression` on the pre-documentation commit
+`2d1520a`, including Chromium and WebKit browser journeys
+([run](https://github.com/Sveisan/8-80/actions/runs/43517661631)). The latest
+commit's CI and merge readiness are recorded in the PR.
 
 ## Integration and rollout
 

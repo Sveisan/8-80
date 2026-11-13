@@ -168,8 +168,9 @@ suppression; the minute tick reconciles SMS and programme schedule changes too.
 
 Apply migration **0034_calendar_invitations** before starting this version. Delivery
 uses the existing `RESEND_API_KEY` and `RECAP_FROM_ADDRESS`; no calendar account
-connection is needed. Calendar-app handling still needs a real inbox check in Gmail,
-Outlook and Apple Calendar before launch. Local tests use synthetic providers and
+connection is needed. An ordered real-inbox test in Gmail and Google Calendar
+confirmed acceptance, movement without duplication and cancellation. Outlook and
+Apple Calendar remain unverified. Automated tests use synthetic providers and
 send no real invitations.
 
 See [the calendar verification record](docs/calendar-invitations-verification.md)
