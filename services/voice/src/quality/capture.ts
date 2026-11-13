@@ -64,6 +64,7 @@ export function captureReport(input:unknown,retained:CallTranscript){
     timing:{spokenMessages:spoken.length,completeSpeechIntervals:spoken.filter(m=>m.start!==null && m.end!==null).length,incompleteTransitions,
       callerToAgent:gaps(callerToAgent),agentToCaller:gaps(agentToCaller)},
     ending:{endCallCount:tools.length,lastCallerIsAcknowledgment:courtesy,
+      speechOrderValid:firstTool===null?null:tools.length===1 && agents.every(m=>m.end!<=firstTool),
       agentTurnsStartingAfterFirstEndCall:firstTool===null?null:agents.filter(m=>m.start!>firstTool).length,
       agentTurnsSpanningFirstEndCall:firstTool===null?null:agents.filter(m=>m.start!<=firstTool && m.end!>firstTool).length,
       audibleGoodbye:'requires_owner_confirmation',appropriateness:'requires_context_review'},

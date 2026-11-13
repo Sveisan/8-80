@@ -18,6 +18,7 @@ export const isManagedModuleRole = (role: AgentRole): boolean => role.startsWith
 export const moduleToolName = (role: AgentRole): string | undefined => role.startsWith('belief-') ? 'capture_belief' : role.startsWith('unblock-') ? 'capture_unblock' : undefined;
 export interface PromptSpec { role: AgentRole; name: string; prompt: string; variables: string[]; firstMessage?: string; endCallDescription?:string; }
 export const WEEKLY_END_CALL_DESCRIPTION='End only after an explicit request to stop or say goodbye, or a completed mutual close. An isolated thanks, okay, mhm, silence, negative feedback or unanswered question is not permission. Speak the brief goodbye once, let its speech finish, then call this tool. Say nothing after the tool.';
+export const WEEKLY_SKIP_TURN_DESCRIPTION='Stay silent for this turn when the caller is thinking, speaking in fragments, acknowledging an unanswered question or explicitly continuing. Call without any spoken preamble or follow-up. Never use this to ignore a completed answer or a request to stop.';
 /** The platform owns this one opening. The prompt continues after its answer. */
 export function weeklyGreeting(first = true):string {
   return loadScript().get(first ? 'open.first.greet' : 'open.return.greet')!

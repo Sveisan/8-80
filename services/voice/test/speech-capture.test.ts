@@ -37,6 +37,14 @@ test('farewell then tool, and a tool during speech, remain distinct observations
   assert.equal(r.ending.lastCallerIsAcknowledgment,false);assert.equal(r.ending.agentTurnsStartingAfterFirstEndCall,0);assert.equal(r.ending.agentTurnsSpanningFirstEndCall,0);
   assert.equal(report([speech('assistant','Take care.',1000,2000),endCall(1700)]).ending.agentTurnsSpanningFirstEndCall,1);
 });
+test('a main farewell before the tool cannot hide an extra farewell after it',()=>{
+  const r=report([speech('assistant','Take care.',0,2000),speech('user','You too. Bye.',3000,3500),endCall(4000),speech('assistant','Take care.',4200,4800)]);
+  assert.equal(r.ending.speechOrderValid,false);
+  assert.equal(r.ending.agentTurnsStartingAfterFirstEndCall,1);
+  assert.equal(report([speech('assistant','Take care.',0,2000),speech('user','Bye.',3000,3500),endCall(4000)]).ending.speechOrderValid,true);
+  assert.equal(report([speech('assistant','Take care.',0,2000),endCall(1500)]).ending.speechOrderValid,false);
+  assert.equal(report([{role:'assistant',content:'Take care.'},endCall(4000)]).ending.speechOrderValid,null);
+});
 test('overlaps are counted separately from positive gaps and missing speech timestamps stay unknown',()=>{
   const r=report([speech('assistant','One thing.',0,2000),speech('user','My answer.',1800,2500),speech('assistant','Go on.',3000,3400)]);
   assert.deepEqual(r.timing.agentToCaller,{pairs:1,medianMs:-200,minMs:-200,maxMs:-200,overlapPairs:1});

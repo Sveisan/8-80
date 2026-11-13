@@ -112,7 +112,9 @@ test('the first call is curious about goals and never audits or schedules them',
 test('the first call runs from easy to real: eight, eighty, this year, then the one thing', () => {
   const script = loadScript();
   const p = buildInstructions(script, { callNumber: 1 });
-  const at = (s: string) => p.indexOf(s);
+  // The map also appears in an early invariant; stage order concerns the
+  // numbered route, not that independent reminder of the memory contract.
+  const at = (s: string) => p.indexOf(s, p.indexOf('1–2. The opening'));
   const order = [
     'knocking on your door',
     "Now picture yourself at eighty, looking back",
@@ -204,7 +206,9 @@ test('the first call may notice one connection, repairs on a ladder, and never s
   const p = buildInstructions(loadScript(), { callNumber: 1 });
   assert.match(p, /THE ONE THING YOU NOTICE/);
   assert.match(p, /connection is clear in their own words and adds something/);
-  assert.match(p, /Never ask a third version/);
+  assert.match(p, /Never ask a third broad version/);
+  assert.match(p, /Only if the caller explicitly asks again what you mean about choosing an action/);
+  assert.match(p, /The cue question keeps its once-plus-one limit/);
   assert.match(p, /never say one back the first time you hear it/);
   assert.match(p, /You get ONE push/);
   assert.ok(!/"Which games\?"\)/.test(p), 'the example that got "Can\'t remember" is gone as a model');

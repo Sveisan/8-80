@@ -100,8 +100,9 @@ generic claim that the caller has something to work with.
 
 The female first-call acknowledgement probe repeatedly returned a technical-error
 sentence after “Thank you”, while the test API reported no underlying error.
-Its cause could not be established from that result. An unanswered open question
-now has an explicit short listening reply, “Mm.”, followed by waiting. Courtesy
+Its cause could not be established from that result. The first fix used “Mm.”,
+followed by waiting; the owner voice test exposed how repeated listening sounds
+interrupt thinking. The current instruction is to wait without spoken words. Courtesy
 cannot create a fault, retry request or close. Actual reported runtime/tool
 errors still use their verified explanation, and closed-question and action
 agreement rules are unchanged.
@@ -113,9 +114,131 @@ concrete-follow-up probe now has the caller explicitly asking for a question to
 help explain. Both behaviours remain tested; patience is not traded for a forced
 question. The acknowledgement probe now runs on returning agents as well.
 
-Judge examples explicitly accept a listening “Mm.” without requiring a permission
-statement. A factual acknowledgement before a missing situation check can also
+The quiet-turn probes now require an empty spoken reply and reject “Mm.”,
+narrated silence and fabricated faults. A factual acknowledgement before a missing situation check can also
 be a short accurate paraphrase; it need not repeat every detail or include a
 politeness marker. Negative examples still reject a naked situation question,
 invented events, a fabricated fault and an extra question when the caller wants
 to continue. Provider verdicts and actual replies remain available for review.
+
+## Regressions from the owner's first voice test
+
+Fictional cases reproduce unfinished words across pauses, repeated patience,
+criticism of listening sounds, continuing quietly after that criticism, a new
+money goal, an ignored-answer complaint, complete short replies, partial map
+confirmation and the returned goodbye. All four private agents run the applicable
+cases. Provider verdicts are supplemented by `dialogueReplyFailures`: silence and
+the complete fixed map cannot pass on the strength of an LLM judge alone.
+
+The first map checkpoint requires eight, eighty and three-month goals before
+explicit agreement and the onboarding marker. A goals-only yes requires a full
+map repair. Database journey tests prove that a premature marker leaves onboarding
+unfinished while preserving an explicitly agreed action, and that the repaired
+map reaches the next call. Existing result-registration tests remain in the full suite.
+
+The prompt distinguishes a thinking fragment from a complete short answer;
+the latter no longer licenses an interruption apology. New goals receive a short
+factual response before a next question. Feedback about sounds gets a response
+about sounds, followed by quiet. At the close, a returned courtesy leads to the
+end-call tool alone. `captureReport.ending.speechOrderValid` rejects speech after
+or across that tool even if an earlier farewell was in the correct order.
+These are text and timestamp gates; actual silence and audible playout still
+require another explicitly requested phone test. No global rollout is implied.
+
+Speechify's capability catalogue identifies `skip_turn` as a worker tool that
+stays quiet for one turn. Quiet instructions now explicitly use that built-in;
+private readiness requires it to be enabled. Native text probes with an empty
+completion produced the provider's standard error fallback. Tool and simulation
+probes also failed to demonstrate the built-in, so no such result can count as a
+silence pass. Retain these failures rather than weakening the expected behaviour.
+The post-end-call speech case is covered by timestamp capture, since asking a
+text endpoint for another reply after hangup cannot model a closed voice session.
+Transcript quality reports now count repeated listening sounds and flag apology
+repairs after complete acknowledgements as review signals, without claiming
+that text alone proves an audible interruption.
+
+## Native result contracts and release gates
+
+The earlier 82/104 report mixed two contracts: every scenario was created as a
+`reply` test, including 22 cases whose hard check required an observed tool call.
+Speechify's [native test API](https://docs.speechify.ai/agents/api-reference/v1/agents/tests/post)
+distinguishes `reply` from `tool`; their result variants expose different fields.
+`nativeDialogueDefinition` now selects `tool` with `context` and `expected_tool`
+for those 22 cases. All original cases remain. Two new cases from the latest
+owner feedback add reopening a close and a second clarification, bringing the
+four-role matrix to 112. A later check separated incoherent fragments (wait)
+from the caller explicitly requesting a repeat (speak). The original fragments
+remain unchanged in four additional tool-selection cases; the repeat case now
+includes that explicit request. A further case checks a caller reopening the
+close with their actual question already supplied. The complete matrix is 120:
+94 wording and 26 tool-selection checks, including all original 22 tool cases.
+Map-checkpoint contexts explicitly establish the completed opening. The reopened
+question has separate first/returning criteria: the first call looks across life,
+while the returning perspective looks back on the week. Neither restarts the
+exercise or relaxes the complete fixed map requirement.
+When asked for that explanation, both prompts explicitly name eighty and the
+looking-back direction. A comfortable close uses a suitable ordinary detail
+already volunteered, while an early stop or difficult conversation stays simple.
+
+Correcting the test type alone was insufficient. Isolated provider controls
+showed that native tests resolve shared client tool definitions, while the
+voice agent's worker-built-in bindings are not callable definitions in that
+test catalogue. The diagnostic harness supplies endpoint-free client definitions
+named `skip_turn` and `end_call` through the test run's `tool_ids` override.
+Both tool orders passed the positive controls; deliberately wrong expected tools
+failed with the opposite tool observed. These definitions are test substitutes
+for measuring selection intent. Never bind them to a real voice agent: production
+still needs the actual enabled worker built-ins, and their audible behaviour is
+checked separately. A zero-duration tool result is not evidence of a skipped model
+turn, since passing client-tool controls also report zero duration.
+
+Export the exact candidate from a clean committed checkout before creating tests:
+
+```sh
+node --import tsx services/voice/src/quality/dialogue-native-plan-cli.ts NEW_PRIVATE_PLAN.json
+```
+
+The plan pins the full source revision and includes all four rendered source
+prompts and typed definitions. The runner binds private targets and the shared
+test definitions separately, records their hashes, and normalizes each run with
+`normalizeNativeDialogueRun`. It must not use the deployed older prompt as the
+candidate or infer spoken silence from an absent reply field.
+Run wording tests with an empty `tool_ids` override and selection tests with the
+two test definitions. A wording test does not model a function invocation: giving
+it the selection catalogue can again produce a fallback when the model chooses a
+function instead of returning text. Preserve the exact source prompt and model
+for both lanes; neither lane verifies a voice worker.
+
+`normalizeNativeDialogueRun` validates the variant, verdict and observed tool
+selection. A missing spoken response remains `not_exposed`. Mixed tool-plus-speech
+results, empty wording, generic provider fallback, unknown roles and wrong result
+variants cannot become passes. The review CLI prints fixed diagnostics for malformed
+private input rather than echoing its contents or path.
+
+Version 2 of the report separates wording and tool intent. Native function
+selection alone never establishes that the voice worker stayed silent, played
+the farewell or disconnected at the right moment. `approvedForPhonePilot` requires
+the complete matrix and all wording/selection checks; `approved` remains false
+because the report contains no voice observations. For an explicitly agreed
+owner test, the CLI can check only that narrower gate:
+
+```sh
+node --import tsx services/voice/src/quality/dialogue-reply-cli.ts PRIVATE_RESULTS.json --for-phone-pilot
+```
+
+Without that flag, an unverified voice release remains blocked. No readiness
+flag, agent routing, real booking or memory is changed by reviewing a file.
+The live test still checks thinking pauses, reopening the close, a complete
+confirmed map, an explicitly agreed action and the returning call's use of it.
+An end-call tool record is not evidence that the goodbye was audible.
+
+The latest closing regression gives the floor back when a caller says they have
+one more thing before the call ends. Earlier closing agreement cannot override
+that request; a pending contribution gets only “Of course.” If the caller already
+gives the question in that turn, answer it without making them repeat it.
+A caller who resumes with a chosen
+action gets an acknowledgement of their own choice, not a bare imperative.
+The first map and explicit action agreement remain required. When the caller
+explicitly asks again what action selection means, the final explanation is
+anchored in their stated goal with a choice to leave it. The repair ladder must
+not turn into a third broad question, a supplied action or a reopened timing cue.
