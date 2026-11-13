@@ -60,7 +60,8 @@ test('private tracker verification precedes writes; lost issue responses reconci
   let body='';
   const transport=(async(url,init)=>{
     if(init?.method==='POST'){posts++;body=String(init.body);throw Error('response lost after remote acceptance');}
-    if(String(url).includes('/issues?'))return new Response(JSON.stringify([{number:11,body:ticket(id).body}]));
+    // A concurrent reconciler cannot find the remote issue before POST accepts it.
+    if(String(url).includes('/issues?'))return new Response(JSON.stringify(posts?[{number:11,body:ticket(id).body}]:[]));
     return new Response(JSON.stringify({private:true}));
   }) as typeof fetch;
   await Promise.all([syncFeedbackIssues(db!.sql,settings,transport),syncFeedbackIssues(db!.sql,settings,transport)]);

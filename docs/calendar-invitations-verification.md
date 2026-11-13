@@ -31,7 +31,7 @@ full message payload is committed. The messages and appointments were marked
 `TEST`. No real phone call was scheduled, no caller profile was changed and no
 production deployment was made.
 
-## Ordered Google Calendar test — 13 November 2026
+## Ordered Google Calendar test — 13–14 November 2026
 
 **Passed, as confirmed by the owner.** The first delivery cycle reached
 cancellation before initial acceptance and event visibility were confirmed, so
@@ -72,7 +72,8 @@ full payloads and private screenshots are not committed.
 ## Post-integration validation
 
 - TypeScript, ESLint, shared design policy and generated design exports pass.
-- All **1,075** voice-service tests pass against isolated Postgres, with no skips.
+- All **1,086** voice-service tests pass against isolated Postgres, with no skips,
+  after syncing base commit `bd402a4` and correcting the test fixture below.
 - All **3** feedback workflow tests pass.
 - All **47** Chromium browser tests pass, including visual regressions and
   accessibility checks.
@@ -89,6 +90,18 @@ passed both `check` and `visual-regression` on the pre-documentation commit
 `2d1520a`, including Chromium and WebKit browser journeys
 ([run](https://github.com/Sveisan/8-80/actions/runs/43517661631)). The latest
 commit's CI and merge readiness are recorded in the PR.
+
+The first CI run for documentation commit `d258d33` passed visual regression but
+failed the existing product-feedback concurrency test. Its simulated issue
+listing returned a ticket even before the simulated POST had accepted it. Under
+one worker ordering, reconciliation correctly found that fictional ticket and
+made zero POSTs, contradicting the test's expected one POST. A controlled local
+interleaving reproduced that result. Gating the simulated listing on actual POST
+acceptance produced one POST and successful reconciliation in the same ordering.
+The fixture now reflects that ordering; the exactly-one-POST and eventual-ticket
+assertions are retained. No product-feedback runtime code was changed. The full
+local `npm run check`, including all 1,086 voice tests and three feedback workflow
+tests, passed after the fixture correction and latest-base integration.
 
 ## Integration and rollout
 
