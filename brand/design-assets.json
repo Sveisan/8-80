@@ -1,0 +1,19 @@
+{
+  "brand/assets/lockup-light.svg": "d866d2ca0af9d3656dbb9026cd2c6c70d7735caac10702f0b79c44c96019e0fd",
+  "brand/assets/lockup-dark.svg": "781f8e48e96c47ef515d705f549bf83cbdf865ef1eeb35cb3b0f09944b86c6f3",
+  "brand/assets/lockup-on-gold.svg": "1f67b801da971b951762116a64dabd42dd63ec081e1e0a03388b4a3d307d79e2",
+  "brand/assets/app-icon.svg": "bf88fdecddca4176876415106bc5e6853ef3d9f1e69d9d2f191b5e3558e07f74",
+  "brand/assets/favicon.svg": "f3951ff47b724c132f844c67ace7744bfda3d5b2346d5dc589f5be3a10fd43b3",
+  "brand/assets/apple-touch-icon.png": "b272d4b0ae53b81795f7a22be69542fd98917778756be67c1da5afae5b81cc15",
+  "brand/assets/icon-192.png": "7dc1401b8e468c735117aabbb87b42ba7c735f49b835c3fce2e8aa3f0cc7170b",
+  "brand/assets/icon-512.png": "ed0c1a0825e568fa6b441298f902e7a64a00b892db42e986e31ac62ce4d76545",
+  "brand/assets/icon-maskable-512.png": "ed0c1a0825e568fa6b441298f902e7a64a00b892db42e986e31ac62ce4d76545",
+  "brand/assets/favicon-16.png": "90c2b12be2ac49748c02c7ac823267e2a0d49383a2bc7938e95a322ebbe2df8b",
+  "brand/assets/favicon-32.png": "fb3e8e39e116bc8d3cced3c6e0472630537328e1e1a00a369f44ad4893e1db49",
+  "brand/assets/favicon-48.png": "3997a72f7c1b477be5b873a5eda678c395b7b685db5c77fe4618cca399f02146",
+  "brand/assets/favicon.ico": "482b53fef6dc2f05074b9fc71b6ee28e6f4692650f1a91fd777b259729ef4401",
+  "brand/assets/site.webmanifest": "887037b1bf6e0e8bb3642a5304bfc3bf08e3603a7e4836ef680166e51ed4e943",
+  "brand/design-system.html": "5c04a113998eef28cea4912b2a7cca59ca3fac57d255d5f44c2823acbc3e6513",
+  "brand/design-system.css": "01419e7ac29f9042ef2e8225810867a479191b031fd1dc3a11f7496b6f2d0460",
+  "brand/design-tokens.json": "3e5f6739e8f9896dee8ad6274f61c0822b365a0c66a6b9598017b1773543af84"
+}

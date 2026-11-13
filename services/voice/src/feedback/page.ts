@@ -1,3 +1,4 @@
+import { FEEDBACK_CSS } from '../design-system/pages.ts';
 import type { ScriptLines } from '../script.ts';
 import { MARK, esc, shell } from '../link/page.ts';
 import { busyLabel } from '../signup/mascot.ts';
@@ -39,13 +40,7 @@ export function feedbackPage(script: ScriptLines, answers: Answers, language = '
       ${question('else', 'feedback.else')}
       <button class="primary">${busyLabel(say('feedback.submit'))}</button>
     </form>
-    <style>
-      .feedback .q { margin: 0 0 1.5rem; }
-      .feedback label { font-size: 1.05rem; color: var(--ink); margin-bottom: .4rem; }
-      .feedback textarea { min-height: 7rem; }
-      button.speak { width: auto; margin-top: .5rem; padding: .5rem .9rem; font-size: .9rem; color: var(--quiet); }
-      button.speak.on { color: var(--on-accent); background: var(--accent); border-color: var(--accent); }
-    </style>
+    <style>${FEEDBACK_CSS}</style>
     <script>
       // Dictation into the box, where the browser can. Nothing is recorded or
       // sent from here: the browser turns speech into words, and the words go

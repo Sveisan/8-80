@@ -32,7 +32,13 @@ services/voice/          long-running Node service, one websocket per call
   src/stress.ts            the repeatable 8-turn stress test
 ```
 
-The web app (Next.js) arrives at Milestone 1.
+The current web surfaces are rendered as HTML by the voice service. Their shared
+design system lives in `services/voice/src/design-system/`. See
+[the implementation guide](docs/design-system.md) and run `npm run design:preview`
+for the visual handbook and synthetic product previews. `npm run design:build`
+regenerates the portable handbook, CSS, tokens, outlined logos and icon package in `brand/`.
+`npm run design:verify` checks the full suite with an isolated Postgres database,
+Chromium, iPhone/WebKit emulation and committed visual baselines.
 
 ## Running it
 

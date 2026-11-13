@@ -1,3 +1,4 @@
+import { palette, themes } from '../design-system/tokens.ts';
 import type { Recap, RecapRole } from './compose.ts';
 
 const esc = (s: string): string =>
@@ -8,12 +9,8 @@ const esc = (s: string): string =>
 
 /** BRAND.md §6. Inline, because a mail client may drop the style block entirely. */
 const C = {
-  ink: '#2F4A3A', // Pine on Paper, 8.4:1 — body and the one thing
-  bg: '#F4EDE1', // Paper
-  accent: '#4A6656', // Green on Paper, 5.4:1 — the wordmark
-  gold: '#E2B653', // Never text on Paper (1.6:1). The rule and the ball only.
-  quiet: '#5A695E', // 5.0:1 on Paper
-  line: '#D9D6C9',
+  ink: themes.light.ink, bg: themes.light.bg, accent: themes.light.link,
+  gold: palette.gold, quiet: themes.light.quiet, line: themes.light.line,
 } as const;
 
 /**
@@ -189,12 +186,12 @@ export function letterHtml(recap: Recap, options: LetterOptions = {}): string {
 <style>
   :root { color-scheme: light dark; supported-color-schemes: light dark; }
   @media (prefers-color-scheme: dark) {
-    .ground { background: #1A2920 !important; }
-    .wordmark { color: #E2B653 !important; }
-    .rule { border-color: #414D44 !important; }
-    .lead, .body { color: #F4F1E8 !important; }
-    .quiet, .signoff { color: #9DA198 !important; }
-    .tick { background: #E2B653 !important; }
+    .ground { background: ${themes.dark.bg} !important; }
+    .wordmark { color: ${palette.gold} !important; }
+    .rule { border-color: ${themes.dark.line} !important; }
+    .lead, .body { color: ${themes.dark.ink} !important; }
+    .quiet, .signoff { color: ${themes.dark.quiet} !important; }
+    .tick { background: ${palette.gold} !important; }
   }
 </style>
 </head>

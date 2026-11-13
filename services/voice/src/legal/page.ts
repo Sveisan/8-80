@@ -1,3 +1,6 @@
+import { BRAND_HEAD } from '../design-system/head.ts';
+import { READING_CSS } from '../design-system/pages.ts';
+import { FOUNDATION_CSS, CONTROL_CSS } from '../design-system/styles.ts';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { config, repoRoot } from '../config.ts';
@@ -106,32 +109,12 @@ const inline = (text: string): string =>
 function shell(title: string, body: string): string {
   return `<!doctype html>
 <html lang="en">
-<head>
+<head>${BRAND_HEAD}
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>${esc(title)} — 8&amp;80</title>
 <style>
-  :root {
-    color-scheme: light dark;
-    --ink: #2F4A3A; --bg: #F4EDE1; --line: #D9D6C9; --quiet: #5A695E; --gold: #E2B653;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root { --ink: #F4F1E8; --bg: #1A2920; --line: #414D44; --quiet: #9DA198; }
-  }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0; padding: 3rem 1.25rem 5rem; background: var(--bg); color: var(--ink);
-    font: 17px/1.7 ui-sans-serif, -apple-system, 'Segoe UI', system-ui, sans-serif;
-    display: flex; justify-content: center;
-  }
-  main { width: 100%; max-width: 34rem; }
-  h1 { font-size: 1.85rem; line-height: 1.2; letter-spacing: -0.02em; margin: 0 0 .4rem;
-       padding-bottom: .9rem; border-bottom: 2px solid var(--gold); }
-  h2 { font-size: 1.15rem; margin: 2.4rem 0 .6rem; letter-spacing: -0.01em; }
-  p, li { margin: 0 0 1rem; }
-  ul { padding-left: 1.2rem; margin: 0 0 1rem; }
-  a { color: inherit; }
-  main > p:first-of-type { color: var(--quiet); }
+${FOUNDATION_CSS}${CONTROL_CSS}${READING_CSS}
 </style>
 </head>
 <body><main>${body}</main></body>

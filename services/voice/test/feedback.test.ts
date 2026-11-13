@@ -205,7 +205,8 @@ test('the form: two questions on equal footing, saved encrypted, shown again to 
       // Equal footing: the two questions are rendered by the same markup.
       const box = (name: string) => new RegExp(`<textarea id="${name}" name="${name}" rows="4"`).test(page);
       assert.ok(box('pickup') && box('nearly'), 'both questions get the same box');
-      assert.ok(!/type="range"|type="radio"|\bNPS\b|1-10|\u2605/.test(page), 'no scales');
+      const body = page.slice(page.indexOf('<body'));
+      assert.ok(!/type="range"|type="radio"|\bNPS\b|1-10|\u2605/.test(body), 'no scales in the feedback form');
 
       const res = await fetch(`${base}/f/${code}`, {
         method: 'POST',

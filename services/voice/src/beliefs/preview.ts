@@ -1,3 +1,4 @@
+import { serveDesignAsset } from '../design-system/assets.ts';
 import { createServer, type Server } from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { cookieOf, crossSite } from '../link/cookie.ts';
@@ -16,6 +17,7 @@ export function previewServer(): Server {
   const sessions = new Map<string,PreviewSession>();
   return createServer((req,res) => { void (async () => {
     const url = new URL(req.url ?? '/', 'http://127.0.0.1');
+    if ((req.method === 'GET' || req.method === 'HEAD') && serveDesignAsset(url.pathname, res, req.method === 'HEAD')) return;
     if (url.pathname === '/health') { res.writeHead(200,{'content-type':'application/json'}); res.end('{"ok":true,"preview":true}'); return; }
     if (url.pathname === '/') { res.writeHead(303,{location:'/beliefs'}); res.end(); return; }
     for (const [id,s] of sessions) if (Date.now()-s.at > 3600_000) sessions.delete(id);

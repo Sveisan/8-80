@@ -4,11 +4,11 @@ import { esc, shell } from '../link/page.ts';
 export function accessPage(script: ScriptLines, phone = '+47 ', note?: string, memory = false): string {
   const say = (key: string): string => esc(script.get(key) ?? '');
   return shell(`<h1>${say(memory ? 'memory.title' : 'access.title')}</h1><p class="now">${say(memory ? 'access.memory.detail' : 'access.detail')}</p>
-    ${note ? `<p role="alert">${say(note)}</p>` : ''}
+    ${note ? `<p role="alert" id="access-error">${say(note)}</p>` : ''}
     <form method="post" action="/access">
       ${memory ? '<input type="hidden" name="intent" value="memory" />' : ''}
       <label for="phone">${say('signup.phone')}</label>
-      <input id="phone" type="tel" name="phone" autocomplete="tel" inputmode="tel" required maxlength="32" value="${esc(phone)}" />
+      <input id="phone" type="tel" name="phone" autocomplete="tel" inputmode="tel" required maxlength="32" value="${esc(phone)}"${note ? ' aria-describedby="access-error"' : ''}${note === 'signup.error.number' ? ' aria-invalid="true"' : ''} />
       <button class="primary">${say('access.send')}</button>
     </form><p class="hint">${say('access.help')} <a href="/privacy">${say('access.privacy')}</a></p>
     <a href="/">${say('access.home')}</a>`);
@@ -17,13 +17,13 @@ export function accessPage(script: ScriptLines, phone = '+47 ', note?: string, m
 export function accessCodePage(script: ScriptLines, id: string, phone: string, note?: string, memory = false): string {
   const say = (key: string): string => esc(script.get(key) ?? '');
   return shell(`<h1>${say('access.code.title')}</h1><p class="now">${say('access.code.detail')}</p>
-    ${note ? `<p role="alert">${say(note)}</p>` : ''}
+    ${note ? `<p role="alert" id="access-error">${say(note)}</p>` : ''}
     <form method="post" action="/access/verify">
       ${memory ? '<input type="hidden" name="intent" value="memory" />' : ''}
       <input type="hidden" name="id" value="${esc(id)}" />
       <input type="hidden" name="phone" value="${esc(phone)}" />
       <label for="code">${say('signup.code.label')}</label>
-      <input type="text" id="code" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required />
+      <input type="text" id="code" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required class="code"${note ? ' aria-describedby="access-error"' : ''}${note === 'access.code.wrong' ? ' aria-invalid="true"' : ''} />
       <p class="hint">${say('access.code.expires')}</p>
       <button class="primary">${say(memory ? 'access.memory.submit' : 'access.code.submit')}</button>
     </form>

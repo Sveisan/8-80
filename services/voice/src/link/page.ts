@@ -1,3 +1,6 @@
+import { BRAND_HEAD } from '../design-system/head.ts';
+import { ACCOUNT_CSS } from '../design-system/pages.ts';
+import { FOUNDATION_CSS, CONTROL_CSS } from '../design-system/styles.ts';
 import { checkoutLink } from '../billing/notice.ts';
 import { config } from '../config.ts';
 import { beliefConfig } from '../beliefs/config.ts';
@@ -5,8 +8,8 @@ import { femaleVoiceReady, sameMessageNumber } from '../agent/voices.ts';
 import { maskEmail, type AccountState } from './account.ts';
 import type { ScriptLines } from '../script.ts';
 import { describeAppointment, type Slot } from '../schedule/time.ts';
-import { BUSY, BUSY_CSS, MOTION, busyLabel } from '../signup/mascot.ts';
-import { timePicker, TIME_PICKER_CSS, TIME_PICKER_SCRIPT } from '../signup/time-picker.ts';
+import { BUSY, MOTION, busyLabel } from '../signup/mascot.ts';
+import { timePicker, TIME_PICKER_SCRIPT } from '../signup/time-picker.ts';
 
 /** Weekday names come from the locale, not from a list in this file. */
 const dayNames = (language: string, weekday: 'long' | 'short' = 'long'): string[] => {
@@ -440,7 +443,7 @@ export function gonePage(script: ScriptLines, language = 'en'): string {
 export function shell(body: string, language = 'en'): string {
   return `<!doctype html>
 <html lang="${esc(language)}">
-<head>
+<head>${BRAND_HEAD}
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="robots" content="noindex, nofollow" />
@@ -453,115 +456,7 @@ export function shell(body: string, language = 'en'): string {
    * filled button is Pine on light and Gold on dark — the one place the two
    * accents swap jobs.
    */
-  :root {
-    color-scheme: light dark;
-    --ink: #2F4A3A;        /* Pine on Paper, 8.4:1 */
-    --bg: #F4EDE1;         /* Paper */
-    --line: #D9D6C9;
-    --quiet: #5A695E;      /* 5.0:1 on Paper */
-    --accent: #2F4A3A;     /* Pine — the filled button */
-    --on-accent: #F4EDE1;  /* Paper on Pine, 8.4:1 */
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --ink: #F4F1E8;      /* Chalk on Night, 13.5:1 */
-      --bg: #1A2920;       /* Night */
-      --line: #414D44;
-      --quiet: #9DA198;    /* 5.8:1 on Night */
-      --accent: #E2B653;   /* Gold, 8.0:1 on Night */
-      --on-accent: #1A2920;/* Night on Gold, 8.0:1 */
-    }
-  }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0; padding: 2.5rem 1.25rem; background: var(--bg); color: var(--ink);
-    font: 17px/1.5 ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif;
-    display: flex; justify-content: center;
-  }
-  main { width: 100%; max-width: 26rem; }
-  h1 { font-size: 1.5rem; font-weight: 600; margin: 0 0 .35rem; letter-spacing: -0.01em; }
-  h2 { font-size: 1.05rem; font-weight: 600; margin: 0 0 .9rem; }
-  .account-section { border-top: 1px solid var(--line); padding-top: 1.25rem; margin-top: 1.5rem; }
-  .account-section .move { border-top: 0; padding-top: 0; margin-top: 1rem; }
-  .call-overview { border: 1px solid var(--line); border-top: 3px solid var(--accent); border-radius: 1rem; padding: 1.25rem; margin-top: 1.25rem; }
-  .call-overview h2 { margin-bottom: .65rem; }
-  .appointment { display: block; }
-  .appointment-date { display: block; font-size: 1.5rem; font-weight: 600; line-height: 1.3; letter-spacing: -.02em; }
-  .appointment-time { display: flex; flex-wrap: wrap; align-items: baseline; gap: .15rem .65rem; margin-top: .25rem; font-size: 3rem; font-weight: 600; line-height: 1.2; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
-  .appointment-time small { font-size: 1rem; font-weight: 400; letter-spacing: 0; }
-  .call-overview .usual-time { margin: .5rem 0 1.25rem; }
-  .contact-link { display: inline-block; font-weight: 600; }
-  .change-time { margin-bottom: 1rem; }
-  .change-time summary { padding: .85rem 1rem; border: 1px solid var(--line); border-radius: .5rem; cursor: pointer; }
-  .change-time summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  .reschedule summary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
-  .now { color: var(--quiet); margin: 0 0 2rem; }
-  form { margin: 0 0 1rem; }
-  .row { display: flex; gap: .5rem; margin: .4rem 0 .75rem; }
-  label { display: block; font-size: .95rem; color: var(--quiet); }
-  select, input[type=time] {
-    flex: 1; padding: .7rem .6rem; font: inherit; color: var(--ink);
-    background: transparent; border: 1px solid var(--line); border-radius: .5rem;
-  }
-  button {
-    width: 100%; padding: .85rem 1rem; font: inherit; border-radius: .5rem; cursor: pointer;
-    border: 1px solid var(--line); background: transparent; color: var(--ink);
-  }
-  button.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
-  button.quiet { border: 0; color: var(--quiet); }
-  /* A link, because a download is not a form post; dressed as the filled button. */
-  a.save {
-    display: block; padding: .85rem 1rem; border-radius: .5rem; text-align: center; text-decoration: none;
-    font-weight: 600; background: var(--accent); color: var(--on-accent); border: 1px solid var(--accent);
-  }
-  a.save + .hint { margin-bottom: 1.5rem; }
-  ${BUSY_CSS}
-  .always { display: flex; align-items: center; gap: .5rem; margin: .75rem 0 .75rem; }
-  .always input { width: auto; }
-  .move { border-top: 1px solid var(--line); padding-top: 1.25rem; margin-top: 1.25rem; }
-  .skip, .stop.first { margin-top: 1.5rem; }
-  /* Below the things somebody came here to do, and still plainly named. */
-  .stop { margin-top: .25rem; }
-  .hint { color: var(--quiet); font-size: .9rem; margin: .4rem 0 .75rem; }
-  .centre { text-align: center; }
-  .said { margin: .75rem 0 0; }
-  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-  .lockup { display: flex; justify-content: center; margin: 0 0 1.75rem; }
-  .mark { width: 3rem; height: auto; display: block; }
-  .page-nav { margin: 0 0 .75rem; }
-  .page-nav a { display: inline-flex; align-items: center; gap: .4rem; min-height: 44px; font-size: .9rem; text-decoration: none; border-radius: .25rem; }
-  .page-nav a:hover { text-decoration: underline; }
-  .page-nav a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-  textarea {
-    display: block; width: 100%; margin: .4rem 0 0; padding: .7rem .75rem; font: inherit; color: var(--ink);
-    background: transparent; border: 1px solid var(--line); border-radius: .5rem; resize: vertical;
-  }
-  #goals::placeholder { color: var(--quiet); opacity: 1; }
-  a { color: var(--ink); }
-  input[type=tel], input[type=text] { display: block; width: 100%; margin: .4rem 0 1rem; }
-  input[type=email], input[type=tel], input[type=text] {
-    flex: 1; min-width: 0; padding: .7rem .6rem; font: inherit; color: var(--ink);
-    background: transparent; border: 1px solid var(--line); border-radius: .5rem;
-  }
-
-  /*
-   * The day and the time, as the sign-up page picks them: radios under pills,
-   * so a tap is a native choice and moving a call needs no script.
-   */
-  fieldset { border: 0; padding: 0; margin: 0 0 .75rem; min-width: 0; }
-  legend { padding: 0; margin: 0 0 .15rem; font-size: .95rem; color: var(--quiet); }
-  .zone { margin: 0 0 .5rem; font-size: .85rem; color: var(--quiet); }
-  .days { display: grid; grid-template-columns: repeat(7, 1fr); gap: .3rem; }
-  ${TIME_PICKER_CSS}
-  .pick { position: relative; display: block; margin: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; }
-  .pick input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; }
-  .pick span:first-of-type {
-    display: flex; align-items: center; justify-content: center; min-height: 2.9rem;
-    border: 1px solid var(--line); border-radius: .75rem; color: var(--ink);
-    font-size: .95rem; font-variant-numeric: tabular-nums;
-  }
-  .pick input:checked + span { background: var(--accent); color: var(--on-accent); border-color: var(--accent); font-weight: 600; }
-  .pick input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+${FOUNDATION_CSS}${CONTROL_CSS}${ACCOUNT_CSS}
 </style>
 </head>
 <body><main>${body}</main>${BUSY}${MOTION}</body>
