@@ -44,6 +44,8 @@ import {
 import { femaleVoiceReady, sameMessageNumber } from './agent/voices.ts';
 import { setNudges } from './sms/nudges.ts';
 import { accountState } from './link/account.ts';
+import { available as encouragementAvailable, loadPreferences, parsePreferences, savePreferences } from './encouragement/preferences.ts';
+import { feedback as encouragementFeedback, recent as recentEncouragement } from './encouragement/runtime.ts';
 import { readMemory, correctMemory } from './memory/context.ts';
 import { memoryPage } from './memory/page.ts';
 import { accessRoutes } from './access/routes.ts';
@@ -544,12 +546,17 @@ async function yourPage(
   // No call yet: the page is about the first one. `callNumber` 1 is "never
   // been called"; a rehearsal is a first call on purpose and says so too.
   const before = needsOnboarding(caller);
+  let encouragementNote: string | undefined;
   const view = async (extra: Partial<PageView> = {}): Promise<PageView> => {
     const account = await accountState(deps.store.raw, phoneHash);
     const next = account?.next;
     return {
       via,
       account,
+      ...(encouragementAvailable(phoneHash) ? { encouragement: {
+        preferences: await loadPreferences(deps.store.raw, phoneHash, slot.timezone),
+        history: await recentEncouragement(deps.store.raw, phoneHash), note: encouragementNote,
+      } } : {}),
       beforeFirst: before,
       // Until there has been a call there is no list to add to — the first
       // call makes it, and does not read anything added before.
@@ -584,6 +591,35 @@ async function yourPage(
   const measured = (success: boolean) => countRequest(deps.store.raw, success ? 'control_applied' : 'control_not_applied');
   const state = await accountState(deps.store.raw, phoneHash);
   if (!state) return html(res, 410, gonePage(deps.script));
+  if (action?.startsWith('encouragement-')) {
+    if (!encouragementAvailable(phoneHash)) return send(res, 403, { error: 'private pilot' });
+    if (['encouragement-more','encouragement-less','encouragement-clear'].includes(action)) {
+      const ok = await deps.store.raw.begin(tx => encouragementFeedback(tx, phoneHash, form.get('delivery') ?? '', action.slice('encouragement-'.length)));
+      encouragementNote = ok ? 'Feedback saved. It will shape future wording within your preferences.' : 'That message is unavailable for feedback.';
+      await measured(ok); return await page();
+    }
+    if (!['encouragement-save','encouragement-pause','encouragement-resume','encouragement-stop'].includes(action)) return send(res, 400, { error: 'unknown encouragement control' });
+    let input: ReturnType<typeof parsePreferences> | undefined;
+    if (action === 'encouragement-save') {
+      try { input = parsePreferences(form); }
+      catch (e) { encouragementNote = (e as Error).message; await measured(false); return await page(); }
+    }
+    const changed = await deps.store.raw.begin(async tx => {
+      const [c] = await tx`select phone_hash,sms_opt_out from callers where phone_hash=${phoneHash} for update`;
+      if (!c) return false;
+      const current = await loadPreferences(tx, phoneHash, slot.timezone);
+      if (String(current.revision) !== form.get('enc_revision')) { encouragementNote = 'Preferences changed elsewhere. Review the current settings and try again.'; return false; }
+      const p = input ? { ...input, paused: current.paused } : { ...current };
+      if (action === 'encouragement-pause') p.paused = true;
+      if (action === 'encouragement-resume') p.paused = false;
+      if (action === 'encouragement-stop') { p.enabled = false; p.paused = false; }
+      if (p.enabled && c['sms_opt_out']) { encouragementNote = 'SMS is stopped at the carrier. Restore SMS delivery before opting in.'; return false; }
+      await savePreferences(tx, phoneHash, p);
+      encouragementNote = !p.enabled ? 'Encouragement stopped. Queued encouragement is cancelled.' : p.paused ? 'Encouragement paused. Queued encouragement is cancelled.' : 'Preferences saved. Encouragement starts on a future scheduled day. Account pauses and safety holds still apply.';
+      return true;
+    });
+    await measured(changed); return await page();
+  }
   // A stale page must not resume paused calls by changing their weekly slot.
   if (['start', 'move', 'skip', 'later'].includes(action ?? '') &&
       (!state.canCall || (state.paused && action !== 'start'))) return await page();

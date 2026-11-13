@@ -10,9 +10,11 @@ import { encrypt } from '../../services/voice/src/store/crypto.ts';
 import { SendFailure } from '../../services/voice/src/messages/types.ts';
 import type { LoopDeps } from '../../services/voice/src/loop/deps.ts';
 import type { Subscription } from '../../services/voice/src/billing/gateway.ts';
+import { queueEncouragement } from '../../services/voice/src/encouragement/runtime.ts';
+import { dispatchMessages } from '../../services/voice/src/messages/outbox.ts';
 
 if (!process.env['TEST_DATABASE_URL']) throw new Error('Browser journeys require an explicit TEST_DATABASE_URL.');
-const port = 8791;
+const port = Number(process.env['DESIGN_JOURNEY_PORT'] ?? 8791);
 Object.assign(process.env, {
   DATA_ENCRYPTION_KEY: Buffer.alloc(32, 42).toString('base64'), PUBLIC_URL: `http://127.0.0.1:${port}`,
   SIGNUP_OPEN: '1', TWILIO_ACCOUNT_SID: 'design-test', TWILIO_AUTH_TOKEN: 'design-test',
@@ -33,6 +35,7 @@ const reset = async (): Promise<void> => {
   const safe = tables.map(row => row.tablename).filter(name => /^[a-z_]+$/.test(name));
   await db.sql.unsafe(`truncate ${safe.map(name => `"${name}"`).join(',')} cascade`);
   texts.length = 0; failSms = failMail = false; cancellations = 0;
+  process.env['ENCOURAGEMENT_PILOT_HASHES']='';process.env['ENCOURAGEMENT_READY']='0';process.env['ENCOURAGEMENT_PHONE_TEST_PASSED']='0';
   subscription = { provider: 'stripe', subscriptionId: 'sub_design', customerId: 'cus_design', standing: 'active',
     status: 'active', event: 'customer.subscription.updated', cancelAtPeriodEnd: false, endsAt: new Date(Date.now() + 20 * 86400_000).toISOString() };
 };
@@ -64,8 +67,15 @@ const server = createServer((req, res) => { void (async () => {
     reply({ code }); return;
   }
   if (url.pathname === '/__test/failure') { failSms = form.sms === true; failMail = form.mail === true; reply({ ok: true }); return; }
+  if (url.pathname === '/__test/encouragement-delivery') {
+    const phone=String(form.phone??'+4792000001'),hash=phoneKey(phone);
+    if(process.env['ENCOURAGEMENT_PILOT_HASHES']!==hash)throw Error('Synthetic pilot only.');
+    const now=new Date();await db.sql`update encouragement_preferences set next_at=${now} where phone_hash=${hash} and enabled and not paused`;
+    await queueEncouragement(deps,now);await dispatchMessages(deps,now);reply({mockTexts:texts.filter(t=>t.to===phone).length});return;
+  }
   if (url.pathname === '/__test/seed') {
     const phone = String(form.phone ?? '+4792000001'), hash = phoneKey(phone);
+    if(form.encouragement===true)process.env['ENCOURAGEMENT_PILOT_HASHES']=hash;
     await db.store.upsertProfile(phone, { name: 'Alex', email: 'alex@example.com' });
     const tomorrow = new Date(Date.now() + 86400_000);
     const weekday = new Date(tomorrow.toLocaleString('en-US', { timeZone: 'Europe/Oslo' })).getDay();
