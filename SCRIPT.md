@@ -2568,7 +2568,7 @@ _Explicit opt-in. Generic messages only: no private call details on a lock scree
 > "Woman’s voice"
 
 `signup.voice.detail`
-> "The same voice for your first and weekly calls. You can change it later."
+> "You can always change."
 
 `page.voice.save`
 > "Save voice"
