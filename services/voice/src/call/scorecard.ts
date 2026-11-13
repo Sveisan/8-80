@@ -135,9 +135,12 @@ export function scoreCall(script: ScriptLines, turns: TimedTurn[], opts: { first
   // The greeting has been reworded; the disclosure is said on a first call and
   // never again, so it identifies one whatever the greeting was that week.
   const disclosure = sentences(script.get('open.first.disclosure') ?? '')[0];
+  // Availability wording overlaps strongly across both greetings. Only the
+  // returning-specific opening can override a first-greeting fuzzy match.
+  const opensReturning = !!agentTurns[0] && /^hello again\b/i.test(agentTurns[0].text.trim());
   const first =
     opts.first ??
-    ((!!greet && !!agentTurns[0] && carries(agentTurns[0].text, greet)) ||
+    ((!opensReturning && !!greet && !!agentTurns[0] && carries(agentTurns[0].text, greet)) ||
       (!!disclosure && agentTurns.some((t) => carries(t.text, disclosure))));
   const findings: Finding[] = [];
   const add = (check: string, severity: Severity, detail: string) => findings.push({ check, severity, detail });

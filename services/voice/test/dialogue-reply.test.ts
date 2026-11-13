@@ -101,9 +101,9 @@ test('a complete positive intent matrix permits only a phone pilot, never automa
     ...('expectedTool'in c?{testType:'tool',toolCalled:c.expectedTool}:{testType:'reply',reply:['complete_short_reply','full_map_before_confirmation','partial_map_repair'].includes(c.id)?full:c.id==='listening_sound_feedback'?"I'll stop adding those sounds.":c.id==='caller_reopens_close'?'Of course.':'You want more money.'}),
   })));
   const r=dialogueBatchReport(rows);
-  assert.equal(r.total,120);assert.equal(r.complete,true);assert.equal(r.approvedForPhonePilot,true);
-  assert.equal(r.approved,false);assert.equal(r.quietTurnVoiceChecks.length,26);
-  assert.deepEqual(r.checks,{wording:{total:94,passed:94},toolIntent:{total:26,passed:26}});
+  assert.equal(r.total,142);assert.equal(r.complete,true);assert.equal(r.approvedForPhonePilot,true);
+  assert.equal(r.approved,false);assert.equal(r.quietTurnVoiceChecks.length,30);
+  assert.deepEqual(r.checks,{wording:{total:112,passed:112},toolIntent:{total:30,passed:30}});
 });
 test('untrusted roles, case names and malformed review files cannot leak private values', () => {
   const secret='private-synthetic-input-never-print';
