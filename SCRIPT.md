@@ -895,6 +895,13 @@ Then:
 `close.end`
 > "It was good to talk with you, {{name}}. Take care."
 
+`close.flow`
+> "Take care."
+
+_The managed weekly pilot flow speaks this short farewell in its own `say` node,
+then moves to `end`. Model phases do not say another farewell or call `end_call`.
+The entire line must be heard on the phone before that pilot can be approved._
+
 _Use their first name only if known and not already used twice. Keep the goodbye
 suited to the conversation: a lighter ending may refer briefly to an ordinary detail
 they offered, such as "Enjoy the walk. Take care." Do not invent a plan, repeat a
