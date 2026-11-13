@@ -57,6 +57,7 @@ test('a first call that kept its shape fails nothing', () => {
 
 test('it is read as a first call because it opens on the first-call greeting', () => {
   assert.equal(scoreCall(script, goodFirstCall()).first, true);
+  assert.equal(scoreCall(script, [agent(say('open.first.greet')), caller('Hello.')]).first, true,'a first greeting alone must not match shared return availability wording');
   assert.equal(scoreCall(script, [agent(say('open.return.greet')), caller('Hi.')]).first, false);
 });
 
