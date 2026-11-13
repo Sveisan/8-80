@@ -1,5 +1,6 @@
 import { weeklyGreeting, weeklyPrompt } from './prompt-pack.ts';
 import { loadScript } from '../script.ts';
+import { renderForConsole, CONSOLE_VARIABLES } from '../prompt.ts';
 
 export const WEEKLY_FLOW_POLICY = 'weekly-answer-and-farewell-v1';
 export const weeklyFlowRoles = ['first', 'return', 'female-first', 'female-return'] as const;
@@ -50,14 +51,14 @@ export function weeklyFlow(role: WeeklyFlowRole): WeeklyFlow {
   const script = loadScript();
   const common = [
     `MANAGED WEEKLY FLOW ${WEEKLY_FLOW_POLICY}. These phase boundaries override the stage checklist and its old end_call instructions.`,
-    'Only answer a NEW, completed caller contribution. Your own last question is not caller input. Never simulate a yes, speak for the caller, or continue merely because a tool returned or a phase was entered.',
+    'Before advancing past a question, require a NEW, completed caller answer after that question. Your own last question is not caller input. Never simulate a yes, speak for the caller, or treat a tool return or phase entry as that answer.',
     'When a question is pending and no new caller answer has arrived, call skip_turn without speech. An unfinished answer or a request for more thinking time also uses skip_turn without speech. Do not repeat the question or fill the gap.',
     'The flow, not this model, speaks the final farewell. Do not say goodbye, Take care, or another farewell and do not call end_call. When the caller_done condition is actually met, leave through that condition without spoken preamble or follow-up. The flow then speaks its one short farewell before its end node.',
     'A clear request to stop always takes priority over the introduction or action. A request to continue cancels a close. Ordinary safety rules remain in force; do not claim help was contacted.',
   ].join('\n');
   const phase = (key: string, instructions: string, conditions = [stop]): WeeklyFlowNode => ({
     key, type: 'subagent', config: {
-      system_prompt_override: weeklyPrompt(first) + '\n\n' + common + '\n\n' + instructions,
+      system_prompt_override: renderForConsole(weeklyPrompt(first) + '\n\n' + common + '\n\n' + instructions, CONSOLE_VARIABLES),
       tools_filter: ['skip_turn', 'weekly_assist'],
       exit_conditions: conditions, max_turns: 0,
     },
@@ -91,7 +92,7 @@ export function weeklyFlow(role: WeeklyFlowRole): WeeklyFlow {
     nodes.push(phase('conversation', [
       'CURRENT PHASE: continue from the caller after the map check. The full conversation history is available. Only the map_kept say node can have confirmed the map; never say that marker yourself.',
       'Do not repeat the greeting, disclosure, location, completed perspectives or map. If a caller declined the map, leave onboarding unfinished and follow what they want to discuss without restarting it.',
-      'If map_kept was spoken, continue to choosing a focus and, only if wanted, an action. Ask the fixed action-confirmation question and END the spoken turn at that question. Wait for a NEW explicit reply before the agreed-action marker. No answer means skip_turn without speech, never an assumed yes.',
+      'If map_kept was spoken, that statement needs no acknowledgement: continue directly with the focus question once, then wait for its answer. Continue to an action only if wanted. Ask the fixed action-confirmation question and END the spoken turn at that question. Wait for a NEW explicit reply before the agreed-action marker. No answer means skip_turn without speech, never an assumed yes.',
     ].join('\n\n')));
     edges.push(
       { from: 'introduction', to: 'map_answer', ...exit('map_asked') },

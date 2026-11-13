@@ -5,6 +5,7 @@ import { settle } from '../src/call/outcome.ts';
 import { loadScript } from '../src/script.ts';
 import type { Turn } from '../src/call/outcome.ts';
 import { weeklyFlowProbePlan } from '../src/quality/weekly-flow-probes.ts';
+import { CONSOLE_VARIABLES } from '../src/prompt.ts';
 
 const script = loadScript();
 const a = (text: string): Turn => ({ speaker: 'agent', text });
@@ -44,6 +45,7 @@ test('a corrected map still needs a fresh answer after that correction', () => {
 test('every weekly route removes model hangup and puts one non-interruptible farewell before end', () => {
   for (const role of weeklyFlowRoles) {
     const flow = weeklyFlow(role);
+    for (const m of JSON.stringify(flow).matchAll(/\{\{([^}]+)\}\}/g)) assert.ok(CONSOLE_VARIABLES.includes(m[1]!), 'model-filled read-back slots must not become provider variables');
     const phases = flow.nodes.filter(n => n.type === 'subagent');
     assert.ok(phases.length);
     for (const phase of phases) {
