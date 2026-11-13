@@ -49,7 +49,7 @@ acceptance or operator cleanup never establishes that phone test passed.
    inject a test job into a real account without an agreed test time.
 4. Save more/less feedback and confirm changed future wording. Pause, resume and
    stop; verify an already queued job cannot send after controls change. Verify
-   global STOP and quiet hours with the pilot. Restore the user's chosen final
+   global STOP (calls and texts) and quiet hours with the pilot. Restore the user's chosen final
    settings and remove any synthetic jobs.
 5. Record transcript IDs, provider receipts, both test outcomes and user approval
    before changing either global gate. A failed test keeps both gates at zero.

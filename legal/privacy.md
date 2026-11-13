@@ -83,7 +83,7 @@ Messages and your optional “more like this” / “less like this” feedback 
 for 30 days. Feedback adjusts eligible wording within your choices; pilot and
 adaptive results are separated in aggregate reports. Preferences remain until you
 change them or delete the account. You can pause or stop encouragement on My page.
-Replying STOP stops all SMS. Account export and deletion cover these records.
+Replying STOP stops calls and all SMS. Account export and deletion cover these records.
 
 **Feature tips and requested reminders.** We keep your preference for tips, a fixed
 sequence identifier and the topics already shown or declined until you delete your

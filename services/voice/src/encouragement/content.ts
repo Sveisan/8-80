@@ -34,5 +34,5 @@ export function choose(p:Preferences, seed:string, hasProgress:boolean, history:
 }
 export function compose(v:Variant,p:Preferences):string{
   const text=v.text.replace('{{focus}}',p.focus);
-  return `8&80: ${p.swearing&&p.tone==='direct'?'You are fucking worth the effort. ':''}${text}\nPreferences, pause and feedback: 8and80.me/me\nReply STOP to stop all SMS.`;
+  return `8&80: ${p.swearing&&p.tone==='direct'?'You are fucking worth the effort. ':''}${text}\nPreferences, pause and feedback: 8and80.me/me\nReply STOP to stop calls and texts.`;
 }
