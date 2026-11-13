@@ -2679,7 +2679,7 @@ _Explicit opt-in. Generic messages only: no private call details on a lock scree
 > "Email me calendar invitations for my calls"
 
 `calendar.preference.detail`
-> "Get an email invitation for your next call, then another after that call ends. Additional booked calls get their own invitations. Moving or cancelling a call updates your calendar."
+> "Make a little room for yourself. We'll email an invitation for your next call, then another after it ends. Extra booked calls get their own invitations. If a call moves or is cancelled, we'll send an updated invitation or cancellation."
 
 `calendar.preference.on`
 > "Turn on calendar invitations"
@@ -2694,7 +2694,7 @@ _Explicit opt-in. Generic messages only: no private call details on a lock scree
 > "Your calendar invitation preference is saved."
 
 `calendar.email.invite.subject`
-> "Your next 8&80 call"
+> "8&80 · A little time for yourself"
 
 `calendar.email.update.subject`
 > "Your 8&80 call has moved"
@@ -2703,7 +2703,22 @@ _Explicit opt-in. Generic messages only: no private call details on a lock scree
 > "Your 8&80 calendar invitation is cancelled"
 
 `calendar.email.invite.body`
-> "Your next call is {{when}}. We will call your phone. Allow around 15 minutes. Add the attached invitation to your calendar. You can manage your calls and calendar invitations on your call page."
+> "Your next call is {{when}}. We'll call your phone. Allow around 15 minutes."
+
+`calendar.email.invite.lead`
+> "A little room for you and your week, through the eyes of your eight- and eighty-year-old selves."
+
+`calendar.email.invite.prepare`
+> "You don't need to prepare anything. We'll start with the week as it was."
+
+`calendar.email.invite.calendar`
+> "Add the attached invitation to your calendar. We'll send an updated invitation if the time changes. You can manage your calls and calendar invitations on your call page."
+
+`calendar.event.title`
+> "8&80 · A little time for yourself"
+
+`calendar.event.logistics`
+> "We'll call your phone at the scheduled time. Allow around 15 minutes. Booking timezone: {{timezone}}."
 
 `calendar.email.cancel.body`
 > "The calendar invitation for {{when}} is cancelled. You can manage your calls and calendar invitations on your call page."

@@ -46,7 +46,11 @@ beforeEach(async () => {
 after(async () => db?.close());
 
 test('calendar files describe one private UTC appointment and preserve update/cancellation identity', () => {
-  const request = calendarFile(event, '8&80 <calls@example.com>', email);
+  const copy = { title: '8&80 · A little time for yourself', description: "A little room for you and your week, through the eyes of your eight- and eighty-year-old selves.\n\nYou don't need to prepare anything. We'll start with the week as it was." };
+  const request = calendarFile({ ...event, ...copy }, '8&80 <calls@example.com>', email);
+  const unfolded = request.replace(/\r\n[ \t]/g, '');
+  assert.match(unfolded, /SUMMARY:8&80 · A little time for yourself\r\n/);
+  assert.match(unfolded, /DESCRIPTION:A little room for you and your week\\, through the eyes of your eight- and eighty-year-old selves\.\\n\\nYou don't need to prepare anything/);
   assert.match(request, /METHOD:REQUEST\r\n/);
   assert.match(request, /DTSTART:20261117T070000Z\r\nDTEND:20261117T071500Z/);
   assert.match(request, /ORGANIZER;CN="8&80":mailto:calls@example.com/);
@@ -56,6 +60,7 @@ test('calendar files describe one private UTC appointment and preserve update/ca
   assert.match(cancel, /UID:appointment@8and80\r\nSEQUENCE:1/);
   assert.match(cancel, /STATUS:CANCELLED/);
   assert.ok(request.split('\r\n').every(line => Buffer.byteLength(line) <= 75));
+  assert.match(calendarFile(event, 'calls@example.com', email), /SUMMARY:8&80 call\r\n/, 'previously queued messages retain their original contents');
   assert.throws(() => calendarFile(event, 'calls@example.com\r\nBAD:property', email), /Invalid calendar address/);
 });
 
@@ -103,6 +108,17 @@ test('opt-in and parallel reconciliations create and dispatch exactly one next-c
   await Promise.all(ids.map(id => dispatchMessage(deps(), id, now)));
   assert.equal(sent.length, 1); assert.equal(sent[0]!.body.calendar?.method, 'REQUEST');
   assert.equal(sent[0]!.body.calendar?.at, event.at);
+  const letter = sent[0]!.body;
+  assert.equal(letter.calendar?.title, '8&80 · A little time for yourself');
+  assert.equal(letter.subject, letter.calendar?.title);
+  assert.match(letter.calendar!.description!, /eight- and eighty-year-old selves/);
+  assert.match(letter.calendar!.description!, /You don't need to prepare anything\. We'll start with the week as it was\./);
+  assert.match(letter.calendar!.description!, /Booking timezone: Europe\/Oslo/);
+  assert.match(letter.body, /We'll send an updated invitation if the time changes/);
+  assert.equal(letter.body, letter.parts.map(part => part.text).join('\n\n'));
+  assert.equal(letter.parts[0]!.role, 'lead');
+  assert.equal(letter.parts.at(-1)!.role, 'quiet');
+  assert.doesNotMatch(letter.body + letter.calendar?.description, /\{\{|automatically updates|updates your calendar/);
 });
 
 test('claiming does not send the following invite; settlement does, and a repeated webhook cannot duplicate it', options, async () => {

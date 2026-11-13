@@ -5,6 +5,9 @@ export interface CalendarEvent {
   at: string;
   stamp: string;
   timezone: string;
+  /** Copy is captured with the message so retries keep the same calendar contents. */
+  title?: string;
+  description?: string;
 }
 
 const timestamp = (iso: string): string => new Date(iso).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
@@ -32,8 +35,8 @@ export function calendarFile(event: CalendarEvent, from: string, to: string): st
     'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//8and80//Call invitations//EN', 'CALSCALE:GREGORIAN', `METHOD:${event.method}`,
     'BEGIN:VEVENT', `UID:${event.uid}`, `SEQUENCE:${event.sequence}`, `DTSTAMP:${timestamp(event.stamp)}`,
     `DTSTART:${timestamp(event.at)}`, `DTEND:${timestamp(new Date(+new Date(event.at) + 15 * 60_000).toISOString())}`,
-    'SUMMARY:8&80 call',
-    `DESCRIPTION:${escape(`We will call your phone at the scheduled time. Allow around 15 minutes. Booking timezone: ${event.timezone}.`)}`,
+    `SUMMARY:${escape(event.title ?? '8&80 call')}`,
+    `DESCRIPTION:${escape(event.description ?? `We will call your phone at the scheduled time. Allow around 15 minutes. Booking timezone: ${event.timezone}.`)}`,
     'LOCATION:Phone call', `ORGANIZER;CN="8&80":mailto:${organizer}`,
     `ATTENDEE;ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=FALSE:mailto:${to}`,
     `STATUS:${cancelled ? 'CANCELLED' : 'CONFIRMED'}`, 'TRANSP:OPAQUE', 'CLASS:PRIVATE', 'END:VEVENT', 'END:VCALENDAR', '',
