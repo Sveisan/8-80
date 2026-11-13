@@ -100,7 +100,14 @@ test('a saved schedule and private corrections survive reload; pause and resume 
   await page.locator('input[name="weekday"][value="2"]').check();
   await page.locator('input[name="time"][value="18:00"]').check();
   await page.locator('input[name="always"]').check();
-  await page.locator('button[value="move"]').click();
+  const accountPath = new URL(page.url()).pathname;
+  // WebKit can finish the click before the form navigation starts. Await the
+  // save response so the following goto cannot abort that pending POST.
+  const [saved] = await Promise.all([
+    page.waitForResponse(response => response.request().method() === 'POST' && new URL(response.url()).pathname === accountPath),
+    page.locator('button[value="move"]').click(),
+  ]);
+  expect(saved.ok()).toBeTruthy();
   await page.goto('/me');
   await expect(page.locator('.usual-time')).toContainText('18:00');
   await page.reload();
