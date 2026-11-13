@@ -1,6 +1,17 @@
 import { boolean, index, integer, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
+/** Private product reports. GitHub receives an opaque ticket, never the payload. */
+export const productFeedback = pgTable('product_feedback', {
+  id:text('id').primaryKey(),sessionHash:text('session_hash').notNull(),clientBucket:text('client_bucket').notNull(),
+  requestId:text('request_id').notNull(),phoneHash:text('phone_hash').references(()=>callers.phoneHash,{onDelete:'cascade'}),
+  payloadEnc:text('payload_enc').notNull(),state:text('state').notNull().default('queued'),
+  issueNumber:integer('issue_number'),issueAttemptedAt:timestamp('issue_attempted_at',{withTimezone:true}),
+  issueSending:boolean('issue_sending').notNull().default(false),prNumber:integer('pr_number'),improved:boolean('improved'),
+  createdAt:timestamp('created_at',{withTimezone:true}).notNull().defaultNow(),updatedAt:timestamp('updated_at',{withTimezone:true}).notNull().defaultNow(),
+  expiresAt:timestamp('expires_at',{withTimezone:true}).notNull(),
+},t=>[uniqueIndex('product_feedback_request_idx').on(t.sessionHash,t.requestId),index('product_feedback_expiry_idx').on(t.expiresAt),index('product_feedback_owner_idx').on(t.phoneHash)]);
+
 /**
  * One row per caller. Deliberately small — see `CallerRecord`.
  *

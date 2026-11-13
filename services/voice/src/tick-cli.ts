@@ -16,6 +16,9 @@ import { expireTrials } from './billing/trials.ts';
 import { beat } from './schedule/scheduler.ts';
 import { sendDueFeedback } from './feedback/feedback.ts';
 import { dispatchMessages } from './messages/outbox.ts';
+import { enabled as feedbackEnabled } from './product-feedback/model.ts';
+import { FeedbackStore } from './product-feedback/store.ts';
+import { syncFeedbackIssues } from './product-feedback/github.ts';
 
 /**
  * One tick, then exit. Meant for cron:
@@ -60,6 +63,11 @@ try {
   await optimizeTips(deps.store.raw);
   await pruneWeekly(deps.store.raw);
   await pruneJourney(deps.store.raw);
+  await new FeedbackStore(deps.store.raw).prune();
+  if (feedbackEnabled()) {
+    try { await syncFeedbackIssues(deps.store.raw); }
+    catch { log('product_feedback.sync_unavailable', {}); }
+  }
   if (result.claimed || closed || pruned || ended || asked || nudgesQueued || remindersQueued || encouragementQueued) {
     log('tick.summary', { ...result, swept: closed, pruned, trialsEnded: ended, feedbackSent: asked, nudgesQueued, remindersQueued, encouragementQueued });
   }

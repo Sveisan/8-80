@@ -283,3 +283,24 @@ export const FEEDBACK_CSS = `
       button.speak { width: auto; margin-top: var(--space-2); padding: var(--space-2) var(--space-4); font-size: var(--text-caption); color: var(--quiet); }
       button.speak.on { color: var(--on-accent); background: var(--accent); border-color: var(--accent); }
 `;
+
+export const PRODUCT_FEEDBACK_CSS = `
+.pf{font-family:var(--font-body);font-size:var(--text-small);color:var(--ink)}
+.pf button{width:auto;min-height:var(--target-min);font-size:var(--text-caption);padding:var(--space-2) var(--space-4);margin:0;border:1px solid var(--control-border);border-radius:var(--radius-pill);background:var(--card);color:var(--ink)}
+.pf .pf-trigger{position:fixed;bottom:max(var(--space-4),env(safe-area-inset-bottom));right:max(var(--space-4),env(safe-area-inset-right));z-index:20}
+.pf dialog{position:fixed;inset:auto var(--space-4) var(--space-4) auto;margin:0;width:min(var(--measure-form),calc(100% - var(--space-8)));max-width:100%;max-height:80dvh;overflow-y:auto;box-sizing:border-box;padding:var(--space-6);border:1px solid var(--line);border-radius:var(--radius-panel);background:var(--card);color:var(--ink)}
+.pf dialog:not([open]){display:none}.pf dialog::backdrop{background:color-mix(in srgb,var(--ink) 20%,transparent)}
+.pf .pf-heading{display:flex;align-items:center;justify-content:space-between;gap:var(--space-4);margin-bottom:var(--space-5)}
+.pf h2{font:var(--weight-display) var(--text-subhead)/var(--leading-heading) var(--font-display);margin:0}
+.pf form{margin:0}.pf label{display:block;margin:var(--space-4) 0 var(--space-2);font-size:var(--text-small)}
+.pf textarea{width:100%;min-height:var(--textarea-min);resize:vertical;box-sizing:border-box;font:inherit}
+.pf .pf-attachment label{font-size:var(--text-caption)}.pf .pf-attachment span,.pf .pf-quiet{color:var(--quiet)}
+.pf input[type=file]{width:100%;max-width:100%;font-size:var(--text-caption);box-sizing:border-box}
+.pf .pf-preview{max-width:100%;max-height:var(--measure-form);object-fit:contain;margin:var(--space-3) 0;display:block}.pf .pf-preview[hidden]{display:none}
+.pf p{font-size:var(--text-caption);margin:var(--space-3) 0;overflow-wrap:anywhere}.pf .pf-send{width:100%;background:var(--accent);color:var(--on-accent);border-color:var(--accent);margin-top:var(--space-3);font-size:var(--text-small)}
+.pf .pf-status{min-height:var(--space-6)}.pf .pf-history{border-top:1px solid var(--line);padding-top:var(--space-3)}
+.pf summary{cursor:pointer;font-size:var(--text-caption);padding:var(--space-2) 0;min-height:var(--target-min);box-sizing:border-box}
+.pf .pf-report{border-top:1px solid var(--line);padding:var(--space-3) 0}.pf .pf-report button{margin-right:var(--space-2)}
+.pf button[aria-pressed=true]{background:var(--accent);color:var(--on-accent)}
+@media(max-width:${breakpoints.narrow}){.pf dialog{inset:auto 0 0;width:100%;max-height:85dvh;border-radius:var(--radius-panel) var(--radius-panel) 0 0;padding-bottom:max(var(--space-6),env(safe-area-inset-bottom))}}
+`;

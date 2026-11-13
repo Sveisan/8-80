@@ -60,6 +60,8 @@ import { unblockWebhookArguments, UNBLOCK_TOOL_PATH } from './unblock/protocol.t
 import { signupRoutes } from './signup/routes.ts';
 import { ANSWER_MAX, isPreview, openFeedback, saveFeedback } from './feedback/feedback.ts';
 import { feedbackGonePage, feedbackPage, feedbackThanksPage } from './feedback/page.ts';
+import { productFeedbackRoutes } from './product-feedback/routes.ts';
+import { runningRelease } from './product-feedback/release.ts';
 import { EMAIL } from './signup/form.ts';
 import { legalPage } from './legal/page.ts';
 import { composeExport } from './legal/export.ts';
@@ -178,6 +180,10 @@ export function controlPlane(deps: LoopDeps, secret: string | readonly string[] 
   return createServer((req, res) => {
     void (async () => {
       const url = new URL(req.url ?? '/', 'http://x');
+      if (url.pathname.startsWith('/product-feedback/')) {
+        const result=await productFeedbackRoutes(req,url,deps,clientOf(req));
+        if(result) return html(res,result.status,result.body,result.headers);
+      }
       if ((req.method === 'GET' || req.method === 'HEAD') && serveDesignAsset(url.pathname, res, req.method === 'HEAD')) return;
 
       // HEAD as well as GET, because every uptime monitor ever written asks
@@ -190,7 +196,7 @@ export function controlPlane(deps: LoopDeps, secret: string | readonly string[] 
           res.writeHead(200, { 'content-type': 'application/json' });
           return res.end();
         }
-        return send(res, 200, { ok: true });
+        return send(res, 200, { ok: true, release: runningRelease });
       }
 
       if (req.method === 'GET' && (url.pathname === '/terms' || url.pathname === '/privacy')) {

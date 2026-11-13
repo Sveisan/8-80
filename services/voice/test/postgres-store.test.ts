@@ -30,7 +30,7 @@ after(async () => {
 });
 
 beforeEach(async () => {
-  if (sql) await sql`truncate belief_sessions,unblock_sessions, belief_refund_requests, belief_enrollments,unblock_enrollments, message_attempts, message_outbox, callers`;
+  if (sql) await sql`truncate product_feedback,belief_sessions,unblock_sessions, belief_refund_requests, belief_enrollments,unblock_enrollments, message_attempts, message_outbox, callers`;
 });
 
 async function withKey<T>(fn: () => T | Promise<T>): Promise<T> {
