@@ -55,7 +55,7 @@ test('the letterhead is a mark alone, centred, with the date opposite', () => {
   // on the left — there is no flexbox here, and without that cell the date
   // pushes the mark off true.
   const html = letterHtml(withCommitment, { markUrl: 'https://example.test/mark.png', date: '27 September 2026' });
-  const head = html.slice(0, html.indexOf('You said'));
+  const head = html.slice(0, html.indexOf('This week'));
   assert.equal((head.match(/8&amp;80/g) ?? []).length, 1, 'the name is at the top twice again');
   assert.match(head, /<img[^>]*align|align="center"[^>]*>\s*<img/, 'the mark is not centred');
   assert.ok(head.includes('27 September 2026'), 'the date left the letterhead');
@@ -71,13 +71,13 @@ const sizeOf = (html: string, text: string): number => {
   return Number(size[1]);
 };
 
-test('the one thing is set far larger than the line about how long the call ran', () => {
+test('the chosen action is more prominent than appointment logistics', () => {
   // One focal point. The whole job of this email is to be findable on a
   // Thursday by somebody scrolling, so the step down has to be a step, not a
   // nudge — the first draft set them three pixels apart.
   const html = letterHtml(withCommitment);
   const lead = sizeOf(html, 'run three times');
-  const quiet = sizeOf(html, 'We spoke for 12 minutes.');
+  const quiet = sizeOf(html, 'Next call, as booked when we spoke: Tuesday at nine.');
   assert.ok(lead >= quiet * 1.8, `lead ${lead}px vs quiet ${quiet}px`);
 });
 
@@ -200,7 +200,7 @@ test('their words are quoted rather than set as a headline', () => {
   // inside the quotation — they never said "Wednesday" as part of the sentence.
   // Searched forwards from the label, because the subject carries the day too
   // and it reaches the document first, in the <title>.
-  const label = html.indexOf(esc('You said'));
+  const label = html.indexOf(esc('This week'));
   const words = html.indexOf(esc('run three times'), label);
   const day = html.indexOf(esc('Wednesday'), words);
   assert.ok(label > 0, 'nothing marks their words as quoted');
