@@ -77,3 +77,19 @@ With the owner available, make one deliberate first call and one return call:
 An operator should prepare the exact update/sync commands against the reviewed
 source and current production state. The owner needs no terminal action to review
 this PR, and no real call should start until the owner says they are ready.
+
+## Retry preparation after PR38
+
+The hosted-model check found that the stage checklist could take precedence over
+a goal the caller had just chosen, an already known location or an explicit choice
+of no new action. These decisions now have early prompt priority. Leaving out one
+perspective gets a brief acceptance and the floor, rather than an immediate switch
+to the other age or a hangup. The result probe explicitly accepts “So you did it”
+without requiring the agent to repeat the known location; repeating it is not proof
+of listening.
+
+The exact first-person refusal “I do not want to choose an action this week either”
+is also recognised after a sentence explaining the week. Database checks verify
+that this clears the prior action and running undone count once, while a timing
+condition, a request not to choose for the caller, or a reported third-party remark
+does not. The older perspective remains available in the next call in either case.

@@ -119,6 +119,11 @@ test('warmth probes reject invented motives, repeated meaning questions and pres
     assert.ok(check(id!,'Everything will work out.').includes('performed_praise_or_false_assurance'));
   }
   assert.ok(check('perspective_declined','Then goodbye. Take care.').includes('perspective_decline_ended_call'));
+  for(const id of ['motivation_not_assumed','meaning_already_explained'])assert.ok(check(id,"You want more money. What would your eight-year-old self smile about?").includes('chosen_topic_abandoned'));
+  assert.ok(check('perspective_declined','Of course. What would your eighty-year-old self want?').includes('perspective_decline_floor_taken'));
+  assert.ok(check('difficult_week_no_action','Mm.').includes('explicit_no_action_not_acknowledged'));
+  for(const id of ['situation_known','spontaneous_update','parked'])assert.ok(check(id,'Are you at home, out somewhere, or driving?').includes('known_situation_asked_again'));
+  assert.deepEqual(check('situation_known','So you did it.'),[]);
 });
 test('untrusted roles, case names and malformed review files cannot leak private values', () => {
   const secret='private-synthetic-input-never-print';

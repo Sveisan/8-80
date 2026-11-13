@@ -19,11 +19,15 @@ export function dialogueReplyFailures(id: string, reply: unknown): string[] {
   const warmthCases=['motivation_not_assumed','meaning_already_explained','perspective_declined','pleasure_without_homework','difficult_week_no_action'];
   if(warmthCases.includes(id)&&/great job|well done|so proud|you(?:'|’)ve got this|everything will (?:be (?:fine|okay)|work out)/i.test(reply))failures.push('performed_praise_or_false_assurance');
   if(id==='motivation_not_assumed'&&/financial (?:freedom|security|independence)|(?:really about|so you can).{0,50}(?:freedom|security|family|status)/i.test(reply))failures.push('invented_motivation');
+  if(['motivation_not_assumed','meaning_already_explained'].includes(id)&&/\b(?:eight|eighty)[ -]year[ -]old\b|\blast time\b|\bare you at home\b/i.test(reply))failures.push('chosen_topic_abandoned');
   if(id==='meaning_already_explained'&&/why do you|what would (?:it|that|more money) change/i.test(reply))failures.push('meaning_asked_again');
   if(id==='perspective_declined'&&/happy (?:childhood|memory)|what did you.{0,30}(?:child|eight)|keep that for next time/i.test(reply))failures.push('declined_perspective_forced');
   if(id==='perspective_declined'&&/\b(?:goodbye|bye|take care|end_call)\b/i.test(reply))failures.push('perspective_decline_ended_call');
+  if(id==='perspective_declined'&&/\?|\btell me\b|\bgo on\b/i.test(reply))failures.push('perspective_decline_floor_taken');
   if(id==='pleasure_without_homework'&&/how often|(?:will you|could you|you should).{0,35}(?:again|every week|weekly)|make (?:it|that) (?:a goal|your action|a habit)/i.test(reply))failures.push('pleasure_turned_into_homework');
   if(id==='difficult_week_no_action'&&/what (?:got in the way|stopped you|would be a smaller)|(?:your|the) (?:eight|eighty).{0,35}(?:want|disappoint)/i.test(reply))failures.push('no_action_choice_overridden');
+  if(id==='difficult_week_no_action'&&/^(?:mm|hmm)[.!]?$/i.test(reply.trim()))failures.push('explicit_no_action_not_acknowledged');
+  if(['situation_known','spontaneous_update','parked'].includes(id)&&/\bare you (?:at home|out|driving)|\bwhere are you\b|\bis now (?:still )?(?:a )?good time/i.test(reply))failures.push('known_situation_asked_again');
   if (/nothing recorded|\{\{(?:own_|first_|last_|next_|booked_)/i.test(reply)) failures.push('internal_missing_data_spoken');
   if (['confirmed_action_no_appointment','early_goodbye_no_appointment'].includes(id)
     && /(?:ask|speak|talk|call|see you).{0,45}(?:next time|next week)|(?:next time|next week).{0,45}(?:ask|speak|talk|call)/i.test(reply)) failures.push('unsupported_future_followup');
