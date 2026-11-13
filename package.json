@@ -6,6 +6,7 @@
     "services/*"
   ],
   "scripts": {
+    "weekly:flow": "npm run -w @8and80/voice weekly:flow --",
     "quality:tips": "npm run -w @8and80/voice quality:tips --",
     "weekly:tools": "npm run -w @8and80/voice weekly:tools --",
     "beliefs:preview": "npm run -w @8and80/voice beliefs:preview",

@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "weekly:flow": "node --import tsx src/weekly/flow-cli.ts",
     "quality:tips": "node --import tsx src/weekly/cli.ts",
     "weekly:tools": "node --import tsx src/weekly/provision-cli.ts",
     "beliefs:preview": "node --import tsx src/beliefs/preview-cli.ts",
