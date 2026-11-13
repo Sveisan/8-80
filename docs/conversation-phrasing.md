@@ -168,6 +168,30 @@ for those 22 cases. All original cases remain. Two new cases from the latest
 owner feedback add reopening a close and a second clarification, bringing the
 four-role matrix to 112 (90 wording and 22 tool-selection checks).
 
+Correcting the test type alone was insufficient. Isolated provider controls
+showed that native tests resolve shared client tool definitions, while the
+voice agent's worker-built-in bindings are not callable definitions in that
+test catalogue. The diagnostic harness supplies endpoint-free client definitions
+named `skip_turn` and `end_call` through the test run's `tool_ids` override.
+Both tool orders passed the positive controls; deliberately wrong expected tools
+failed with the opposite tool observed. These definitions are test substitutes
+for measuring selection intent. Never bind them to a real voice agent: production
+still needs the actual enabled worker built-ins, and their audible behaviour is
+checked separately. A zero-duration tool result is not evidence of a skipped model
+turn, since passing client-tool controls also report zero duration.
+
+Export the exact candidate from a clean committed checkout before creating tests:
+
+```sh
+node --import tsx services/voice/src/quality/dialogue-native-plan-cli.ts NEW_PRIVATE_PLAN.json
+```
+
+The plan pins the full source revision and includes all four rendered source
+prompts and typed definitions. The runner binds private targets and the shared
+test definitions separately, records their hashes, and normalizes each run with
+`normalizeNativeDialogueRun`. It must not use the deployed older prompt as the
+candidate or infer spoken silence from an absent reply field.
+
 `normalizeNativeDialogueRun` validates the variant, verdict and observed tool
 selection. A missing spoken response remains `not_exposed`. Mixed tool-plus-speech
 results, empty wording, generic provider fallback, unknown roles and wrong result
