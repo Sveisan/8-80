@@ -74,6 +74,17 @@ We do not use analytics cookies.
 **Your feedback preference.** You can stop optional feedback requests separately
 from calls, recaps, verification codes and billing notices.
 
+**Optional encouragement by SMS.** This private pilot is off until you opt in on
+My page. We store frequency, tone, selected message types, quiet hours and timezone,
+strong-language choice, pause state and when you opted in. Your optional chosen
+focus and composed message text are encrypted. Recognition uses only an action
+you have reported completing; we do not infer your mood or invent progress.
+Messages and your optional “more like this” / “less like this” feedback are retained
+for 30 days. Feedback adjusts eligible wording within your choices; pilot and
+adaptive results are separated in aggregate reports. Preferences remain until you
+change them or delete the account. You can pause or stop encouragement on My page.
+Replying STOP stops calls and all SMS. Account export and deletion cover these records.
+
 **Feature tips and requested reminders.** We keep your preference for tips, a fixed
 sequence identifier and the topics already shown or declined until you delete your
 account, so we do not repeat them. Account-linked A/B assignments and tip offers,

@@ -6,6 +6,7 @@ import { config } from '../config.ts';
 import { beliefConfig } from '../beliefs/config.ts';
 import { femaleVoiceReady, sameMessageNumber } from '../agent/voices.ts';
 import { maskEmail, type AccountState } from './account.ts';
+import { encouragementSection, type EncouragementView } from '../encouragement/page.ts';
 import type { ScriptLines } from '../script.ts';
 import { describeAppointment, type Slot } from '../schedule/time.ts';
 import { BUSY, MOTION, busyLabel } from '../signup/mascot.ts';
@@ -39,6 +40,7 @@ const timesFor = (minute: number): string[] => {
 
 /** How the page was reached, and so what it may offer. */
 export interface PageView {
+  encouragement?: EncouragementView;
   /**
    * `link` is a code from a text: the whole page. `browser` is the cookie on
    * the browser that signed up: everything but the copy and the deletion,
@@ -261,6 +263,7 @@ export function reschedulePage(
       <p><a href="/beliefs">Explore belief practice</a></p>
     </section>` : ''}
 
+    ${view.encouragement ? encouragementSection(view.encouragement) : ''}
     <section class="account-section" aria-labelledby="preferences-heading">
       <h2 id="preferences-heading">${say('page.section.preferences')}</h2>
       <p class="hint">${email ? esc((script.get('page.email.current') ?? '').replace('{{email}}', maskEmail(email))) : say('page.email.none')}</p>

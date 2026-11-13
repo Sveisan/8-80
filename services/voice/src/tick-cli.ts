@@ -1,4 +1,5 @@
 import { queueDueNudges } from './sms/nudges.ts';
+import { queueEncouragement, pruneEncouragement } from './encouragement/runtime.ts';
 import { pruneWeekly, queueDueReminders } from './weekly/reminders.ts';
 import { optimizeTips } from './weekly/tips.ts';
 import { pruneJourney } from './journey/measure.ts';
@@ -53,12 +54,14 @@ try {
   await maintainBeliefPolicies(deps);
   const nudgesQueued = await queueDueNudges(deps);
   const remindersQueued = await queueDueReminders(deps);
+  const encouragementQueued = await queueEncouragement(deps);
   await dispatchMessages(deps);
+  await pruneEncouragement(deps.store.raw);
   await optimizeTips(deps.store.raw);
   await pruneWeekly(deps.store.raw);
   await pruneJourney(deps.store.raw);
-  if (result.claimed || closed || pruned || ended || asked || nudgesQueued || remindersQueued) {
-    log('tick.summary', { ...result, swept: closed, pruned, trialsEnded: ended, feedbackSent: asked, nudgesQueued, remindersQueued });
+  if (result.claimed || closed || pruned || ended || asked || nudgesQueued || remindersQueued || encouragementQueued) {
+    log('tick.summary', { ...result, swept: closed, pruned, trialsEnded: ended, feedbackSent: asked, nudgesQueued, remindersQueued, encouragementQueued });
   }
 
   // Always, including the quiet runs. A tick logs only when it claims a call,

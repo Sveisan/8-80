@@ -300,6 +300,20 @@ export const messageAttempts = pgTable('message_attempts', {
 }, t => [index('message_attempts_message_idx').on(t.messageId)]);
 
 /** One explicitly requested SMS, independent of the optional nudge subscription. */
+export const encouragementPreferences = pgTable('encouragement_preferences', {
+  phoneHash:text('phone_hash').primaryKey(),
+  enabled:boolean('enabled').notNull().default(false), paused:boolean('paused').notNull().default(false),
+  frequency:text('frequency').notNull().default('weekly'), tone:text('tone').notNull().default('gentle'), content:text('content').notNull().default('["encouragement"]'),
+  swearing:boolean('swearing').notNull().default(false), quietStart:integer('quiet_start').notNull().default(1260),quietEnd:integer('quiet_end').notNull().default(540),
+  timezone:text('timezone').notNull(),focusEnc:text('focus_enc'), revision:integer('revision').notNull().default(0),
+  nextAt:timestamp('next_at',{withTimezone:true}),consentedAt:timestamp('consented_at',{withTimezone:true}),updatedAt:timestamp('updated_at',{withTimezone:true}).notNull(),
+},t=>[index('encouragement_due').on(t.nextAt).where(sql`${t.enabled} and not ${t.paused}`)]);
+export const encouragementDeliveries = pgTable('encouragement_deliveries', {
+  id:text('id').primaryKey(),phoneHash:text('phone_hash').notNull(),
+  revision:integer('revision').notNull(),localDay:text('local_day').notNull(),variant:text('variant').notNull(),topic:text('topic').notNull(),tone:text('tone').notNull(),arm:text('arm').notNull(),
+  pilot:boolean('pilot').notNull().default(true),adaptive:boolean('adaptive').notNull().default(false),
+  bodyEnc:text('body_enc').notNull(),feedback:text('feedback'),feedbackAt:timestamp('feedback_at',{withTimezone:true}),createdAt:timestamp('created_at',{withTimezone:true}).notNull(),
+},t=>[uniqueIndex('encouragement_one_per_day').on(t.phoneHash,t.localDay),index('encouragement_retention').on(t.createdAt)]);
 export const weeklyReminders = pgTable('weekly_reminders', {
   phoneHash: text('phone_hash').primaryKey(), revision: integer('revision').notNull(),
   bodyEnc: text('body_enc'), dueAt: timestamp('due_at', { withTimezone: true }).notNull(),
