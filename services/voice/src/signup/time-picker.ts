@@ -7,20 +7,20 @@ export function timePicker(choices: string, script: ScriptLines): string {
 }
 
 export const TIME_PICKER_CSS = `
-  .time-picker { display: flex; align-items: center; gap: .35rem; min-width: 0; margin-top: .5rem; }
+  .time-picker { display: flex; align-items: center; gap: var(--space-2); min-width: 0; margin-top: var(--space-2); }
   .times {
-    display: flex; flex: 1; min-width: 0; gap: .3rem; padding: .2rem .15rem .45rem; scroll-padding-inline: .15rem;
+    display: flex; flex: 1; min-width: 0; gap: var(--space-1); padding: var(--space-1) var(--space-1) var(--space-2); scroll-padding-inline: var(--space-1);
     overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity;
     scrollbar-width: thin; scrollbar-color: var(--line) transparent;
     user-select: none; -webkit-user-select: none;
   }
-  .times::-webkit-scrollbar { height: .35rem; }
-  .times::-webkit-scrollbar-thumb { background: var(--line); border-radius: 1rem; }
-  .times .pick { flex: 0 0 calc((100% - .9rem) / 4); min-width: 3.7rem; scroll-snap-align: start; }
+  .times::-webkit-scrollbar { height: var(--space-1); }
+  .times::-webkit-scrollbar-thumb { background: var(--line); border-radius: var(--radius-pill); }
+  .times .pick { flex: 0 0 calc((100% - 3 * var(--space-1)) / 4); min-width: var(--time-option-min); scroll-snap-align: start; }
   .time-arrow {
-    display: grid; place-items: center; flex: 0 0 2.1rem; width: 2.1rem; height: 2.9rem;
+    display: grid; place-items: center; flex: 0 0 var(--target-min); width: var(--target-min); height: var(--control-height);
     min-height: 0; margin: 0; padding: 0; background: transparent; color: var(--ink);
-    border: 1px solid var(--line); border-radius: .65rem; cursor: pointer;
+    border: 1px solid var(--control-border); border-radius: var(--radius-control); cursor: pointer;
   }
   .time-arrow[hidden] { display: none; }
   @media (pointer: coarse) { .time-arrow { display: none; } }

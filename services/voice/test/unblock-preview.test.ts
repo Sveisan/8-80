@@ -90,7 +90,9 @@ test('preview: nothing to pause or end before payment; a simulated end cannot be
     await w.post('/unblock/action', { action: 'pay' }); assert.ok(w.html().includes('Opening conversation') && w.html().includes('Pause my calls'));
     await w.post('/unblock/action', { action: 'sim_call' });
     const light = () => w.html().match(/Next light call: <time datetime="([^"]+)"/)![1]!;
-    const first = light(); await w.post('/unblock/action', { action: 'sim_light' }); await w.post('/unblock/action', { action: 'sim_light' });
+    const first = light(); await w.post('/unblock/action', { action: 'sim_light' });
+    assert.ok(+new Date(light()) > +new Date(first), 'simulating a light call moves past the advertised evening');
+    await w.post('/unblock/action', { action: 'sim_light' });
     assert.ok(+new Date(light()) > +new Date(first) + 86400_000, 'the light card moves on with the simulated days');
   } finally { await w.close(); }
 });

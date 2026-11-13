@@ -233,21 +233,31 @@ export function mascot(mood: Mood = 'rest', className = 'mark'): string {
  * gold becomes Paper, because Gold on Gold is a hole.
  */
 export const MARK_CSS = `
-  @media (prefers-color-scheme: dark) { :root { --mark-ink: #1A2920; } }
-  button.primary { --mark-ink: #1A2920; }
-  @media (prefers-color-scheme: dark) { button.primary { --mark-gold: #F4EDE1; --mark-dot: #F4EDE1; } }`;
+  button.primary { --mark-ink: var(--color-night, #1A2920); --mark-gold: var(--button-mark-gold, #E2B653); --mark-dot: var(--button-mark-dot, #E2B653); }`;
 
 /**
  * Starts every mascot on the page, unless the reader has asked for less motion.
  * One per page, after the last mascot.
  */
-export const MOTION = `<script>
+export const MOTION_SCRIPT = `
   try {
-    if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      document.querySelectorAll('svg[data-mood] animate').forEach(function (a) { a.beginElement(); });
-    }
+    var motionPreference = matchMedia('(prefers-reduced-motion: reduce)');
+    var syncMotion = function () {
+      document.querySelectorAll('svg[data-mood]').forEach(function (svg) {
+        var busy = svg.closest('.busy');
+        var active = !motionPreference.matches && (!busy || busy.closest('button').getAttribute('aria-busy') === 'true');
+        svg.querySelectorAll('animate').forEach(function (animation) {
+          try { if (active) animation.beginElement(); else animation.endElement(); } catch (e) {}
+        });
+        svg.setAttribute('data-motion', active ? 'running' : 'rest');
+      });
+    };
+    syncMotion();
+    if (motionPreference.addEventListener) motionPreference.addEventListener('change', syncMotion);
+    else motionPreference.addListener(syncMotion);
   } catch (e) {}
-</script>`;
+`;
+export const MOTION = '<script>' + MOTION_SCRIPT + '</script>';
 
 /**
  * A button's contents: its label, and the mark working in its place once
@@ -264,6 +274,12 @@ export const busyLabel = (label: string): string =>
  */
 export const BUSY = `<script>
   try {
+    window.addEventListener('pageshow', function () {
+      document.querySelectorAll('form[data-sent]').forEach(function (form) { delete form.dataset.sent; });
+      document.querySelectorAll('form button[aria-busy="true"]').forEach(function (button) { button.removeAttribute('aria-busy'); });
+    });
+    var invalidField = document.querySelector('[aria-invalid="true"]');
+    if (invalidField) invalidField.focus();
     document.querySelectorAll('form').forEach(function (f) {
       f.addEventListener('submit', function (e) {
         if (f.dataset.sent) { e.preventDefault(); return; }
@@ -275,6 +291,7 @@ export const BUSY = `<script>
         // animation that was begun while its button hid it.
         if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
           b.querySelectorAll('animate').forEach(function (a) { a.beginElement(); });
+          b.querySelectorAll('svg[data-mood]').forEach(function (svg) { svg.setAttribute('data-motion', 'running'); });
         }
       });
     });

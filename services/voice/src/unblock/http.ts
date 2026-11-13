@@ -13,5 +13,5 @@ export function unblockCookie(token: string, preview = false): string {
 export const pageHeaders = {
   'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'referrer-policy': 'no-referrer',
   'x-content-type-options': 'nosniff',
-  'content-security-policy': `default-src 'none'; style-src 'unsafe-inline'; script-src 'sha256-${displayHash}'; form-action 'self' https://buy.stripe.com https://checkout.stripe.com https://billing.stripe.com https://*.lemonsqueezy.com; base-uri 'none'; frame-ancestors 'none'`,
+  'content-security-policy': `default-src 'none'; style-src 'unsafe-inline'; font-src 'self'; img-src 'self'; manifest-src 'self'; script-src 'sha256-${displayHash}'; form-action 'self' https://buy.stripe.com https://checkout.stripe.com https://billing.stripe.com https://*.lemonsqueezy.com; base-uri 'none'; frame-ancestors 'none'`,
 };

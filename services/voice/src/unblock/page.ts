@@ -1,7 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { MARK } from '../link/page.ts';
+import { BRAND_HEAD } from '../design-system/head.ts';
+import { PRACTICE_CSS, UNBLOCK_CSS } from '../design-system/pages.ts';
+import { FOUNDATION_CSS, CONTROL_CSS } from '../design-system/styles.ts';
 import { localDisplayScript } from '../beliefs/display.ts';
-import { back, css, escape, field, hidden, journeyCss, link, localValue } from '../beliefs/page.ts';
+import { back, escape, field, hidden, link, localValue } from '../beliefs/page.ts';
 import { DEFAULT_CALLS, DEFAULT_LIGHT_DAYS, DEFAULT_LIGHT_MINUTE, MAX_CALLS, MIN_CALLS, callsOf, currentWish, monthOf, type Programme } from './model.ts';
 import { chapterOfMonth, chapterPos } from './chapters.ts';
 import { LIGHT_DAY_ORDER, WEEKDAYS } from './forms.ts';
@@ -32,13 +35,6 @@ export interface PageOptions {
 export const OUTCOME_WORDS: Record<string, string> = { done: 'Done', partly: 'Partly', not: 'Not taken this time', changed: 'It changed' };
 const KIND_WORDS: Record<string, string> = { limit: 'A real limit', prediction: 'A prediction' };
 
-const extraCss = `
-.stack>*+*{margin-top:28px}.stack h2{font-size:24px;margin:0 0 6px}.quote{font-size:21px;line-height:1.45;color:var(--ink)!important;margin:6px 0}.why{margin:4px 0 0}
-.rows{list-style:none;margin:0;padding:0}.rows li{padding:14px 0;border-top:1px solid var(--border)}.rows li:first-child{border-top:0}.rows .when{display:block;color:var(--gold);font-size:13px;letter-spacing:1.2px;text-transform:uppercase}
-.rows .outcome{display:block;color:var(--muted);font-size:15px;margin-top:4px}.ledger li{font-size:19px;line-height:1.45}.ledger .when{margin-bottom:2px}
-.pick{display:flex;flex-wrap:wrap;gap:6px 18px;margin:8px 0}.pick label{display:flex;align-items:center;margin:0;font-weight:400;font-size:16px}.pick input{margin:0 8px 0 0;width:auto;accent-color:var(--gold)}
-.form fieldset{margin-top:34px}.solo{margin-top:16px}.soft{border-color:var(--border);background:transparent}.soft form button{background:transparent;color:var(--muted);border:1px solid var(--border)}`;
-
 const form = (action: string, body: string, button: string, o: PageOptions, extra = ''): string => {
   const event = randomUUID();
   const controls = body.replace(/(for|id)="([^"]+)"/g, (_, attribute: string, id: string) => `${attribute}="${event}-${id}"`);
@@ -64,7 +60,7 @@ export function scheduleInputs(o: PageOptions): string {
     (o.programme?.openingHeld ? '<p class="quiet">Your first conversation is done. These are your usual times. To move only the next call, return to your account.</p>' : field('First conversation', 'opening_local', openingValue, 'datetime-local', 'required') + '<p class="quiet">About 15–20 minutes. If you miss it, it is offered again at your next usual time.</p>') +
     `<label for="calls">Calls per month</label><select id="calls" name="calls">${Array.from({ length: MAX_CALLS - MIN_CALLS + 1 }, (_, i) => i + MIN_CALLS).map(n => `<option value="${n}" ${n === (o.calls ?? DEFAULT_CALLS) ? 'selected' : ''}>${n}</option>`).join('')}</select><p class="quiet">The price is the same whatever you choose, and you can change it in your account later. A change applies from your next chapter. Five or more calls a month use a second day, three days after your usual one.</p>` +
     `<label for="weekday">Regular call · day</label><select id="weekday" name="weekday">${WEEKDAYS.map((day, i) => `<option value="${i}" ${i === (o.weekday ?? 0) ? 'selected' : ''}>${day}</option>`).join('')}</select>` + field('Regular call · time', 'weekly', o.weekly ?? '17:00', 'time', 'required') +
-    `<fieldset><legend>Light calls</legend><p class="quiet">About a minute: what was alive in your day. They start after your first conversation. A missed evening is not made up.</p><div class="pick"><label><input type="radio" name="light_choice" value="evenings" ${none ? '' : 'checked'}>Three evenings a week, or the evenings I choose</label><label><input type="radio" name="light_choice" value="none" ${none ? 'checked' : ''}>No light calls</label></div><div class="pick" role="group" aria-label="Light call evenings">${LIGHT_DAY_ORDER.map(d => `<label><input type="checkbox" name="light_day" value="${d}" ${chosen.includes(d) ? 'checked' : ''}>${WEEKDAYS[d]!.slice(0, 3)}</label>`).join('')}</div>${field('Light calls · time', 'light', o.lightTime ?? clock(DEFAULT_LIGHT_MINUTE), 'time', 'required')}</fieldset>`;
+    `<fieldset><legend>Light calls</legend><p class="quiet">About a minute: what was alive in your day. They start after your first conversation. A missed evening is not made up.</p><div class="unblock-options"><label><input type="radio" name="light_choice" value="evenings" ${none ? '' : 'checked'}>Three evenings a week, or the evenings I choose</label><label><input type="radio" name="light_choice" value="none" ${none ? 'checked' : ''}>No light calls</label></div><div class="unblock-options" role="group" aria-label="Light call evenings">${LIGHT_DAY_ORDER.map(d => `<label><input type="checkbox" name="light_day" value="${d}" ${chosen.includes(d) ? 'checked' : ''}>${WEEKDAYS[d]!.slice(0, 3)}</label>`).join('')}</div>${field('Light calls · time', 'light', o.lightTime ?? clock(DEFAULT_LIGHT_MINUTE), 'time', 'required')}</fieldset>`;
 }
 
 function nextCard(o: PageOptions): string {
@@ -186,7 +182,7 @@ export function unblockPage(screen: Screen, o: PageOptions = {}): string {
   if (screen === 'account') body = account(o);
   const title = screen === 'landing' ? 'See the light in your own life' : 'Unblock';
   const sibling = screen === 'account' && o.siblingHref ? `<p>Separately, there is also <a href="${escape(o.siblingHref)}">Beliefs</a>, a practice for assumptions that get in the way.</p>` : '';
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>${title} · 8&80</title><style>${css}${journeyCss}${extraCss}</style></head><body>${o.preview ? '<div class="preview">Local preview · no calls, texts or payments are sent</div>' : ''}<main class="shell"><a class="brand" href="/unblock" aria-label="8 and 80 Unblock home">${MARK}</a><nav class="top" aria-label="Main"><span class="eyebrow">Unblock</span><a href="/unblock/account">Your account</a></nav>${o.note ? `<p class="notice" role="status">${escape(o.note)}</p>` : ''}${body}<footer class="footer quiet">${o.support ? `<p>Need help? <a href="${escape(o.support)}">Contact us</a>${o.supportHours ? ` · ${escape(o.supportHours)}` : ''}</p>` : ''}<a href="/unblock/about">About Unblock</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a>${!o.preview ? '<a href="/start">Explore weekly 8&80</a>' : ''}${sibling}</footer></main><script>${localDisplayScript}</script></body></html>`;
+  return `<!doctype html><html lang="en" data-theme="dark"><head>${BRAND_HEAD}<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>${title} · 8&80</title><style>${FOUNDATION_CSS}${CONTROL_CSS}${PRACTICE_CSS}${UNBLOCK_CSS}</style></head><body>${o.preview ? '<div class="preview">Local preview · no calls, texts or payments are sent</div>' : ''}<main class="shell"><a class="brand" href="/unblock" aria-label="8 and 80 Unblock home">${MARK}</a><nav class="top" aria-label="Main"><span class="eyebrow">Unblock</span><a href="/unblock/account">Your account</a></nav>${o.note ? `<p class="notice" role="status">${escape(o.note)}</p>` : ''}${body}<footer class="footer quiet">${o.support ? `<p>Need help? <a href="${escape(o.support)}">Contact us</a>${o.supportHours ? ` · ${escape(o.supportHours)}` : ''}</p>` : ''}<a href="/unblock/about">About Unblock</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a>${!o.preview ? '<a href="/start">Explore weekly 8&80</a>' : ''}${sibling}</footer></main><script>${localDisplayScript}</script></body></html>`;
 }
 
 export function aboutPage(o: PageOptions = {}): string {

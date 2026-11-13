@@ -1,3 +1,4 @@
+import { serveDesignAsset } from '../design-system/assets.ts';
 import { createServer, type Server } from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { cookieOf, crossSite } from '../link/cookie.ts';
@@ -18,7 +19,7 @@ interface PreviewSession {
   /** Simulated subscription: calls per month, a pending change for the next chapter, a cancellation at period end, an ended subscription. */
   calls: number; pending: number | null; cancelling: boolean; ended: boolean;
   schedule?: ReturnType<typeof scheduleInput>; nextCall?: Date; nextLight?: Date;
-  /** Simulated calendar: each simulated regular call moves it a week on, each light call a day, so the ledger spans dates. */
+  /** Simulated calendar: regular calls advance a week, light calls advance to their advertised evening. */
   virtual: Date; note?: string;
 }
 const SYNTHETIC = {
@@ -37,6 +38,7 @@ export function previewServer(): Server {
   const sessions = new Map<string, PreviewSession>();
   return createServer((req, res) => { void (async () => {
     const url = new URL(req.url ?? '/', 'http://127.0.0.1');
+    if ((req.method === 'GET' || req.method === 'HEAD') && serveDesignAsset(url.pathname, res, req.method === 'HEAD')) return;
     if (url.pathname === '/health') { res.writeHead(200, { 'content-type': 'application/json' }); res.end('{"ok":true,"preview":true}'); return; }
     if (url.pathname === '/') { res.writeHead(303, { location: '/unblock' }); res.end(); return; }
     for (const [id, s] of sessions) if (Date.now() - s.at > 3600_000) sessions.delete(id);
@@ -132,7 +134,9 @@ export function previewServer(): Server {
           const p = () => s.programme;
           if (action === 'sim_light') {
             if (!p().openingHeld || p().state !== 'active') throw new PracticeError('calls_held');
-            s.virtual = new Date(+s.virtual + 86400_000);
+            // Rehearse the advertised call, rather than an arbitrary next day
+            // that may still fall before it (for example over a weekend).
+            s.virtual = s.nextLight ? new Date(Math.max(+s.virtual, +s.nextLight)) : new Date(+s.virtual + 86400_000);
             run({ type: 'light', text: SYNTHETIC.light[p().ledger.length % SYNTHETIC.light.length]!, occurredOn: localDay(s.virtual, tz), source: 'light_call', week: p().weeksHeld + 1 });
             // The next light evening follows simulated time, like the ledger date does.
             if (s.schedule.lightMinute !== null) s.nextLight = nextLight(s.virtual, s.schedule.lightDays, s.schedule.lightMinute, tz) ?? undefined;
