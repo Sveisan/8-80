@@ -54,6 +54,29 @@ async function enrol(phone = phoneA) {
   await db!.store.upsertProfile(phone, { name: phone === phoneA ? 'Alpha Person' : 'Beta Person', email: `${phone === phoneA ? 'alpha' : 'beta'}@example.com` });
   await new Scheduler(db!.sql).setSlot(phone, { weekday: 2, minute: 480, timezone: 'Europe/Oslo' }, new Date(+now - 86400_000));
 }
+
+for(const [speech,declined] of [
+  ['I did not do the action. I was ill all week. I do not want to choose an action this week either.',true],
+  ["I don't want to pick a new action this week.",true],
+  ["I don't want to choose an action until Friday.",false],
+  ["I don't want you to choose an action for me.",false],
+  ['My friend said: "I do not want to choose an action this week."',false],
+] as const)test(`explicit no-action sentence is caller-owned, not inferred from timing, advice or reported speech: ${speech}`,options,async()=>{
+  Object.assign(process.env,{WEEKLY_DIALOGUE_PILOT:'1',WEEKLY_TOOLS_READY:'0',WEEKLY_TOOLS_PILOT_HASH:phoneKey(phoneA),WEEKLY_TOOL_SECRET:'synthetic-weekly-secret-with-32-characters',SPEECHIFY_SEND_VARIABLES:'1',
+    SPEECHIFY_DIALOGUE_AGENT_ID:'pilot-return',SPEECHIFY_DIALOGUE_FIRST_CALL_AGENT_ID:'pilot-first',SPEECHIFY_DIALOGUE_FEMALE_AGENT_ID:'pilot-female-return',SPEECHIFY_DIALOGUE_FEMALE_FIRST_CALL_AGENT_ID:'pilot-female-first'});
+  await enrol();await db!.store.record(phoneA,{at:now.toISOString(),durationMs:100_000,commitment:'original chosen action',eighty:'time with family',onboardingComplete:true});
+  await db!.sql`update callers set consecutive_undone=2 where phone_hash=${phoneKey(phoneA)}`;
+  const d=deps();await tick(d,now);
+  const payload=event('wire_1',[['user',speech],['assistant',fill('next.none')],['assistant','Take care.']]);
+  await settleConversation(payload,d,undefined,now);await settleConversation(payload,d,undefined,now);
+  const saved=await db!.store.load(phoneA);
+  assert.equal(saved.lastCommitment,declined?undefined:'original chosen action');
+  assert.equal(saved.consecutiveUndone,declined?0:2);assert.equal(saved.eighty,'time with family');assert.equal(saved.callNumber,3);
+  const letters=messages.filter(v=>v&&typeof v==='object'&&'parts' in v) as Recap[];
+  assert.equal(letters.length,1);assert.doesNotMatch(letters[0]!.body,/original chosen action|Your longer view/);
+  await tick(d,nextWeek);const variables=wire[1]!['dynamic_variables'] as Record<string,string>;
+  assert.equal(variables['last_commitment'],declined?NOTHING_RECORDED:'original chosen action');assert.equal(variables['own_eighty'],'time with family');
+});
 beforeEach(async () => {
   process.env['WEEKLY_DIALOGUE_PILOT']='0';delete process.env['WEEKLY_DIALOGUE_READY'];delete process.env['WEEKLY_TOOLS_PILOT_HASH'];
   process.env['DATA_ENCRYPTION_KEY'] = Buffer.alloc(32, 12).toString('base64');
