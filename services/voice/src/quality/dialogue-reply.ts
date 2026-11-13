@@ -3,7 +3,7 @@ import { weeklyReadBackSpan } from '../call/weekly-lines.ts';
 import { dialogueCases } from './dialogue-cases.ts';
 import { dialogueScenario, isNativeErrorReply } from './dialogue-native.ts';
 
-const quiet = new Set(['acknowledgement', 'caller_continues', 'thinking_fragments', 'thinking_after_patience', 'quiet_after_sound_feedback', 'returned_goodbye', 'after_end_tool']);
+const quiet = new Set(['acknowledgement', 'caller_continues', 'thinking_fragments', 'thinking_after_patience', 'quiet_after_sound_feedback', 'unclear_fragment_wait', 'returned_goodbye', 'after_end_tool']);
 const map = new Set(['complete_short_reply', 'full_map_before_confirmation', 'partial_map_repair']);
 const normalized = (text: string) => text.toLowerCase().replace(/[’']/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
 
@@ -22,6 +22,10 @@ export function dialogueReplyFailures(id: string, reply: unknown): string[] {
   if (id === 'clarification_twice') {
     if (/what (?:would move|is one thing|could move)|sorry.*(?:go ahead|continue)|phone the sailing school|call the sailing school/i.test(reply)) failures.push('clarification_repeated_or_action_invented');
     if ((reply.match(/\?/g) ?? []).length > 1) failures.push('stacked_clarification_questions');
+  }
+  if (id === 'feedback_resumed') {
+    if (/^phone the sailing school[.!]?$/i.test(reply.trim())) failures.push('chosen_action_sounds_like_instruction');
+    if (/I(?:'|’)ll ask how it went|I will ask how it went|keep that for next time/i.test(reply)) failures.push('unconfirmed_action_or_map_claim');
   }
   if (map.has(id)) {
     const readback = weeklyReadBackSpan([reply], loadScript(), 'read.first.keep');

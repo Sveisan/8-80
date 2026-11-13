@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
 test('thinking fragments and a returned goodbye reject the spoken failures from the owner test', () => {
-  for (const id of ['acknowledgement', 'caller_continues', 'thinking_fragments', 'thinking_after_patience', 'quiet_after_sound_feedback', 'returned_goodbye', 'after_end_tool']) {
+  for (const id of ['acknowledgement', 'caller_continues', 'thinking_fragments', 'thinking_after_patience', 'quiet_after_sound_feedback', 'unclear_fragment_wait', 'returned_goodbye', 'after_end_tool']) {
     assert.deepEqual(check(id, ''), []);
     for (const words of ['Mm.', 'Take your time.', 'Sorry, please go ahead.', '[silence]', 'Take care.']) assert.deepEqual(check(id, words), ['speech_in_quiet_turn']);
     assert.deepEqual(check(id, undefined), ['missing_reply']);
@@ -37,6 +37,11 @@ test('a second clarification gets a concrete anchor rather than a third broad qu
   assert.deepEqual(check('clarification_twice','What would move that forward?'),['clarification_repeated_or_action_invented']);
   assert.deepEqual(check('clarification_twice','Call the sailing school.'),['clarification_repeated_or_action_invented']);
   assert.deepEqual(check('clarification_twice','Would you like a step about sailing? What could you try?'),['stacked_clarification_questions']);
+});
+test('a resumed caller choice is acknowledged without an instruction or unconfirmed memory claim',()=>{
+  assert.deepEqual(check('feedback_resumed',"You've chosen to phone the sailing school."),[]);
+  assert.deepEqual(check('feedback_resumed','Phone the sailing school.'),['chosen_action_sounds_like_instruction']);
+  assert.deepEqual(check('feedback_resumed','I will ask how it went next time we talk.'),['unconfirmed_action_or_map_claim']);
 });
 test('a clear money goal gets a factual response before a follow-up', () => {
   assert.deepEqual(check('new_goal_acknowledged', "You'd like more money coming in. What else would you like to include?"), []);
@@ -88,9 +93,9 @@ test('a complete positive intent matrix permits only a phone pilot, never automa
     ...('expectedTool'in c?{testType:'tool',toolCalled:c.expectedTool}:{testType:'reply',reply:['complete_short_reply','full_map_before_confirmation','partial_map_repair'].includes(c.id)?full:c.id==='listening_sound_feedback'?"I'll stop adding those sounds.":c.id==='caller_reopens_close'?'Of course.':'You want more money.'}),
   })));
   const r=dialogueBatchReport(rows);
-  assert.equal(r.total,112);assert.equal(r.complete,true);assert.equal(r.approvedForPhonePilot,true);
-  assert.equal(r.approved,false);assert.equal(r.quietTurnVoiceChecks.length,22);
-  assert.deepEqual(r.checks,{wording:{total:90,passed:90},toolIntent:{total:22,passed:22}});
+  assert.equal(r.total,116);assert.equal(r.complete,true);assert.equal(r.approvedForPhonePilot,true);
+  assert.equal(r.approved,false);assert.equal(r.quietTurnVoiceChecks.length,26);
+  assert.deepEqual(r.checks,{wording:{total:90,passed:90},toolIntent:{total:26,passed:26}});
 });
 test('untrusted roles, case names and malformed review files cannot leak private values', () => {
   const secret='private-synthetic-input-never-print';

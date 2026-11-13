@@ -17,12 +17,12 @@ test('the full matrix uses the native tool contract for silent actions, not repl
       assert.deepEqual(definition.config, {context:c.context,expected_tool:c.expectedTool});
     } else assert.equal(definition.type, 'reply');
   }
-  assert.equal(total, 112); assert.equal(tools, 22);
+  assert.equal(total, 116); assert.equal(tools, 26);
 });
 test('a reproducible source plan includes all roles without routing identities or caller data',()=>{
   const plan=nativeDialoguePlan('a'.repeat(40));
   assert.deepEqual(plan.specs.map(s=>s.role),[...dialogueRoles]);
-  assert.equal(plan.definitions.length,112);assert.equal(plan.definitions.filter(d=>d.definition.type==='tool').length,22);
+  assert.equal(plan.definitions.length,116);assert.equal(plan.definitions.filter(d=>d.definition.type==='tool').length,26);
   assert.equal(plan.voiceVerified,false);
   assert.ok(plan.specs.every(s=>!Object.hasOwn(s,'agent_id')&&s.prompt.includes('{{first_name}}')));
   assert.throws(()=>nativeDialoguePlan('not-a-complete-revision'));

@@ -166,7 +166,11 @@ distinguishes `reply` from `tool`; their result variants expose different fields
 `nativeDialogueDefinition` now selects `tool` with `context` and `expected_tool`
 for those 22 cases. All original cases remain. Two new cases from the latest
 owner feedback add reopening a close and a second clarification, bringing the
-four-role matrix to 112 (90 wording and 22 tool-selection checks).
+four-role matrix to 112. A later check separated incoherent fragments (wait)
+from the caller explicitly requesting a repeat (speak). The original fragments
+remain unchanged in four additional tool-selection cases; the repeat case now
+includes that explicit request. The complete matrix is 116: 90 wording and 26
+tool-selection checks, including all original 22 tool cases.
 
 Correcting the test type alone was insufficient. Isolated provider controls
 showed that native tests resolve shared client tool definitions, while the
@@ -191,6 +195,11 @@ prompts and typed definitions. The runner binds private targets and the shared
 test definitions separately, records their hashes, and normalizes each run with
 `normalizeNativeDialogueRun`. It must not use the deployed older prompt as the
 candidate or infer spoken silence from an absent reply field.
+Run wording tests with an empty `tool_ids` override and selection tests with the
+two test definitions. A wording test does not model a function invocation: giving
+it the selection catalogue can again produce a fallback when the model chooses a
+function instead of returning text. Preserve the exact source prompt and model
+for both lanes; neither lane verifies a voice worker.
 
 `normalizeNativeDialogueRun` validates the variant, verdict and observed tool
 selection. A missing spoken response remains `not_exposed`. Mixed tool-plus-speech
@@ -217,5 +226,9 @@ An end-call tool record is not evidence that the goodbye was audible.
 
 The latest closing regression gives the floor back when a caller says they have
 one more thing before the call ends. Earlier closing agreement cannot override
-that request. A second clarification is anchored in the caller's stated goal;
-the repair ladder must not turn into a third broad question or a supplied action.
+that request; the reply is only “Of course.” A caller who resumes with a chosen
+action gets an acknowledgement of their own choice, not a bare imperative.
+The first map and explicit action agreement remain required. When the caller
+explicitly asks again what action selection means, the final explanation is
+anchored in their stated goal with a choice to leave it. The repair ladder must
+not turn into a third broad question, a supplied action or a reopened timing cue.
