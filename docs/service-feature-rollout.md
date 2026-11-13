@@ -2,19 +2,21 @@
 
 The 13 November 2026 rollout enables the tested feature tips and one-off SMS
 reminders in eligible weekly calls, and encouragement controls on every account's
-My page. It uses the tested 1af750e backend and four verified dialogue agents from
-the 6f9c987 prompt candidate. The separately prepared weekly conversation changes
-in PR38/PR42 are outside this release and retain their own phone-test process.
+My page. It preserves the current backend and existing customer agents. The feature tool
+protocol is already installed on all four customer roles; activation supplies
+available call-scoped credentials to ordinary eligible sessions. The newer
+PR38/PR42 dialogue remains a separate, restricted phone-test process.
 
 Production flags after activation:
 
 - `WEEKLY_TOOLS_READY=1`: caller-scoped authenticated tools available to all
   eligible weekly sessions. Existing tip opt-outs, contextual timing, one-tip
   spacing and reviewed scores above 7 remain enforced.
-- `WEEKLY_DIALOGUE_READY=1`: scheduled calls use the four verified first/returning
-  male/female agents that implement this tool protocol. No call is placed by
-  activation; existing bookings and voice choices are preserved.
-- `WEEKLY_DIALOGUE_PILOT=0`: no longer limits those agents to one test account.
+- `WEEKLY_DIALOGUE_READY=0`: the newer conversation flow is not promoted by this
+  feature release. Existing first/returning male/female customer routing remains.
+- `WEEKLY_DIALOGUE_PILOT=1`: its existing test-account restriction and hash remain
+  unchanged. Tools being available globally does not promote that dialogue.
+  Activation places no call and preserves bookings and voice choices.
 - `ENCOURAGEMENT_READY=1` and `ENCOURAGEMENT_PHONE_TEST_PASSED=1`: My page controls
   become available to every account. Neither flag opts an account in.
 
@@ -34,7 +36,7 @@ tapping the page button. Automated browser testing covers that button. This
 evidence does not claim that the owner personally completed its browser journey.
 
 The owner subsequently explicitly requested all-user activation. Deployment
-retains configuration/database backups, verifies the actual provider prompts,
+retains configuration/database backups, verifies the existing customer-agent prompts,
 tools, variable catalogs and flow state, and changes the flags under the scheduler
 release lock with no calls in flight. A failed verification restores the previous
 configuration. The isolated pilot account and its test history are retained;
