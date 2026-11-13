@@ -1,10 +1,18 @@
 # brand/
 
-`guide.html` is the identity as designed — open it in a browser. BRAND.md at the repo root
-is the same system written down so code can be checked against it, plus the parts the
-guide does not cover (which surface uses which ground, and what is still undecided).
+`design-system.html` is the current living product handbook: principles, both themes,
+typography, spacing, components, states, page patterns and growth rules. Run
+`npm run design:preview` to open it alongside synthetic product pages, or
+`npm run design:build` to regenerate the HTML, CSS and JSON token exports.
 
-`assets/` is what the product actually loads. `render-mark.py` exports the PNG.
+`BRAND.md` at the repo root records the identity. `docs/design-system.md` records
+implementation, the site audit and extension rules. `guide.html` is an archived
+identity study, clearly marked with a link to the current handbook.
 
-The guide asks for Bricolage Grotesque at `fonts/BricolageGrotesque.woff2`, which is not
-here yet; until it is, the guide renders in a system fallback and so does everything else.
+`assets/` contains the Forever marks, outlined logo lockups, favicons, home-screen icons
+and webmanifest. `ASSETS.md` lists the finished exports and their use. `fonts/` contains
+the local variable WOFF2 files, licenses and build notes. `render-mark.py` exports the
+email PNG. `design-assets.json` records SHA-256 hashes of the generated package.
+
+Source of truth for product foundations: `services/voice/src/design-system/tokens.ts`.
+Do not edit the generated HTML, CSS or JSON by hand.

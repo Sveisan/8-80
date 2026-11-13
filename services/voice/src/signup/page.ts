@@ -1,9 +1,12 @@
+import { BRAND_HEAD } from '../design-system/head.ts';
+import { SIGNUP_CSS } from '../design-system/pages.ts';
+import { FOUNDATION_CSS, CONTROL_CSS } from '../design-system/styles.ts';
 import { femaleVoiceReady, sameMessageNumber } from '../agent/voices.ts';
 import type { ScriptLines } from '../script.ts';
 import { readBookingSlot, type Invalid, type Signup } from './form.ts';
 import { describeAppointment, nextSlotAfter } from '../schedule/time.ts';
-import { BUSY, BUSY_CSS, MOTION, busyLabel, mascot } from './mascot.ts';
-import { timePicker, TIME_PICKER_CSS, TIME_PICKER_SCRIPT } from './time-picker.ts';
+import { BUSY, MOTION, busyLabel, mascot } from './mascot.ts';
+import { timePicker, TIME_PICKER_SCRIPT } from './time-picker.ts';
 
 const esc = (s: string): string =>
   s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
@@ -315,13 +318,13 @@ export function codePage(phone: string, script: ScriptLines, wrong?: string, lan
     <h1>${say('signup.code.title')}</h1>
     <p class="quiet">${esc((script.get(wrong ? 'signup.code.pending' : 'signup.code.detail') ?? '').replace('{{phone}}', phone))}</p>
     ${draft ? `<p class="quiet">${esc((script.get('signup.code.booking') ?? '').replace('{{when}}', describeAppointment(nextSlotAfter(now, draft.signup), draft.signup.timezone, language)))}</p>` : ''}
-    ${notice ? `<p class="wrong">${say(notice)}</p>` : ''}
+    ${notice ? `<p class="wrong" id="code-error" role="alert">${say(notice)}</p>` : ''}
     <form method="post" action="/start/verify" id="verify">
       <input type="hidden" name="phone" value="${esc(phone)}" />
       ${draft ? `<input type="hidden" name="draft" value="${esc(draft.id)}" />` : ''}
       <label for="code" class="sr">${say('signup.code.label')}</label>
       <input id="code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code"
-             pattern="[0-9]{6}" maxlength="6" required autofocus class="code" enterkeyhint="go" />
+             pattern="[0-9]{6}" maxlength="6" required autofocus class="code" enterkeyhint="go"${notice ? ' aria-invalid="true" aria-describedby="code-error"' : ''} />
       <button class="primary">${busyLabel(say('signup.code.submit'))}</button>
     </form>
     ${draft ? `<form method="post" action="/start/resend">
@@ -384,179 +387,12 @@ export { clock };
 function shell(body: string, language = 'en', wide = false): string {
   return `<!doctype html>
 <html lang="${esc(language)}">
-<head>
+<head>${BRAND_HEAD}
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<meta name="theme-color" content="#F4EDE1" media="(prefers-color-scheme: light)" />
-<meta name="theme-color" content="#1A2920" media="(prefers-color-scheme: dark)" />
 <title>8&amp;80</title>
 <style>
-  :root {
-    color-scheme: light dark;
-    --ink: #2F4A3A;        /* Pine on Paper, 8.4:1 */
-    --bg: #F4EDE1;         /* Paper */
-    --line: #CFC7B6;
-    --card: #F8F3EA;       /* the field card, a shade off Paper */
-    /* Forever pairs a serif display with the sans body. Fraunces is the face;
-       until it is self-hosted (BRAND.md §7) this is the system's own serif. */
-    --serif: 'Fraunces', ui-serif, 'New York', 'Iowan Old Style', Georgia, serif;
-    --quiet: #5A695E;      /* 5.0:1 on Paper */
-    --accent: #2F4A3A;     /* Pine — the filled button and the chosen day and time */
-    --on-accent: #F4EDE1;  /* Paper on Pine, 8.4:1 */
-    --gold: #E2B653;       /* a rule, never text on Paper */
-    --bad: #8C3A2B;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --ink: #F4F1E8;      /* Chalk on Night, 13.5:1 */
-      --bg: #1A2920;       /* Night */
-      --line: #4A574D;
-      --card: #203328;
-      --quiet: #9DA198;    /* 5.8:1 on Night */
-      --accent: #E2B653;   /* Gold, 8.0:1 on Night */
-      --on-accent: #1A2920;/* Night on Gold, 8.0:1 */
-      --bad: #E6A08F;
-    }
-  }
-  * { box-sizing: border-box; }
-  html { -webkit-text-size-adjust: 100%; }
-  body {
-    margin: 0; background: var(--bg); color: var(--ink);
-    padding: max(1.5rem, env(safe-area-inset-top)) max(1.25rem, env(safe-area-inset-right))
-             max(2.5rem, env(safe-area-inset-bottom)) max(1.25rem, env(safe-area-inset-left));
-    font: 17px/1.5 ui-sans-serif, -apple-system, 'Segoe UI', system-ui, sans-serif;
-    display: flex; justify-content: center;
-  }
-  main { width: 100%; max-width: 26rem; }
-  .lockup { display: flex; align-items: center; justify-content: center; margin: 0 0 2.25rem; color: var(--ink); }
-  .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-  .mark { width: 3.1rem; height: auto; display: block; }
-  ${BUSY_CSS}
-  .wordmark { font: 600 1.25rem/1 var(--serif); letter-spacing: -0.01em; }
-  h1 { font: 600 2.15rem/1.08 var(--serif); letter-spacing: -0.025em; margin: 0 0 .6rem; }
-  /* The second sentence turns the first one over, so it is set lighter and on
-     its own line — the weight is the punctuation. */
-  h1 span { display: block; font-weight: 300; }
-  .quiet { color: var(--quiet); margin: 0 0 1rem; }
-  h1 + form, h1 + .wrong { margin-top: 1.75rem; }
-  .small { font-size: .9rem; }
-  .centre { text-align: center; }
-  .honest { color: var(--quiet); font-size: .9rem; margin: 0 0 1.75rem; }
-  .wrong { color: var(--bad); font-size: .95rem; margin: .35rem 0 0; }
-  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-  form { margin: 0 0 1rem; }
-  fieldset { border: 0; padding: 0; min-width: 0; }
-  fieldset legend { margin-top: 0; }
-  #when legend, #when .zone { width: 100%; text-align: center; }
-  /* Which clock, directly under the question, quiet enough not to be a second question. */
-  .zone { margin: -.2rem 0 .5rem; font-size: .85rem; color: var(--quiet); }
-  label, legend { display: block; font-size: .95rem; color: var(--quiet); margin: 1rem 0 .35rem; padding: 0; }
-  input, select {
-    width: 100%; min-height: 3rem; padding: .7rem .75rem; font: inherit; color: var(--ink);
-    background: transparent; border: 1px solid var(--line); border-radius: .6rem;
-  }
-  input:focus-visible, button:focus-visible {
-    outline: 2px solid var(--accent); outline-offset: 2px;
-  }
-  input.bad { border-color: var(--bad); }
-  input.code { font-size: 1.75rem; letter-spacing: .35em; text-align: center; font-variant-numeric: tabular-nums; }
-
-  /* Contact fields as one card, so the form reads as one thing to fill in. */
-  .fields { border: 1px solid var(--line); border-radius: 1.1rem; overflow: hidden; background: var(--card); }
-  .fields input { border: 0; border-radius: 0; min-height: 3.4rem; padding: .9rem 1rem; }
-  .fields label { margin: 0; padding: .7rem 1rem 0; font-size: .85rem; }
-  .fields label:not(:first-child) { border-top: 1px solid var(--line); }
-  .fields input { padding-top: .35rem; }
-  .fields input:focus-visible { outline: 0; box-shadow: inset 3px 0 0 var(--accent); }
-  .fields input.bad { box-shadow: inset 3px 0 0 var(--bad); }
-  .fields .wrong { padding: 0 1rem .75rem; margin: 0; }
-  .appointment { margin-top: .75rem; font-weight: 600; }
-  [hidden] { display: none !important; }
-  input::placeholder { color: var(--quiet); opacity: 1; }
-
-  /*
-   * The day and the time. Radios under the pills, so a tap is a native choice
-   * and the form needs no script; the pill is the span beside the radio.
-   */
-  fieldset { margin-top: 1.75rem; }
-  .days { display: grid; grid-template-columns: repeat(7, 1fr); gap: .3rem; }
-  ${TIME_PICKER_CSS}
-  .pick { position: relative; display: block; margin: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; }
-  .pick input { position: absolute; opacity: 0; width: 1px; height: 1px; min-height: 0; margin: 0; }
-  .pick span:first-of-type {
-    display: flex; align-items: center; justify-content: center; min-height: 2.9rem;
-    border: 1px solid var(--line); border-radius: .75rem; color: var(--ink);
-    font-size: .95rem; font-variant-numeric: tabular-nums;
-    transition: background-color .15s ease, color .15s ease, border-color .15s ease;
-  }
-  .pick input:checked + span { background: var(--accent); color: var(--on-accent); border-color: var(--accent); font-weight: 600; }
-  .pick input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
-  @media (prefers-reduced-motion: reduce) { .pick span { transition: none; } }
-
-  /* Everything the page used to say above the form, for whoever asks. */
-  .faq { margin-top: 2.5rem; border-top: 1px solid var(--line); }
-  .faq details { border-bottom: 1px solid var(--line); }
-  .faq summary {
-    list-style: none; cursor: pointer; padding: 1rem 2rem 1rem 0; position: relative; font-size: .95rem;
-  }
-  .faq summary::-webkit-details-marker { display: none; }
-  .faq summary::after { content: '+'; position: absolute; right: .25rem; top: .9rem; color: var(--quiet); }
-  .faq details[open] summary::after { content: '\\2212'; }
-  .faq details p { margin: 0 0 1rem; color: var(--quiet); font-size: .95rem; }
-
-  button {
-    width: 100%; min-height: 3.25rem; margin-top: 1.5rem; padding: .85rem 1rem; font: inherit; font-weight: 600;
-    border-radius: .6rem; cursor: pointer; border: 1px solid var(--line); background: transparent; color: var(--ink);
-  }
-  button.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
-  button.quiet { border: 0; color: var(--quiet); margin-top: .25rem; font-weight: 400; }
-  form + .quiet, button.primary + .quiet { margin-top: .75rem; }
-  .returning { margin-top: 1.75rem; text-align: center; }
-  .returning p { margin: 0 0 .6rem; color: var(--quiet); font-size: .85rem; }
-  .returning a {
-    display: inline-flex; align-items: center; justify-content: center; gap: .6rem;
-    min-height: 2.75rem; padding: .65rem 1.25rem; border: 1px solid var(--line); border-radius: .6rem;
-    background: transparent; color: var(--ink); font-size: .9rem; font-weight: 600; text-decoration: none;
-  }
-  .returning a:hover { background: var(--card); border-color: var(--ink); }
-  .returning a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-  /* Named, not hidden. A sign-up page that does not say where its terms are is
-     a sign-up page hoping nobody looks. */
-  .legal { margin-top: 2rem; }
-  .legal a { color: var(--quiet); }
-  .signup-wide { max-width: 68rem; }
-  .signup-layout { display: grid; gap: 2.5rem; }
-  .signup-intro { padding-top: .5rem; }
-  .signup-intro .lockup { justify-content: flex-start; margin-bottom: 2rem; }
-  .eyebrow { text-transform: uppercase; font-size: .72rem; letter-spacing: .14em; font-weight: 600; color: var(--quiet); margin: 0 0 1.1rem; }
-  .signup-intro h1 { font-size: clamp(2.6rem, 5vw, 4.1rem); line-height: 1.06; margin-bottom: 1.5rem; }
-  .intro-summary { font-size: 1.04rem; line-height: 1.7; max-width: 27rem; }
-  .perspectives { margin: 1.6rem 0 1rem; max-width: 28rem; }
-  .perspectives svg { color-scheme: light; width: 100%; display: block; font-family: var(--serif); }
-  .perspectives figcaption { display: flex; justify-content: space-between; gap: 1.5rem; font-size: .85rem; color: var(--quiet); }
-  .perspectives figcaption span { max-width: 9rem; }
-  .perspectives figcaption span:last-child { text-align: right; }
-  .intro-note { font-size: .95rem; line-height: 1.7; color: var(--quiet); margin-top: 1.5rem; max-width: 28rem; }
-  .booking-panel { padding: 1.6rem 1.1rem; border: 1px solid var(--line); background: var(--card); border-radius: 1.4rem; min-width: 0; }
-  .booking-panel h2 { font: 500 1.8rem/1.15 var(--serif); margin: 0 0 1.6rem; letter-spacing: -.02em; }
-  .booking-panel .fields { background: var(--bg); }
-  .booking-panel fieldset { margin-top: 2rem; }
-  .voice-options { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
-  .voice-choice .small { margin-top: .65rem; }
-  .nudge-choice { display: flex; align-items: flex-start; gap: .75rem; margin: 1.75rem 0; cursor: pointer; }
-  .nudge-choice input { flex: 0 0 1.2rem; width: 1.2rem; min-height: 1.2rem; margin: .2rem 0; accent-color: var(--accent); }
-  .nudge-choice strong { display: block; color: var(--ink); font-weight: 500; }
-  .nudge-choice small { display: block; margin-top: .4rem; line-height: 1.6; }
-  .signup-wide > .faq { max-width: 40rem; margin: 3rem auto 0; }
-  @media (min-width: 55rem) {
-    .signup-layout { grid-template-columns: minmax(0, 1fr) minmax(0, 28rem); gap: 4rem; align-items: start; }
-    .signup-intro { padding-top: 1.5rem; }
-    .booking-panel { padding: 2rem; }
-  }
-  @media (min-width: 40rem) {
-    body { padding-top: 4rem; }
-    h1 { font-size: 2rem; }
-  }
+${FOUNDATION_CSS}${CONTROL_CSS}${SIGNUP_CSS}
 </style>
 </head>
 <body><main${wide ? ' class="signup-wide"' : ''}>${body}</main>${BUSY}${MOTION}</body>

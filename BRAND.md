@@ -5,6 +5,8 @@ says; this holds everything a person sees. Both exist so the decision is made on
 referenced everywhere, rather than remade badly at eleven at night in whichever file
 happens to be open.
 
+The implementation is documented in [docs/design-system.md](docs/design-system.md), with a living visual handbook in [brand/design-system.html](brand/design-system.html). Product tokens are maintained in `services/voice/src/design-system/tokens.ts`.
+
 The identity itself is not decided here. It was designed, and this file records it so the
 code can be checked against it. Where a rule below looks arbitrary, it is load-bearing —
 the reason is given.
@@ -160,7 +162,7 @@ against the body text beside it.
 
 ## 7. Type
 
-**Bricolage Grotesque**, one family for everything, self-hosted — never loaded from Google
+**Bricolage Grotesque**, the family for body text and controls, self-hosted — never loaded from Google
 Fonts, because a weekly call that claims to be private should not tell a third party each
 time someone opens their recap.
 
@@ -169,9 +171,9 @@ tight for numbers, open and easy for reading.
 
 | Size · weight | Use |
 | --- | --- |
-| 72 · 500 | The one line at the top of a page — Fraunces |
-| 36 · 700 | Section heads |
-| 21 · 700 | Sub-heads |
+| 44–72 · 500 | Landing-page headline — Fraunces |
+| 28–36 · 500 | Task-page title — Fraunces |
+| 21 · 700 | Section heads — Bricolage Grotesque |
 | 18 · 400 | Body |
 | 14 · 400 | The quiet line under a button |
 
@@ -179,9 +181,9 @@ Sentence case everywhere, in type as in voice.
 
 **Forever adds one display face: Fraunces**, a soft old-style serif, for the one line at the
 top of a page and the wordmark in the lockup — the same rule, self-hosted, never from Google
-Fonts. Everything else stays in Bricolage Grotesque. Until the file is in the repo, those
-lines fall back to the system serif (New York on Apple devices), which is close enough to
-ship and not the drawing.
+Fonts. Everything else stays in Bricolage Grotesque. Both are now included as local
+variable WOFF2 files in `brand/fonts/`, with a system fallback while loading.
+The design-system handbook demonstrates their roles and responsive sizes.
 
 **Where this does not apply: email.** Mail clients cannot use a self-hosted webfont, so
 the email stack is a system stack and the wordmark is live text. See §9.
@@ -365,17 +367,21 @@ the drawing. Regenerate it with `python3 brand/render-mark.py 160 > brand/assets
 after any change to `mark-badge.svg`; its output was compared by eye against a browser's
 rendering of the same SVG on Paper and on Night when the mark was redrawn.
 
-**Not yet in the repo**, and each one blocks something:
+The local webfonts are in `brand/fonts/fraunces-latin-v1.woff2` and
+`brand/fonts/bricolage-grotesque-latin-v1.woff2`, with licenses and build notes.
+The finished exports are in `brand/assets/`:
 
-- `lockup-light.svg` / `lockup-dark.svg` — mark plus name. Needs the wordmark set in
-  Fraunces and converted to outlines; the font is not here yet.
-- `fonts/Fraunces.woff2` — the display serif Forever pairs with (§7), self-hosted. Until it
-  lands, the sign-up page's headline and wordmark render in the system's serif.
-- `fonts/BricolageGrotesque.woff2` — the variable font, self-hosted. Until it lands, any
-  page that names Bricolage Grotesque is silently rendering in a system fallback.
-- App icons and a favicon. `render-mark.py` will produce them at any size; what is missing
-  is the decision about the rounded-square iOS ground, which is a design question and not
-  an export.
+- `lockup-light.svg`, `lockup-dark.svg` and `lockup-on-gold.svg` combine the original
+  mark with Fraunces 500 at optical size 36. The name is outlined; no font is needed.
+- App and home-screen icons use a solid Night ground with a Chalk mark and Gold dot.
+  The artwork fits within the central mask-safe circle. iOS applies its own corner mask;
+  do not round the source image.
+- The static favicon uses Paper and the heavier small-format mark. SVG, ICO and
+  16/32/48 px PNG versions are included. Apple touch is 180 px; web icons are 192/512 px.
+
+Run `npm run design:build` to rebuild the package, then `npm run design:check` to
+verify the exports match their sources. `brand/ASSETS.md` documents dimensions, usage,
+outline regeneration and the checksum manifest. The product serves these files locally.
 
 ---
 

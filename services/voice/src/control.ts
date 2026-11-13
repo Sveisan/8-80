@@ -1,3 +1,4 @@
+import { serveDesignAsset } from './design-system/assets.ts';
 import { countRequest } from './journey/measure.ts';
 import twilio from 'twilio';
 import { randomUUID } from 'node:crypto';
@@ -175,6 +176,7 @@ export function controlPlane(deps: LoopDeps, secret: string | readonly string[] 
   return createServer((req, res) => {
     void (async () => {
       const url = new URL(req.url ?? '/', 'http://x');
+      if ((req.method === 'GET' || req.method === 'HEAD') && serveDesignAsset(url.pathname, res, req.method === 'HEAD')) return;
 
       // HEAD as well as GET, because every uptime monitor ever written asks
       // with HEAD and ours answered all of them with a 404. It went unnoticed
