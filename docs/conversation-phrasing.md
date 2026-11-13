@@ -176,6 +176,9 @@ Map-checkpoint contexts explicitly establish the completed opening. The reopened
 question has separate first/returning criteria: the first call looks across life,
 while the returning perspective looks back on the week. Neither restarts the
 exercise or relaxes the complete fixed map requirement.
+When asked for that explanation, both prompts explicitly name eighty and the
+looking-back direction. A comfortable close uses a suitable ordinary detail
+already volunteered, while an early stop or difficult conversation stays simple.
 
 Correcting the test type alone was insufficient. Isolated provider controls
 showed that native tests resolve shared client tool definitions, while the
