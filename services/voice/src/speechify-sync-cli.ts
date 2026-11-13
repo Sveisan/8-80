@@ -6,14 +6,14 @@ import { promptPack, agentKeys, type AgentGroup, type AgentRole } from './agent/
 import { SpeechifySettingsApi, syncAgents, parseState, promptDigest, mergeAgentIds, restoreAgents, type SyncState } from './agent/speechify-sync.ts';
 
 const args = process.argv.slice(2);
-const usage = 'Use: npm run speechify:sync -- [--group weekly|weekly-female|beliefs|all] [--check | --apply [--write-ids] | --restore BACKUP_FILENAME]';
+const usage = 'Use: npm run speechify:sync -- [--group weekly|weekly-female|beliefs|unblock|all] [--check | --apply [--write-ids] | --restore BACKUP_FILENAME]';
 type Mode = 'plan' | 'check' | 'apply' | 'restore';
 async function main(): Promise<void> {
   let group: AgentGroup = 'weekly'; let mode: Mode = 'plan'; let writeIds = false; let backupName = '';
   const modes: string[] = [];
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
-    if (arg === '--group') { const value = args[++i]; if (!['weekly', 'weekly-female', 'beliefs', 'all'].includes(value ?? '')) throw new Error(usage); group = value as AgentGroup; }
+    if (arg === '--group') { const value = args[++i]; if (!['weekly', 'weekly-female', 'beliefs', 'unblock', 'all'].includes(value ?? '')) throw new Error(usage); group = value as AgentGroup; }
     else if (arg === '--apply' || arg === '--check' || arg === '--restore') { modes.push(arg); mode = arg.slice(2) as Mode; if (mode === 'restore') backupName = args[++i] ?? ''; }
     else if (arg === '--write-ids') writeIds = true;
     else throw new Error(usage);
@@ -68,6 +68,7 @@ async function main(): Promise<void> {
     }
     console.log('No calls, messages, purchases or phone reassignments were made. Weekly built-in end-call descriptions are part of the verified source sync.');
     if (group === 'beliefs' || group === 'all') console.log('Beliefs capture-tool setup and real-call verification remain required. No BELIEFS_ approval flag was enabled.');
+    if (group === 'unblock' || group === 'all') console.log('Unblock: attach the capture_unblock tool with `npm run unblock:tools`, then verify with a real call. No UNBLOCK_ENABLED or UNBLOCK_SAFETY_APPROVED flag was enabled.');
     if (mode === 'check' && reports.some(r => r.changed)) process.exitCode = 2;
   } finally { await lock.close(); await unlink(lockPath); }
 }

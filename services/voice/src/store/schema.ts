@@ -517,3 +517,40 @@ export const beliefRefundRequests = pgTable('belief_refund_requests', {
   requestedAt:timestamp('requested_at',{withTimezone:true}).notNull().defaultNow(),
   resolvedAt:timestamp('resolved_at',{withTimezone:true}),
 },t=>[uniqueIndex('belief_refund_programme_idx').on(t.programmeId)]);
+
+/** Independent finite programme ("Unblock"); personal content lives only in the encrypted programme aggregate. */
+export const unblockEnrollments = pgTable('unblock_enrollments', {
+  id: text('id').primaryKey().default(sql`gen_random_uuid()::text`),
+  phoneHash: text('phone_hash').notNull().references(() => callers.phoneHash, { onDelete: 'cascade' }),
+  isCurrent: boolean('is_current').notNull().default(true),
+  checkoutReference: text('checkout_reference').notNull().unique(),
+  programmeEnc: text('programme_enc').notNull(), revision: integer('revision').notNull().default(0),
+  consentVersion: text('consent_version').notNull(), consentAt: timestamp('consent_at', { withTimezone: true }).notNull(),
+  timezone: text('timezone').notNull().default('Europe/Oslo'),
+  weeklyWeekday: integer('weekly_weekday'), weeklyMinute: integer('weekly_minute'),
+  lightWeekdays: integer('light_weekdays').array().notNull().default(sql`'{}'::integer[]`), lightMinute: integer('light_minute'),
+  openingAt: timestamp('opening_at', { withTimezone: true }), nextWeeklyAt: timestamp('next_weekly_at', { withTimezone: true }),
+  nextLightAt: timestamp('next_light_at', { withTimezone: true }),
+  standing: text('standing').notNull().default('awaiting_payment'),
+  provider: text('provider'), purchaseId: text('purchase_id').unique(), paymentId: text('payment_id').unique(), customerId: text('customer_id'),
+  productId: text('product_id'),
+  paidAt: timestamp('paid_at', { withTimezone: true }), amountMinor: integer('amount_minor'), currency: text('currency'),
+  completedAt: timestamp('completed_at', { withTimezone: true }),
+  // Monthly subscription (migration 0031): provider ids and standing come only from authoritative provider reads.
+  subscriptionId: text('subscription_id').unique(), cancelAtPeriodEnd: boolean('cancel_at_period_end').notNull().default(false), paidUntil: timestamp('paid_until', { withTimezone: true }),
+  // Chapter clock: the billing month anchored at first activation. chapter/year/chapter_started_at mirror the encrypted programme for operators.
+  callsPerMonth: integer('calls_per_month').notNull().default(4), pendingCallsPerMonth: integer('pending_calls_per_month'),
+  chapter: integer('chapter').notNull().default(1), year: integer('year').notNull().default(1),
+  chapterStartedAt: timestamp('chapter_started_at', { withTimezone: true }), anchorAt: timestamp('anchor_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(), updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, t=>[uniqueIndex('unblock_enrollments_current_idx').on(t.phoneHash).where(sql`${t.isCurrent} = true`), index('unblock_enrollments_owner_idx').on(t.phoneHash)]);
+
+/** Shares the call-attempt/safety review infrastructure without advancing the base call cycle. */
+export const unblockSessions = pgTable('unblock_sessions', {
+  id: text('id').primaryKey().references(() => callAttempts.id, { onDelete: 'cascade' }),
+  phoneHash: text('phone_hash').notNull().references(() => callers.phoneHash, { onDelete: 'cascade' }),
+  programmeId: text('programme_id').notNull().references(() => unblockEnrollments.id, { onDelete: 'cascade' }),
+  kind: text('kind').notNull(), week: integer('week'), snapshotEnc: text('snapshot_enc').notNull(),
+  complete: boolean('complete').notNull().default(false), coverageEnc: text('coverage_enc'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, t=>[index('unblock_sessions_programme_idx').on(t.programmeId)]);

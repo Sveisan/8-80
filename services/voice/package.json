@@ -34,7 +34,12 @@
     "beliefs:doctor": "node --import tsx src/beliefs/doctor-cli.ts",
     "beliefs:prompt": "node --import tsx src/beliefs/prompt-cli.ts",
     "beliefs:requests": "tsx src/beliefs/requests-cli.ts",
-    "quality:weekly": "tsx src/quality/cli.ts"
+    "quality:weekly": "tsx src/quality/cli.ts",
+    "unblock:preview": "node --import tsx src/unblock/preview-cli.ts",
+    "unblock:doctor": "node --import tsx src/unblock/doctor-cli.ts",
+    "unblock:prompt": "node --import tsx src/unblock/prompt-cli.ts",
+    "unblock:chapters": "node --import tsx src/unblock/chapters.ts",
+    "unblock:tools": "node --import tsx src/unblock/tools-cli.ts"
   },
   "dependencies": {
     "dotenv": "^16.4.5",

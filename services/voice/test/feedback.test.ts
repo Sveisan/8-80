@@ -40,7 +40,7 @@ after(async () => {
 });
 
 beforeEach(async () => {
-  if (sql) await sql`truncate belief_sessions, belief_refund_requests, belief_enrollments, message_attempts, message_outbox, callers, call_attempts, links, feedback`;
+  if (sql) await sql`truncate belief_sessions,unblock_sessions, belief_refund_requests, belief_enrollments,unblock_enrollments, message_attempts, message_outbox, callers, call_attempts, links, feedback`;
   process.env['DATA_ENCRYPTION_KEY'] = KEY;
   process.env['PUBLIC_URL'] = 'https://8and80.me';
   delete process.env['FEEDBACK_AFTER_CALL'];
@@ -102,13 +102,29 @@ test('a short call or one that ended early waits for the next call', { skip: ski
   await caller('+4790000203');
   await call('+4790000203', now, 20 * MIN, { minutes: 2 });
   assert.equal(await sendDueFeedback(deps(), now), 0);
-  await sql`truncate belief_sessions, message_attempts, message_outbox, call_attempts`;
+  await sql`truncate belief_sessions,unblock_sessions, message_attempts, message_outbox, call_attempts`;
   await call('+4790000203', now, 20 * MIN, { note: 'moved during the call' });
   assert.equal(await sendDueFeedback(deps(), now), 0);
   assert.equal((await sql`select 1 from feedback`).length, 0, 'not written off, only deferred');
 
   await call('+4790000203', now, 16 * MIN);
   assert.equal(await sendDueFeedback(deps(), now), 1);
+});
+
+test('Unblock and Beliefs calls never count toward, or trigger, the weekly feedback survey', { skip: skip() }, async () => {
+  await caller('+4790000207');
+  const hash = phoneKey('+4790000207');
+  const [e] = await sql`insert into unblock_enrollments(phone_hash,checkout_reference,programme_enc,consent_version,consent_at) values(${hash},${'unblock_fb'},'x','v',now()) returning id`;
+  const [b] = await sql`insert into belief_enrollments(phone_hash,checkout_reference,practice_enc,consent_version,consent_at) values(${hash},${'beliefs:fb'},'x','v',now()) returning id`;
+  for (const [i, [table, programme]] of ([['unblock_sessions', e!['id']], ['belief_sessions', b!['id']]] as const).entries()) {
+    const id = randomUUID();
+    await sql`insert into call_attempts (id, phone_hash, scheduled_for, status, ended_at, duration_ms) values (${id}, ${hash}, ${new Date(now.getTime() - (50 + i) * MIN).toISOString()}, 'completed', ${new Date(now.getTime() - 20 * MIN).toISOString()}, ${12 * MIN})`;
+    await sql.unsafe(`insert into ${table}(id,phone_hash,programme_id,kind,snapshot_enc) values ($1,$2,$3,'weekly','x')`, [id, hash, programme as string]);
+  }
+  assert.equal(await sendDueFeedback(deps(), now), 0, 'module calls are not weekly calls');
+  assert.equal(sent.length, 0);
+  await call('+4790000207', now, 20 * MIN);
+  assert.equal(await sendDueFeedback(deps(), now), 1, 'a real weekly call still counts');
 });
 
 test('a flagged call skips them for good', { skip: skip() }, async () => {

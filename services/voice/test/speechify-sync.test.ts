@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { SpeechifySettingsApi, SpeechifySettingsError, syncAgents, parseState, mergeVariables, mergeAgentIds, restoreAgents, type SyncState, type Backup, type Variable, type SyncReport } from '../src/agent/speechify-sync.ts';
-import { promptPack,weeklyGreeting,WEEKLY_END_CALL_DESCRIPTION, type PromptSpec } from '../src/agent/prompt-pack.ts';
+import { promptPack,weeklyGreeting,WEEKLY_END_CALL_DESCRIPTION,UNBLOCK_GREETINGS, type PromptSpec } from '../src/agent/prompt-pack.ts';
 
 const spec: PromptSpec = { role: 'return', name: 'Weekly', prompt: 'New {{call_number}}', variables: ['call_number'] };
 const state = (): SyncState => ({ version: 1, ids: {} });
@@ -72,9 +72,9 @@ function provider() {
 function options(overrides = {}) { return { specs: [spec], env: { SPEECHIFY_AGENT_ID: 'agent_return' }, state: state(), apply: true, now, saveState: async () => {}, saveBackup: async () => {}, ...overrides }; }
 
 test('source pack uses dynamic values and isolates Beliefs from weekly caller memory', () => {
-  const pack = promptPack('all'); assert.equal(pack.length, 5);
+  const pack = promptPack('all'); assert.equal(pack.length, 8);
   assert.ok(pack[0]!.prompt.includes('{{first_name}}')); assert.ok(pack[1]!.prompt.includes('{{call_number}}'));
-  for (const item of pack.slice(2)) { assert.ok(item.prompt.includes('{{belief_context}}')); assert.ok(!item.variables.includes('own_eight')); assert.deepEqual(item.variables, ['belief_context', 'call_kind', 'session_id', 'session_token']); }
+  for (const item of pack.slice(2, 5)) { assert.ok(item.prompt.includes('{{belief_context}}')); assert.ok(!item.variables.includes('own_eight')); assert.deepEqual(item.variables, ['belief_context', 'call_kind', 'session_id', 'session_token']); }
 });
 test('read-only check makes no provider writes, backups or state saves', async () => {
   const p = provider(); let saves = 0;
@@ -345,4 +345,80 @@ test('creating the female pair copies the matching stage greeting and pace, and 
   assert.deepEqual(first['tts'],{voice_id:'verified-female',speed:0.72});
   assert.deepEqual(returning['tts'],{voice_id:'verified-female',speed:0.8});
   assert.equal(p.agents['agent_return']!['prompt'],'Old');assert.equal(p.requests.filter(r=>r.method==='POST').length,2);
+});
+
+test('unblock source pack: three roles, fixed greetings, declared variables, no weekly or Beliefs roles', () => {
+  const pack = promptPack('unblock', {});
+  assert.deepEqual(pack.map(s => s.role), ['unblock-opening', 'unblock-weekly', 'unblock-light']);
+  assert.deepEqual(pack.map(s => s.firstMessage), [
+    "Hi, it's your Unblock call from 8 and 80. Is now still a good time to talk?",
+    "Hi, it's your Unblock call from 8 and 80. Is now still a good time?",
+    "Hi, it's your Unblock call from 8 and 80 — just a quick one.",
+  ]);
+  for (const item of pack) {
+    assert.deepEqual(item.variables, ['unblock_context', 'call_kind', 'week', 'session_id', 'session_token']);
+    assert.ok(item.prompt.includes('capture_unblock'));
+    assert.ok(item.prompt.includes(`"${item.firstMessage}"`), 'the script states the same fixed first message');
+  }
+  assert.equal(UNBLOCK_GREETINGS.light.includes('quick one'), true);
+  assert.deepEqual(promptPack('all', {}).slice(5).map(s => s.role), pack.map(s => s.role));
+  assert.ok(!promptPack('weekly', {}).some(s => s.role.startsWith('unblock-')));
+  assert.ok(!promptPack('beliefs', {}).some(s => s.role.startsWith('unblock-')));
+});
+
+test('unblock create-if-missing: private agents with complete routing, greetings, variables, read-back and idempotent repeats', async () => {
+  const p = provider(); const saved = state(); const pack = promptPack('unblock', {}); let backups = 0;
+  const env = { SPEECHIFY_AGENT_ID: 'agent_return', SPEECHIFY_WEBHOOK_SECRET: 'fake-signing-secret', PUBLIC_URL: 'https://example.com' };
+  const opts = options({ specs: pack, state: saved, env, saveBackup: async () => { backups++; } });
+  const reports = await syncAgents(p.api, opts);
+  assert.equal(reports.length, 3); assert.equal(new Set(reports.map(r => r.id)).size, 3); assert.ok(reports.every(r => r.created && r.tools === 'unverified'));
+  assert.deepEqual(Object.keys(saved.ids).sort(), ['unblock-light', 'unblock-opening', 'unblock-weekly']); assert.equal(saved.pending, undefined);
+  for (const report of reports) {
+    const wanted = pack.find(s => s.role === report.role)!; const agent = p.agents[report.id]!;
+    const create = p.requests.find(r => r.method === 'POST' && r.body?.['name'] === wanted.name)!;
+    assert.ok(validAmd(create.body!['amd'])); assert.equal(create.body!['is_public'], false);
+    assert.equal(agent['prompt'], wanted.prompt); assert.equal(agent['first_message'], wanted.firstMessage);
+    assert.deepEqual(agent['memory'], { enabled: false }); assert.equal(agent['save_audio_recording'], false);
+    assert.equal(agent['webhook_url'], 'https://example.com/webhooks/speechify');
+    assert.deepEqual(agent['amd'], { enabled: true, on_voicemail: { action: 'hangup' }, on_ivr: { action: 'proceed' }, on_unavailable: { action: 'hangup' } });
+    assert.deepEqual(p.variables[report.id]!.map(v => v.key), wanted.variables);
+    assert.ok(p.requests.findIndex(r => r.method === 'PUT' && r.path.includes(report.id)) < p.requests.findIndex(r => r.method === 'PATCH' && r.path.includes(report.id)));
+  }
+  assert.equal(backups, 1, 'one restore point is saved before any write');
+  const n = p.requests.length;
+  await syncAgents(p.api, opts);
+  assert.ok(p.requests.slice(n).every(r => r.method === 'GET'));
+  assert.equal(p.requests.filter(r => r.method === 'POST').length, 3);
+});
+
+test('unblock --check reports differences without writes, and routing readiness needs an enabled capture_unblock', async () => {
+  const p = provider(); const pack = promptPack('unblock', {});
+  for (const id of ['u_open', 'u_weekly', 'u_light']) { p.agents[id] = { ...structuredClone(p.agents['agent_return']!), id }; p.variables[id] = []; }
+  const env = { UNBLOCK_OPENING_AGENT_ID: 'u_open', UNBLOCK_WEEKLY_AGENT_ID: 'u_weekly', UNBLOCK_LIGHT_AGENT_ID: 'u_light', PUBLIC_URL: 'https://example.com' };
+  const check = await syncAgents(p.api, options({ specs: pack, env, apply: false }));
+  assert.ok(check.every(r => r.changed && !r.created && r.tools === 'unverified')); assert.ok(p.requests.every(r => r.method === 'GET'));
+  await syncAgents(p.api, options({ specs: pack, env }));
+  const after = await syncAgents(p.api, options({ specs: pack, env, apply: false }));
+  assert.ok(after.every(r => !r.changed && r.tools === 'unverified'));
+  const tools = p.agents['u_open']!['tools'] as { name: string; enabled?: boolean }[];
+  tools.push({ name: 'capture_belief', enabled: true });
+  assert.equal((await syncAgents(p.api, options({ specs: [pack[0]!], env, apply: false })))[0]!.tools, 'unverified');
+  tools.push({ name: 'capture_unblock', enabled: true });
+  assert.equal((await syncAgents(p.api, options({ specs: [pack[0]!], env, apply: false })))[0]!.tools, 'present');
+  tools.find(t => t.name === 'capture_unblock')!.enabled = false;
+  assert.equal((await syncAgents(p.api, options({ specs: [pack[0]!], env, apply: false })))[0]!.tools, 'unverified');
+});
+
+test('unblock sync restores a previous greeting and prompt, and routing ids use the pinned env keys', async () => {
+  const p = provider(); let backup: Backup | undefined;
+  const pack = promptPack('unblock', {}).slice(0, 1);
+  const before = structuredClone(p.agents['agent_return']);
+  await syncAgents(p.api, options({ specs: pack, env: { UNBLOCK_OPENING_AGENT_ID: 'agent_return', PUBLIC_URL: 'https://example.com' }, saveBackup: async (b: Backup) => { backup = b; } }));
+  assert.equal(p.agents['agent_return']!['first_message'], UNBLOCK_GREETINGS.opening);
+  assert.equal(backup!.agents[0]!.agent['first_message'], 'Existing greeting');
+  assert.equal(await restoreAgents(p.api, backup), 1); assert.deepEqual(p.agents['agent_return'], before);
+  const merged = mergeAgentIds('UNBLOCK_ENABLED=false\n', { 'unblock-opening': 'a1', 'unblock-weekly': 'a2', 'unblock-light': 'a3' });
+  assert.ok(merged.startsWith('UNBLOCK_ENABLED=false\n'));
+  for (const line of ['UNBLOCK_OPENING_AGENT_ID=a1', 'UNBLOCK_WEEKLY_AGENT_ID=a2', 'UNBLOCK_LIGHT_AGENT_ID=a3']) assert.ok(merged.includes(line));
+  assert.equal(parseState({ version: 1, ids: { 'unblock-light': 'a3' } }).ids['unblock-light'], 'a3');
 });

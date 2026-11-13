@@ -40,7 +40,7 @@ async function enroll(active=true) {
 const token=(id:string)=>sessionToken(id,'t'.repeat(40));
 function payload(id:string,said:string|string[]){return {type:'conversation.completed',data:{conversation_id:id,duration_ms:60000,messages:(typeof said==='string'?[said]:said).map(content=>({role:'user',content}))}};}
 beforeEach(async()=>{
-  if(db)await db.sql`truncate belief_refund_requests,belief_sessions,belief_enrollments,callers,call_attempts,links,signups,access_codes,message_outbox,message_attempts,feedback,journey_events,journey_tracking,journey_counts,webhook_deliveries,heartbeats`;
+  if(db)await db.sql`truncate belief_refund_requests,belief_sessions,unblock_sessions,belief_enrollments,unblock_enrollments,callers,call_attempts,links,signups,access_codes,message_outbox,message_attempts,feedback,journey_events,journey_tracking,journey_counts,webhook_deliveries,heartbeats`;
   process.env['DATA_ENCRYPTION_KEY']=Buffer.alloc(32,12).toString('base64');
   process.env['BELIEFS_TOOL_SECRET']='t'.repeat(40);process.env['PUBLIC_URL']='https://8and80.example';process.env['OPERATOR_PHONE']='+4791000000';
   process.env['BILLING_PROVIDER']='stripe';process.env['BELIEFS_PRODUCT_ID']='price_module';process.env['BELIEFS_BASE_PRICE_ID']='price_month';process.env['STRIPE_SECRET_KEY']='test-key';

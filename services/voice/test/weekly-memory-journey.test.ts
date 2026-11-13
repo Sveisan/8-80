@@ -58,7 +58,7 @@ beforeEach(async () => {
   process.env['DATA_ENCRYPTION_KEY'] = Buffer.alloc(32, 12).toString('base64');
   process.env['PUBLIC_URL'] = 'https://8and80.example';
   process.env['BELIEFS_ENABLED'] = '0';
-  if (db) await db.sql`truncate belief_sessions, belief_refund_requests, belief_enrollments, journey_events, journey_counts, message_attempts, message_outbox, callers, call_attempts, links, webhook_deliveries`;
+  if (db) await db.sql`truncate belief_sessions,unblock_sessions, belief_refund_requests, belief_enrollments,unblock_enrollments, journey_events, journey_counts, message_attempts, message_outbox, callers, call_attempts, links, webhook_deliveries`;
   wire.length = messages.length = 0;
   providerReply = undefined;
   globalThis.fetch = async (input, init) => {

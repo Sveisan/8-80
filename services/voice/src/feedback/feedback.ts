@@ -53,6 +53,7 @@ export async function sendDueFeedback(deps: LoopDeps, now = new Date()): Promise
     with done as (
       select phone_hash, count(*)::int as n
       from call_attempts where status = 'completed' and ended_at is not null
+        and id not in (select id from unblock_sessions union all select id from belief_sessions)
       group by phone_hash
     )
     select a.id, a.phone_hash, a.duration_ms, a.note, a.safety_tier, a.ended_at, done.n
@@ -61,6 +62,7 @@ export async function sendDueFeedback(deps: LoopDeps, now = new Date()): Promise
     join lateral (
       select id, phone_hash, ended_at, duration_ms, note, safety_tier from call_attempts
       where phone_hash = done.phone_hash and status = 'completed' and ended_at is not null
+        and id not in (select id from unblock_sessions union all select id from belief_sessions)
       order by ended_at desc limit 1
     ) a on true
     where done.n >= ${after}

@@ -36,12 +36,11 @@ try{
   }else{
     const id=opts.get('--conversation')!;
     if(!/^[a-zA-Z0-9_-]{1,120}$/.test(id))throw Error('Invalid conversation identifier.');
-    const [{config},{PostgresStore},{Deliveries}]=await Promise.all([import('../config.ts'),import('../store/postgres.ts'),import('../webhook/deliveries.ts')]);
+    const [{config},{PostgresStore},{Deliveries},{weeklyAttempt}]=await Promise.all([import('../config.ts'),import('../store/postgres.ts'),import('../webhook/deliveries.ts'),import('./lookup.ts')]);
     if(!config.database.url)throw Error('Database configuration is missing.');
     const store=new PostgresStore(config.database.url);
     try{
-      const attempts=await store.raw`select a.id,s.id as belief_id from call_attempts a left join belief_sessions s on s.id=a.id where a.provider_call_id=${id}`;
-      if(attempts.length!==1 || attempts[0]!['belief_id'])throw Error('No unambiguous weekly call is available for this identifier.');
+      if(!await weeklyAttempt(store.raw,id))throw Error('No unambiguous weekly call is available for this identifier.');
       const delivery=await new Deliveries(store.raw).body(id);
       if(!delivery)throw Error('No retained delivery is available. This command does not fetch or retain older provider data.');
       const transcript=toTranscript(JSON.parse(delivery.body));
