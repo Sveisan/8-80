@@ -38,6 +38,18 @@ test('contradictory spoken content on a tool result is preserved and rejected',(
   const good=toolRun();
   const r=normalizeNativeDialogueRun('first','thinking_fragments',{...good,result:{...good.result,reply:{agent_response:'Mm.',passed:true}}});
   assert.equal(r.reply,'Mm.');assert.equal(r.spokenEvidence,'reply_text');assert.equal(r.passed,false);
+  for(const reply of [{}, {passed:true}, {agent_response:null}]) {
+    assert.equal(normalizeNativeDialogueRun('first','thinking_fragments',{...good,result:{...good.result,reply}}).passed,false);
+  }
+});
+
+test('a valid reply cannot hide a simultaneous hangup or malformed tool result',()=>{
+  const run={status:'completed',verdict:'passed',result:{test_type:'reply',passed:true,reply:{passed:true,agent_response:'Of course.'}}};
+  for(const tool of [{}, {tool_called:'end_call',passed:true}]) {
+    const r=normalizeNativeDialogueRun('first','caller_reopens_close',{...run,result:{...run.result,tool_call:tool}});
+    assert.equal(r.passed,false);
+  }
+  assert.equal(normalizeNativeDialogueRun('first','caller_reopens_close',{...run,result:{...run.result,tool_call:{tool_called:'end_call'}}}).toolCalled,'end_call');
 });
 
 test('wrong variants, missing observations, errors and contradictory verdicts cannot pass', () => {

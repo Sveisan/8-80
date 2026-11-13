@@ -75,6 +75,8 @@ test('a provider pass cannot override a spoken quiet turn or an incomplete matri
   assert.equal(intent.passed,1);assert.equal(intent.approved,false);assert.equal(intent.voiceVerification,'required');
   assert.equal(intent.quietTurnVoiceChecks.length,1);
   assert.equal(dialogueBatchReport([{...tool,reply:''}]).passed,0,'do not substitute empty speech into a tool-only variant');
+  const mixed=dialogueBatchReport([{role:'first',case:'caller_reopens_close',testType:'reply',reply:'Of course.',toolCalled:'end_call',status:'completed',verdict:'passed',passed:true}]);
+  assert.equal(mixed.passed,0);assert.deepEqual(mixed.failures[0]?.failures,['unexpected_tool_in_reply']);
   assert.equal(dialogueBatchReport([{...input[0],reply:'',verdict:'failed',passed:false}]).passed,0);
   assert.equal(dialogueBatchReport([]).approved,false);
   assert.equal(dialogueBatchReport([input[0],input[0]]).complete,false);

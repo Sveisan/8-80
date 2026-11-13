@@ -68,7 +68,10 @@ export function dialogueBatchReport(input: unknown) {
       // A tool-result variant does not expose spoken text. Do not silently
       // accept a contradictory reply supplied alongside that variant.
       if (toolOnly && row['reply'] !== undefined) failures.push('ambiguous_spoken_evidence');
-    } else if (row['testType'] !== undefined && row['testType'] !== 'reply') failures.push('wrong_native_test_type');
+    } else {
+      if (row['testType'] !== undefined && row['testType'] !== 'reply') failures.push('wrong_native_test_type');
+      if (row['toolCalled'] !== undefined && row['toolCalled'] !== null) failures.push('unexpected_tool_in_reply');
+    }
     const providerPassed = row['status'] === 'completed' && row['verdict'] === 'passed' && row['passed'] === true;
     return { role, case: id, evidence:toolCase?'tool_intent_only':'wording', providerPassed, failures, passed: providerPassed && failures.length === 0 };
   });

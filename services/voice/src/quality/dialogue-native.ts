@@ -55,6 +55,9 @@ export function normalizeNativeDialogueRun(role: string, id: string, input: unkn
   // hard gate can reject it instead of manufacturing silence.
   const response = typeof reply['agent_response'] === 'string' ? reply['agent_response'] : undefined;
   const called = ['skip_turn', 'end_call'].includes(String(tool['tool_called'])) ? String(tool['tool_called']) : null;
+  const otherVariantAbsent = expectedType === 'tool'
+    ? result['reply'] === undefined || result['reply'] === null
+    : result['tool_call'] === undefined || result['tool_call'] === null;
   const variantPassed = expectedType === 'tool'
     ? tool['passed'] === true && tool['tool_matched'] === true && 'expectedTool' in scenario && called === scenario.expectedTool && response === undefined
     : reply['passed'] === true && response !== undefined && response.trim().length > 0 && !isNativeErrorReply(response);
@@ -62,9 +65,9 @@ export function normalizeNativeDialogueRun(role: string, id: string, input: unkn
   return {
     role: role as DialogueRole, case: scenario.id, testType: expectedType, status, verdict,
     passed: !hasError && status === 'completed' && verdict === 'passed' && result['passed'] === true
-      && result['test_type'] === expectedType && variantPassed,
+      && result['test_type'] === expectedType && otherVariantAbsent && variantPassed,
     reply: response,
-    toolCalled: expectedType === 'tool' ? called : null,
+    toolCalled: called,
     spokenEvidence: response !== undefined ? 'reply_text' as const : 'not_exposed' as const,
     audibleBehavior: 'requires_voice_verification' as const,
   };
