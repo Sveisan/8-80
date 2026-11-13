@@ -15,6 +15,7 @@ import { enqueue, dispatchMessage } from '../src/messages/outbox.ts';
 import { buildInstructions } from '../src/prompt.ts';
 import { weeklyPrompt } from '../src/agent/prompt-pack.ts';
 import type { LoopDeps } from '../src/loop/deps.ts';
+import type { Recap } from '../src/recap/compose.ts';
 
 const opened = await openTestDb('weekly_memory_journey');
 const db = typeof opened === 'string' ? undefined : opened;
@@ -93,6 +94,11 @@ for (const repaired of [false, true]) test(`goals-only confirmation cannot compl
   assert.equal(saved.goals,repaired?'learn to sail':undefined);
   assert.equal(saved.onboarding,repaired?'complete':'in_progress');
   assert.equal(saved.callNumber,2,'duplicate webhook must not advance the call again');
+  const letters=messages.filter(v=>v&&typeof v==='object'&&'parts' in v) as Recap[];
+  assert.equal(letters.length,1);
+  assert.equal(letters[0]!.said?.commitment,'phone the sailing school');
+  if(repaired)assert.match(letters[0]!.body,/Your longer view: time with family\./);
+  else assert.doesNotMatch(letters[0]!.body,/Your longer view/,'an unconfirmed map cannot become email context');
   await tick(d,nextWeek);
   const next=wire[1]!,vars=next['dynamic_variables'] as Record<string,string>;
   assert.equal(next['agent_id'],repaired?'return-agent':'first-agent');
@@ -121,6 +127,7 @@ test('signed webhook → encrypted memory → next outbound request and prompt, 
   const alpha = event(idFor(phoneA), [
     ['assistant', fill('read.first.keep', { eight: 'alpha games', eighty: 'alpha family', goals: 'alpha garden' })],
     ['user', 'No, change eight.'], ['assistant', fill('read.first.fix_eight', { eight: 'alpha drawing' })],
+    ['user', 'Yes. Change the older part too.'], ['assistant', fill('read.first.fix_eighty', { eighty: 'alpha friends' })],
     ['user', 'Yes, exactly.'], ['assistant', fill('onboarding.confirmed')],
     ['user', 'Plant alpha seeds.'], ['assistant', fill('next.confirm', { commitment: 'plant alpha seeds' })],['user','Yes.'], ['assistant', 'Right. Goodbye.'],
   ]);
@@ -129,6 +136,10 @@ test('signed webhook → encrypted memory → next outbound request and prompt, 
   assert.equal((await post(alpha)).status, 200);
   assert.equal((await post(alpha)).status, 200);
   assert.equal(messages.length, 1, 'duplicate webhook cannot produce a second recap');
+  const alphaRecap=messages[0] as Recap;
+  assert.match(alphaRecap.body,/Your longer view: alpha friends\./);
+  assert.doesNotMatch(alphaRecap.body,/alpha family|beta/);
+  assert.equal(alphaRecap.said?.commitment,'plant alpha seeds');
   await post(event(idFor(phoneB), [
     ['assistant', fill('read.first.keep', { eight: 'beta books', eighty: 'beta family', goals: 'beta lessons' })],
     ['user', 'Yes.'], ['assistant', fill('onboarding.confirmed')], ['user', 'Book beta lessons.'], ['assistant', fill('next.confirm', { commitment: 'book beta lessons' })],['user','Yes.'],
@@ -143,6 +154,7 @@ test('signed webhook → encrypted memory → next outbound request and prompt, 
     assert.equal(body['agent_id'], 'return-agent');
     const vars = body['dynamic_variables'] as Record<string, string>;
     assert.equal(vars['own_eight'], eight);
+    assert.equal(vars['own_eighty'],prefix==='alpha'?'alpha friends':'beta family');
     assert.equal(vars['own_goals'], prefix === 'alpha' ? 'alpha garden' : 'beta lessons');
     assert.doesNotMatch(JSON.stringify(vars), prefix === 'alpha' ? /beta/ : /alpha/);
     const prompt = buildInstructions(script, { callNumber: Number(vars['call_number']), onboardingProgress: vars['onboarding_progress'], lastCommitment: vars['last_commitment'], eight: vars['own_eight'], eighty: vars['own_eighty'], goals: vars['own_goals'] });
@@ -154,6 +166,21 @@ test('signed webhook → encrypted memory → next outbound request and prompt, 
     assert.ok(rendered.includes(eight));
     assert.doesNotMatch(rendered, /\{\{/);
   }
+  const nextAlpha=wire.slice(2).find(body=>body['to']===phoneA)!;
+  const returning=event(`wire_${wire.indexOf(nextAlpha)+1}`,[
+    ['user','I planted the seeds. Next I want to water the garden.'],['assistant',fill('last.did')],
+    ['assistant',fill('next.confirm',{commitment:'water alpha garden'})],['user','Yes.'],['assistant',fill('next.agreed')],
+  ]);
+  assert.equal((await post(returning)).status,200);assert.equal((await post(returning)).status,200);
+  assert.equal(messages.length,3,'two first recaps and one return recap, with no duplicate sends');
+  const returnRecap=messages[2] as Recap;
+  assert.equal(returnRecap.said?.commitment,'water alpha garden');
+  assert.match(returnRecap.body,/We'll pick it up next time we talk\./);
+  assert.doesNotMatch(returnRecap.body,/Your longer view|alpha friends|beta/,'a saved profile is not a newly confirmed quotation');
+  const alphaSaved=await db!.store.load(phoneA),betaSaved=await db!.store.load(phoneB);
+  assert.equal(alphaSaved.lastCommitment,'water alpha garden');assert.equal(alphaSaved.eighty,'alpha friends');assert.equal(alphaSaved.callNumber,3);
+  assert.equal(betaSaved.lastCommitment,'book beta lessons');assert.equal(betaSaved.eighty,'beta family');assert.equal(betaSaved.callNumber,2);
+  assert.equal((await db!.sql`select count(*)::int as n from message_outbox where kind='recap'`)[0]!['n'],3);
 });
 
 for (const [resultLine, resultField] of [['last.did', 'weeksDone'], ['last.partial', 'weeksPartly'], ['nothing.c.follow', 'weeksUndone']] as const) {
