@@ -15,6 +15,8 @@ import { enqueue, dispatchMessage } from '../src/messages/outbox.ts';
 import { buildInstructions } from '../src/prompt.ts';
 import { weeklyPrompt } from '../src/agent/prompt-pack.ts';
 import type { LoopDeps } from '../src/loop/deps.ts';
+import { DIALOGUE_POLICY } from '../src/weekly/dialogue-policy.ts';
+import { weeklyTool } from '../src/weekly/runtime.ts';
 
 const opened = await openTestDb('weekly_memory_journey');
 const db = typeof opened === 'string' ? undefined : opened;
@@ -72,6 +74,63 @@ beforeEach(async () => {
   };
 });
 after(async () => { globalThis.fetch = nativeFetch; await db?.close(); });
+
+test('global dialogue-only calls route both voices and settle signed callbacks strictly without feature authority',options,async t=>{
+  const values:NodeJS.ProcessEnv={WEEKLY_DIALOGUE_READY:'1',WEEKLY_DIALOGUE_PILOT:'0',WEEKLY_TOOLS_READY:'0',WEEKLY_TOOL_SECRET:undefined,WEEKLY_TOOLS_PILOT_HASH:undefined,SPEECHIFY_SEND_VARIABLES:'1',
+    SPEECHIFY_FIRST_CALL_AGENT_ID:'first-agent',SPEECHIFY_AGENT_ID:'return-agent',SPEECHIFY_FEMALE_FIRST_CALL_AGENT_ID:'female-first-agent',SPEECHIFY_FEMALE_AGENT_ID:'female-return-agent',
+    SPEECHIFY_DIALOGUE_FIRST_CALL_AGENT_ID:'dialogue-first',SPEECHIFY_DIALOGUE_AGENT_ID:'dialogue-return',SPEECHIFY_DIALOGUE_FEMALE_FIRST_CALL_AGENT_ID:'dialogue-female-first',SPEECHIFY_DIALOGUE_FEMALE_AGENT_ID:'dialogue-female-return'};
+  const before=Object.fromEntries(Object.keys(values).map(key=>[key,process.env[key]]));
+  for(const[key,value]of Object.entries(values)){if(value===undefined)delete process.env[key];else process.env[key]=value;}
+  try{
+    await enrol();await enrol(phoneB);await db!.store.upsertProfile(phoneB,{voice:'female'});
+    const d=deps();await tick(d,now);
+    assert.equal(wire.length,2);
+    const forPhone=(phone:string,offset=0)=>wire.slice(offset).find(body=>body['to']===phone)!;
+    assert.equal(forPhone(phoneA)['agent_id'],'dialogue-first');
+    assert.equal(forPhone(phoneB)['agent_id'],'dialogue-female-first');
+    for(const body of wire)assert.deepEqual(JSON.parse((body['dynamic_variables'] as Record<string,string>)['weekly_context']!),{available:false,dialogue_policy:DIALOGUE_POLICY});
+    await assert.rejects(weeklyTool(d,{attempt_id:'ordinary',session_token:'forged',command:'status'},now),{code:'unauthorized'});
+    const server=controlPlane(d,secret);
+    await new Promise<void>(resolve=>server.listen(0,'127.0.0.1',resolve));
+    t.after(()=>new Promise<void>(resolve=>server.close(()=>resolve())));
+    const url=`http://127.0.0.1:${(server.address() as AddressInfo).port}/webhooks/speechify`;
+    const post=async(payload:unknown)=>{
+      const body=JSON.stringify(payload),timestamp=Math.floor(Date.now()/1000),signature=createHmac('sha256',secret).update(`${timestamp}.${body}`).digest('hex');
+      const response=await fetch(url,{method:'POST',body,headers:{'speechify-signature':`t=${timestamp},v0=${signature}`}});
+      assert.equal(response.status,200);
+    };
+    for(const[phone,prefix]of [[phoneA,'alpha'],[phoneB,'beta']] as const){
+      const id=`wire_${wire.indexOf(forPhone(phone))+1}`;
+      const payload=event(id,[
+        ['assistant',fill('read.first.keep',{eight:`${prefix} games`,eighty:`${prefix} family`,goals:`${prefix} sailing`})],['user','Yes.'],['assistant',fill('onboarding.confirmed')],
+        ['user',`I choose to book ${prefix} lessons.`],['assistant',fill('next.confirm',{commitment:`book ${prefix} lessons`})],['user','Yes.'],['assistant',fill('next.agreed')],
+      ]);
+      await post(payload);await post(payload);
+      const saved=await db!.store.load(phone);
+      assert.equal(saved.callNumber,2);assert.equal(saved.onboarding,'complete');assert.equal(saved.lastCommitment,`book ${prefix} lessons`);
+    }
+    assert.equal(messages.length,2,'each signed first-call completion creates exactly one recap');
+    await tick(d,nextWeek);assert.equal(wire.length,4);
+    for(const[phone,prefix,agent]of [[phoneA,'alpha','dialogue-return'],[phoneB,'beta','dialogue-female-return']] as const){
+      const body=forPhone(phone,2),vars=body['dynamic_variables'] as Record<string,string>;
+      assert.equal(body['agent_id'],agent);assert.equal(vars['last_commitment'],`book ${prefix} lessons`);
+      assert.equal(vars['own_eight'],`${prefix} games`);assert.equal(vars['own_eighty'],`${prefix} family`);assert.equal(vars['own_goals'],`${prefix} sailing`);
+      assert.deepEqual(JSON.parse(vars['weekly_context']!),{available:false,dialogue_policy:DIALOGUE_POLICY});
+    }
+    const returning=forPhone(phoneA,2),id=`wire_${wire.indexOf(returning)+1}`;
+    const unconfirmed=event(id,[
+      ['user','I completed the previous action.'],['assistant',fill('last.did')],
+      ['assistant',fill('next.confirm',{commitment:'redo the unchosen flyer'})],['user','Right, thank you.'],['assistant',fill('next.agreed')],['assistant','Goodbye.'],
+    ]);
+    await post(unconfirmed);await post(unconfirmed);
+    assert.equal((await db!.store.load(phoneA)).lastCommitment,'book alpha lessons','global dialogue-only settlement must reject courtesy as action consent');
+    assert.equal((await db!.store.load(phoneA)).callNumber,3,'duplicate return callback cannot advance twice');
+    assert.equal((await db!.store.load(phoneB)).callNumber,2,'another caller remains untouched');
+    assert.equal(messages.length,3,'the returning call also has exactly one recap');
+    assert.doesNotMatch(JSON.stringify(messages),/redo the unchosen flyer/);
+    assert.equal((await db!.sql`select count(*)::int as n from message_outbox where kind='recap'`)[0]!['n'],3);
+  }finally{for(const[key,value]of Object.entries(before)){if(value===undefined)delete process.env[key];else process.env[key]=value;}}
+});
 
 for (const repaired of [false, true]) test(`goals-only confirmation cannot complete the map; full repair persists all parts: ${repaired}`, options, async () => {
   await enrol();
