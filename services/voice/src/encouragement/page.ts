@@ -11,7 +11,7 @@ export function encouragementSection(view:EncouragementView):string{
     ?? variants.find(v=>v.tone===p.tone && v.topic==='encouragement')!;
   return `<section class="account-section" id="encouragement" aria-labelledby="encouragement-heading">
     <h2 id="encouragement-heading">Encouragement by SMS</h2>
-    <p class="hint">Private pilot. Optional messages in the style you choose. Off until you opt in. Messages can appear on your lock screen.</p>
+    <p class="hint">Optional messages in the style you choose. Off until you opt in. Messages can appear on your lock screen.</p>
     <p role="status">${view.note?esc(view.note):!p.enabled?'Encouragement is off.':p.paused?'Encouragement is paused.':'Encouragement is on.'}</p>
     <form method="post">
       <input type="hidden" name="enc_revision" value="${p.revision}">

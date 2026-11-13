@@ -74,7 +74,7 @@ We do not use analytics cookies.
 **Your feedback preference.** You can stop optional feedback requests separately
 from calls, recaps, verification codes and billing notices.
 
-**Optional encouragement by SMS.** This private pilot is off until you opt in on
+**Optional encouragement by SMS.** Messages are off until you opt in on
 My page. We store frequency, tone, selected message types, quiet hours and timezone,
 strong-language choice, pause state and when you opted in. Your optional chosen
 focus and composed message text are encrypted. Recognition uses only an action
