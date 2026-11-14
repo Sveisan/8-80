@@ -52,7 +52,7 @@ async function call(at: Date, saves: [string, Record<string, unknown>][], extraT
   return { s, result };
 }
 beforeEach(async () => {
-  if (db) await db.sql`truncate product_feedback,unblock_sessions,unblock_enrollments,belief_refund_requests,belief_sessions,belief_enrollments,callers,call_attempts,links,signups,access_codes,message_outbox,message_attempts,feedback,journey_events,journey_tracking,journey_counts,webhook_deliveries,heartbeats`;
+  if (db) await db.sql`truncate jev_quality_reviews,product_feedback,unblock_sessions,unblock_enrollments,belief_refund_requests,belief_sessions,belief_enrollments,callers,call_attempts,links,signups,access_codes,message_outbox,message_attempts,feedback,journey_events,journey_tracking,journey_counts,webhook_deliveries,heartbeats`;
   process.env['DATA_ENCRYPTION_KEY'] = Buffer.alloc(32, 14).toString('base64');
   Object.assign(process.env, { UNBLOCK_TOOL_SECRET: 'u'.repeat(40), PUBLIC_URL: 'https://8and80.example', OPERATOR_PHONE: '+4791000000', UNBLOCK_COVERAGE_START: '00:00', UNBLOCK_COVERAGE_END: '24:00', UNBLOCK_ENABLED: 'false', UNBLOCK_LIVE_CALLS: 'false' });
   delete process.env['OPERATOR_PHONE_BACKUP'];

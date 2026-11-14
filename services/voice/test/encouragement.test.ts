@@ -30,7 +30,7 @@ const due=async()=>{await save();await db!.sql`update encouragement_preferences 
 beforeEach(async()=>{
   Object.assign(process.env,{DATA_ENCRYPTION_KEY:Buffer.alloc(32,35).toString('base64'),PUBLIC_URL:'https://8and80.example',SMS_FROM_NUMBER:'+4798880088',SPEECHIFY_CALLER_ID_NUMBER:'+4798880088',ENCOURAGEMENT_READY:'0',ENCOURAGEMENT_PHONE_TEST_PASSED:'0',ENCOURAGEMENT_PILOT_HASHES:hash,BELIEFS_ENABLED:'0',UNBLOCK_ENABLED:'0'});
   sent=[];
-  if(db){await db.sql`truncate product_feedback,encouragement_preferences,encouragement_deliveries,message_attempts,message_outbox,callers,call_attempts,links cascade`;
+  if(db){await db.sql`truncate jev_quality_reviews,product_feedback,encouragement_preferences,encouragement_deliveries,message_attempts,message_outbox,callers,call_attempts,links cascade`;
     await db.store.upsertProfile(phone,{name:'Synthetic',email:'synthetic@example.com'});
     await db.sql`update callers set billing_status='comped',call_number=2,onboarding='complete',timezone='Europe/Oslo',paused=false where phone_hash=${hash}`;}
 });

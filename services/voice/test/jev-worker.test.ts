@@ -36,6 +36,7 @@ test('completed-call queue is durable, isolated, one-shot, private, bounded and 
   process.env['DATA_ENCRYPTION_KEY'] = Buffer.alloc(32, 13).toString('base64');
   const phone = '+4790000668', hash = phoneKey(phone);
   let requests = 0;
+  let sequence = 0;
   const reviewer: typeof reviewWithJev = async (input, options) => {
     requests++;
     assert.equal(options?.enabled, true);
@@ -44,8 +45,8 @@ test('completed-call queue is durable, isolated, one-shot, private, bounded and 
       repeatedQuestion: { state: 'uncertain', probability: 0.5 }, unsupportedRecap: { state: 'flag', probability: 0.9 } };
   };
   async function call(id: string, ended = new Date(+now - 60_000), status = 'completed') {
-    await db.sql`insert into call_attempts (id, phone_hash, scheduled_for, status, provider_call_id, ended_at)
-      values (${id}, ${hash}, ${ended}, ${status}, ${'conv-' + id}, ${ended})`;
+    await db.sql`insert into call_attempts (id, phone_hash, scheduled_for, claimed_at, status, provider_call_id, ended_at)
+      values (${id}, ${hash}, ${new Date(+ended - ++sequence * 1000)}, ${new Date(+ended - 600_000)}, ${status}, ${'conv-' + id}, ${ended})`;
     const body = { conversation_id: 'conv-' + id, duration_ms: 1000,
       messages: [{ role: 'agent', content: 'What did you choose?' }, { role: 'caller', content: 'fictional-private-sentence' }] };
     await db.sql`insert into webhook_deliveries (id, event, conversation_id, body_enc) values

@@ -20,7 +20,7 @@ const options={skip:typeof opened==='string'?opened:false};
 const now=new Date(), input={comment:'The schedule is hard to find.',page:'/me',viewport:'390x844',release:''};
 beforeEach(async()=>{
   Object.assign(process.env,{DATA_ENCRYPTION_KEY:Buffer.alloc(32,7).toString('base64'),PRODUCT_FEEDBACK_ENABLED:'1',PRODUCT_FEEDBACK_WORKER_TOKEN:'synthetic-worker-secret-'.repeat(3)});
-  if(db)await db.sql`truncate product_feedback,callers cascade`;
+  if(db)await db.sql`truncate jev_quality_reviews,product_feedback,callers cascade`;
 });
 after(async()=>{await db?.close();});
 const save=async(session=newSession(),bucket='synthetic',owner?:string):Promise<string>=>new FeedbackStore(db!.sql).save(session,bucket,randomUUID(),input,owner);

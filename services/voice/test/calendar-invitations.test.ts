@@ -39,7 +39,7 @@ beforeEach(async () => {
   delete process.env['BELIEFS_LIVE_CALLS']; delete process.env['UNBLOCK_LIVE_CALLS'];
   sent = [];
   if (!db) return;
-  await db.sql`truncate product_feedback, belief_sessions, unblock_sessions, belief_refund_requests, belief_enrollments, unblock_enrollments, calendar_invitations, message_attempts, message_outbox, callers, call_attempts, links, signups, feedback`;
+  await db.sql`truncate jev_quality_reviews,product_feedback, belief_sessions, unblock_sessions, belief_refund_requests, belief_enrollments, unblock_enrollments, calendar_invitations, message_attempts, message_outbox, callers, call_attempts, links, signups, feedback`;
   await db.store.upsertProfile(phone, { email });
   await new Scheduler(db.sql).setSlot(phone, slot, now);
 });
