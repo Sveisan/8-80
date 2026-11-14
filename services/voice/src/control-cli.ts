@@ -1,6 +1,7 @@
 import { log } from './log.ts';
 import { config } from './config.ts';
 import { controlPlane, openDeps } from './control.ts';
+import { startQualityWorker } from './quality/worker.ts';
 import { pendingMigrations } from './store/migrate.ts';
 
 /**
@@ -41,12 +42,13 @@ const deps = openDeps();
 const port = Number(process.env['CONTROL_PORT'] ?? 8080);
 const server = controlPlane(deps);
 
+const stopQuality = startQualityWorker(config.database.url, result => log('jev_quality.tick', { ...result }));
 server.listen(port, () => log('control.listening', { port }));
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.on(signal, () => {
     // Finish the request in flight; a webhook cut off mid-settle is the one
     // that leaves an attempt stuck in `settling`.
-    server.close(() => void deps.store.close().then(() => process.exit(0)));
+    server.close(() => void Promise.all([stopQuality(), deps.store.close()]).then(() => process.exit(0)));
   });
 }

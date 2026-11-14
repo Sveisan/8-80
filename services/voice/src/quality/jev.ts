@@ -10,7 +10,7 @@ const MAX_TIMEOUT_MS = 4_000;
 
 export interface JevReviewInput {
   conversation: readonly Turn[];
-  candidateRecap: string;
+  candidateRecap?: string;
   /** Independently verified facts only; omit when none are available. */
   trustedContext?: Readonly<Record<string, string>>;
 }
@@ -21,7 +21,8 @@ export type JevReview = {
   advisoryOnly: true;
   policy: typeof JEV_POLICY;
 } & ({ status: 'disabled' } | { status: 'unavailable'; reason: Reason }
-  | { status: 'reviewed'; model: typeof JEV_MODEL; repeatedQuestion: Verdict; unsupportedRecap: Verdict });
+  | { status: 'reviewed'; model: typeof JEV_MODEL; repeatedQuestion: Verdict;
+      unsupportedRecap: Verdict | { state: 'unavailable'; reason: 'no_recap' } });
 interface Options {
   enabled?: boolean;
   apiKey?: string;
@@ -37,7 +38,7 @@ const record = (v: unknown): Record<string, unknown> | undefined =>
 
 function requestBody(input: JevReviewInput): string {
   if (!Array.isArray(input?.conversation) || input.conversation.length === 0 || input.conversation.length > 1000
-    || typeof input.candidateRecap !== 'string' || !input.candidateRecap.trim()
+    || input.candidateRecap !== undefined && (typeof input.candidateRecap !== 'string' || !input.candidateRecap.trim())
     || input.conversation.some(t => !t || !['agent', 'caller'].includes(t.speaker) || typeof t.text !== 'string')) {
     throw new ReviewFailure('invalid_input');
   }
@@ -51,7 +52,8 @@ function requestBody(input: JevReviewInput): string {
     candidate_recap: input.candidateRecap,
     trusted_context: context,
   };
-  const body = JSON.stringify({ model: JEV_MODEL, state, questions: jevQuestions });
+  const questions = input.candidateRecap === undefined ? { repeated_question: jevQuestions.repeated_question } : jevQuestions;
+  const body = JSON.stringify({ model: JEV_MODEL, state, questions });
   if (Buffer.byteLength(body, 'utf8') > MAX_REQUEST_BYTES) throw new ReviewFailure('payload_too_large');
   return body;
 }
@@ -119,7 +121,8 @@ export async function reviewWithJev(input: JevReviewInput, options: Options = {}
       const answers = record(result['answers']);
       return { ...base, status: 'reviewed', model: JEV_MODEL,
         repeatedQuestion: verdict(answers?.['repeated_question']),
-        unsupportedRecap: verdict(answers?.['unsupported_recap']) };
+        unsupportedRecap: input.candidateRecap === undefined ? { state: 'unavailable', reason: 'no_recap' }
+          : verdict(answers?.['unsupported_recap']) };
     };
     return await Promise.race([request(), deadline]);
   } catch (error) {

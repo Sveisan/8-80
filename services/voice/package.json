@@ -41,7 +41,8 @@
     "unblock:prompt": "node --import tsx src/unblock/prompt-cli.ts",
     "unblock:chapters": "node --import tsx src/unblock/chapters.ts",
     "unblock:tools": "node --import tsx src/unblock/tools-cli.ts",
-    "quality:jev": "node --import tsx src/quality/jev-cli.ts"
+    "quality:jev": "node --import tsx src/quality/jev-cli.ts",
+    "quality:jev:worker": "node --import tsx src/quality/worker-cli.ts"
   },
   "dependencies": {
     "dotenv": "^16.4.5",

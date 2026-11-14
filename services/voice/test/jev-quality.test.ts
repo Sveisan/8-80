@@ -100,7 +100,7 @@ test('CLI preserves local checks when Jev is disabled or lacks credentials, with
       const report = JSON.parse(result.stdout); assert.ok(report.report.structural);
       assert.equal(report.jev.status, args.includes('--send-to-jev') ? 'unavailable' : 'disabled');
       assert.ok(!result.stdout.includes(privateText));
-      assert.ok(!result.stdout.includes(input.candidateRecap));
+      assert.ok(!result.stdout.includes(input.candidateRecap!));
       assert.ok(!result.stdout.includes(file));
     }
     writeFileSync(file, privateText);

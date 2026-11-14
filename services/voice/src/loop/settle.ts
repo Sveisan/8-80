@@ -1,3 +1,4 @@
+import { queueQualityReview } from '../quality/queue.ts';
 import { milestone } from '../journey/measure.ts';
 import { syncCalendarInvitations } from '../calendar/invitations.ts';
 import { settleBeliefs } from '../beliefs/runtime.ts';
@@ -186,6 +187,7 @@ async function settleInside(
       // matter, and a letter dated the day before the call reads as a mistake.
       ...dated(slot ? letterDate(outcome.outcome.at, slot.timezone, caller.language) : undefined),
     });
+    await queueQualityReview(deps.store.raw, attempt.id, attempt.phoneHash, recap, now);
     if (caller.email) await deps.mailer.send(caller.email, recap);
 
     // What the call could not do itself. The mentor says out loud that it

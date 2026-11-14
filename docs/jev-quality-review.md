@@ -1,6 +1,6 @@
 # Optional Jev quality review
 
-Jev is an opt-in post-call reviewer for unnecessary repeated questions and unsupported recap claims. It is advisory, outside the live call/webhook path, and disabled by default. It does not create or change commitments, consent, memory, recaps, bookings or messages. A provider failure cannot block the existing local quality checks.
+Jev is an opt-in post-call reviewer for unnecessary repeated questions and unsupported recap claims. It is advisory and disabled by default. When explicitly enabled, the control service runs a separate background worker after completed weekly calls; model requests are outside the live call/webhook path. It does not create or change commitments, consent, memory, recaps, bookings or messages. A provider failure cannot block the existing local quality checks.
 
 Run local checks on a private review packet:
 
@@ -42,7 +42,17 @@ The pinned model is `jev-1.14.0`. The rubric and boundaries match the evaluated 
 
 Disabled mode makes no request. Enabled mode makes at most one request, with a four-second deadline covering both connection and response body, a 64,000-byte request limit, a 16,384-byte response limit and no truncation or automatic retries. Failed review retains the local report and exits successfully; malformed source or arguments produce a fixed diagnostic and exit 1. Provider identifiers and arbitrary packet fields are omitted from requests. No endpoint/model override or automatic provider fallback exists.
 
-This module must not be awaited from a live call, settlement or recap-delivery/webhook path. There is no automatic production activation, cron or external storage. Use explicit owner review to assess advice before changing conversation behavior.
+The TypeSafe request must not be awaited from a live call, settlement or recap-delivery/webhook path. The background worker uses its own single-connection database pool and runs at startup and once per minute, with at most five calls per batch. An activation timestamp excludes earlier calls. Only completed weekly calls at least 30 seconds old are selected; safety-flagged calls and Beliefs/Unblock sessions are excluded.
+
+Settlement saves the conversational recap paragraphs in an encrypted, savepoint-protected queue before the delivery outbox clears its copy. A queue failure rolls back only the savepoint, not the call transaction. The worker reads the already retained signed transcript, claims each call before model I/O, and stores only scores and existing local-check counts. It immediately clears the queued recap excerpt after the attempt. Account/call deletion cascades to the result; exports include results and any queued excerpt. The ordinary maintenance tick prunes results/excerpts after 14 days even if model review is disabled.
+
+Only `lead` and `body` recap paragraphs are evaluated. Operational billing, timing and account-link paragraphs are outside this check. If the queued excerpt is unavailable, the worker reviews repetition only and marks the recap check unavailable. It never invents a recap or treats missing input as clear. Concurrent workers cannot duplicate a claimed call. A stale in-flight claim becomes unavailable after five minutes, without another provider request.
+
+### Production activation
+
+Apply migration `0035_jev_quality_reviews` before restarting the control service. Configure the private server environment with `TYPESAFE_API_KEY`, `JEV_REVIEW_ENABLED=1` and an explicit ISO UTC `JEV_REVIEW_STARTED_AT` such as the deployment cutover time. No OpenAI key is needed on the server. The worker emits aggregate `jev_quality.tick` records without caller text, identifiers or credentials.
+
+`npm run quality:jev:worker -- --status` reports the enablement/key/cutover configuration and counts by queue state. `npm run quality:jev:worker` runs one batch with the same gates and claims. To stop new reviews, set `JEV_REVIEW_ENABLED=0` and restart the control service; the ordinary retention cleanup remains active. Neither enablement nor a review changes consent, commitments, memory, schedules, recap delivery or safety decisions. Use explicit owner review to assess advice before changing conversation behavior.
 
 ## Evaluation on 14 November 2026
 

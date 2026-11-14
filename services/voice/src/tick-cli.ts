@@ -1,3 +1,4 @@
+import { pruneQualityReviews } from './quality/worker.ts';
 import { queueDueNudges } from './sms/nudges.ts';
 import { queueEncouragement, pruneEncouragement } from './encouragement/runtime.ts';
 import { pruneWeekly, queueDueReminders } from './weekly/reminders.ts';
@@ -65,6 +66,7 @@ try {
   await optimizeTips(deps.store.raw);
   await pruneWeekly(deps.store.raw);
   await pruneJourney(deps.store.raw);
+  await pruneQualityReviews(deps.store.raw);
   await new FeedbackStore(deps.store.raw).prune();
   if (feedbackEnabled()) {
     try { await syncFeedbackIssues(deps.store.raw); }

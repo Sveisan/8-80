@@ -246,6 +246,13 @@
       "when": 1794607258608,
       "tag": "0034_calendar_invitations",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1794661740916,
+      "tag": "0035_jev_quality_reviews",
+      "breakpoints": true
     }
   ]
 }
