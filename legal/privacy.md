@@ -1,6 +1,6 @@
 # Privacy
 
-Draft updated 15 October 2026; operational wording requires review before release.
+Draft updated 14 November 2026; operational wording requires review before release.
 
 {{company}}{{orgnr_clause}}, at {{address}}, is the data controller. Write to
 {{support_email}} about anything on this page.
@@ -120,6 +120,8 @@ delivery is kept encrypted for fourteen days so a broken
 call can be debugged, then deleted automatically. Fourteen days is long enough
 to fix last week's call and short enough not to be a record of you.
 
+**Advisory call-quality results.** When enabled, we retain model scores and review states for up to fourteen days. A short recap excerpt waits encrypted for the background review and is cleared immediately after its single attempt, or at expiry. Review results and queued excerpts are included in your export and removed with your account.
+
 ## What we do not hold
 
 No password. No postal address or card details. No
@@ -130,12 +132,13 @@ phone beyond the number you gave us.
 
 To ring you when you asked, to remember what you said last week so the call is
 worth having, to email you the recap the call promises, to text you when a call
-is missed, and to take payment. That is the contract between us. We do not
-profile you, we do not advertise, and we do not sell or share any of it.
+is missed, to take payment, and, when enabled, to identify unnecessary repeated
+questions and unsupported recap claims. We do not profile you for advertising,
+we do not advertise, and we do not sell your data or share it for advertising.
 
 ## Who else sees it
 
-Four suppliers, each doing one job:
+Our service suppliers:
 
 - **Speechify** place the calls and produce the transcript. They receive your
   number, which call number this is, your last commitment and the day you named
@@ -147,6 +150,7 @@ Four suppliers, each doing one job:
   reminder text and schedule, and the result of your requested changes. The credential
   expires when the call settles or after at most 45 minutes, and cannot address another account. That is the whole list, and a test fails the
   build if a new field starts going to them without appearing here.
+- **TypeSafe (Jev)**, when quality review is enabled, receives the text of completed weekly calls and the conversational paragraphs of their recap to flag unnecessary repeated questions and unsupported recap claims. Phone numbers, email addresses, account identifiers and billing/scheduling paragraphs are not added to this request; personal details spoken in the conversation can still be present. This review does not decide or change your actions, consent, memory, bookings or messages.
 - **Twilio** send the texts. They receive your number.
 - **Resend** send the email. They receive your address.
 - **The payment provider shown at checkout (Stripe or Lemon Squeezy)** processes

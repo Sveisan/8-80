@@ -599,3 +599,13 @@ export const unblockSessions = pgTable('unblock_sessions', {
   complete: boolean('complete').notNull().default(false), coverageEnc: text('coverage_enc'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, t=>[index('unblock_sessions_programme_idx').on(t.programmeId)]);
+
+/** Advisory numbers only; no transcript or recap copies. Deleted with account/call. */
+export const jevQualityReviews = pgTable('jev_quality_reviews', {
+  attemptId: text('attempt_id').primaryKey().references(() => callAttempts.id, { onDelete: 'cascade' }),
+  phoneHash: text('phone_hash').notNull().references(() => callers.phoneHash, { onDelete: 'cascade' }),
+  state: text('state').notNull().default('queued'), report: text('report'), recapEnc: text('recap_enc'),
+  startedAt: timestamp('started_at', { withTimezone: true }).notNull(),
+  finishedAt: timestamp('finished_at', { withTimezone: true }),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+}, t => [index('jev_quality_expiry').on(t.expiresAt), index('jev_quality_caller').on(t.phoneHash)]);

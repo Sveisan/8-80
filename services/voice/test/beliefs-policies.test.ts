@@ -102,7 +102,7 @@ async function seed(completed=true){
   return e.id;
 }
 beforeEach(async()=>{
-  if(db)await db.sql`truncate product_feedback,belief_refund_requests,belief_sessions,unblock_sessions,belief_enrollments,unblock_enrollments,callers,call_attempts,links,signups,access_codes,message_outbox,message_attempts,feedback,journey_events,journey_tracking,journey_counts,webhook_deliveries,heartbeats`;
+  if(db)await db.sql`truncate jev_quality_reviews,product_feedback,belief_refund_requests,belief_sessions,unblock_sessions,belief_enrollments,unblock_enrollments,callers,call_attempts,links,signups,access_codes,message_outbox,message_attempts,feedback,journey_events,journey_tracking,journey_counts,webhook_deliveries,heartbeats`;
   process.env['DATA_ENCRYPTION_KEY']=Buffer.alloc(32,12).toString('base64');
   Object.assign(process.env,{PUBLIC_URL:'https://8and80.example',OPERATOR_PHONE:'+4791000000',BELIEFS_TOOL_SECRET:'t'.repeat(40),BELIEFS_COVERAGE_START:'00:00',BELIEFS_COVERAGE_END:'24:00',BILLING_PROVIDER:'stripe',BELIEFS_PRODUCT_ID:'price_module',BELIEFS_BASE_PRICE_ID:'price_month',STRIPE_SECRET_KEY:'synthetic'});
 });
