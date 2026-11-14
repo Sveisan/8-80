@@ -36,8 +36,10 @@ Webhooks get their own hostname for the opposite reason: nothing external rememb
 
 ## 2. The box — one command
 
+Confirm the current IP for `eightandeighty` in the [Deploi customer panel](https://kundepanel.deploi.no/servers/) before connecting. On 14 November 2026 it is `91.189.127.98`; the former `91.189.127.85` entry is no longer this server. Check the SSH key against the trusted entry for the current address.
+
 ```bash
-ssh <you>@91.189.127.85
+ssh <you>@91.189.127.98
 sudo git clone -b claude/8-80-prompt-v3-f9tk4m https://github.com/Sveisan/8-80.git /opt/8-80
 sudo bash /opt/8-80/deploy/control-setup.sh
 ```
