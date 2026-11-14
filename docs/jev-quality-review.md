@@ -1,5 +1,11 @@
 # Optional Jev quality review
 
+The private [Call quality page](https://8and80.me/call-quality) shows recent completed weekly calls, the two issue scores, verdicts and filters for flagged, uncertain, unavailable, clear and pending results. Sign in through the existing phone-code flow at `/access?for=call-quality`; only the exact account hash in `CALL_QUALITY_OWNER_PHONE_HASH` is authorized. There is no operator/backup or ordinary-customer fallback. Leaving this variable empty denies access. Sign out revokes that browser session.
+
+The owner hash can be derived from the verified primary owner's E.164 phone number with the existing `phoneKey` function; configure it privately on the server and confirm the account already exists. This adds no new password or API credential. Existing account deletion/expiry also withdraws browser access. Authenticated and error responses are private/no-store, unindexable and protected against framing; there are no analytics or third-party scripts on this page.
+
+The page displays at most the latest 500 completed weekly calls in the last 14 days, 50 per page. Counts and filters apply to that bounded window, and filters overlap when the two checks differ. Safety-flagged calls, Beliefs and Unblock are excluded. Expired results are excluded even before the retention tick removes them. The query never selects caller identities, transcript/webhook text or queued recap excerpts. It does not rerun Jev or mutate call state. Missing, partial, malformed or failed reviews remain visibly unresolved. Model percentages are estimates, not calibrated confidence; no sentence-level explanations are stored.
+
 Jev is an opt-in post-call reviewer for unnecessary repeated questions and unsupported recap claims. It is advisory and disabled by default. When explicitly enabled, the control service runs a separate background worker after completed weekly calls; model requests are outside the live call/webhook path. It does not create or change commitments, consent, memory, recaps, bookings or messages. A provider failure cannot block the existing local quality checks.
 
 Run local checks on a private review packet:

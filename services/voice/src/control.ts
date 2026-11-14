@@ -1,3 +1,4 @@
+import { qualityRoutes } from './quality/routes.ts';
 import { serveDesignAsset } from './design-system/assets.ts';
 import { setCalendarInvitations, syncCalendarInvitations } from './calendar/invitations.ts';
 import { countRequest } from './journey/measure.ts';
@@ -181,6 +182,10 @@ export function controlPlane(deps: LoopDeps, secret: string | readonly string[] 
   return createServer((req, res) => {
     void (async () => {
       const url = new URL(req.url ?? '/', 'http://x');
+      if (url.pathname === '/call-quality' || url.pathname === '/call-quality/signout') {
+        const result = await qualityRoutes(req, url, deps);
+        if (result) return html(res, result.status, result.body, result.headers);
+      }
       if (url.pathname.startsWith('/product-feedback/')) {
         const result=await productFeedbackRoutes(req,url,deps,clientOf(req));
         if(result) return html(res,result.status,result.body,result.headers);

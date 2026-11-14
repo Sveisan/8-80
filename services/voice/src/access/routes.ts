@@ -17,8 +17,9 @@ const verifyLimit = new Limiter(30, 10 * 60_000);
 export async function accessRoutes(req: IncomingMessage, url: URL, deps: LoopDeps, client: string, now = new Date()): Promise<Answer | undefined> {
   if (url.pathname !== '/access' && url.pathname !== '/access/verify') return undefined;
   const { script } = deps;
+  let quality = url.searchParams.get('for') === 'call-quality';
   let memory = url.searchParams.get('for') === 'memory';
-  const page = (status: number, note?: string, phone?: string): Answer => ({ status, body: accessPage(script, phone, note, memory) });
+  const page = (status: number, note?: string, phone?: string): Answer => ({ status, body: accessPage(script, phone, note, memory, quality) });
   if (req.method === 'GET') return page(200);
   if (req.method !== 'POST') return page(405);
   if (crossSite(req)) return page(403, 'access.tryagain');
@@ -31,12 +32,13 @@ export async function accessRoutes(req: IncomingMessage, url: URL, deps: LoopDep
   }
   const form = new URLSearchParams(Buffer.concat(chunks).toString('utf8'));
   memory = form.get('intent') === 'memory';
+  quality = form.get('intent') === 'call-quality';
   const phone = readPhone(form.get('phone') ?? '');
   if (!phone) return page(400, 'signup.error.number', form.get('phone') ?? '');
   const codes = new AccessCodes(deps.store.raw);
   const id = (form.get('id') ?? '').slice(0, 36);
   const limited = (): Answer => /^[0-9a-f-]{36}$/.test(id)
-    ? { status: 429, body: accessCodePage(script, id, phone, 'access.limited', memory) }
+    ? { status: 429, body: accessCodePage(script, id, phone, 'access.limited', memory, quality) }
     : page(429, 'access.limited', phone);
   if (url.pathname === '/access/verify') {
     if (!verifyLimit.take(client, now.getTime())) return limited();
@@ -51,11 +53,11 @@ export async function accessRoutes(req: IncomingMessage, url: URL, deps: LoopDep
       return { browser: await links.mint(hash, now, 'browser'), link: await links.mint(hash, now), memory: await links.mint(hash, now, 'memory') };
     }) : undefined;
     if (!access) {
-      return { status: 400, body: accessCodePage(script, id, phone, 'access.code.wrong', memory) };
+      return { status: 400, body: accessCodePage(script, id, phone, 'access.code.wrong', memory, quality) };
     }
     // One fresh phone proof also opens private corrections for 15 minutes.
     // The sign-in intent chooses the destination, not the strength of that proof.
-    return { status: 303, body: '', headers: { location: memory ? '/memory' : `/r/${access.link}`, 'set-cookie': [browserCookie(access.browser), memoryCookie(access.memory)] } };
+    return { status: 303, body: '', headers: { location: quality ? '/call-quality' : memory ? '/memory' : `/r/${access.link}`, 'set-cookie': [browserCookie(access.browser), memoryCookie(access.memory)] } };
   }
   if (!sendLimit.take(client, now.getTime())) return limited();
   if (!smsConfigured()) return page(503, 'access.unavailable', phone);
@@ -72,8 +74,8 @@ export async function accessRoutes(req: IncomingMessage, url: URL, deps: LoopDep
     const result = await dispatchMessage(deps, messageId, now);
     if (result !== 'accepted') {
       if (result === 'failed' || result === 'suppressed') await codes.invalidate(challenge.id);
-      return { status: 503, body: accessCodePage(script, challenge.id, phone, result === 'failed' || result === 'suppressed' ? 'access.unavailable' : 'access.delivery.pending', memory) };
+      return { status: 503, body: accessCodePage(script, challenge.id, phone, result === 'failed' || result === 'suppressed' ? 'access.unavailable' : 'access.delivery.pending', memory, quality) };
     }
   }
-  return { status: 200, body: accessCodePage(script, challenge.id, phone, undefined, memory) };
+  return { status: 200, body: accessCodePage(script, challenge.id, phone, undefined, memory, quality) };
 }

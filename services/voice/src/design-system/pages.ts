@@ -2,6 +2,47 @@ import { BUSY_CSS } from '../signup/mascot.ts';
 import { TIME_PICKER_CSS } from '../signup/time-picker.ts';
 import { breakpoints } from './tokens.ts';
 
+export const CALL_QUALITY_CSS = `
+  body { padding: var(--space-6) var(--space-5) var(--space-10); }
+  .quality { max-width: var(--measure-wide); margin: auto; }
+  .quality-header, .quality-title, .quality-call-heading, .quality-window, .quality-actions, .quality-pagination {
+    display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap;
+  }
+  .quality-header { padding-bottom: var(--space-6); border-bottom: 1px solid var(--line); }
+  .quality-brand { font: var(--weight-display) var(--text-heading)/1 var(--font-display); color: var(--ink); text-decoration: none; }
+  .quality-title { margin: var(--space-8) 0 var(--space-6); }
+  .quality h1 { font: 500 var(--text-display)/var(--leading-heading) var(--font-display); margin: 0 0 var(--space-3); }
+  .quality p { margin: var(--space-2) 0; }
+  .quality-actions form { margin: 0; }
+  .quality-explainer { padding: var(--space-5); border: 1px solid var(--control-border); border-radius: var(--radius-panel); background: var(--card); font-size: var(--text-small); }
+  .quality-filters { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: var(--space-6) 0 var(--space-4); }
+  .quality-filters a { display: inline-flex; align-items: center; gap: var(--space-3); min-height: var(--target-min); padding: var(--space-2) var(--space-4); border: 1px solid var(--control-border); border-radius: var(--radius-control); text-decoration: none; color: var(--ink); }
+  .quality-filters a[aria-current] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+  .quality-filters span { font-variant-numeric: tabular-nums; }
+  .quality-window, .quality-note, .quality-id, .quality-footer { color: var(--quiet); font-size: var(--text-caption); }
+  .quality-window { margin-bottom: var(--space-4); }
+  .quality-call, .quality-empty { padding: var(--space-5); margin-bottom: var(--space-4); border: 1px solid var(--control-border); border-radius: var(--radius-panel); background: var(--card); }
+  .quality-call h2, .quality-empty h2 { margin: 0; font-size: var(--text-heading); }
+  .quality-overall { font-weight: var(--weight-control); }
+  .quality-id code { overflow-wrap: anywhere; }
+  .quality-checks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-5); margin: var(--space-5) 0 var(--space-3); }
+  .quality-check dt { font-size: var(--text-small); margin-bottom: var(--space-2); }
+  .quality-check dd { display: flex; align-items: center; gap: var(--space-3); margin: 0; }
+  .quality-badge { display: inline-block; padding: var(--space-1) var(--space-3); border: 1px solid var(--control-border); border-radius: var(--radius-control); font-size: var(--text-small); }
+  .quality-badge.flag { color: var(--bad); border-color: var(--bad); font-weight: var(--weight-control); }
+  .quality-badge.uncertain { border-style: dashed; font-weight: var(--weight-control); }
+  .quality-badge.unavailable { color: var(--quiet); }
+  .quality-score { font-variant-numeric: tabular-nums; font-weight: var(--weight-control); }
+  .quality-footer { border-top: 1px solid var(--line); margin-top: var(--space-8); padding-top: var(--space-4); }
+  .quality-gate { max-width: var(--measure-form); margin: var(--space-10) auto; }
+  .quality-gate .button { margin-top: var(--space-5); }
+  @media (max-width: ${breakpoints.narrow}) {
+    .quality-checks { grid-template-columns: 1fr; }
+    .quality h1 { font-size: var(--text-heading); }
+    .quality-call h2 { font-size: var(--text-body); }
+  }
+`;
+
 /** Task-specific composition. All production dimensions and type use the shared foundations. */
 
 export const SIGNUP_CSS = `
