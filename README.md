@@ -166,6 +166,11 @@ Changing email cancels the old-address invitation and creates one at the new add
 The existing encrypted email outbox handles idempotency, retries and stale-message
 suppression; the minute tick reconciles SMS and programme schedule changes too.
 
+The email and calendar description include a permanent **Manage your calls** link
+to `/me`. It uses the existing browser session or account recovery, so forwarded
+calendar entries carry no temporary account-access code. New invitations omit a
+map location; their description explains that the service calls the user's phone.
+
 Apply migration **0034_calendar_invitations** before starting this version. Delivery
 uses the existing `RESEND_API_KEY` and `RECAP_FROM_ADDRESS`; no calendar account
 connection is needed. An ordered real-inbox test in Gmail and Google Calendar

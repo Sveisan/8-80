@@ -2740,22 +2740,25 @@ _Explicit opt-in. Generic messages only: no private call details on a lock scree
 > "Your 8&80 calendar invitation is cancelled"
 
 `calendar.email.invite.body`
-> "Your next call is {{when}}. We'll call your phone. Allow around 15 minutes."
+> "Your next call is {{when}}. Nothing to prepare. We'll call you for around 15 minutes."
 
 `calendar.email.invite.lead`
-> "A little room for you and your week, through the eyes of your eight- and eighty-year-old selves."
+> "A little time to notice what mattered this week, and what you'd like to make room for next."
 
 `calendar.email.invite.prepare`
-> "You don't need to prepare anything. We'll start with the week as it was."
+> "We'll look at your week through the eyes of your eight- and eighty-year-old selves."
 
 `calendar.email.invite.calendar`
-> "Add the attached invitation to your calendar. We'll send an updated invitation if the time changes. You can manage your calls and calendar invitations on your call page."
+> "Accept this invitation to add it to your calendar. We'll send an update if the time changes."
+
+`calendar.manage`
+> "Manage your calls"
 
 `calendar.event.title`
 > "8&80 · A little time for yourself"
 
 `calendar.event.logistics`
-> "We'll call your phone at the scheduled time. Allow around 15 minutes. Booking timezone: {{timezone}}."
+> "Nothing to prepare. We'll call you for around 15 minutes."
 
 `calendar.email.cancel.body`
-> "The calendar invitation for {{when}} is cancelled. You can manage your calls and calendar invitations on your call page."
+> "The calendar invitation for {{when}} is cancelled."

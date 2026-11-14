@@ -15,6 +15,7 @@ import { signupPage } from '../src/signup/page.ts';
 import { reschedulePage } from '../src/link/page.ts';
 import { accountState } from '../src/link/account.ts';
 import { ResendMailer } from '../src/recap/resend.ts';
+import { letterHtml } from '../src/recap/letter.ts';
 import { composeExport } from '../src/legal/export.ts';
 import { settleConversation } from '../src/loop/settle.ts';
 import type { LoopDeps } from '../src/loop/deps.ts';
@@ -61,6 +62,8 @@ test('calendar files describe one private UTC appointment and preserve update/ca
   assert.match(cancel, /STATUS:CANCELLED/);
   assert.ok(request.split('\r\n').every(line => Buffer.byteLength(line) <= 75));
   assert.match(calendarFile(event, 'calls@example.com', email), /SUMMARY:8&80 call\r\n/, 'previously queued messages retain their original contents');
+  assert.match(calendarFile(event, 'calls@example.com', email), /LOCATION:Phone call\r\n/, 'older queued mail keeps its captured wire format');
+  assert.doesNotMatch(calendarFile({ ...event, location: null }, 'calls@example.com', email), /\r\nLOCATION:/);
   assert.throws(() => calendarFile(event, 'calls@example.com\r\nBAD:property', email), /Invalid calendar address/);
 });
 
@@ -112,13 +115,20 @@ test('opt-in and parallel reconciliations create and dispatch exactly one next-c
   assert.equal(letter.calendar?.title, '8&80 · A little time for yourself');
   assert.equal(letter.subject, letter.calendar?.title);
   assert.match(letter.calendar!.description!, /eight- and eighty-year-old selves/);
-  assert.match(letter.calendar!.description!, /You don't need to prepare anything\. We'll start with the week as it was\./);
-  assert.match(letter.calendar!.description!, /Booking timezone: Europe\/Oslo/);
-  assert.match(letter.body, /We'll send an updated invitation if the time changes/);
-  assert.equal(letter.body, letter.parts.map(part => part.text).join('\n\n'));
+  assert.match(letter.calendar!.description!, /what mattered this week.*make room for next/);
+  assert.match(letter.calendar!.description!, /Nothing to prepare\. We'll call you for around 15 minutes\./);
+  assert.match(letter.body, /We'll send an update if the time changes/);
+  assert.deepEqual(letter.action, { label: 'Manage your calls', url: 'https://8and80.example/me' });
+  assert.equal(letter.body, [...letter.parts.map(part => part.text), `${letter.action!.label}: ${letter.action!.url}`].join('\n\n'));
+  assert.match(letter.calendar!.description!, /Manage your calls: https:\/\/8and80\.example\/me$/);
+  const html = letterHtml(letter);
+  assert.match(html, /href="https:\/\/8and80\.example\/me"[^>]*>Manage your calls<\/a>/);
+  assert.equal((html.match(/href="https:\/\/8and80\.example\/me"/g) ?? []).length, 1);
+  assert.doesNotMatch(calendarFile(letter.calendar!, 'calls@example.com', email), /\r\nLOCATION:/);
+  assert.equal((await db!.sql`select code from links where phone_hash=${hash}`).length, 0, 'calendar management does not mint access credentials');
   assert.equal(letter.parts[0]!.role, 'lead');
-  assert.equal(letter.parts.at(-1)!.role, 'quiet');
-  assert.doesNotMatch(letter.body + letter.calendar?.description, /\{\{|automatically updates|updates your calendar/);
+  assert.equal(letter.parts.at(-1)!.role, 'signoff');
+  assert.doesNotMatch(letter.body + letter.calendar?.description, /\{\{|Booking timezone|\/r\/|[?&](token|code)=|automatically updates|updates your calendar/);
 });
 
 test('claiming does not send the following invite; settlement does, and a repeated webhook cannot duplicate it', options, async () => {
@@ -140,7 +150,7 @@ test('claiming does not send the following invite; settlement does, and a repeat
   assert.equal(sent.filter(s => s.body.calendar).length, 1);
 });
 
-test('moving a call updates the same UID and suppresses a stale queued invitation', options, async () => {
+test('moving and cancelling preserve the event identity and account link while suppressing stale mail', options, async () => {
   const [stale] = await setCalendarInvitations(db!.sql, hash, true, script, now);
   const at = new Date('2026-11-18T09:00:00Z');
   await new Scheduler(db!.sql).moveIfActive(phone, at);
@@ -150,6 +160,16 @@ test('moving a call updates the same UID and suppresses a stale queued invitatio
   const [row] = await db!.sql`select * from calendar_invitations`;
   assert.equal(sent[0]!.body.calendar?.uid, `${row!['id']}@8and80`);
   assert.equal(sent[0]!.body.calendar?.sequence, 1); assert.equal(sent[0]!.body.calendar?.at, at.toISOString());
+  const [cancelled] = await setCalendarInvitations(db!.sql, hash, false, script, now);
+  assert.equal(await dispatchMessage(deps(), cancelled!, now), 'accepted');
+  assert.equal(sent[1]!.body.calendar?.uid, sent[0]!.body.calendar?.uid);
+  assert.equal(sent[1]!.body.calendar?.sequence, 2);
+  assert.equal(sent[1]!.body.calendar?.method, 'CANCEL');
+  for (const message of sent) {
+    assert.equal(message.body.action?.url, 'https://8and80.example/me');
+    assert.match(message.body.calendar!.description!, /Manage your calls: https:\/\/8and80\.example\/me$/);
+    assert.match(letterHtml(message.body), /href="https:\/\/8and80\.example\/me"/);
+  }
 });
 
 test('skip, pause, resume and opt-out reconcile the actual schedule without duplicate future events', options, async () => {
