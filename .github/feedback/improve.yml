@@ -69,6 +69,19 @@ jobs:
         with:
           name: private-report
           path: .feedback-private/
+      - name: Prepare an unprivileged agent account
+        run: |
+          sudo adduser --system --home /home/feedback-agent --shell /bin/bash --group feedback-agent
+          sudo usermod -a -G feedback-agent runner
+          sudo usermod -a -G runner feedback-agent
+          sudo chown -R runner:feedback-agent "$GITHUB_WORKSPACE"
+          sudo chmod -R g+rwX "$GITHUB_WORKSPACE"
+          sudo find "$GITHUB_WORKSPACE" -type d -exec chmod g+s {} +
+          sudo -H -u feedback-agent git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          if sudo -u feedback-agent sudo -n true 2>/dev/null; then
+            echo 'Agent account must not have sudo access.' >&2
+            exit 1
+          fi
       # Must be the last step. No publishing, production or worker token in this job.
       - uses: openai/codex-action@v1
         id: codex
@@ -76,7 +89,8 @@ jobs:
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
           prompt-file: .github/feedback/implement.md
           sandbox: workspace-write
-          safety-strategy: drop-sudo
+          safety-strategy: unprivileged-user
+          codex-user: feedback-agent
           codex-args: '["--ephemeral", "--output-schema", ".github/feedback/result.schema.json"]'
   scope:
     needs: [prepare, implement]
@@ -158,13 +172,27 @@ jobs:
       - run: node scripts/feedback/review-prepare.mjs
         env:
           FEEDBACK_RESULT: ${{ needs.implement.outputs.result }}
+      - name: Prepare an unprivileged agent account
+        run: |
+          sudo adduser --system --home /home/feedback-agent --shell /bin/bash --group feedback-agent
+          sudo usermod -a -G feedback-agent runner
+          sudo usermod -a -G runner feedback-agent
+          sudo chown -R runner:feedback-agent "$GITHUB_WORKSPACE"
+          sudo chmod -R g+rwX "$GITHUB_WORKSPACE"
+          sudo find "$GITHUB_WORKSPACE" -type d -exec chmod g+s {} +
+          sudo -H -u feedback-agent git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          if sudo -u feedback-agent sudo -n true 2>/dev/null; then
+            echo 'Agent account must not have sudo access.' >&2
+            exit 1
+          fi
       - uses: openai/codex-action@v1
         id: codex
         with:
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
           prompt-file: .github/feedback/review.md
           sandbox: read-only
-          safety-strategy: drop-sudo
+          safety-strategy: unprivileged-user
+          codex-user: feedback-agent
           codex-args: '["--ephemeral", "--output-schema", ".github/feedback/review.schema.json"]'
   publish:
     needs: [prepare, implement, scope, validate, review]
