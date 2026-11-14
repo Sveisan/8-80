@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { config } from '../config.ts';
 import type { Database } from '../store/transaction.ts';
 import { transaction } from '../store/transaction.ts';
 import { decrypt } from '../store/crypto.ts';
@@ -30,17 +31,23 @@ export async function syncCalendarInvitations(sql: Database, hash: string, scrip
       const fill = (key: string): string => (script.get(key) ?? '').replace('{{when}}', when).replace('{{timezone}}', row.timezone);
       const cancelled = method === 'CANCEL';
       const subject = fill(cancelled ? 'calendar.email.cancel.subject' : updated ? 'calendar.email.update.subject' : 'calendar.email.invite.subject');
+      // A calendar entry can be forwarded or kept for months. Use the existing
+      // authenticated account page rather than embedding a temporary access code.
+      const base = config.link.publicUrl().replace(/\/$/, '');
+      const action = base ? { label: fill('calendar.manage'), url: `${base}/me` } : undefined;
+      const manage = action ? `${action.label}: ${action.url}` : undefined;
       const parts: Recap['parts'] = cancelled ? [{ role: 'lead', text: fill('calendar.email.cancel.body') }] : [
         { role: 'lead', text: fill('calendar.email.invite.lead') },
         { role: 'body', text: fill('calendar.email.invite.prepare') },
         { role: 'body', text: fill('calendar.email.invite.body') },
         { role: 'quiet', text: fill('calendar.email.invite.calendar') },
       ];
-      const text = parts.map(part => part.text).join('\n\n');
-      const description = cancelled ? text : [fill('calendar.email.invite.lead'), fill('calendar.email.invite.prepare'), fill('calendar.event.logistics')].join('\n\n');
+      parts.push({ role: 'signoff', text: fill('email.signoff') });
+      const text = [...parts.map(part => part.text), ...(manage ? [manage] : [])].join('\n\n');
+      const description = [...(cancelled ? [fill('calendar.email.cancel.body')] : [fill('calendar.email.invite.lead'), fill('calendar.email.invite.prepare'), fill('calendar.event.logistics')]), ...(manage ? [manage] : [])].join('\n\n');
       const event: CalendarEvent = { uid: `${row.id}@8and80`, sequence: row.sequence, method, at: row.scheduled_at.toISOString(), stamp: now.toISOString(), timezone: row.timezone,
-        title: fill('calendar.event.title'), description };
-      const body: Recap = { subject, body: text, parts, calendar: event };
+        title: fill('calendar.event.title'), description, location: null };
+      const body: Recap = { subject, body: text, parts, calendar: event, ...(action ? { action } : {}) };
       ids.push(await enqueue(tx, { eventKey: `calendar:${row.id}:${row.sequence}`, phoneHash: hash, channel: 'email', kind: 'calendar', reference: row.id,
         to: decrypt(row.recipient_enc), body, expiresAt: method === 'REQUEST' ? new Date(Math.min(+row.scheduled_at, +now + 23 * 3600_000)) : undefined }, now));
     };
