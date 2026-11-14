@@ -36,7 +36,7 @@ export async function reviewCompletedCalls(sql: postgres.Sql, settings: WorkerCo
     join callers c on c.phone_hash = a.phone_hash
     left join belief_sessions b on b.id = a.id left join unblock_sessions u on u.id = a.id
     where a.status = 'completed' and a.safety_tier is null and b.id is null and u.id is null
-      and a.provider_call_id is not null and a.ended_at >= ${settings.startedAt}
+      and a.provider_call_id is not null and a.claimed_at >= ${settings.startedAt} and a.ended_at >= ${settings.startedAt}
       and a.ended_at > ${new Date(+now - 14 * DAY)} and a.ended_at <= ${new Date(+now - 30_000)}
       and (select count(*) from call_attempts x where x.provider_call_id = a.provider_call_id) = 1
       and not exists (select 1 from jev_quality_reviews q where q.attempt_id = a.id and q.state <> 'queued')

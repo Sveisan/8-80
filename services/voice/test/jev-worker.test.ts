@@ -54,6 +54,8 @@ test('completed-call queue is durable, isolated, one-shot, private, bounded and 
   try {
     await db.store.upsertProfile(phone, { name: 'Synthetic' });
     await call('valid'); await call('before-cutover', new Date(+now - 2 * 3_600_000)); await call('not-completed', undefined, 'silent');
+    await call('late-old-call');
+    await db.sql`update call_attempts set claimed_at=${new Date(+now - 2 * 3_600_000)} where id='late-old-call'`;
     await queueQualityReview(db.sql, 'valid', hash, recap, now, settings);
     const [queued] = await db.sql`select * from jev_quality_reviews where attempt_id='valid'`;
     assert.equal(queued!['state'], 'queued');
