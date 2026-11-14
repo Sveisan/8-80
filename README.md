@@ -121,7 +121,7 @@ agents before offering that voice. The document records setup and verification.
 
 ### Changing what the mentor says
 
-The [weekly call quality and memory plan](docs/weekly-call-quality.md) records the verified memory path, conversation changes and owner listening scenarios. `npm run quality:weekly` runs the synthetic baseline without contacting providers.
+The [weekly call quality and memory plan](docs/weekly-call-quality.md) records the verified memory path, conversation changes and owner listening scenarios. `npm run quality:weekly` runs the synthetic baseline without contacting providers. The [optional Jev reviewer](docs/jev-quality-review.md) adds explicit opt-in, non-blocking semantic advice with uncertainty and unavailable states; it is disabled by default.
 
 For Speechify-hosted agents, [Speechify API sync](docs/speechify-api-sync.md) uploads the repository's prompts and variable declarations. `npm run speechify:sync` previews its plan locally; `--apply` updates the selected agents without placing a call. It covers the original first/returning pair and the separate Beliefs agents.
 
