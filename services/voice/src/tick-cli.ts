@@ -16,6 +16,7 @@ import { expireTrials } from './billing/trials.ts';
 import { beat } from './schedule/scheduler.ts';
 import { sendDueFeedback } from './feedback/feedback.ts';
 import { dispatchMessages } from './messages/outbox.ts';
+import { queueCalendarInvitations } from './calendar/invitations.ts';
 import { enabled as feedbackEnabled } from './product-feedback/model.ts';
 import { FeedbackStore } from './product-feedback/store.ts';
 import { syncFeedbackIssues } from './product-feedback/github.ts';
@@ -57,6 +58,7 @@ try {
   await maintainBeliefPolicies(deps);
   const nudgesQueued = await queueDueNudges(deps);
   const remindersQueued = await queueDueReminders(deps);
+  await queueCalendarInvitations(deps.store.raw, deps.script);
   const encouragementQueued = await queueEncouragement(deps);
   await dispatchMessages(deps);
   await pruneEncouragement(deps.store.raw);

@@ -92,7 +92,7 @@ export interface SignupFormState {
   errors?: Invalid[];
   note?: string;
   appointmentChecked?: boolean;
-  values?: Partial<Record<'name' | 'phone' | 'email' | 'weekday' | 'time' | 'timezone' | 'voice' | 'nudges', string>>;
+  values?: Partial<Record<'name' | 'phone' | 'email' | 'weekday' | 'time' | 'timezone' | 'voice' | 'nudges' | 'calendar', string>>;
 }
 
 /**
@@ -221,6 +221,7 @@ export function signupPage(
       <p class="quiet small">${say('signup.appointment.detail')}</p>
       ${sameMessageNumber() ? `<label class="nudge-choice"><input type="checkbox" name="nudges" value="yes"${v.nudges === 'yes' ? ' checked' : ''}/><span><strong>${say('signup.nudges')}</strong><small>${say('signup.nudges.detail')}</small></span></label>` : ''}
       ${note('nudges')}
+      <label class="nudge-choice"><input type="checkbox" name="calendar" value="yes"${v.calendar === 'yes' ? ' checked' : ''}/><span><strong>${say('calendar.signup')}</strong><small>${say('calendar.preference.detail')}</small></span></label>
       <p class="quiet small" id="signup-verify">${say('signup.verify.detail')}</p>
       <button class="primary" aria-describedby="signup-verify">${busyLabel(say('signup.submit'))}</button>
       ${inFaq('signup.free') ? '' : `<p class="quiet small centre">${say('signup.free')}</p>`}

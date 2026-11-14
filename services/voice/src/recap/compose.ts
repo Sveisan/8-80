@@ -1,5 +1,6 @@
 import type { ScriptLines } from '../script.ts';
 import type { CallOutcome } from '../store/types.ts';
+import type { CalendarEvent } from '../calendar/ical.ts';
 
 /**
  * What a paragraph is for, so a renderer can style it without reading English.
@@ -18,6 +19,8 @@ export interface RecapPart {
 }
 
 export interface Recap {
+  /** One real appointment, never a recurring calendar series. */
+  calendar?: CalendarEvent;
   subject: string;
   /** The whole letter as text, paragraphs joined by a blank line. */
   body: string;

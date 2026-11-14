@@ -3,6 +3,7 @@ import { config } from '../config.ts';
 import type { Mailer } from './mailer.ts';
 import type { Recap } from './compose.ts';
 import { letterHtml } from './letter.ts';
+import { calendarFile } from '../calendar/ical.ts';
 import { SendFailure, type Receipt, type SendOptions, type DeliveryStatus } from '../messages/types.ts';
 
 /**
@@ -38,6 +39,7 @@ export class ResendMailer implements Mailer {
         subject: recap.subject,
         html: letterHtml(recap, { ...(this.markUrl ? { markUrl: this.markUrl } : {}), ...(recap.date ? { date: recap.date } : {}), ...(recap.action ? { action: recap.action } : {}) }),
         text: recap.body,
+        ...(recap.calendar ? { attachments: [{ filename: '8and80-call.ics', content: Buffer.from(calendarFile(recap.calendar, this.from, to)).toString('base64'), content_type: `text/calendar; charset=utf-8; method=${recap.calendar.method}` }] } : {}),
       }),
     });
 

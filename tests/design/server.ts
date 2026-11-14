@@ -10,6 +10,7 @@ import { encrypt } from '../../services/voice/src/store/crypto.ts';
 import { SendFailure } from '../../services/voice/src/messages/types.ts';
 import type { LoopDeps } from '../../services/voice/src/loop/deps.ts';
 import type { Subscription } from '../../services/voice/src/billing/gateway.ts';
+import type { Recap } from '../../services/voice/src/recap/compose.ts';
 import { queueEncouragement } from '../../services/voice/src/encouragement/runtime.ts';
 import { dispatchMessages } from '../../services/voice/src/messages/outbox.ts';
 
@@ -27,6 +28,7 @@ if (typeof opened === 'string') throw new Error(opened);
 const db = opened;
 const script = loadScript();
 const texts: { to: string; body: string }[] = [];
+const emails: Recap[] = [];
 let failSms = false, failMail = false;
 let subscription: Subscription;
 let cancellations = 0;
@@ -34,7 +36,7 @@ const reset = async (): Promise<void> => {
   const tables = await db.sql<{ tablename: string }[]>`select tablename from pg_tables where schemaname = current_schema() and tablename <> '__drizzle_migrations'`;
   const safe = tables.map(row => row.tablename).filter(name => /^[a-z_]+$/.test(name));
   await db.sql.unsafe(`truncate ${safe.map(name => `"${name}"`).join(',')} cascade`);
-  texts.length = 0; failSms = failMail = false; cancellations = 0;
+  texts.length = 0; emails.length = 0; failSms = failMail = false; cancellations = 0;
   process.env['ENCOURAGEMENT_PILOT_HASHES']='';process.env['ENCOURAGEMENT_READY']='0';process.env['ENCOURAGEMENT_PHONE_TEST_PASSED']='0';
   subscription = { provider: 'stripe', subscriptionId: 'sub_design', customerId: 'cus_design', standing: 'active',
     status: 'active', event: 'customer.subscription.updated', cancelAtPeriodEnd: false, endsAt: new Date(Date.now() + 20 * 86400_000).toISOString() };
@@ -44,7 +46,7 @@ const deps: LoopDeps = {
   store: db.store, scheduler: new Scheduler(db.sql), script,
   agent: { placeCall: async () => { throw new Error('A design test must never place a call.'); }, conversation: async () => ({}) } as unknown as LoopDeps['agent'],
   sms: { send: async (to, body) => { if (failSms) throw new SendFailure('permanent', 'synthetic SMS failure'); texts.push({ to, body }); return { id: `synthetic-sms-${texts.length}` }; } },
-  mailer: { send: async () => { if (failMail) throw new Error('synthetic mail failure'); return { id: 'synthetic-email' }; } },
+  mailer: { send: async (_to, email) => { if (failMail) throw new Error('synthetic mail failure'); emails.push(email); return { id: 'synthetic-email' }; } },
   billing: {
     subscription: async () => ({ ...subscription }),
     cancel: async () => { if (!subscription.cancelAtPeriodEnd) cancellations++; subscription.cancelAtPeriodEnd = true; return { ...subscription }; },
@@ -97,9 +99,9 @@ const server = createServer((req, res) => { void (async () => {
   }
   if (url.pathname === '/__test/state') {
     const hash = phoneKey(String(form.phone));
-    const [caller] = await db.sql`select paused, billing_status, cancel_at_period_end, slot_weekday, slot_minute, onboarding from callers where phone_hash = ${hash}`;
+    const [caller] = await db.sql`select paused, billing_status, cancel_at_period_end, slot_weekday, slot_minute, onboarding, calendar_invites_enabled from callers where phone_hash = ${hash}`;
     const memory = await db.store.load(String(form.phone));
-    reply({ caller, goals: memory.goals, commitment: memory.lastCommitment, cancellations }); return;
+    reply({ caller, goals: memory.goals, commitment: memory.lastCommitment, cancellations, calendarEmails: emails.flatMap(email => email.calendar ? [email.calendar] : []) }); return;
   }
   if (url.pathname === '/__test/revision') {
     const hash = phoneKey(String(form.phone));
