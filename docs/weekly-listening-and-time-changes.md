@@ -64,6 +64,36 @@ speech, waits audibly or plays the farewell. A new owner phone test is required.
 Do not reuse the prior call's voice approval for this release or manually
 fill an unconfirmed action to unlock the return.
 
+### Publication validation follow-up
+
+The PR56 phone-test preparation exposed a separate deployment failure. The
+provider refused the `conversation → action_answer → action_kept/declined →
+conversation` cycles with `unguarded_cycle`: LLM conditions do not satisfy its
+finite-cycle guard. The reply and tool-intent probes above did not validate
+those graph transitions. No owner test call was placed.
+
+Both action markers now lead forward into `post_action`, which handles known
+logistics, caller questions and caller-led later corrections. Later changes
+still need the complete fixed action read-back and a fresh explicit answer;
+the flow-owned action marker is not repeated. There is no turn-count forced
+exit and the single flow-owned farewell still follows an explicit close.
+All four graphs are acyclic, with an assertion before tool binding and
+regressions recreating both rejected PR56 cycles.
+
+All four corrected graphs were also staged, published and read back through
+the actual provider API on separate private test agents. Tool bindings were
+endpoint-free client mocks; replacing their IDs with the source names produced
+the exact source graphs. Existing private phone pilots were fingerprinted
+before and after and remained unchanged. This proves graph acceptance and
+publication, separately from live speech and phase-exit behaviour.
+
+The corrected rendered-graph SHA-256 is
+`63839465d7334c2514950f2fc51ccc7e0b184a5c82716ec1bab92df4f2c90005`.
+The source fixture also includes later action revisions, a booking request
+after agreement, reopening the close and choosing an action after declining.
+`weeklyFlowProbePlan` includes an unanswered later revision. Keep the updated
+provider checks bound to this source rather than reusing PR56 evidence.
+
 ## Deployment after merge
 
 Update to the merged release and sync the ordinary weekly prompts for both

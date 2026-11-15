@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { weeklyFlow, weeklyFlowRoles } from '../src/agent/weekly-flow.ts';
+import { weeklyFlow, weeklyFlowRoles, assertAcyclicWeeklyFlow, bindWeeklyFlow } from '../src/agent/weekly-flow.ts';
 import { settle } from '../src/call/outcome.ts';
 import { loadScript } from '../src/script.ts';
 import type { Turn } from '../src/call/outcome.ts';
@@ -15,13 +15,44 @@ const outcome = (turns: Turn[]) => settle({ providerCallId: 'fictional', duratio
 
 test('provider pause probes carry each actual phase prompt without claiming exit or audio evidence', () => {
   const plan = weeklyFlowProbePlan('a'.repeat(40));
-  assert.equal(plan.probes.length, 16);
+  assert.equal(plan.probes.length, 20);
   assert.equal(plan.phaseExitsTested, false); assert.equal(plan.voiceApproved, false);
   for (const p of plan.probes) {
     assert.equal(p.prompt, weeklyFlow(p.role).nodes.find(n => n.key === p.phase)?.config?.system_prompt_override);
     assert.equal(p.definition.config.expected_tool, 'skip_turn');
   }
   assert.throws(() => weeklyFlowProbePlan('not-a-revision'));
+});
+
+test('all private routes are acyclic and reject the provider-refused PR56 return edges before binding', () => {
+  for (const role of weeklyFlowRoles) {
+    const flow = weeklyFlow(role);
+    assert.doesNotThrow(() => assertAcyclicWeeklyFlow(flow));
+    for (const marker of ['action_kept', 'action_declined']) {
+      assert.deepEqual(flow.edges.filter(e => e.from === marker), [{ from: marker, to: 'post_action', type: 'default' }]);
+      const regression = structuredClone(flow);
+      regression.edges.find(e => e.from === marker)!.to = 'conversation';
+      assert.throws(() => assertAcyclicWeeklyFlow(regression), /must be acyclic/);
+      assert.throws(() => bindWeeklyFlow(regression, []), /must be acyclic/);
+    }
+    const post = flow.nodes.find(n => n.key === 'post_action')!;
+    assert.equal(post.config?.max_turns, 0);
+    assert.deepEqual(flow.edges.filter(e => e.from === post.key), [
+      { from: 'post_action', to: 'farewell', type: 'llm_condition', condition: 'caller_done' },
+    ]);
+    assert.match(String(post.config?.system_prompt_override), /handle later corrections HERE/);
+    assert.match(String(post.config?.system_prompt_override), /wait for a NEW explicit answer/);
+  }
+});
+
+test('later action revisions still require fresh approval and no second flow-owned marker', () => {
+  const original = script.get('next.confirm')!.replace('{{commitment}}', 'read a book');
+  const revised = script.get('next.confirm')!.replace('{{commitment}}', 'visit the library');
+  const prefix = [a(original), c('Yes.'), a(script.get('next.agreed')!),
+    c('I would rather visit the library.'), a(revised)];
+  assert.equal(outcome([...prefix, c('Thanks, goodbye.')])?.commitment, undefined);
+  assert.equal(outcome([...prefix, c('Yes, that is right.'), a('That is your updated choice.')])?.commitment, 'visit the library');
+  assert.equal(outcome([...prefix, c('Yes, move my weekly call.'), a(script.get('setup.change_slot')!)])?.commitment, undefined);
 });
 
 test('the observed premature kept-map marker never completes onboarding', () => {

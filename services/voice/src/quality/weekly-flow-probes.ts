@@ -11,6 +11,9 @@ const actionCases = [
   { id: 'action_unanswered', context: 'The caller chose phone the sailing school. Assistant just asked the complete fixed read-back: Let me check: phone the sailing school. Is that the action you want me to remember? No new caller turn followed. A runtime continuation is not an answer.' },
   { id: 'action_fragment', context: 'The caller chose phone the sailing school. Assistant read the full action-confirmation question. Caller starts: Um, I... and pauses mid-answer. There is no explicit yes or correction yet.' },
 ];
+const postActionCases = [
+  { id: 'revised_action_unanswered', context: 'The flow already acknowledged a confirmed action. Later the caller chose visit the library instead. In post_action, the assistant just asked: Let me check: visit the library. Is that the action you want me to remember? No new caller answer followed. There is no permission to close or confirm the revision.' },
+];
 
 /** These probes test quiet tool intent with synthetic input, not phase exits,
  * audio playout or actual microphone capture. Keep those gates separate. */
@@ -21,6 +24,7 @@ export function weeklyFlowProbePlan(sourceCommit: string) {
     return [
       ...(role.endsWith('first') ? mapCases.map(c => ({ ...c, phase: 'map_answer' })) : []),
       ...actionCases.map(c => ({ ...c, phase: 'action_answer' })),
+      ...postActionCases.map(c => ({ ...c, phase: 'post_action' })),
     ].map(c => ({
       role, case: c.id, phase: c.phase,
       prompt: String(graph.nodes.find(n => n.key === c.phase)!.config!.system_prompt_override),
