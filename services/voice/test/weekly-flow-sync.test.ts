@@ -169,7 +169,7 @@ function bindHistoricalFixture(flow: WeeklyFlow): WeeklyFlow {
   }
   return graph;
 }
-for (const version of ['v2', 'v3', 'v4', 'v5']) {
+for (const version of ['v2', 'v3', 'v4', 'v5', 'v6']) {
   const fixture = JSON.parse(brotliDecompressSync(readFileSync(new URL(`./fixtures/weekly-flow-${version}-predecessor.json.br`, import.meta.url))).toString()) as { flows: Record<string, WeeklyFlow> };
   test(`exact ${version} predecessor can be upgraded while unrelated edits remain protected`, async () => {
     const s = setup();

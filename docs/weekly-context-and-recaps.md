@@ -86,7 +86,7 @@ four private pilot agents, retaining the existing pilot hold. Use the private
 pilot settings setup (`syncAgents` with `dialoguePilot: true` and verified private
 role IDs); ordinary `speechify:sync --apply` remains blocked during that hold.
 Then stage, activate and read back the four graphs with `weekly:flow --owner-pilot`.
-An exact PR59/60 or PR61 graph can be upgraded, while an edited prompt or unrelated draft
+An exact PR59/60, PR61 or PR63 graph can be upgraded, while an edited prompt or unrelated draft
 is still refused. No migration is needed. A later explicitly authorized phone
 test must confirm conversational pace and the audible farewell before voice
 approval; text-test success alone cannot approve the experience.

@@ -243,6 +243,10 @@ export function confirmsAction(turns:readonly Turn[], expectedAction?: string):b
  * next time. This deliberately does not try to infer agreement from a story.
  */
 function confirmsMap(turns: readonly Turn[]): boolean {
+  // A yes to an intervening clarification is not map consent. A later fixed
+  // map/correction read-back moves mappedAt past its own question, so a genuine
+  // fresh answer to that read-back still reaches this check without it.
+  if (turns.some(t => t.speaker === 'agent' && t.text.includes('?'))) return false;
   const text = turns.filter(t => t.speaker === 'caller').map(t => t.text).join(' ');
   const answer = spokenAnswer(text);
   if (divertsReadBack(text)) return false;
