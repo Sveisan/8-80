@@ -120,7 +120,7 @@ export function settle(transcript: CallTranscript, script: ScriptLines, now = ne
   // A later read-back can replace it, but an earlier proposal cannot survive it.
   const invitations=[...script].filter(([key])=>key.startsWith('next.ask.')&&!key.endsWith('.calibrate')).map(([,text])=>text);
   const declinedAt = transcript.turns.findLastIndex((t,i) => t.speaker==='caller' && (explicitNoAction(t.text)
-    || /^(no|nope|not this week|nei|ikke denne uken)\b/.test(normalise(t.text))
+    || /^(no|nope|not this week|nei|ikke denne uken)\b/.test(spokenAnswer(t.text))
       && invitations.some(line=>carries(transcript.turns.slice(0,i).findLast(p=>p.speaker==='agent')?.text??'',line))));
   const noAction = declinedAt >= 0 && declinedAt > committedAt
     && (transcript.turns[declinedAt]?.speaker === 'caller' || transcript.turns.slice(0, declinedAt).some(t => t.speaker === 'caller' && t.text.trim()));
@@ -132,7 +132,7 @@ export function settle(transcript: CallTranscript, script: ScriptLines, now = ne
   }
   // A direct rejection cannot be turned into an agreement just because the
   // mentor forgot the fixed no-action line. Do not infer a replacement action.
-  const rejected = /^(no\b(?! problem\b| worries\b)|nope\b|not (that|this week)\b|i (refuse|decline)\b|i (dont|do not) want (that|to)\b|nei\b|jeg vil ikke\b)/.test(normalise(reply.map(t => t.text).join(' ')));
+  const rejected = /^(no\b(?! problem\b| worries\b)|nope\b|not (that|this week)\b|i (refuse|decline)\b|i (dont|do not) want (that|to)\b|nei\b|jeg vil ikke\b)/.test(spokenAnswer(reply.map(t => t.text).join(' ')));
   const withdrawalAt=transcript.turns.findLastIndex(t=>t.speaker==='caller'
     && /\b(dont save that|do not save that|dont remember that|that is not my action|thats not my action|i withdraw|ikke lagre det|ikke husk det)\b/.test(normalise(t.text)));
   const withdrawn=withdrawalAt>committedAt;
@@ -233,7 +233,7 @@ export function settle(transcript: CallTranscript, script: ScriptLines, now = ne
 /** Agreement to the complete read-back, not assent inferred from politeness. */
 export function confirmsAction(turns:readonly Turn[], expectedAction?: string):boolean {
   const text=turns.filter(t=>t.speaker==='caller').map(t=>t.text).join(' ');
-  const answer=normalise(text);
+  const answer=spokenAnswer(text);
   if (divertsReadBack(text, expectedAction)) return false;
   if(/\b(no|nope|not|wrong|incorrect|but|except|maybe|perhaps|nei|ikke|feil|men|kanskje)\b/.test(answer))return false;
   return /^(yes|yeah|yep|exactly|correct|thats right|that is right|you got it|go ahead|ja|stemmer|riktig|det stemmer)\b/.test(answer);
@@ -244,7 +244,7 @@ export function confirmsAction(turns:readonly Turn[], expectedAction?: string):b
  */
 function confirmsMap(turns: readonly Turn[]): boolean {
   const text = turns.filter(t => t.speaker === 'caller').map(t => t.text).join(' ');
-  const answer = normalise(text);
+  const answer = spokenAnswer(text);
   if (divertsReadBack(text)) return false;
   if (/\b(no|nope|none|not|wrong|incorrect|but|except|nej|nei|ikke|feil|men)\b/.test(answer)) return false;
   return /^(yes|yeah|yep|exactly|correct|right|thats right|that is right|you got it|ja|stemmer|riktig|det stemmer)\b/.test(answer);
@@ -254,7 +254,7 @@ function confirmsMap(turns: readonly Turn[]): boolean {
  * else or changing a detail. This is a conservative storage veto, not a time or
  * booking parser; the live agent must clarify and ask the full read-back again. */
 function divertsReadBack(text: string, expectedAction?: string): boolean {
-  const answer = normalise(text);
+  const answer = spokenAnswer(text);
   // Repeating the exact proposed activity is not a diversion merely because
   // it contains "move", "change" or an already read-back cue. Require both a
   // clear affirmative and an exact match; a different appointment still fails.
@@ -272,11 +272,17 @@ function divertsReadBack(text: string, expectedAction?: string): boolean {
 
 /** Narrow explicit choices, not a general intent classifier. */
 function explicitNoAction(text: string): boolean {
-  if (/^i(?:d| would) rather skip (?:choosing|picking) (?:anything|an action|a commitment)(?: today| this week)?$/.test(normalise(text))) return true;
-  if (/^(actually |then |no |nei )?(no (new )?(action|commitment)( this week)?|i (dont|do not) want (an action|a commitment)|ingen (handling|forpliktelse)( denne uken)?)\b/.test(normalise(text))) return true;
+  if (/^i(?:d| would) rather skip (?:choosing|picking) (?:anything|an action|a commitment)(?: today| this week)?$/.test(spokenAnswer(text))) return true;
+  if (/^(actually |then |no |nei )?(no (new )?(action|commitment)( this week)?|i (dont|do not) want (an action|a commitment)|ingen (handling|forpliktelse)( denne uken)?)\b/.test(spokenAnswer(text))) return true;
   // A caller can explain the week before declining a new action in the same
   // turn. Accept only a complete first-person choice clause, not a quoted
   // third-party remark, a request for advice or a temporary timing condition.
   return text.split(/[.!?]+\s*|\r?\n/).some(clause =>
-    /^i (?:dont|do not) want to (?:choose|pick) (?:an?|a new) (?:action|commitment)(?: this week)?(?: either)?$/.test(normalise(clause)));
+    /^i (?:dont|do not) want to (?:choose|pick) (?:an?|a new) (?:action|commitment)(?: this week)?(?: either)?$/.test(spokenAnswer(clause)));
+}
+
+/** Ignore only leading non-semantic speech fillers. Keep the existing
+ * affirmative, negative, correction and diversion rules exactly as before. */
+function spokenAnswer(text: string): string {
+  return normalise(text).replace(/^(?:(?:uh|um|erm|eh|ehm|hm|hmm|øh|öh)\s+)+/u, '');
 }
