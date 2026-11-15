@@ -1,4 +1,5 @@
 import { test } from 'node:test';
+import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { settle, type Turn } from '../src/call/outcome.ts';
 import { composeRecap } from '../src/recap/compose.ts';
@@ -88,4 +89,41 @@ test('unconfirmed metadata never acquires the confirmed quotation or follow-up p
   assert.equal(recap.said, undefined);
   assert.doesNotMatch(recap.body, /visit the library|ask how it went/i);
   assert.match(recap.body, /possible next step.*read a book/i);
+});
+
+test('agent invention, caller refusal and unapproved corrections are omitted from proposals', () => {
+  for (const [spoken, proposed, reply] of [
+    ['I want to read a book.', 'redo an unchosen flyer', 'Thanks.'],
+    ['I do not want to read a book.', 'read a book', 'Thanks.'],
+    ['Read a book.', 'read a book', 'Yes, but not that action.'],
+  ]) {
+    const result = call([caller(spoken!), ask(proposed!), caller(reply!)]);
+    assert.equal(result.outcome?.proposedAction, undefined);
+    assert.equal(result.outcome?.commitment, undefined);
+  }
+});
+
+test('latest complete read-back cannot swallow an earlier proposal and intervening conversation', () => {
+  const result = call([caller('I want to apply for a job.'), agent("Right — apply for a job. I'll ask how it went next time we talk."),
+    caller('Actually maybe putting together the photos.'), agent('Would you like to choose a smaller version?'),
+    caller('Putting together the photos.'), agent("Right — putting together the photos. I'll ask how it went next time we talk."), caller('Can you ask more questions?')]);
+  assert.equal(result.outcome?.proposedAction, 'putting together the photos');
+  assert.ok(!result.outcome?.proposedAction?.includes('job'));
+});
+
+test('a repeated proposal cannot resurrect an agreement after a later withdrawal or decline', () => {
+  for (const refusal of ['Do not save that.', 'I do not want an action this week.']) {
+    const result = call([...agreed, agent('We can talk about the workshop.'), caller(refusal), ask('visit the library'), caller('I already answered.')]);
+    assert.equal(result.outcome?.commitment, undefined);
+    assert.equal(result.outcome?.proposedAction, undefined);
+  }
+});
+
+test('native probe definitions use the actual reply/tool configuration contracts', () => {
+  const plan = JSON.parse(readFileSync(new URL('./fixtures/weekly-continuity-probes.json', import.meta.url), 'utf8')) as { cases: { definition: { type: string; config: Record<string, unknown> } }[] };
+  for (const item of plan.cases) {
+    const allowed = item.definition.type === 'tool' ? ['context', 'expected_tool'] : ['context', 'success_criteria'];
+    assert.deepEqual(Object.keys(item.definition.config).sort(), allowed.sort());
+    if (item.definition.type === 'tool') assert.equal(item.definition.config.expected_tool, 'skip_turn');
+  }
 });

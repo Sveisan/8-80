@@ -22,7 +22,10 @@ withdrawal cannot reuse that agreement. Only an explicit caller choice permits t
 no-action state; an agent's no-action sentence does not establish it.
 
 Outcomes distinguish confirmed, declined and unconfirmed. A complete unconfirmed
-read-back can contribute a clearly labelled proposal to the recap. It never becomes
+read-back supported by the caller's own words can contribute a clearly labelled
+proposal to the recap. Agent-only invented proposals are omitted. A complete single
+read-back takes precedence over a longer span ending at the same point, so earlier
+choices cannot leak into the latest proposal. It never becomes
 the confirmed quotation, a follow-up promise or stored commitment. Rejected and
 withdrawn proposals are omitted. Without a usable proposal, the email says only
 that no new action was confirmed. Historical memory and the call's new evidence

@@ -8,6 +8,7 @@ import { containsWeeklyLine, weeklyReadBackSpan } from './weekly-lines.ts';
 import { lastWeek } from './lastweek.ts';
 import { carries } from './scorecard.ts';
 import { normalise } from '../turn/endpointer.ts';
+import { callerSupportedProposal } from './proposal.ts';
 
 /** One line of a call, from whichever platform ran it. */
 export interface Turn {
@@ -132,8 +133,9 @@ export function settle(transcript: CallTranscript, script: ScriptLines, now = ne
   // A direct rejection cannot be turned into an agreement just because the
   // mentor forgot the fixed no-action line. Do not infer a replacement action.
   const rejected = /^(no\b(?! problem\b| worries\b)|nope\b|not (that|this week)\b|i (refuse|decline)\b|i (dont|do not) want (that|to)\b|nei\b|jeg vil ikke\b)/.test(normalise(reply.map(t => t.text).join(' ')));
-  const withdrawn=transcript.turns.slice(committedAt+1).some(t=>t.speaker==='caller'
+  const withdrawalAt=transcript.turns.findLastIndex(t=>t.speaker==='caller'
     && /\b(dont save that|do not save that|dont remember that|that is not my action|thats not my action|i withdraw|ikke lagre det|ikke husk det)\b/.test(normalise(t.text)));
+  const withdrawn=withdrawalAt>committedAt;
   // An explicit diversion is never action agreement, including on the ordinary
   // legacy route. Retain its historical courtesy handling without persisting a
   // booking request as a commitment.
@@ -150,6 +152,7 @@ export function settle(transcript: CallTranscript, script: ScriptLines, now = ne
     while (end > 0) {
       const previous = weeklyReadBackSpan(said.slice(0, end), script, 'next.confirm', { strict: true });
       if (!previous) break;
+      if (Math.max(withdrawalAt, declinedAt) > (positions[previous.end] ?? -1)) break;
       const parsed = extractCommitment(said.slice(previous.start, previous.end + 1).join(' '), new Map(script).set('next.confirm', previous.template), { strict: true });
       if (!parsed || normalise(`${parsed.text} ${parsed.day ?? ''}`) !== normalise(`${current.text} ${current.day ?? ''}`)) break;
       const answer: Turn[] = [];
@@ -162,8 +165,9 @@ export function settle(transcript: CallTranscript, script: ScriptLines, now = ne
       end = previous.start;
     }
   }
-  const proposedAction = !commitment && !noAction && !rejected && !withdrawn && current
-    && current.text.length <= 240 ? current.text : undefined;
+  const proposalDenied = rejected || withdrawn || /\b(not (that|this)|wrong|incorrect|but|except|instead)\b/.test(normalise(reply.map(t => t.text).join(' ')));
+  const proposedAction = !commitment && !noAction && !proposalDenied && current && currentSpan
+    && current.text.length <= 240 && callerSupportedProposal(current.text, transcript.turns.slice(Math.max(withdrawalAt, declinedAt) + 1, positions[currentSpan.start])) ? current.text : undefined;
   const map = weeklyReadBackSpan(said, script, 'read.first.keep');
   const selves = map?.values;
 
