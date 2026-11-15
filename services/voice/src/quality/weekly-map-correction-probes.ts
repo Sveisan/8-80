@@ -17,7 +17,7 @@ export function weeklyMapCorrectionProbePlan(sourceCommit: string) {
     { id: 'map_correct_goals', tail: 'Caller now finishes: Change the next-three-month goal to finish a drawing. They have not approved a corrected read-back.', expected: fix('read.first.fix', 'goals', 'finish a drawing') },
     { id: 'map_yes_with_correction', tail: 'Caller now finishes: Yes, but by eighty I mean building a sculpture. This is a correction, not agreement to its unread wording.', expected: fix('read.first.fix_eighty', 'eighty', 'building a sculpture') },
     { id: 'map_second_correction', tail: 'Caller changed eighty to building a sculpture. Assistant asked: So by eighty, you\'d like building a sculpture. Have I got that right? Caller now finishes: No, painting a portrait. They have not approved this latest correction.', expected: fix('read.first.fix_eighty', 'eighty', 'painting a portrait') },
-    { id: 'map_identified_part', tail: 'Caller said Statue building. Assistant asked Which part would you like to change? Caller now finishes: The eighty-year-old part. They have identified the part, not approved its correction.', expected: fix('read.first.fix_eighty', 'eighty', 'Statue building') },
+    { id: 'map_identified_part', tail: 'Caller said Statue building. Assistant asked Which part would you like to change? Caller now finishes: The eighty-year-old part. They have identified the part, not approved its correction.', expected: fix('read.first.fix_eighty', 'eighty', 'statue building') },
   ];
   const extra = (['first', 'female-first'] as const).flatMap(role => corrections.map(c => ({
     role, case: c.id, phase: 'map_answer',
