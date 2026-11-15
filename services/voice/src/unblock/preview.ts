@@ -12,6 +12,7 @@ import { weekdaysFor, nextOccurrence } from './cadence.ts';
 import { scheduleInput } from './repository.ts';
 import { unblockPage, aboutPage, clock, type NextCall, type PageOptions, type Screen } from './page.ts';
 import { csrfFor, unblockCookie, readForm, pageHeaders } from './http.ts';
+import { formValues, invalidField } from './journey.ts';
 import { messages, normaliseSchedule } from './forms.ts';
 
 interface PreviewSession {
@@ -65,7 +66,7 @@ export function previewServer(): Server {
       sub: s.paid ? { standing: s.ended ? 'ended' : 'active', cancelling: s.cancelling, paidUntil: s.cancelling ? new Date(Date.now() + 30 * 86400_000).toISOString() : undefined, callsPerMonth: s.calls, pendingCalls: s.pending, manageable: !s.ended, timezone: tz } : undefined,
       price: undefined, timezone: tz, weekly: s.schedule ? clock(s.schedule.weekly) : undefined, weekday: s.schedule?.weekday, lightDays: s.schedule?.lightDays, lightTime: s.schedule?.lightMinute != null ? clock(s.schedule.lightMinute) : undefined,
       openingAt: !s.programme.openingHeld ? s.nextCall?.toISOString() : undefined, next: callCard(), nextLight: lightCard(), siblingHref: '/beliefs', controls: controls() });
-    const send = (screen: Screen, status = 200, note?: string): void => { res.writeHead(status, { ...pageHeaders, 'set-cookie': cookie(token) }); res.end(unblockPage(screen, { ...options(), note: note ?? s.note })); s.note = undefined; };
+    const send = (screen: Screen, status = 200, note?: string, extra: PageOptions = {}): void => { res.writeHead(status, { ...pageHeaders, 'set-cookie': cookie(token) }); res.end(unblockPage(screen, { ...options(), ...extra, note: note ?? s.note })); s.note = undefined; };
     const redirect = (to: string): void => { res.writeHead(303, { location: to, 'cache-control': 'no-store', 'set-cookie': cookie(token) }); res.end(); };
     if (url.pathname === '/unblock/about' || url.pathname === '/terms' || url.pathname === '/privacy') { res.writeHead(200, pageHeaders); res.end(aboutPage(options())); return; }
     if (url.pathname === '/beliefs') { res.writeHead(200, pageHeaders); res.end('<!doctype html><title>Beliefs</title><p>Beliefs is a separate practice and is not part of this Unblock preview.</p>'); return; }
@@ -82,10 +83,11 @@ export function previewServer(): Server {
       const form = submitted!;
       if (form.get('csrf') !== csrfFor(token)) return send('landing', 403, 'Open the page again before continuing.');
       if (url.pathname === '/unblock/join' || url.pathname === '/unblock/access') {
-        if (!readPhone(form.get('phone') ?? '')) return send('join', 400, 'Check your phone number.');
-        if (url.pathname === '/unblock/join' && form.get('consent') !== 'yes') return send('join', 400, 'Read the service information and confirm your choice.');
-        return send('verify');
+        if (!readPhone(form.get('phone') ?? '')) return send('join', 400, 'Check your phone number.', { values: formValues(form), invalid: 'phone', error: true });
+        if (url.pathname === '/unblock/join' && form.get('consent') !== 'yes') return send('join', 400, 'Read the service information and confirm your choice.', { values: formValues(form), invalid: 'consent', error: true });
+        return send('verify', 200, undefined, { phone: form.get('phone') ?? undefined });
       }
+      if (url.pathname === '/unblock/resend') return send('verify', 200, 'For this preview, use 000000.', { phone: form.get('phone') ?? undefined });
       if (url.pathname === '/unblock/verify') {
         if (form.get('code') !== '000000') return send('verify', 400, 'For this preview, use 000000.');
         s.verified = true; return redirect(s.schedule ? '/unblock/account' : '/unblock/schedule');
@@ -166,7 +168,7 @@ export function previewServer(): Server {
           return redirect('/unblock/account');
         }
         throw new PracticeError('schedule_invalid');
-      } catch (e) { return send('account', 400, e instanceof PracticeError ? messages[e.code] ?? 'Review your choices and try again.' : 'Check your choices and try again.'); }
+      } catch (e) { return send(action === 'schedule' ? 'schedule' : 'account', 400, e instanceof PracticeError ? messages[e.code] ?? 'Review your choices and try again.' : 'Check your choices and try again.', { error: true, ...(action === 'schedule' ? { values: formValues(form), invalid: e instanceof PracticeError ? invalidField(e.code) : undefined } : {}) }); }
     }
     if (req.method !== 'GET' && req.method !== 'HEAD') return send('landing', 405, 'Method not allowed.');
     if (url.pathname === '/unblock') return send('landing');

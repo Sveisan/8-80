@@ -1,6 +1,6 @@
 # Privacy
 
-Draft updated 14 November 2026; operational wording requires review before release.
+Draft updated 15 November 2026; operational wording requires review before release.
 
 {{company}}{{orgnr_clause}}, at {{address}}, is the data controller. Write to
 {{support_email}} about anything on this page.
@@ -257,7 +257,7 @@ transcript content. It preserves another programme's history, unfinished progres
 weekly-service data and the minimum record of any unused included return check-in.
 Necessary financial records are handled separately under applicable recordkeeping
 requirements. A payment record is not a reason to retain personal belief content.
-Whole-account deletion remains a distinct action covering both services.
+Whole-account deletion remains a distinct action covering all 8&80 services.
 
 Speechify receives the selected programme's practice context and preferred name
 for its calls; support email is excluded from voice context. A signed, timestamped
@@ -270,3 +270,35 @@ Our application cleanup does not establish erasure at independent providers or i
 backups. The controller must verify provider retention/deletion, backup expiry,
 financial-record periods and the operational handling of failed notices before
 publishing the paid programme. These operational details remain under review.
+
+## Separate Unblock programme
+
+Unblock has its own programme identifier and encrypted record: your wish and why
+it matters, earlier versions, the blocks you described, agreed steps and outcomes,
+moments you noticed, and chapter reflections. Programme notes are confirmed by
+readback and agreement; provisional changes are checked against the signed call
+transcript before they become your account record. Temporary call transcripts
+follow the fourteen-day buffer described above. Closed session receipts remove
+the caller utterances used for confirmation.
+
+We also keep the programme's consent version and date, chosen call frequency,
+timezone and appointments, optional light-call choices, pause and completion
+state, and separate payment-provider subscription references and renewal dates.
+An optional contact email is for account support, not automatic call recaps.
+Unblock does not overwrite weekly 8&80 memories or its subscription.
+
+Speechify receives the selected Unblock programme context, schedule, and preferred
+name for the conversation. Its short-lived call credential permits only that
+session's agreed programme actions. Support email and payment details are not
+included in voice context. Verification texts contain a code and a permanent
+account-management address, never your wish, step, or other private notes.
+
+Unblock private access uses a separate phone-verified credential that lasts one
+hour. The private account offers a complete account download, programme pause,
+renewal cancellation, and whole-account deletion. Programme history stays
+available after cancellation until you delete the account or ask us to remove it;
+there is no automatic Unblock history-expiry promise. Contact {{support_email}}
+to correct a note or request removal. Whole-account deletion removes Unblock
+alongside weekly and Beliefs records and revokes their access credentials.
+Financial records held by the payment provider and provider/backup retention are
+handled as described above.

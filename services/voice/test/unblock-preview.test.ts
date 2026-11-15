@@ -36,7 +36,7 @@ test('preview walks the whole journey: join, verify, schedule, simulated payment
     await w.post('/unblock/action', schedule); assert.ok(w.html().includes('Your next call') === false, 'no next call before payment');
     assert.ok(w.html().includes('Preview payment confirmation'));
     await w.post('/unblock/action', { action: 'pay' }); assert.ok(w.html().includes('Opening conversation'));
-    assert.ok(w.html().includes('Move only this call') && w.html().includes('Skip this call'));
+    assert.ok(w.html().includes('Move this call later') && w.html().includes('Skip this call'));
     await w.post('/unblock/action', { action: 'sim_call' }); // opening held
     assert.ok(w.html().includes('Synthetic wish: learn to sail')); assert.ok(w.html().includes('Light call'));
     for (let i = 0; i < 3; i++) await w.post('/unblock/action', { action: 'sim_light' });

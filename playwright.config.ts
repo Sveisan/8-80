@@ -17,5 +17,6 @@ export default defineConfig({
     { command: 'npm run design:preview', url: 'http://127.0.0.1:8790/', timeout: 30_000,
       reuseExistingServer: false, env: { DESIGN_PREVIEW_PORT: '8790', DESIGN_TEST_TIME: '2026-11-08T12:00:00.000Z' } },
     ...(journeys ? [{ command: 'node --import tsx tests/design/server.ts', url: 'http://127.0.0.1:8791/health', timeout: 60_000, reuseExistingServer: false }] : []),
+    ...(journeys ? [{ command: 'node --import tsx tests/design/server.ts', url: 'https://127.0.0.1:8792/health', ignoreHTTPSErrors: true, timeout: 60_000, reuseExistingServer: false, env: { DESIGN_UNBLOCK_TEST: '1' } }] : []),
   ],
 });

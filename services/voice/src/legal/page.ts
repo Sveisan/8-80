@@ -4,6 +4,7 @@ import { FOUNDATION_CSS, CONTROL_CSS } from '../design-system/styles.ts';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { config, repoRoot } from '../config.ts';
+import { protectEmailLinks } from '../design-system/email.ts';
 
 const esc = (s: string): string =>
   s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
@@ -51,7 +52,7 @@ export function legalPage(which: LegalPage, now = Date.now()): string {
   const hit = CACHE.get(which);
   if (hit && now - hit.at < TTL_MS) return hit.html;
   const source = readFileSync(resolve(repoRoot, 'legal', `${which}.md`), 'utf8');
-  const html = shell(TITLES[which], render(fill(source)));
+  const html = shell(TITLES[which], protectEmailLinks(render(fill(source))));
   CACHE.set(which, { at: now, html });
   return html;
 }

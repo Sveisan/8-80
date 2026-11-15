@@ -196,7 +196,7 @@ export function reschedulePage(
   return shell(
     `
     ${MARK}
-    <nav class="page-nav"><a href="/start"><span aria-hidden="true">&larr;</span> ${say('access.home')}</a></nav>
+    <nav class="page-nav"><a href="/start"><span aria-hidden="true">&larr;</span> ${say('access.home')}</a> <a href="/unblock">Unblock</a></nav>
     ${head}
     <section class="account-section call-overview" aria-labelledby="call-heading">
       <h2 id="call-heading">${say(booking ? 'page.first' : 'page.section.call')}</h2>
@@ -228,6 +228,7 @@ export function reschedulePage(
                 `<label class="pick"><input type="radio" name="time" value="${t}"${t === time ? ' checked' : ''} /><span>${t}</span></label>`,
               ).join(''), script)}
           </fieldset>
+          <p class="hint" data-move-preview aria-live="polite">${say('page.move.preview')}</p>
           ${always}
           ${booking ? '' : `<p class="hint">${say('page.move.detail')}</p>`}
           <button name="action" value="move" class="primary">${busyLabel(say('page.move'))}</button>
@@ -307,6 +308,21 @@ export function reschedulePage(
           appointment.querySelector('.appointment-clock').textContent = time;
           appointment.querySelector('.appointment-zone').textContent = label;
           appointment.setAttribute('aria-label', date + ' ' + time + ' ' + label);
+        }
+      } catch (e) {}
+      try {
+        var moveForm = document.querySelector('form.move'), moveVersion = 0;
+        if (moveForm) {
+          var updateMove = function () {
+            var version = ++moveVersion;
+            var params = new URLSearchParams({ weekday: moveForm.querySelector('[name=weekday]:checked').value,
+              time: moveForm.querySelector('[name=time]:checked').value, timezone: ${JSON.stringify(slot.timezone)} });
+            fetch('/start/appointment?' + params, { cache: 'no-store' }).then(function (r) { if (!r.ok) throw Error(); return r.json(); }).then(function (data) {
+              if (version === moveVersion) moveForm.querySelector('[data-move-preview]').textContent = 'New appointment: ' + data.when + '. ' +
+                (moveForm.querySelector('[name=always]:checked') ? 'Your usual weekly time changes too.' : 'Only this call moves.');
+            }).catch(function () { if (version === moveVersion) moveForm.querySelector('[data-move-preview]').textContent = ${JSON.stringify(script.get('page.move.preview') ?? '')}; });
+          };
+          moveForm.addEventListener('change', updateMove); updateMove();
         }
       } catch (e) {}
       ${TIME_PICKER_SCRIPT}
@@ -464,7 +480,7 @@ export function shell(body: string, language = 'en'): string {
 ${FOUNDATION_CSS}${CONTROL_CSS}${ACCOUNT_CSS}
 </style>
 </head>
-<body><main>${body}</main>${BUSY}${MOTION}${feedbackWidget()}</body>
+<body><!--email_off--><main>${body}</main>${BUSY}${MOTION}${feedbackWidget()}<!--/email_off--></body>
 </html>`;
 }
 

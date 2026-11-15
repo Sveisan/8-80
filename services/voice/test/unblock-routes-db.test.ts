@@ -98,6 +98,44 @@ test('access: the response is the same for known and unknown numbers, and only a
   const none = await request('/unblock/verify', { form: new URLSearchParams({ challenge: stranger, phone: '+4791000099', code: '123456', access: 'yes' }) }); assert.equal(none!.status, 400);
 });
 
+test('schedule validation retains editable values and focuses a described invalid field without changing the saved booking', options, async () => {
+  const token = await enroll({ programme: emptyProgramme(), standing: 'awaiting_payment' });
+  const before = (await row()).enrollment;
+  const response = await priv(token, '/unblock/action', csrfForm(token, { action: 'schedule', timezone: 'Oslo', opening_local: '2026-11-12T18:00',
+    calls: '5', weekday: '4', weekly: '16:30', light_choice: 'none', light: '19:00' }));
+  assert.equal(response!.status, 409);
+  assert.match(response!.body, /<h1>Make room for it<\/h1>/);
+  assert.match(response!.body, /name="timezone" type="text" value="Oslo"[^>]*aria-invalid="true" aria-describedby="[^"]+-timezone-error"/);
+  assert.match(response!.body, /id="[^"]+-timezone-error">Choose a valid timezone/);
+  assert.match(response!.body, /name="opening_local"[^>]*value="2026-11-12T18:00"/);
+  assert.match(response!.body, /<option value="5" selected>/);
+  assert.match(response!.body, /name="weekly"[^>]*value="16:30"/);
+  assert.match(response!.body, /name="light_choice" value="none" checked/);
+  assert.equal((await row()).enrollment.next_weekly_at!.toISOString(), before.next_weekly_at!.toISOString());
+});
+
+test('join errors preserve contact and consent; resending retains the draft, invalidates the previous code and is throttled', options, async () => {
+  const form = new URLSearchParams({ phone, name: 'Alex <example>', email: 'alex@invalid', consent: 'yes' });
+  const invalid = await request('/unblock/join', { form });
+  assert.equal(invalid!.status, 400); assert.match(invalid!.body, /value="Alex &lt;example&gt;"/);
+  assert.match(invalid!.body, /name="email"[^>]*value="alex@invalid"[^>]*aria-invalid="true"/);
+  assert.match(invalid!.body, /name="consent" value="yes" required checked/); assert.equal(texts.length, 0);
+  form.set('email', 'alex@example.com');
+  const joined = await request('/unblock/join', { form });
+  const old = texts.at(-1)!.match(/\b\d{6}\b/)![0];
+  const challenge = joined!.body.match(/name="challenge" value="([^"]+)"/)![1]!;
+  const resent = await request('/unblock/resend', { form: new URLSearchParams({ challenge, phone }) });
+  assert.equal(resent!.status, 200); assert.equal(texts.length, 2);
+  const next = resent!.body.match(/name="challenge" value="([^"]+)"/)![1]!;
+  assert.notEqual(next, challenge);
+  assert.match(texts.at(-1)!, /https:\/\/8and80\.example\/unblock\/account/);
+  assert.equal((await request('/unblock/resend', { form: new URLSearchParams({ challenge: next, phone }) }))!.status, 429);
+  assert.equal(texts.length, 2);
+  assert.equal((await request('/unblock/verify', { form: new URLSearchParams({ challenge, phone, code: old }) }))!.status, 400);
+  const verified = await request('/unblock/verify', { form: new URLSearchParams({ challenge: next, phone, code: texts.at(-1)!.match(/\b\d{6}\b/)![0] }) });
+  assert.equal(verified!.status, 303); assert.equal((await row()).programme.contact?.email, 'alex@example.com');
+});
+
 test('private pages need an Unblock credential: base, Beliefs and expired ones are refused; forms need CSRF and a same-site origin', options, async () => {
   const token = await enroll();
   assert.equal((await request('/unblock/account'))!.status, 303);
@@ -168,7 +206,7 @@ test('move and skip: only the next call, later in its own week, never inside cov
   const token = await enroll();
   const booked = '2026-11-10T17:00:00.000Z';
   const move = (local: string, expected = booked) => priv(token, '/unblock/action', csrfForm(token, { action: 'occurrence', kind: 'call', expected_at: expected, occurrence_local: local }));
-  assert.ok((await priv(token, '/unblock/account'))!.body.includes('Move only this call'));
+  assert.ok((await priv(token, '/unblock/account'))!.body.includes('Move this call later'));
   let r = await move('2026-11-10T12:00'); assert.equal(r!.status, 409); assert.match(r!.body, /after your usual one/);
   r = await move('2026-11-17T19:00'); assert.equal(r!.status, 409); assert.match(r!.body, /before the following usual call/);
   r = await move('2026-11-11T18:30'); assert.equal(r!.status, 409); assert.match(r!.body, /45 minutes/, 'too close to the Wednesday light call');

@@ -25,8 +25,11 @@ import { callsOf, chapterComplete, lightEnabled, parseCalls, slotKind, type Prog
 import { messages, normaliseSchedule } from './forms.ts';
 import { unblockCheckout } from './payment.ts';
 import { cancelUnblock, refreshUnblock, unblockPortal } from './billing.ts';
+import { formValues, invalidField } from './journey.ts';
+import { contactNumber } from '../link/vcard.ts';
 import { BillingUnavailable } from '../billing/gateway.ts';
 
+const resendDelay = new Limiter(1, 60_000);
 const sends = new Limiter(8, 3600_000); const verifies = new Limiter(30, 600_000);
 const SAVED: Record<string, string> = {
   schedule: 'Your usual times are saved.', occurrence: 'This call has moved. Your usual times stay the same.', skip: 'This call is skipped. It will not be made up later.',
@@ -50,42 +53,56 @@ export async function unblockRoutes(req: IncomingMessage, url: URL, deps: LoopDe
   if (url.pathname !== '/unblock' && !url.pathname.startsWith('/unblock/')) return undefined;
   const c = unblockConfig();
   const ready = unblockReadiness().length === 0;
-  const options: PageOptions = { available: ready, price: c.price, support: config.company.supportEmail() ? `mailto:${config.company.supportEmail()}` : undefined, supportHours: c.supportHours };
+  const options: PageOptions = { available: ready, price: c.price, support: `mailto:${config.company.supportEmail() || 'hei@8and80.me'}`, supportHours: c.supportHours };
   const page = (screen: Screen, status = 200, note?: string, extra: PageOptions = {}): Answer => ({ status, body: unblockPage(screen, { ...options, ...extra, note: note ?? extra.note }), headers: pageHeaders });
   const redirect = (location: string, cookie?: string): Answer => ({ status: 303, body: '', headers: { ...pageHeaders, location, ...(cookie ? { 'set-cookie': cookie } : {}) } });
   if (req.method === 'POST' && crossSite(req)) return page('landing', 403, 'This request could not be verified.');
   if (req.method === 'GET' && url.pathname === '/unblock') return page('landing');
   if (req.method === 'GET' && url.pathname === '/unblock/about') return { status: 200, body: aboutPage(options), headers: pageHeaders };
   const accessing = url.pathname === '/unblock/access';
-  if (url.pathname === '/unblock/join' || accessing) {
-    if (req.method === 'GET') return page('join', 200, undefined, { access: accessing });
+  if (url.pathname === '/unblock/join' || accessing || url.pathname === '/unblock/resend') {
+    if (req.method === 'GET') return !accessing && !ready ? page('landing') : page('join', 200, undefined, { access: accessing });
     if (req.method !== 'POST') return page('join', 405);
-    if (!accessing && !ready) return page('landing', 503, 'Paid enrolment is not open yet.');
-    if (!sends.take(client, +now)) return page('join', 429, 'Please wait before requesting another code.', { access: accessing });
-    const form = await readForm(req); const phone = readPhone(form.get('phone') ?? '');
-    if (!phone) return page('join', 400, 'Check your phone number.', { access: accessing });
-    if (!smsConfigured()) return page('join', 503, 'Verification messages are unavailable. Please try later.', { access: accessing });
+    let form = await readForm(req);
+    const resending = url.pathname === '/unblock/resend';
+    const access = accessing || resending && form.get('access') === 'yes';
+    if (!access && !ready) return page('landing', 503, 'Paid enrolment is not open yet.');
+    const originalChallenge = form.get('challenge') ?? '';
+    const phone = readPhone(form.get('phone') ?? '');
+    const fail = (status: number, note: string, invalid?: string): Answer => page(resending ? 'verify' : 'join', status, note,
+      { access, values: formValues(form), invalid, error: true, challenge: originalChallenge, phone });
+    if (!phone) return fail(400, 'Check your phone number.', 'phone');
+    if (!sends.take(client, +now)) return fail(429, 'Please wait before requesting another code.');
+    if (!smsConfigured()) return fail(503, 'Verification messages are unavailable. Please try later.');
+    if (resending) {
+      if (!resendDelay.take(phoneKey(phone), +now)) return fail(429, 'Allow a minute before requesting another code. No new code was sent.');
+      if (!access) {
+        const saved = await new Pending(deps.store.raw).draft(originalChallenge, now, 'unblock');
+        if (!saved || saved.phone !== phone) return fail(400, 'This signup has expired. Choose Change number to start again.');
+        form = new URLSearchParams({ phone: saved.phone, name: saved.name, email: saved.email, consent: 'yes' });
+      }
+    }
     const hash = phoneKey(phone); let messageId: string | undefined;
     let challenge: { id: string; code: string } | undefined;
-    if (accessing) {
+    if (access) {
       // Same response for known and unknown numbers: a code is only ever queued for an existing account.
       challenge = await new AccessCodes(deps.store.raw).start(hash, now, async (tx, id, code) => {
         const [caller] = await tx`select phone_hash from callers where phone_hash=${hash} for update`;
-        if (caller) messageId = await enqueue(tx, { eventKey: `unblock:access:${id}`, phoneHash: hash, channel: 'sms', kind: 'access', reference: id, to: phone, body: `Your 8&80 Unblock code is ${code}. It expires in ${TTL_MS / 60000} minutes.` }, now);
+        if (caller) messageId = await enqueue(tx, { eventKey: `unblock:access:${id}`, phoneHash: hash, channel: 'sms', kind: 'access', reference: id, to: phone, body: `Your 8&80 Unblock code is ${code}. It expires in ${TTL_MS / 60000} minutes. Manage your calls: ${config.link.publicUrl().replace(/\/$/, '')}/unblock/account` }, now);
       });
     } else {
-      if (form.get('consent') !== 'yes') return page('join', 400, 'Read the service information and confirm your choice.');
+      if (form.get('consent') !== 'yes') return fail(400, 'Read the service information and confirm your choice.', 'consent');
       const email = (form.get('email') ?? '').trim();
-      if (email && (email.length > 254 || !EMAIL.test(email))) return page('join', 400, 'Check your email address.');
+      if (email && (email.length > 254 || !EMAIL.test(email))) return fail(400, 'Check your email address.', 'email');
       const [recent] = await deps.store.raw`select count(*)::int as count from message_outbox where phone_hash=${hash} and kind='signup' and created_at>${new Date(+now - 3600_000)}`;
-      if (Number(recent?.['count']) >= 3) return page('join', 429, 'Please wait before requesting another code.');
+      if (Number(recent?.['count']) >= 3) return fail(429, 'Please wait before requesting another code.');
       challenge = await new Pending(deps.store.raw).begin({ phone, email, name: (form.get('name') ?? '').trim().slice(0, 80), weekday: 0, minute: 480, timezone: 'Europe/Oslo' }, now, async (tx, id, code) => {
-        messageId = await enqueue(tx, { eventKey: `unblock:signup:${id}`, phoneHash: hash, channel: 'sms', kind: 'signup', reference: id, to: phone, body: `Your 8&80 Unblock code is ${code}. It expires in ${TTL_MS / 60000} minutes.` }, now);
+        messageId = await enqueue(tx, { eventKey: `unblock:signup:${id}`, phoneHash: hash, channel: 'sms', kind: 'signup', reference: id, to: phone, body: `Your 8&80 Unblock code is ${code}. It expires in ${TTL_MS / 60000} minutes. Manage your calls: ${config.link.publicUrl().replace(/\/$/, '')}/unblock/account` }, now);
       }, 'unblock');
     }
-    if (!challenge) return page('join', 429, 'Please wait before requesting another code.', { access: accessing });
-    if (messageId && await dispatchMessage(deps, messageId, now) !== 'accepted') return page('join', 503, 'Your code has not been confirmed as sent. Please try again later.', { access: accessing });
-    return page('verify', 200, undefined, { challenge: challenge.id, phone, access: accessing });
+    if (!challenge) return fail(429, 'Please wait before requesting another code.');
+    if (messageId && await dispatchMessage(deps, messageId, now) !== 'accepted') return page('verify', 503, 'Your code has not been confirmed as sent. It may still arrive; wait before requesting another.', { challenge: challenge.id, phone, access, error: true });
+    return page('verify', 200, undefined, { challenge: challenge.id, phone, access });
   }
   if (url.pathname === '/unblock/verify') {
     if (req.method !== 'POST') return redirect('/unblock/access');
@@ -106,7 +123,7 @@ export async function unblockRoutes(req: IncomingMessage, url: URL, deps: LoopDe
         token = await new Links(tx).mint(hash, now, 'unblock');
       }, 'unblock');
     }
-    if (!token) return page('verify', 400, 'The code is incorrect or expired.', { challenge: id, phone, access: returning });
+    if (!token) return page('verify', 400, 'The code is incorrect or expired.', { challenge: id, phone, access: returning, invalid: 'code', error: true });
     return redirect(returning ? '/unblock/account' : '/unblock/schedule', unblockCookie(token));
   }
   const token = cookieOf(req, 'unblock');
@@ -124,7 +141,7 @@ export async function unblockRoutes(req: IncomingMessage, url: URL, deps: LoopDe
   const callsRunning = callsAllowed(e, now) && !held && p.state === 'active';
   const scheduled = e.weekly_weekday !== null && e.weekly_minute !== null;
   const live = e.standing === 'active' || e.standing === 'past_due';
-  const privateOptions: PageOptions = { ...options, programme: p, csrf: csrfFor(token!), paid: live, paymentHold: e.standing === 'payment_hold', held,
+  const privateOptions: PageOptions = { ...options, contact: !!contactNumber(), programme: p, csrf: csrfFor(token!), paid: live, paymentHold: e.standing === 'payment_hold', held,
     checkout: live || e.subscription_id && e.standing !== 'ended' ? '' : unblockCheckout(e.checkout_reference), timezone: e.timezone, scheduled, calls: e.pending_calls_per_month ?? e.calls_per_month,
     sub: { standing: e.standing, cancelling: e.cancel_at_period_end, paidUntil: e.paid_until?.toISOString(), callsPerMonth: e.calls_per_month, pendingCalls: e.pending_calls_per_month, manageable: !!e.subscription_id && e.standing !== 'ended', timezone: e.timezone },
     weekly: e.weekly_minute !== null ? clock(e.weekly_minute) : undefined, weekday: e.weekly_weekday ?? undefined,
@@ -169,7 +186,12 @@ export async function unblockRoutes(req: IncomingMessage, url: URL, deps: LoopDe
         return redirect(`/unblock/account?saved=${action}`);
       }
       throw new PracticeError('schedule_invalid');
-    } catch (error) { return page('account', error instanceof PracticeError ? 409 : 503, error instanceof PracticeError ? messages[error.code] ?? 'Review your choices before continuing.' : error instanceof BillingUnavailable ? messages['billing_unavailable'] : 'This change could not be confirmed. Please try again later.', privateOptions); }
+    } catch (error) {
+      const scheduling = form.get('action') === 'schedule';
+      return page(scheduling ? 'schedule' : 'account', error instanceof PracticeError ? 409 : 503,
+        error instanceof PracticeError ? messages[error.code] ?? 'Review your choices before continuing.' : error instanceof BillingUnavailable ? messages['billing_unavailable'] : 'This change could not be confirmed. Please try again later.',
+        { ...privateOptions, error: true, ...(scheduling ? { values: formValues(form), invalid: error instanceof PracticeError ? invalidField(error.code) : undefined } : {}) });
+    }
   }
   if (req.method !== 'GET') return page('account', 405, undefined, privateOptions);
   const screen = url.pathname.slice('/unblock/'.length);

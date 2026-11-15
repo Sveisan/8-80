@@ -1565,7 +1565,7 @@ about tone._
 > "A weekly phone call with the two people who know you best"
 
 `signup.what`
-> "A weekly accountability call from the two people with the most riding on you: you at
+> "A weekly phone call from the two people with the most riding on you: you at
 > eight, and you at eighty. About ten minutes for the first conversation, shorter after that, at your chosen weekly time. What you said you'd
 > do, what actually happened, and the one thing for next week. No app, no streaks, nobody
 > clapping."
@@ -1604,7 +1604,7 @@ to read it, not that it sit in any particular place._
 > "Where the recap goes"
 
 `signup.when`
-> "When suits you?"
+> "Your usual weekly time"
 
 `signup.when.detail`
 > "Move it. Every text I send has a link: another time, or stop the whole thing. One tap,
@@ -1833,7 +1833,7 @@ it — that is not a data export, it is a way to read a stranger's week._
 > "Delete everything I have on you?"
 
 `page.forget.detail`
-> "This stops your calls and permanently removes your 8&80 profile, notes, feedback and retained call data. If you have a subscription, we must confirm it will not renew before deleting your account. The payment provider keeps its billing records. This cannot be undone."
+> "This stops all your calls and permanently removes your entire 8&80 account: weekly calls, Unblock, Beliefs, profile, notes, feedback and retained call data. If you have a subscription, we must confirm it will not renew before deleting your account. The payment provider keeps its billing records. This cannot be undone."
 
 `page.forget.yes`
 > "Yes, delete it all"
@@ -2310,7 +2310,16 @@ Interrupted introductions keep their progress; availability-only calls do not ad
 > "I couldn't book that callback. Please check your call status and choose a time here: {{link}}"
 
 `signup.summary`
-> "A weekly accountability call with your eight- and eighty-year-old selves."
+> "A weekly phone call with your eight- and eighty-year-old selves."
+
+`signup.summary.detail`
+> "About ten minutes to reflect and choose one thing to do next. A short email keeps it handy."
+
+`signup.honest.short`
+> "Calls are with an AI. You can stop at any time."
+
+`signup.unblock`
+> "One wish you have kept for someday? Unblock is a separate monthly programme to work through it."
 
 `signup.verify.detail`
 > "First, we’ll text you a code. After you confirm it, we’ll call at the time you choose."
@@ -2525,7 +2534,7 @@ Interrupted introductions keep their progress; availability-only calls do not ad
 > "All set."
 
 `page.section.notes`
-> "Your goals"
+> "Your commitment and goals"
 
 `page.section.plan`
 > "Your plan"
@@ -2762,3 +2771,15 @@ _Explicit opt-in. Generic messages only: no private call details on a lock scree
 
 `calendar.email.cancel.body`
 > "The calendar invitation for {{when}} is cancelled."
+
+`page.move.preview`
+> "Choose a day and time. The confirmed appointment will be shown after saving."
+
+`signup.nav.weekly`
+> "Weekly calls"
+
+`signup.name.optional`
+> "What shall we call you? (optional)"
+
+`signup.options`
+> "Optional voice, texts and calendar"

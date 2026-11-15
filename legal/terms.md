@@ -1,6 +1,6 @@
 # Terms
 
-Draft updated 15 October 2026; operational wording requires review before a paid launch.
+Draft updated 15 November 2026; operational wording requires review before a paid launch.
 
 ## Who you are agreeing with
 
@@ -49,6 +49,39 @@ Consumer withdrawal rights are separate from cancellation of future renewal.
 Contact {{support_email}} to exercise those rights; using the cancellation controls
 does not waive them. The paid checkout and withdrawal information must be reviewed
 for the selected provider and service before paid enrollment opens.
+
+## Separate Unblock subscription
+
+Unblock is a separate monthly programme for adults. Phone conversations help you
+name one wish, consider what keeps it waiting, choose a small step, and notice
+moments in your ordinary life. Calls are with an AI. It is a self-reflection
+service, not therapy, and it does not promise a particular result.
+
+The opening conversation is about 15–20 minutes. Choose 1–8 regular calls per
+month at the same price; regular calls are about 10–15 minutes. Calls are spread
+across each billing month using your chosen day and time. Five or more use a
+second day, three days later. An opening conversation is separate from those
+regular calls. Optional light calls last about a minute, on evenings you choose.
+A missed conversation is offered at the next usual time; missed or skipped calls
+are not added as extra appointments. You may pass on a question or end a call.
+
+Unblock has its own subscription and does not start a weekly 8&80 subscription.
+The actual price, currency, taxes, and renewal terms are shown before payment.
+Calls start only after the provider confirms payment and your times are saved.
+Each billing month is a chapter. Frequency changes after your first conversation
+apply from the next chapter; your account explains the current and pending choice.
+
+Pause Unblock calls immediately from its account. Pausing does not pause billing.
+To stop future charges, cancel renewal there; calls remain available until the
+paid period ends unless you pause them. Contact {{support_email}} about a payment,
+refund, correction, or missing service. A request is separate from a confirmed
+refund. The consumer withdrawal information above also applies.
+
+Unblock notes and weekly-call notes stay separate. Programme pause and renewal
+cancellation apply to the selected product. Replying STOP to our shared number
+stops all calls and texts; it does not cancel subscription renewal. Whole-account
+deletion covers weekly 8&80, Unblock, and any Beliefs programmes, including
+cancellation of their subscription renewals before the account is erased.
 
 ## Separate Beliefs programme
 

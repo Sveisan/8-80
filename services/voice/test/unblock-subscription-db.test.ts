@@ -19,6 +19,7 @@ import { unblockCheckout } from '../src/unblock/payment.ts';
 import { chapterComplete, emptyProgramme, finishCall, type Programme } from '../src/unblock/model.ts';
 import { sessionToken } from '../src/unblock/protocol.ts';
 import { addMonths, periodEnd, periodStart, planNext, tooClose, weekdaysFor, occurrences } from '../src/unblock/cadence.ts';
+import { describeAppointment } from '../src/schedule/time.ts';
 
 const opened = await openTestDb('unblock_subscription'); const db = typeof opened === 'string' ? undefined : opened;
 const options = { skip: typeof opened === 'string' ? opened : false };
@@ -115,6 +116,10 @@ test('the webhook: a signed checkout event activates only after an authoritative
   assert.equal(e.opening_at, null, 'a first-conversation date that already passed is not rung'); assert.ok(e.next_weekly_at! > e.anchor_at!, 'the next call is refreshed to the next usual slot');
   assert.equal(e.next_weekly_at!.toISOString().slice(11, 16), '17:00');
   assert.equal((await db!.sql`select count(*)::int as n from message_outbox where kind='unblock'`)[0]!['n'], 1, 'one confirmation text, not one per delivery');
+  assert.equal(texts.length, 1);
+  assert.ok(texts[0]!.includes(describeAppointment(e.next_weekly_at!, e.timezone)), 'the confirmation includes the actual upcoming appointment');
+  assert.ok(texts[0]!.includes('Manage your calls: https://8and80.example/unblock/account'));
+  assert.ok(texts[0]!.includes('Save our number: https://8and80.example/contact.vcf'));
   assert.deepEqual((await db!.sql`select billing_status, ls_subscription_id from callers where phone_hash=${hash}`)[0], weeklyBefore, 'the weekly subscription columns are untouched');
 });
 
