@@ -832,8 +832,9 @@ An action is optional and must be theirs; never infer one from reticence or cour
 
 ## 6b. Setting it up — first call only
 
-_Sign-up already collected the weekly slot and the email address. A caller with no slot is
-never rung, so anybody on a first call has one. The call confirms it and nothing more._
+_Sign-up already collected the weekly slot and the email address. Do not ask for
+routine reconfirmation of that choice. At a natural close, state the dated next
+appointment. The usual weekly time is separate and is explained when asked._
 
 _The second real call asked for the slot anyway (and nothing it heard was saved), then
 spent a minute and a half trying to take an email address letter by letter from a
@@ -842,6 +843,9 @@ call. If one is ever missing, it is collected by a text with a link, after the c
 
 `setup.confirm_slot`
 > "Your usual call is {{booked}}. Does that still suit?"
+
+_Historical wording, retained for earlier calls. Do not use it as a routine
+first-call step; a saved booking does not need another acknowledgement gate._
 
 _If they want a different time, do not take one on the call — nothing said here moves the
 schedule:_
@@ -1050,6 +1054,13 @@ carry on. No apology spiral:
 
 `repair.interrupt`
 > "Sorry — go on."
+
+`repair.delay`
+> "Sorry about the wait."
+
+_Only after actual feedback about a long pause, once. When they say their answer
+is complete or ask a direct question, continue in the same turn. Do not create
+another pause by waiting for a reply to the apology._
 
 `repair.misread`
 > "Go on."

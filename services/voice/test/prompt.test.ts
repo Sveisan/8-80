@@ -127,9 +127,10 @@ test('the first call runs from easy to real: eight, eighty, this year, then the 
   assert.deepEqual([...order].sort((a, b) => a - b), order, 'the stages are out of order');
 });
 
-test('the first call never asks for an email, and confirms the slot rather than asking', () => {
+test('the first call uses the saved slot without another confirmation or email question', () => {
   const p = buildInstructions(loadScript(), { callNumber: 1, bookedSlot: 'Sunday at 13:00' });
-  assert.match(p, /Your usual call is Sunday at 13:00/);
+  assert.match(p, /Your usual time is still Sunday at 13:00/);
+  assert.ok(!p.includes(loadScript().get('setup.confirm_slot')!.replace('{{booked}}', 'Sunday at 13:00')));
   assert.match(p, /Never ask for an email address/);
   assert.ok(!/which address\?/i.test(p), 'the email question is still in the prompt');
 });

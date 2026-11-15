@@ -53,6 +53,7 @@ test('all four provider prompts carry both booking variables and keep the fallba
     const text = buildInstructions(script, {callNumber, nextSlot, bookedSlot});
     assert.ok(text.includes('Your next call is ' + nextSlot));
     assert.ok(!text.includes('There isn\'t another call booked'));
+    assert.ok(!text.includes(script.get('setup.confirm_slot')!.replace('{{booked}}', bookedSlot)));
   }
 });
 

@@ -26,7 +26,7 @@ export function appointmentPrompt(script: ScriptLines, profile: Pick<CallerProfi
       `The next appointment is known. Answer with "${nextLine}" and use that dated time at a normal close. Do not claim the next appointment is missing or unbooked.`,
     ]),
     ...(!missing(weekly) ? [
-      `${dynamicWeekly ? 'ONLY if USUAL WEEKLY TIME contains a real time, ' : ''}when asked about the regular arrangement, say "${weeklyLine}". If both times are requested, give the next appointment first and the usual weekly time second, without another confirmation question.`,
+      `${dynamicWeekly ? 'ONLY if USUAL WEEKLY TIME contains a real time, ' : ''}when explicitly asked about the regular arrangement, say "${weeklyLine}". If both times are requested, give the next appointment first and the usual weekly time second, without another confirmation question. When asked only for the next call, do not volunteer the weekly time, especially when the dated time is missing.`,
     ] : ['The usual weekly time is unavailable here; do not invent one.']),
     'Never promise a recap email without a recorded email address. If the caller explicitly says goodbye, omit logistics and use the brief farewell. A callback agreed during this call follows the existing callback confirmation rules; do not promise the weekly slot as well.',
   ].join('\n');

@@ -63,7 +63,8 @@ calls already in progress. Map/action read-backs, fresh caller agreement and the
 single flow-owned farewell retain their existing contracts.
 
 Completed short answers and flow-owned acknowledgement statements no longer
-create an extra waiting gate. An explicit request to carry on after delay
+create an extra waiting gate. The first call no longer asks routinely whether
+the weekly time chosen at sign-up still suits. An explicit request to carry on after delay
 feedback gets a response; unfinished answers and requests for thinking time
 still use `skip_turn`. All four weekly source specs also request
 `turn_handling.response_delay_seconds = 0`. The settings sync backs it up,
