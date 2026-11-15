@@ -3,7 +3,7 @@
   "cases": [
     {
       "id": "more_conversation",
-      "phase": "conversation",
+      "phase": "post_action",
       "roles": [
         "first",
         "return",
@@ -22,7 +22,7 @@
     },
     {
       "id": "already_answered",
-      "phase": "conversation",
+      "phase": "post_action",
       "roles": [
         "first",
         "return",
@@ -40,7 +40,7 @@
       }
     },
     {
-      "id": "short_activity",
+      "id": "complete_short_choice",
       "phase": "conversation",
       "roles": [
         "first",
@@ -79,7 +79,7 @@
     },
     {
       "id": "no_acknowledgement_gate",
-      "phase": "conversation",
+      "phase": "post_action",
       "roles": [
         "first",
         "return",
@@ -112,7 +112,7 @@
         "config": {
           "context": "Assistant asked one new question about what was helpful in the workshop. Caller: I, um, give me a moment.",
           "success_criteria": "Call skip_turn without any spoken preamble, apology, repeated mm, take-your-time statement or extra question. The caller is still thinking.",
-          "tool_name": "skip_turn"
+          "expected_tool": "skip_turn"
         }
       }
     },

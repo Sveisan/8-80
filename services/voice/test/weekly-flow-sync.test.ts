@@ -159,3 +159,32 @@ test('the API refuses calls and arbitrary writes and never exposes provider erro
   await assert.rejects(api.request('GET', '/v1/agents/agent_private/flow'), /^Error: Weekly flow request refused \(HTTP 400\); response withheld\.$/);
   assert.equal(calls.length, 1);
 });
+
+// A captured provider draft may contain the old rejected cycle. Bind only the
+// fixture's portable tool IDs here; production binding still rejects cycles.
+function bindHistoricalFixture(flow: WeeklyFlow): WeeklyFlow {
+  const graph = structuredClone(flow);
+  for (const node of graph.nodes.filter(n => n.type === 'subagent')) {
+    node.config!.tools_filter = (node.config!.tools_filter as string[]).map(name => name === 'skip_turn' ? 'builtin_silent' : 'tool_weekly');
+  }
+  return graph;
+}
+for (const version of ['v2', 'v3']) {
+  const fixture = JSON.parse(brotliDecompressSync(readFileSync(new URL(`./fixtures/weekly-flow-${version}-predecessor.json.br`, import.meta.url))).toString()) as { flows: Record<string, WeeklyFlow> };
+  test(`exact ${version} predecessor can be upgraded while unrelated edits remain protected`, async () => {
+    const s = setup();
+    for (const [key, id] of Object.entries(env).filter(([key]) => key.startsWith('SPEECHIFY_DIALOGUE_'))) {
+      const role = key.includes('FIRST_CALL') ? 'first' : 'return';
+      s.flows.set(id, { active: bindHistoricalFixture(fixture.flows[role]!) });
+    }
+    const result = await syncWeeklyFlows(s.api, { ...s.options, mode: 'activate' });
+    assert.ok(result.roles.every(r => r.activeMatches));
+    assert.equal(s.events.filter(e => e.endsWith('/publish')).length, 4);
+    const bad = setup();
+    const edited = bindHistoricalFixture(fixture.flows.first!);
+    edited.nodes.find(n => n.type === 'subagent')!.config!.prompt += '\nUnreviewed edit.';
+    bad.flows.set(env.SPEECHIFY_DIALOGUE_FIRST_CALL_AGENT_ID, { active: edited });
+    await assert.rejects(syncWeeklyFlows(bad.api, bad.options), /unrelated flow/);
+    assert.ok(!bad.events.some(e => /^(PUT|POST) /.test(e)));
+  });
+}

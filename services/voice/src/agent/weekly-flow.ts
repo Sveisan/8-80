@@ -2,7 +2,7 @@ import { weeklyGreeting, weeklyPrompt } from './prompt-pack.ts';
 import { loadScript } from '../script.ts';
 import { renderForConsole, CONSOLE_VARIABLES } from '../prompt.ts';
 
-export const WEEKLY_FLOW_POLICY = 'weekly-listening-and-action-answer-v2';
+export const WEEKLY_FLOW_POLICY = 'weekly-context-and-action-evidence-v3';
 export const weeklyFlowRoles = ['first', 'return', 'female-first', 'female-return'] as const;
 export type WeeklyFlowRole = typeof weeklyFlowRoles[number];
 export interface WeeklyFlowNode {

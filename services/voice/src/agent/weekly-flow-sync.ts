@@ -61,11 +61,16 @@ function heads(value: unknown): { active: WeeklyFlow | null; draft: WeeklyFlow |
 }
 
 // Exact portable graphs from PR46 source 48808c8c82a91b40123762aa4243cfaf900e8c8e.
+// PR56 source 97fc501 and publishable successor 46e67b9 are also pinned below.
 // Only attached tool IDs vary per agent. Matching a policy label or topology is
 // insufficient: a manually edited prompt must not be silently overwritten.
 const previousGraphDigests = {
-  first: '2afc6fe84690af03707c0ae0622862218a3cf999d7e06975c3270c14a0793fef',
-  return: '3d0b35bcc55bc9bc1c26321d5a1dce74a2ca0705ff6bcc46fcb2db32b6a0bff9',
+  first: ['2afc6fe84690af03707c0ae0622862218a3cf999d7e06975c3270c14a0793fef',
+    '31ad484e6994b5dd7f55d0eb8219d7cebff5db59b91f2fd8cb74a7087322de6d',
+    '75c7d098f2efdc79a0c18ce3fe2031dc03df4c2cee7239a663febd78bd141716'],
+  return: ['3d0b35bcc55bc9bc1c26321d5a1dce74a2ca0705ff6bcc46fcb2db32b6a0bff9',
+    '15aace53134f9622f4959ccde308ea00f47d9936dd1873fb5e1711bb541dce5b',
+    '4d5586a24e901cfaa71b9ed49646e84e6891be2f36f0fbe44fcfaad2f0005f1b'],
 };
 function canonical(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonical);
@@ -82,7 +87,7 @@ function isPreviousGraph(previous: WeeklyFlow, role: WeeklyFlowRole, bound: Week
     node.config!.tools_filter = filter.map(id => names.get(id));
   }
   const digest = createHash('sha256').update(JSON.stringify(canonical(flowGraph(portable)))).digest('hex');
-  return digest === previousGraphDigests[role.endsWith('first') ? 'first' : 'return'];
+  return previousGraphDigests[role.endsWith('first') ? 'first' : 'return'].includes(digest);
 }
 
 export function privateFlowTargets(env: NodeJS.ProcessEnv): { role: WeeklyFlowRole; id: string }[] {
