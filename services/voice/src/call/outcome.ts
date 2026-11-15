@@ -8,6 +8,7 @@ import { containsWeeklyLine, weeklyReadBackSpan } from './weekly-lines.ts';
 import { lastWeek } from './lastweek.ts';
 import { carries } from './scorecard.ts';
 import { normalise } from '../turn/endpointer.ts';
+import { callerSupportedProposal } from './proposal.ts';
 
 /** One line of a call, from whichever platform ran it. */
 export interface Turn {
@@ -76,7 +77,9 @@ const TOO_SHORT_MS = 90_000;
  * the weeks a person most needed the call to be ordinary.
  */
 export function settle(transcript: CallTranscript, script: ScriptLines, now = new Date(),options:{strictActionAgreement?:boolean}={}): Settlement {
-  const strict=options.strictActionAgreement!==false;
+  // Keep the old caller option source-compatible; all routes now require
+  // explicit caller evidence for agreement and for choosing no action.
+  void options;
   const agentTurns = transcript.turns.filter((t) => t.speaker === 'agent' && t.text.trim());
   const callerTurns = transcript.turns.filter((t) => t.speaker === 'caller' && t.text.trim());
 
@@ -116,7 +119,7 @@ export function settle(transcript: CallTranscript, script: ScriptLines, now = ne
   // This fixed branch is used only after an explicit choice of no action.
   // A later read-back can replace it, but an earlier proposal cannot survive it.
   const invitations=[...script].filter(([key])=>key.startsWith('next.ask.')&&!key.endsWith('.calibrate')).map(([,text])=>text);
-  const declinedAt = transcript.turns.findLastIndex((t,i) => !strict&&t.speaker==='agent'&&containsWeeklyLine(t.text,script,'next.none') || t.speaker==='caller' && (explicitNoAction(t.text)
+  const declinedAt = transcript.turns.findLastIndex((t,i) => t.speaker==='caller' && (explicitNoAction(t.text)
     || /^(no|nope|not this week|nei|ikke denne uken)\b/.test(normalise(t.text))
       && invitations.some(line=>carries(transcript.turns.slice(0,i).findLast(p=>p.speaker==='agent')?.text??'',line))));
   const noAction = declinedAt >= 0 && declinedAt > committedAt
@@ -130,13 +133,41 @@ export function settle(transcript: CallTranscript, script: ScriptLines, now = ne
   // A direct rejection cannot be turned into an agreement just because the
   // mentor forgot the fixed no-action line. Do not infer a replacement action.
   const rejected = /^(no\b(?! problem\b| worries\b)|nope\b|not (that|this week)\b|i (refuse|decline)\b|i (dont|do not) want (that|to)\b|nei\b|jeg vil ikke\b)/.test(normalise(reply.map(t => t.text).join(' ')));
-  const withdrawn=transcript.turns.slice(committedAt+1).some(t=>t.speaker==='caller'
+  const withdrawalAt=transcript.turns.findLastIndex(t=>t.speaker==='caller'
     && /\b(dont save that|do not save that|dont remember that|that is not my action|thats not my action|i withdraw|ikke lagre det|ikke husk det)\b/.test(normalise(t.text)));
+  const withdrawn=withdrawalAt>committedAt;
   // An explicit diversion is never action agreement, including on the ordinary
   // legacy route. Retain its historical courtesy handling without persisting a
   // booking request as a commitment.
   const diverted = divertsReadBack(reply.map(t => t.text).join(' '), actionReadBack);
-  if (noAction || rejected || diverted || strict&&(withdrawn || !confirmsAction(reply, actionReadBack))) commitment = undefined;
+  // Ordinary calls need the same fresh agreement as the private pilot. A
+  // courtesy reply or missing extraction is neither consent nor a refusal.
+  if (noAction || rejected || diverted || withdrawn || !confirmsAction(reply, actionReadBack)) commitment = undefined;
+  // More conversation, or an unnecessary repeated read-back of the SAME
+  // agreed action, cannot erase the caller's earlier explicit agreement.
+  // A different proposal, rejection, withdrawal or no-action choice cannot
+  // reuse that agreement. Compare the full wording, including any day.
+  if (!commitment && current && currentSpan && !noAction && !rejected && !withdrawn) {
+    let end = currentSpan.start;
+    while (end > 0) {
+      const previous = weeklyReadBackSpan(said.slice(0, end), script, 'next.confirm', { strict: true });
+      if (!previous) break;
+      if (Math.max(withdrawalAt, declinedAt) > (positions[previous.end] ?? -1)) break;
+      const parsed = extractCommitment(said.slice(previous.start, previous.end + 1).join(' '), new Map(script).set('next.confirm', previous.template), { strict: true });
+      if (!parsed || normalise(`${parsed.text} ${parsed.day ?? ''}`) !== normalise(`${current.text} ${current.day ?? ''}`)) break;
+      const answer: Turn[] = [];
+      for (const turn of transcript.turns.slice((positions[previous.end] ?? -1) + 1)) {
+        if (!turn.text.trim()) continue;
+        if (turn.speaker === 'agent') break;
+        answer.push(turn);
+      }
+      if (confirmsAction(answer, previous.values['commitment'])) { commitment = parsed; break; }
+      end = previous.start;
+    }
+  }
+  const proposalDenied = rejected || withdrawn || /\b(not (that|this)|wrong|incorrect|but|except|instead)\b/.test(normalise(reply.map(t => t.text).join(' ')));
+  const proposedAction = !commitment && !noAction && !proposalDenied && current && currentSpan
+    && current.text.length <= 240 && callerSupportedProposal(current.text, transcript.turns.slice(Math.max(withdrawalAt, declinedAt) + 1, positions[currentSpan.start])) ? current.text : undefined;
   const map = weeklyReadBackSpan(said, script, 'read.first.keep');
   const selves = map?.values;
 
@@ -179,6 +210,8 @@ export function settle(transcript: CallTranscript, script: ScriptLines, now = ne
   const outcome: CallOutcome = {
     at: now.toISOString(),
     durationMs: transcript.durationMs,
+    actionState: commitment ? 'confirmed' : noAction ? 'declined' : 'unconfirmed',
+    ...(proposedAction ? { proposedAction } : {}),
     ...(onboardingComplete ? { onboardingComplete: true } : {}),
     ...(commitment ? { commitment: commitment.text, ...(commitment.day ? { day: commitment.day } : {}) } : {}),
     ...(noAction ? { noAction: true } : {}),
@@ -239,6 +272,7 @@ function divertsReadBack(text: string, expectedAction?: string): boolean {
 
 /** Narrow explicit choices, not a general intent classifier. */
 function explicitNoAction(text: string): boolean {
+  if (/^i(?:d| would) rather skip (?:choosing|picking) (?:anything|an action|a commitment)(?: today| this week)?$/.test(normalise(text))) return true;
   if (/^(actually |then |no |nei )?(no (new )?(action|commitment)( this week)?|i (dont|do not) want (an action|a commitment)|ingen (handling|forpliktelse)( denne uken)?)\b/.test(normalise(text))) return true;
   // A caller can explain the week before declining a new action in the same
   // turn. Accept only a complete first-person choice clause, not a quoted

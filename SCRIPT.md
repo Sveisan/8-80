@@ -1285,8 +1285,22 @@ go unread._
 `email.body.none`
 > "We'll pick it up next time we talk."
 
+`email.body.declined`
+> "You chose not to set an action this week."
+
+`email.body.proposed`
+> "A possible next step came up: {{proposal}}. We didn't confirm it as an agreement."
+
+`email.body.unconfirmed`
+> "We didn't confirm a new action for me to remember."
+
 _Choosing no action requires neither praise nor forgiveness. Missing extraction is not
 proof that they declined an action, so this line makes neither claim._
+
+_A proposal is mentioned only when a complete read-back exists in this call. It is
+labelled unconfirmed, never quoted as an agreed action, saved as a commitment or
+used as next week's accountability prompt. Explicit refusal and withdrawal omit it.
+Only the caller's explicit choice of no action permits the declined wording._
 
 `email.body.logistics`
 > "Next call, as booked when we spoke: {{next_slot}}."

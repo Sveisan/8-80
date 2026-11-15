@@ -1,0 +1,157 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "more_conversation",
+      "phase": "post_action",
+      "roles": [
+        "first",
+        "return",
+        "female-first",
+        "female-return"
+      ],
+      "definition": {
+        "name": "8&80 fictional continuity more_conversation",
+        "description": "Fictional regression for conversation continuity and honest agreement. No real caller data, phone call or tool endpoint.",
+        "type": "reply",
+        "config": {
+          "context": "The caller already answered both eight- and eighty-year perspectives and explicitly confirmed visit the library in the full action read-back. They then described a useful workshop with other people. Assistant offered to close. Caller: Can you ask me some more questions?",
+          "success_criteria": "Ask at most one NEW relevant follow-up about the workshop or another concrete detail already shared. Never ask the eight/eighty perspectives, which focus to choose, or what action they will do again. Preserve the confirmed library action; do not announce that the conversation is starting over or demand another agreement."
+        }
+      }
+    },
+    {
+      "id": "already_answered",
+      "phase": "post_action",
+      "roles": [
+        "first",
+        "return",
+        "female-first",
+        "female-return"
+      ],
+      "definition": {
+        "name": "8&80 fictional continuity already_answered",
+        "description": "Fictional regression for conversation continuity and honest agreement. No real caller data, phone call or tool endpoint.",
+        "type": "reply",
+        "config": {
+          "context": "Both perspectives and the action were answered and the action was explicitly confirmed. Assistant accidentally repeated the eighty-year question. Caller: I answered that question before.",
+          "success_criteria": "Acknowledge the specific repetition briefly, then move forward from already completed stages. Do not ask that question or its paraphrase again, do not start the eight-year or action question, and do not invent which personal event the caller meant."
+        }
+      }
+    },
+    {
+      "id": "complete_short_choice",
+      "phase": "conversation",
+      "roles": [
+        "first",
+        "return",
+        "female-first",
+        "female-return"
+      ],
+      "definition": {
+        "name": "8&80 fictional continuity short_activity",
+        "description": "Fictional regression for conversation continuity and honest agreement. No real caller data, phone call or tool endpoint.",
+        "type": "reply",
+        "config": {
+          "context": "The map was explicitly confirmed. Caller chose fun and playfulness as focus. Assistant asked for one activity. Caller: Do a game.",
+          "success_criteria": "Give the COMPLETE fixed read-back Let me check: do a game. Is that the action you want me to remember? and stop to wait for fresh agreement. Do not ask the activity question again or claim the action is already saved."
+        }
+      }
+    },
+    {
+      "id": "service_diversion",
+      "phase": "action_answer",
+      "roles": [
+        "first",
+        "return",
+        "female-first",
+        "female-return"
+      ],
+      "definition": {
+        "name": "8&80 fictional continuity service_diversion",
+        "description": "Fictional regression for conversation continuity and honest agreement. No real caller data, phone call or tool endpoint.",
+        "type": "reply",
+        "config": {
+          "context": "Assistant asked Let me check: do a game. Is that the action you want me to remember? Caller: Yes, change my weekly call to Tuesday at half past four.",
+          "success_criteria": "Give only the complete booking-control explanation that the weekly call cannot be changed during the call and the booking remains unchanged until saved on the call page. Do not approve the action, claim a changed appointment, ask the already explicit referent or collect another time. Then wait."
+        }
+      }
+    },
+    {
+      "id": "no_acknowledgement_gate",
+      "phase": "post_action",
+      "roles": [
+        "first",
+        "return",
+        "female-first",
+        "female-return"
+      ],
+      "definition": {
+        "name": "8&80 fictional continuity no_acknowledgement_gate",
+        "description": "Fictional regression for conversation continuity and honest agreement. No real caller data, phone call or tool endpoint.",
+        "type": "reply",
+        "config": {
+          "context": "Caller explicitly confirmed the complete library action read-back. Assistant said I have got that. Caller says Okay. The next appointment is not available in context. Both perspectives are already answered.",
+          "success_criteria": "Continue naturally towards a mutual close or respond to an actual new topic. Do not require confirmation of the saved-action acknowledgement, wait for the caller to answer a question that was never asked, restart eight/eighty/action questions, or invent an appointment. A brief invitation to finish or continue is acceptable."
+        }
+      }
+    },
+    {
+      "id": "thinking_fragment",
+      "phase": "conversation",
+      "roles": [
+        "first",
+        "return",
+        "female-first",
+        "female-return"
+      ],
+      "definition": {
+        "name": "8&80 fictional continuity thinking_fragment",
+        "description": "Fictional regression for conversation continuity and honest agreement. No real caller data, phone call or tool endpoint.",
+        "type": "tool",
+        "config": {
+          "context": "Assistant asked one new question about what was helpful in the workshop. Caller: I, um, give me a moment.",
+          "expected_tool": "skip_turn"
+        }
+      }
+    },
+    {
+      "id": "finish_choice",
+      "phase": "conversation",
+      "roles": [
+        "first",
+        "return",
+        "female-first",
+        "female-return"
+      ],
+      "definition": {
+        "name": "8&80 fictional continuity finish_choice",
+        "description": "Fictional regression for conversation continuity and honest agreement. No real caller data, phone call or tool endpoint.",
+        "type": "reply",
+        "config": {
+          "context": "The full introductory map was read back, the caller explicitly agreed, and the map-kept marker was spoken. No action was chosen. Caller: Okay, are we done?",
+          "success_criteria": "Answer the question directly and let the caller choose whether to finish or continue. Do not launch a focus or action exercise, require an action before finishing, infer permission to hang up or ignore the finish question."
+        }
+      }
+    },
+    {
+      "id": "corrected_action",
+      "phase": "action_answer",
+      "roles": [
+        "first",
+        "return",
+        "female-first",
+        "female-return"
+      ],
+      "definition": {
+        "name": "8&80 fictional continuity corrected_action",
+        "description": "Fictional regression for conversation continuity and honest agreement. No real caller data, phone call or tool endpoint.",
+        "type": "reply",
+        "config": {
+          "context": "Assistant asked Let me check: visit the library. Is that the action you want me to remember? Caller: No, make it read a book instead.",
+          "success_criteria": "Say exactly the complete fixed read-back: \"Let me check: read a book. Is that the action you want me to remember?\" Then stop speaking and wait for the caller. That confirmation question is REQUIRED because the corrected action is not yet agreed. Do not say an agreed-action marker, keep the old library choice or add a follow-up after the fixed question."
+        }
+      }
+    }
+  ]
+}

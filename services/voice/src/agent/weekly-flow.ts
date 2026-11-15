@@ -2,7 +2,7 @@ import { weeklyGreeting, weeklyPrompt } from './prompt-pack.ts';
 import { loadScript } from '../script.ts';
 import { renderForConsole, CONSOLE_VARIABLES } from '../prompt.ts';
 
-export const WEEKLY_FLOW_POLICY = 'weekly-listening-and-action-answer-v2';
+export const WEEKLY_FLOW_POLICY = 'weekly-context-and-action-evidence-v3';
 export const weeklyFlowRoles = ['first', 'return', 'female-first', 'female-return'] as const;
 export type WeeklyFlowRole = typeof weeklyFlowRoles[number];
 export interface WeeklyFlowNode {
@@ -15,9 +15,32 @@ export interface WeeklyFlow {
   edges: { from: string; to: string; type: 'default' | 'llm_condition'; condition?: string }[];
 }
 
+/** These phone flows deliberately have no turn-count forced exit. The provider
+ * rejects cycles without a finite guard, so keep phase transitions acyclic;
+ * ordinary conversation and later corrections stay inside their model phase. */
+export function assertAcyclicWeeklyFlow(flow: WeeklyFlow): void {
+  const nodes = new Set(flow.nodes.map(n => n.key));
+  if (nodes.size !== flow.nodes.length) throw new Error('Weekly flow graph contains duplicate nodes.');
+  const next = new Map<string, string[]>();
+  for (const edge of flow.edges) {
+    if (!nodes.has(edge.from) || !nodes.has(edge.to)) throw new Error('Weekly flow graph references an unknown node.');
+    next.set(edge.from, [...(next.get(edge.from) ?? []), edge.to]);
+  }
+  const active = new Set<string>(), complete = new Set<string>();
+  const visit = (key: string): void => {
+    if (active.has(key)) throw new Error('Weekly flow graph must be acyclic; no forced turn-count exit is configured.');
+    if (complete.has(key)) return;
+    active.add(key);
+    for (const target of next.get(key) ?? []) visit(target);
+    active.delete(key); complete.add(key);
+  };
+  for (const key of nodes) visit(key);
+}
+
 /** tools_filter takes attached binding IDs, not model-facing tool names.
  * Resolve privately at deployment; neither IDs nor credentials enter source. */
 export function bindWeeklyFlow(flow: WeeklyFlow, tools: unknown): WeeklyFlow {
+  assertAcyclicWeeklyFlow(flow);
   if (!Array.isArray(tools)) throw new Error('A complete tool catalog is required.');
   const ids = new Map<string, string>();
   for (const name of ['skip_turn', 'weekly_assist']) {
@@ -61,7 +84,7 @@ export function weeklyFlow(role: WeeklyFlowRole): WeeklyFlow {
     'A clear request to stop always takes priority over the introduction or action. A request to continue cancels a close. Ordinary safety rules remain in force; do not claim help was contacted.',
     'A question about whether we are finished needs a direct answer and room to choose, not the next exercise or an automatic hangup. Follow CALLER ASKS WHETHER WE ARE DONE. A short completed answer or an already chosen activity must not be re-asked in different words.',
     'A weekly call-time request takes priority wherever it arrives. Follow WEEKLY CALL TIME. A booking change is never an action or map agreement, and a yes to a clarification is not the answer to the interrupted read-back.',
-    'Only the action_kept say node can speak the agreed-action marker. Never say it in a model phase. After its complete read-back, enter action_answer without extra speech.',
+    'Only the action_kept say node can speak the agreed-action marker. Never say it in a model phase. In conversation, after its complete read-back enter action_answer without extra speech. After the action_kept or action_declined marker, continue in post_action; do not restart the earlier exercise.',
     'If action_declined has spoken for the current choice, move to the brief mutual close without proposing another action. Only the caller can reopen that choice.',
   ].join('\n');
   const phase = (key: string, instructions: string, conditions = [stop]): WeeklyFlowNode => ({
@@ -102,7 +125,7 @@ export function weeklyFlow(role: WeeklyFlowRole): WeeklyFlow {
       'CURRENT PHASE: continue from the caller after the map check. The full conversation history is available. Only the map_kept say node can have confirmed the map; never say that marker yourself.',
       'Do not repeat the greeting, disclosure, location, completed perspectives or map. If a caller declined the map, leave onboarding unfinished and follow what they want to discuss without restarting it.',
       'If map_kept was spoken, that statement needs no acknowledgement. First consider the latest caller contribution: answer a question about finishing, handle a service request or take an already chosen focus/action as answered. Only when still needed and wanted, offer the focus question once; use the common-focus alternative when both perspectives converge. Continue to an action only if wanted.',
-      'Ask the complete fixed action-confirmation question, END the spoken turn at it and leave through action_asked WITHOUT extra speech. The separate action_answer phase waits for agreement. If action_kept already spoke for the current action, do not ask the focus or action questions again: move to known logistics and a mutual close. Reopen the action only if the caller changes their choice.',
+      'Ask the complete fixed action-confirmation question, END the spoken turn at it and leave through action_asked WITHOUT extra speech. The separate action_answer phase waits for agreement. After the resulting marker, post_action owns logistics, any caller-led correction and the mutual close.',
     ].join('\n\n'), [stop, actionAsked]));
     edges.push(
       { from: 'introduction', to: 'map_answer', ...exit('map_asked') },
@@ -113,8 +136,8 @@ export function weeklyFlow(role: WeeklyFlowRole): WeeklyFlow {
       { from: 'map_kept', to: 'conversation', type: 'default' },
     );
   } else nodes.push(phase('conversation', [
-    'CURRENT PHASE: returning conversation. The greeting has already been spoken; wait for its answer only on initial entry if it is still unanswered. On re-entry after action_kept or action_declined, do not wait for or repeat the greeting: continue from the completed choice and the latest caller contribution. Follow the callback and caller-choice rules below.',
-    'After the COMPLETE fixed action-confirmation question END the spoken turn and leave through action_asked WITHOUT extra speech. The separate action_answer phase waits for agreement. If action_kept already spoke for the current action, continue with known logistics and a mutual close without repeating the action questions. A new caller choice needs a new complete read-back.',
+    'CURRENT PHASE: returning conversation. The greeting has already been spoken; wait for its answer only if it is still unanswered. Follow the callback and caller-choice rules below.',
+    'After the COMPLETE fixed action-confirmation question END the spoken turn and leave through action_asked WITHOUT extra speech. The separate action_answer phase waits for agreement. After the resulting marker, post_action owns logistics, any caller-led correction and the mutual close.',
   ].join('\n\n'), [stop, actionAsked]));
   nodes.push(phase('action_answer', [
     'CURRENT PHASE: wait for a NEW answer to the latest COMPLETE fixed action read-back. Do not say the agreed-action marker or begin closing logistics yourself.',
@@ -131,13 +154,22 @@ export function weeklyFlow(role: WeeklyFlowRole): WeeklyFlow {
     { key: 'action_kept', type: 'say', config: { text: script.get('next.agreed')!, allow_interruptions: true } },
     { key: 'action_declined', type: 'say', config: { text: script.get('next.none')!, allow_interruptions: true } },
   );
+  nodes.push(phase('post_action', [
+    'CURRENT PHASE: after the action choice. The flow already spoke the agreed-action or no-action marker. Continue from that completed choice and the latest caller contribution. Do not repeat the greeting, map, focus or invitation to choose an action.',
+    'Use only known logistics and leave room for questions, feedback or a request to keep talking. An acknowledgement, silence or a request to move the weekly call is not a mutual close. A clear goodbye uses caller_done; the flow alone speaks the farewell.',
+    'If the caller reopens their choice, handle later corrections HERE, without returning to conversation or action_answer. Keep the current choice unless they actually change it. An earlier no-action choice does not prevent a new caller-chosen activity.',
+    `Read a changed action back with the COMPLETE fixed question: ${script.get('next.confirm')} END the spoken turn there and wait for a NEW explicit answer, including after every correction or service diversion. With no new answer, call skip_turn without speech. Never use a yes to a booking clarification as approval, invent an activity or treat a courtesy reply as agreement.`,
+    'Only after that fresh explicit approval may you briefly acknowledge the revised choice and continue. Do not repeat the flow-owned agreed-action marker or claim technical storage succeeded. The strict read-back-plus-caller-answer storage boundary applies to every revision; an acknowledgement alone saves nothing.',
+    'A weekly booking change still follows WEEKLY CALL TIME, with the complete fixed call-page explanation and no invented success. A question about finishing still follows CALLER ASKS WHETHER WE ARE DONE. Neither requires an action before the caller can end.',
+  ].join('\n\n')));
   edges.push(
     { from: 'conversation', to: 'action_answer', ...exit('action_asked') },
     { from: 'action_answer', to: 'action_kept', ...exit('action_agreed') },
     { from: 'action_answer', to: 'action_declined', ...exit('action_declined') },
     { from: 'action_answer', to: 'farewell', ...exit('caller_done') },
-    { from: 'action_kept', to: 'conversation', type: 'default' },
-    { from: 'action_declined', to: 'conversation', type: 'default' },
+    { from: 'action_kept', to: 'post_action', type: 'default' },
+    { from: 'action_declined', to: 'post_action', type: 'default' },
+    { from: 'post_action', to: 'farewell', ...exit('caller_done') },
   );
   nodes.push(
     { key: 'farewell', type: 'say', config: { text: script.get('close.flow')!, allow_interruptions: false } },
@@ -147,5 +179,7 @@ export function weeklyFlow(role: WeeklyFlowRole): WeeklyFlow {
     { from: 'conversation', to: 'farewell', ...exit('caller_done') },
     { from: 'farewell', to: 'end', type: 'default' },
   );
-  return { nodes, edges };
+  const flow = { nodes, edges };
+  assertAcyclicWeeklyFlow(flow);
+  return flow;
 }

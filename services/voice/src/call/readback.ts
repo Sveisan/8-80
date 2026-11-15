@@ -89,6 +89,6 @@ export function readBackSpan(agentTurns:readonly string[],template:string|undefi
     if(offset<found.end)end=i;
     offset+=chunks[i]!.length+1;
   }
-  if(single && single.end>end)return single;
+  if(single && single.end>=end)return single;
   return {values:found.values,start,end};
 }

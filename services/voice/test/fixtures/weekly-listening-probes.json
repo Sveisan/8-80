@@ -148,6 +148,82 @@
           "success_criteria": "Recognise the common reading focus and offer one choice about doing something for this week. Do not make them choose between identical perspectives, re-ask location, start another map or invent a specific action. Differences in capitalisation and punctuation are acceptable; judge meaning and turn boundaries, not letter case."
         }
       }
+    },
+    {
+      "id": "post_action_revision",
+      "phase": "post_action",
+      "roles": [
+        "first",
+        "return",
+        "female-first",
+        "female-return"
+      ],
+      "definition": {
+        "name": "8&80 fictional listening post_action_revision",
+        "description": "Fictional wording regression. No phone call, customer data or real tool endpoint.",
+        "type": "reply",
+        "config": {
+          "context": "The action read a book was explicitly confirmed and action_kept already spoke. The caller now says: I would rather visit the library instead. They have not confirmed that revised choice yet.",
+          "success_criteria": "Use the complete fixed action read-back: Let me check: <caller-chosen action>. Is that the action you want me to remember? The action must be visit the library; retaining the caller-supplied word instead is also correct. End that turn at the question and wait. Do not say I have got that, claim storage, repeat the focus or greeting, ask for a day or end the call. Capitalisation and punctuation differences are acceptable."
+        }
+      }
+    },
+    {
+      "id": "post_action_booking",
+      "phase": "post_action",
+      "roles": [
+        "first",
+        "return",
+        "female-first",
+        "female-return"
+      ],
+      "definition": {
+        "name": "8&80 fictional listening post_action_booking",
+        "description": "Fictional wording regression. No phone call, customer data or real tool endpoint.",
+        "type": "reply",
+        "config": {
+          "context": "The action read a book was explicitly confirmed and action_kept already spoke. During post_action the caller says: Please move my weekly call to Wednesday at six.",
+          "success_criteria": "Give the complete fixed call-page explanation: I cannot change your call time during this call; choose and save it on the call page; the booking remains unchanged until then. Do not ask whether it means the activity, claim the booking changed, repeat I have got that or create a callback/reminder. Differences in capitalisation and punctuation are acceptable; judge meaning and turn boundaries, not letter case."
+        }
+      }
+    },
+    {
+      "id": "post_action_reopened_close",
+      "phase": "post_action",
+      "roles": [
+        "first",
+        "return",
+        "female-first",
+        "female-return"
+      ],
+      "definition": {
+        "name": "8&80 fictional listening post_action_reopened_close",
+        "description": "Fictional wording regression. No phone call, customer data or real tool endpoint.",
+        "type": "reply",
+        "config": {
+          "context": "The action is confirmed and logistics have reached a mutual close. Before the farewell the caller says: Wait, I have one more thing before we finish. The caller has not yet given that contribution.",
+          "success_criteria": "Stop the close and leave the caller the floor. At most one short acknowledgement such as Of course is allowed. No question, invitation such as tell me/go on, logistics, goodbye or end_call. Differences in capitalisation and punctuation are acceptable; judge meaning and turn boundaries, not letter case."
+        }
+      }
+    },
+    {
+      "id": "post_action_after_decline",
+      "phase": "post_action",
+      "roles": [
+        "first",
+        "return",
+        "female-first",
+        "female-return"
+      ],
+      "definition": {
+        "name": "8&80 fictional listening post_action_after_decline",
+        "description": "Fictional wording regression. No phone call, customer data or real tool endpoint.",
+        "type": "reply",
+        "config": {
+          "context": "The caller explicitly declined an action and the action_declined say node spoke. Before ending, the caller now says: Actually, I choose to read a book this week. They have not approved a full read-back yet.",
+          "success_criteria": "Accept the caller-led reopened choice with the complete fixed action read-back: Let me check: <caller-chosen action>. Is that the action you want me to remember? The action must be read a book; retaining the caller-supplied words this week is also correct. End that turn at the question and wait for fresh approval. Do not keep insisting on no action, restart the introduction, say the action marker or close the call. Capitalisation and punctuation differences are acceptable."
+        }
+      }
     }
   ]
 }
