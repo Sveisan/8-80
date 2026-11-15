@@ -33,7 +33,7 @@ export function parseState(v: unknown): SyncState {
   if (pending && (!Object.hasOwn(agentKeys, String(pending['role'])) || typeof pending['key'] !== 'string' || !/^[0-9a-f-]{36}$/.test(pending['key']) || !/^[0-9a-f]{64}$/.test(String(pending['hash'])) || !Number.isFinite(Date.parse(String(pending['since']))))) throw new Error('Invalid pending Speechify setup.');
   return { version: 1, ids, ...(pending ? { pending: { role: pending['role'] as AgentRole, key: pending['key'] as string, since: pending['since'] as string, hash: pending['hash'] as string } } : {}) };
 }
-const validationFields = new Set(['name', 'kind', 'prompt', 'slug', 'tts', 'voice_id', 'language', 'first_message', 'is_public', 'webhook_url', 'webhook_secret', 'memory', 'enabled', 'retention_days', 'amd', 'on_voicemail', 'on_ivr', 'on_unavailable', 'action', 'message', 'save_audio_recording', 'variables', 'key', 'type', 'default', 'description']);
+const validationFields = new Set(['name', 'kind', 'prompt', 'slug', 'tts', 'voice_id', 'language', 'first_message', 'is_public', 'webhook_url', 'webhook_secret', 'memory', 'enabled', 'retention_days', 'amd', 'on_voicemail', 'on_ivr', 'on_unavailable', 'action', 'message', 'save_audio_recording', 'variables', 'key', 'type', 'default', 'description', 'turn_handling', 'response_delay_seconds']);
 /** Emit only known schema paths, never provider messages, inputs or unknown keys. */
 function safeValidationFields(value: unknown): string[] {
   const fields = new Set<string>();
@@ -122,7 +122,13 @@ function fieldsMatch(actual: Json, wanted: Json): boolean {
     return value && typeof value === 'object' && !Array.isArray(value) ? !!got && typeof got === 'object' && !Array.isArray(got) && fieldsMatch(got as Json, value as Json) : isDeepStrictEqual(got, value);
   });
 }
-const ownedFields = ['prompt', 'first_message', 'webhook_url', 'memory', 'amd', 'save_audio_recording', 'tts'] as const;
+const ownedFields = ['prompt', 'first_message', 'webhook_url', 'memory', 'amd', 'save_audio_recording', 'tts', 'turn_handling'] as const;
+function backupSettings(agent: Json, spec: PromptSpec): Json {
+  const managesDelay = !isManagedModuleRole(spec.role) && spec.responseDelaySeconds !== undefined;
+  const fields = ownedFields.filter(k => (k !== 'first_message' || spec.firstMessage !== undefined || isManagedModuleRole(spec.role) || spec.role.startsWith('female-'))
+    && (k !== 'tts' || spec.role.startsWith('female-')) && (k !== 'turn_handling' || managesDelay));
+  return Object.fromEntries(fields.flatMap(k => Object.hasOwn(agent, k) ? [[k, agent[k]]] : k === 'turn_handling' ? [[k, null]] : []));
+}
 /** JSON Merge Patch needs nulls to remove settings introduced after a snapshot. */
 function restorePatch(before: Json, current: Json): Json {
   return Object.fromEntries([...new Set([...Object.keys(before), ...Object.keys(current)])].map(key => {
@@ -183,6 +189,10 @@ export async function syncAgents(api: SpeechifySettingsApi, options: SyncOptions
     const currentVariables = id ? await api.variables(id) : [];
     const variables = mergeVariables(currentVariables, spec.variables);
     const wanted: Json = { prompt: spec.prompt,...(spec.firstMessage!==undefined?{first_message:spec.firstMessage}:{}) };
+    if (!beliefs && spec.responseDelaySeconds !== undefined) {
+      if (!Number.isFinite(spec.responseDelaySeconds) || spec.responseDelaySeconds < 0) throw new Error('Invalid weekly response delay.');
+      wanted['turn_handling'] = { response_delay_seconds: spec.responseDelaySeconds };
+    }
     // All three routing branches are required, even when only voicemail/unavailable behaviour changes.
     if (beliefs) Object.assign(wanted, { first_message: spec.firstMessage ?? '', memory: { enabled: false }, amd: { enabled: true, on_voicemail: { action: 'hangup' }, on_ivr: { action: 'proceed' }, on_unavailable: { action: 'hangup' } }, save_audio_recording: false, webhook_url: privateUrl(env['PUBLIC_URL']) });
     if (female) Object.assign(wanted, { tts: { voice_id: femaleVoice }, memory: { enabled: false }, amd: { enabled: true, on_voicemail: { action: 'hangup' }, on_ivr: { action: 'proceed' }, on_unavailable: { action: 'hangup' } }, save_audio_recording: false, webhook_url: privateUrl(env['PUBLIC_URL']) });
@@ -214,7 +224,7 @@ export async function syncAgents(api: SpeechifySettingsApi, options: SyncOptions
     if (!recovered?.id || recovered.agent?.['name'] !== recovered.spec.name || recovered.agent?.['is_public'] !== false) throw new Error('The supplied recovery ID does not identify the expected private setup agent. No configuration was changed.');
   }
   // Read and validate every selected agent before the first provider write.
-  if (apply) await options.saveBackup({ version: 1, at: now.toISOString(), agents: entries.flatMap(e => e.id && e.agent ? [{ role: e.spec.role, id: e.id, agent: Object.fromEntries(ownedFields.filter(k => Object.hasOwn(e.agent!, k) && (k !== 'first_message' || e.spec.firstMessage!==undefined || isManagedModuleRole(e.spec.role) || e.spec.role.startsWith('female-')) && (k !== 'tts' || e.spec.role.startsWith('female-'))).map(k => [k, e.agent![k]])), variables: e.currentVariables,...(e.spec.endCallDescription&&endCall(e.agent)?{endCall:{id:resourceId(endCall(e.agent)!['id']),description:String(endCall(e.agent)!['description']??'')}}:{}) }] : []) });
+  if (apply) await options.saveBackup({ version: 1, at: now.toISOString(), agents: entries.flatMap(e => e.id && e.agent ? [{ role: e.spec.role, id: e.id, agent: backupSettings(e.agent, e.spec), variables: e.currentVariables,...(e.spec.endCallDescription&&endCall(e.agent)?{endCall:{id:resourceId(endCall(e.agent)!['id']),description:String(endCall(e.agent)!['description']??'')}}:{}) }] : []) });
   if (apply && state.pending) { delete state.pending; await options.saveState(state); }
   const reports: SyncReport[] = [];
   for (const entry of entries) {
@@ -271,7 +281,7 @@ export async function restoreAgents(api: SpeechifySettingsApi, input: unknown): 
   let index = 0;
   for (const { id, settings, variables,endCall:toolBackup } of entries) {
     // Older restore points predate managed greetings: they cannot restore an unknown greeting.
-    const fields = ownedFields.filter(k => !['first_message', 'tts'].includes(k) || Object.hasOwn(settings, k));
+    const fields = ownedFields.filter(k => !['first_message', 'tts', 'turn_handling'].includes(k) || Object.hasOwn(settings, k));
     // The old prompt's variables still exist in the merged catalog until this restore.
     const current = Object.fromEntries(fields.filter(k => Object.hasOwn(originals[index]!, k)).map(k => [k, originals[index]![k]])); index++;
     await api.request('PATCH', `/v1/agents/${id}`, restorePatch(settings, current));

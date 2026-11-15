@@ -14,7 +14,7 @@ const previous: Record<string, readonly string[]> = {
   'last.did': ['Right. How was it — worth doing, or did it just get done?'],
   'last.partial': ["So some of it. Which part didn't survive the week?"],
   'nothing.pattern': ['Third week running — is the goal wrong, or is something else going on?'],
-  'setup.change_slot': ["Your usual time stays the same for now. You can change it on your call page.", "I can't move it from the call yet, so it stays as it is for now. Sorry about that."],
+  'setup.change_slot': ["I can't change your call time during this call. You can choose the new time on your call page. Your booking stays unchanged until you save it there.", "Your usual time stays the same for now. You can change it on your call page.", "I can't move it from the call yet, so it stays as it is for now. Sorry about that."],
   'reschedule.confirm': ["Fine. I'll ring you back at {{time}} {{when}}."],
 };
 

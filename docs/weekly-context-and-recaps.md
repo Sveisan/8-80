@@ -47,3 +47,43 @@ reply/tool tests verify source prompts, not acoustic timing or the full live gra
 The real historical transcript is replayed privately without changing account state
 or resending its recap. Publishing source and a new owner phone call remain separate
 from model-probe success; do not infer voice approval from text tests.
+
+## Appointment information and conversation pace
+
+The appointment/pacing follow-up removes an ambiguous instruction that could say
+no call was booked even when `next_appointment` contained the dated booking.
+`appointmentPrompt` now separates that date from `booked_slot`, including for
+returning callers. Unavailable service tools do not invalidate either value.
+Missing appointment data gets a neutral call-page fallback, never a claim that
+there is no booking. This release does not write or recalculate either schedule.
+
+The three-month question and booking-control explanation use shorter spoken
+wording. The old booking explanation remains a read-only settlement anchor for
+calls already in progress. Map/action read-backs, fresh caller agreement and the
+single flow-owned farewell retain their existing contracts.
+
+Completed short answers and flow-owned acknowledgement statements no longer
+create an extra waiting gate. An explicit request to carry on after delay
+feedback gets a response; unfinished answers and requests for thinking time
+still use `skip_turn`. All four weekly source specs also request
+`turn_handling.response_delay_seconds = 0`. The settings sync backs it up,
+merges only that field, reads it back and supports rollback. Interruption
+sensitivity, inactivity timeout, model, voice and speaking speed are untouched.
+See the provider's [agent settings contract](https://docs.speechify.ai/voice-agents/api-reference/v1/agents/-id-/patch).
+
+`appointment-pacing.test.ts` covers known and missing dated appointments, distinct
+weekly slots, source variables and historical booking text. The fictional
+`appointmentPacingProbePlan` renders the actual phase prompts for 28 reply/tool
+checks across both voices. Those tests cover direct booking answers, continuation
+after map/action markers, completed short answers, delay feedback and protected
+thinking time. They do not measure acoustic silence or exercise phase exits.
+
+After merge, deploy source and sync both settings and the versioned graphs to the
+four private pilot agents, retaining the existing pilot hold. Use the private
+pilot settings setup (`syncAgents` with `dialoguePilot: true` and verified private
+role IDs); ordinary `speechify:sync --apply` remains blocked during that hold.
+Then stage, activate and read back the four graphs with `weekly:flow --owner-pilot`.
+An exact PR59/60 graph can be upgraded, while an edited prompt or unrelated draft
+is still refused. No migration is needed. A later explicitly authorized phone
+test must confirm conversational pace and the audible farewell before voice
+approval; text-test success alone cannot approve the experience.
