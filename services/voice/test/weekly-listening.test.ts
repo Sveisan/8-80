@@ -19,6 +19,9 @@ for (const reply of [
   'Yes, move my weekly call to Wednesday at six.',
   'Yes. Can we change the time of my call',
   'Yes, Wednesday at six.',
+  'Yes, at 16:30.',
+  'Yes, half past four.',
+  'Ja, klokken 16:30.',
   'Ja, flytt den ukentlige samtalen til onsdag klokken 18.',
   'Ja. Kan vi endre tidspunktet',
   'Yes, but change the action.',
@@ -51,6 +54,21 @@ test('answering a finish question can close a completed map without inventing an
   assert.equal(result.outcome?.onboardingComplete, true);
   assert.equal(result.outcome?.commitment, undefined);
   assert.equal(result.outcome?.noAction, undefined);
+});
+
+for (const activity of ['move my body after breakfast', 'change the light bulb on Sunday']) {
+  test(`explicitly approving the exact chosen activity still works: ${activity}`, () => {
+    const readBack = fill('next.confirm', { commitment: activity });
+    const result = settleTurns([a(readBack), c(`Yes, I will ${activity}.`), a(fill('next.agreed'))]);
+    assert.equal(result.outcome?.commitment, activity.replace(/ on Sunday$/, ''));
+    assert.equal(result.outcome?.day, activity.endsWith('Sunday') ? 'sunday' : undefined);
+  });
+}
+
+test('changing a numeric activity time cannot pass as repeating the exact read-back', () => {
+  const result = settleTurns([a(fill('next.confirm', { commitment: 'read a book at 16:30' })),
+    c('Yes, I will read a book at 18:30.'), a(fill('next.agreed'))]);
+  assert.equal(result.outcome?.commitment, undefined);
 });
 
 test('current and previous slot-control explanations still request the after-call link', () => {

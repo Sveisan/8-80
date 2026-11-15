@@ -40,6 +40,24 @@ variables, unchanged booking, one counter increment, and one recap and one
 slot-control link despite duplicate completion callbacks. Provider network
 effects are mocked in these tests; they do not prove real email delivery.
 
+On 15 November 2026 the final source also passed 44 native provider probes:
+28 fictional reply checks and 16 quiet-tool checks, across all four roles.
+The reply definitions are retained in
+`services/voice/test/fixtures/weekly-listening-probes.json`; combine each with
+its role's actual `weeklyFlow` phase prompt. The quiet cases come from
+`weeklyFlowProbePlan`. The tested rendered-graph SHA-256 is
+`6c9556c74bab54cf2b17d7974b7ef0390060a49e9ddba6f51d18aa0f940dec3f`.
+
+Use separate private, flow-free evaluation agents with the matching model
+settings and endpoint-free client tool overrides for these source-prompt tests.
+The initial run against active PR46 pilot agents produced old-flow behaviour
+and was excluded as evidence for this source. A subsequent isolated run found
+an unnecessary clarification for an explicit weekly-call change; the final
+action-answer phase fixes that. The rubric permits capitalisation and
+punctuation differences while retaining fixed read-back and turn boundaries.
+No live agent was changed, phone called or real tool endpoint invoked by the
+native tests. A reply or tool-intent test does not execute the phase transitions.
+
 The flow's transition conditions are still evaluated by a provider model.
 Graph and storage tests cannot prove that the model responds well to live
 speech, waits audibly or plays the farewell. A new owner phone test is required.
