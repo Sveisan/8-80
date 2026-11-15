@@ -5,5 +5,5 @@
     "strict": true, "noUncheckedIndexedAccess": true, "verbatimModuleSyntax": true,
     "allowImportingTsExtensions": true, "noEmit": true, "skipLibCheck": true
   },
-  "include": ["scripts/design/**/*.ts", "scripts/design-system.ts", "tests/design/**/*.ts", "playwright.config.ts"]
+  "include": ["scripts/design/**/*.ts", "scripts/design-system.ts", "scripts/unblock/**/*.ts", "tests/design/**/*.ts", "playwright.config.ts"]
 }
