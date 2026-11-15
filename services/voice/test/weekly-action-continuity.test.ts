@@ -127,3 +127,12 @@ test('native probe definitions use the actual reply/tool configuration contracts
     if (item.definition.type === 'tool') assert.equal(item.definition.config.expected_tool, 'skip_turn');
   }
 });
+
+test('later repetition apologies cannot mask the actual complete historical proposal', () => {
+  const result = call([caller('Maybe putting together the photos.'),
+    agent("Right — putting together the photos. I'll ask how it went next time we talk."),
+    caller('Can you ask more questions?'), agent("What's one thing you'll do this week?"), caller('I answered that before.'),
+    agent("You're right. My mistake. I'll ask how it went next time we talk."), caller('Yes.'), agent('Goodbye.')]);
+  assert.equal(result.outcome?.proposedAction, 'putting together the photos');
+  assert.equal(result.outcome?.commitment, undefined, 'a yes to the apology is not fresh agreement to a full read-back');
+});

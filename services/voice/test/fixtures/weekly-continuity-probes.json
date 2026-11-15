@@ -149,7 +149,7 @@
         "type": "reply",
         "config": {
           "context": "Assistant asked Let me check: visit the library. Is that the action you want me to remember? Caller: No, make it read a book instead.",
-          "success_criteria": "Read the COMPLETE fixed confirmation for read a book, then stop and wait for fresh explicit agreement. Do not say the agreed-action marker, retain visit the library as the confirmed choice or treat the correction as already confirmed."
+          "success_criteria": "Say exactly the complete fixed read-back: \"Let me check: read a book. Is that the action you want me to remember?\" Then stop speaking and wait for the caller. That confirmation question is REQUIRED because the corrected action is not yet agreed. Do not say an agreed-action marker, keep the old library choice or add a follow-up after the fixed question."
         }
       }
     }

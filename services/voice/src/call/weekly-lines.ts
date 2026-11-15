@@ -31,12 +31,19 @@ export function containsWeeklyLine(text: string, script: ScriptLines, id: string
 export function weeklyReadBackSpan(agentTurns: readonly string[], script: ScriptLines, id: string, opts: { strict?: boolean } = {}) {
   let selected: (NonNullable<ReturnType<typeof readBackSpan>> & { template: string }) | undefined;
   for (const template of weeklyLineTemplates(script, id)) {
-    const found = readBackSpan(agentTurns, template, opts);
+    let found = readBackSpan(agentTurns, template, opts);
     // The old "Right —" action must start a read-back turn. A map ending
     // "Have I got that right?" followed by a later next-call promise is not
     // an action spanning the entire intervening conversation.
     if (found && id === 'next.confirm' && /^right\b/.test(normalise(template))
-      && !/^right\b/.test(normalise(agentTurns[found.start] ?? ''))) continue;
+      && !/^right\b/.test(normalise(agentTurns[found.start] ?? ''))) {
+      // A later "you're right ... I'll ask how it went" is an apology,
+      // not a new proposal. Preserve the latest complete anchored turn.
+      const index = agentTurns.findLastIndex(text => /^right\b/.test(normalise(text)) && !!readBackSpan([text], template, opts));
+      if (index < 0) continue;
+      const direct = readBackSpan([agentTurns[index]!], template, opts)!;
+      found = { values: direct.values, start: index, end: index };
+    }
     if (found && (!selected || found.end > selected.end)) selected = { ...found, template };
   }
   return selected;
