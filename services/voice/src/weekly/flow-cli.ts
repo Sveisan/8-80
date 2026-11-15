@@ -44,6 +44,6 @@ async function main() {
   }
 }
 void main().catch(error => {
-  console.error(error instanceof Error && /^(Use weekly:flow|A flow operation|Unreadable flow state|Invalid flow state|Four distinct private|Flow writes require|Private, memory-free|An unrelated flow|A call is in progress|An earlier flow|Weekly flow request|Published flow|Flow draft|The flow draft|Unknown flow-head|Complete pilot|The private weekly|The weekly variable|Unexpected tool|Unrecognised flow|Incomplete flow|Unexpected node|Unexpected edge|Unsupported weekly)/.test(error.message) ? error.message : 'Weekly flow operation stopped; inspect private state. No credentials or provider response were printed.');
+  console.error(error instanceof Error && /^(Use weekly:flow|A flow operation|Unreadable flow state|Invalid flow state|Four distinct private|Flow writes require|Private, memory-free|An unrelated flow|A call is in progress|An earlier flow|Weekly flow request|Weekly flow graph|Published flow|Flow draft|The flow draft|Unknown flow-head|Complete pilot|The private weekly|The weekly variable|Unexpected tool|Unrecognised flow|Incomplete flow|Unexpected node|Unexpected edge|Unsupported weekly)/.test(error.message) ? error.message : 'Weekly flow operation stopped; inspect private state. No credentials or provider response were printed.');
   process.exitCode = 1;
 });
