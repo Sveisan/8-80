@@ -11,6 +11,7 @@ import { describeAppointment, describeSlot } from '../schedule/time.ts';
 import { queued, dispatchMessage } from '../messages/outbox.ts';
 import { Scheduler } from '../schedule/scheduler.ts';
 import { weeklyCallContext } from '../weekly/runtime.ts';
+import { syncGoogleCalendars } from '../calendar/google-sync.ts';
 
 export interface TickResult {
   claimed: number;
@@ -124,6 +125,7 @@ async function textForMissedCall(
 
 export async function tick(deps: LoopDeps, now = new Date()): Promise<TickResult> {
   const started = Date.now();
+  await syncGoogleCalendars(deps,now);
   await safetyDigest(deps, now);
   const claims = await deps.scheduler.claimDue(now);
   const result: TickResult = { claimed: claims.length, placed: 0, failed: 0 };

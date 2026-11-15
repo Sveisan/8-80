@@ -6,6 +6,7 @@ import type { SpeechifyAgent } from '../agent/speechify.ts';
 import type { Mailer } from '../recap/mailer.ts';
 import type { Sms } from '../sms/types.ts';
 import type { Deliveries } from '../webhook/deliveries.ts';
+import type { GoogleCalendar } from '../calendar/google-client.ts';
 
 /**
  * Everything the loop touches, passed in rather than imported.
@@ -21,6 +22,7 @@ export interface LoopDeps {
   scheduler: Scheduler;
   agent: SpeechifyAgent;
   mailer: Mailer;
+  googleCalendar?: GoogleCalendar;
   sms: Sms;
   script: ScriptLines;
   /**

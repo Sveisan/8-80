@@ -8,6 +8,7 @@ import { describeAppointment, nextSlotAfter } from '../schedule/time.ts';
 import { BUSY, MOTION, busyLabel, mascot } from './mascot.ts';
 import { timePicker, TIME_PICKER_SCRIPT } from './time-picker.ts';
 import { feedbackWidget } from '../product-feedback/widget.ts';
+import { googleCalendarConfig, googleCalendarReady } from '../calendar/google-config.ts';
 
 const esc = (s: string): string =>
   s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
@@ -224,7 +225,7 @@ export function signupPage(
       ${note('voice')}
       ${sameMessageNumber() ? `<label class="nudge-choice"><input type="checkbox" name="nudges" value="yes"${v.nudges === 'yes' ? ' checked' : ''}/><span><strong>${say('signup.nudges')}</strong><small>${say('signup.nudges.detail')}</small></span></label>` : ''}
       ${note('nudges')}
-      <label class="nudge-choice"><input type="checkbox" name="calendar" value="yes"${v.calendar === 'yes' ? ' checked' : ''}/><span><strong>${say('calendar.signup')}</strong><small>${say('calendar.preference.detail')}</small></span></label>
+      <label class="nudge-choice"><input type="checkbox" name="calendar" value="yes"${v.calendar === 'yes' ? ' checked' : ''}/><span><strong>${say('calendar.signup')}</strong><small>${say(googleCalendarConfig().enabled && googleCalendarReady() ? 'calendar.google.invite' : 'calendar.preference.detail')}</small></span></label>
       </details>
       <p class="quiet small" id="signup-verify">${say('signup.verify.detail')}</p>
       <button class="primary" aria-describedby="signup-verify">${busyLabel(say('signup.submit'))}</button>

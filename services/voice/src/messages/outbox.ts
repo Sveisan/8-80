@@ -13,7 +13,7 @@ import { canRemind } from '../weekly/reminders.ts';
 import { bookedAppointments, callInProgress } from '../calendar/appointments.ts';
 import { suppression as encouragementSuppression } from '../encouragement/runtime.ts';
 
-export type MessageKind = 'call' | 'welcome' | 'recap' | 'billing' | 'trial' | 'feedback' | 'access' | 'signup' | 'reply' | 'export' | 'beliefs' | 'unblock' | 'safety' | 'operator' | 'nudge' | 'reminder' | 'calendar' | 'encouragement';
+export type MessageKind = 'call' | 'welcome' | 'recap' | 'billing' | 'trial' | 'feedback' | 'access' | 'signup' | 'reply' | 'export' | 'beliefs' | 'unblock' | 'safety' | 'operator' | 'nudge' | 'reminder' | 'calendar' | 'calendar-notice' | 'encouragement';
 export interface Message {
   eventKey: string; phoneHash: string; channel: 'sms' | 'email'; kind: MessageKind;
   to: string; body: string | Recap; reference?: string; expiresAt?: Date;
@@ -26,7 +26,7 @@ const HOUR = 3600_000;
 /** Must be called in the same transaction as the change that owes this notice. */
 export async function enqueue(sql: Database, message: Message, now = new Date()): Promise<string> {
   const expires = message.expiresAt ?? new Date(+now + (message.channel === 'sms' ? 6 : 23) * HOUR);
-  const guardSchedule = ['call', 'welcome', 'reply'].includes(message.kind);
+  const guardSchedule = ['call', 'welcome', 'reply', 'calendar-notice'].includes(message.kind);
   const [caller] = guardSchedule ? await sql`select next_call_at from callers where phone_hash = ${message.phoneHash}` : [];
   const payload = { body: message.body, ...(guardSchedule ? { appointment: caller?.['next_call_at']?.toISOString() ?? null } : {}) };
   await sql`insert into message_outbox (id, event_key, phone_hash, channel, kind, reference, recipient_enc, payload_enc, created_at, available_at, expires_at)
@@ -71,6 +71,7 @@ async function suppression(sql: Database, row: Row, now: Date): Promise<string |
   } else if (!caller) return 'account_deleted';
   const payload = row.payload_enc ? JSON.parse(decrypt(row.payload_enc)) as { appointment?: string | null; body?: Recap } : undefined;
   const calendar = row.kind === 'calendar' ? payload?.body?.calendar : undefined;
+  if (row.kind === 'calendar-notice' && !caller?.['calendar_invites_enabled']) return 'calendar_disabled';
   if (row.kind === 'calendar') {
     const [invitation] = await sql`select * from calendar_invitations where id = ${row.reference} and phone_hash = ${row.phone_hash}`;
     if (!calendar || !invitation || calendar.uid !== `${invitation['id']}@8and80` || calendar.sequence !== invitation['sequence'] || calendar.at !== invitation['scheduled_at'].toISOString()) return 'calendar_changed';

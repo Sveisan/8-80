@@ -5,6 +5,7 @@ export interface AccountState {
   voice?: string;
   nudgesEnabled?: boolean;
   calendarInvitesEnabled?: boolean;
+  googleCalendarInvites?: boolean;
   onHold?: boolean;
   billing: string;
   canCall: boolean;
@@ -18,8 +19,10 @@ export interface AccountState {
 
 /** One snapshot of the conditions the scheduler uses, including the trial boundary. */
 export async function accountState(sql: postgres.Sql, hash: string, now = new Date()): Promise<AccountState | undefined> {
-  const [row] = await sql<{ paused: boolean; billing_status: string; trial_ends_at: Date | null; next_call_at: Date | null; ls_subscription_id: string | null; cancel_at_period_end: boolean; paid_until: Date | null; feedback_opt_out: boolean; held_for_review: boolean; voice: string | null; nudges_enabled: boolean; calendar_invites_enabled: boolean }[]>`
-    select paused, billing_status, trial_ends_at, next_call_at, ls_subscription_id, cancel_at_period_end, paid_until, feedback_opt_out, held_for_review, voice, nudges_enabled, calendar_invites_enabled from callers where phone_hash = ${hash}
+  const [row] = await sql<{ paused: boolean; billing_status: string; trial_ends_at: Date | null; next_call_at: Date | null; ls_subscription_id: string | null; cancel_at_period_end: boolean; paid_until: Date | null; feedback_opt_out: boolean; held_for_review: boolean; voice: string | null; nudges_enabled: boolean; calendar_invites_enabled: boolean; google_calendar:boolean }[]>`
+    select paused, billing_status, trial_ends_at, next_call_at, ls_subscription_id, cancel_at_period_end, paid_until, feedback_opt_out, held_for_review, voice, nudges_enabled, calendar_invites_enabled,
+      exists(select 1 from calendar_invitations i where i.phone_hash=callers.phone_hash and i.provider='google' and i.state='active') as google_calendar
+      from callers where phone_hash = ${hash}
   `;
   if (!row) return undefined;
   const trial = row.billing_status === 'trialing';
@@ -30,6 +33,7 @@ export async function accountState(sql: postgres.Sql, hash: string, now = new Da
   return {
     voice: row.voice ?? undefined, nudgesEnabled: row.nudges_enabled,
     calendarInvitesEnabled: row.calendar_invites_enabled,
+    ...(row.google_calendar ? {googleCalendarInvites:true} : {}),
     feedbackOptOut: row.feedback_opt_out, subscribed: !!row.ls_subscription_id, cancelAtPeriodEnd: row.cancel_at_period_end, ...(row.paid_until ? { paidUntil: row.paid_until } : {}),
     onHold: row.held_for_review, paused: row.paused, billing: endedTrial ? 'trial_ended' : row.billing_status, canCall,
     ...((trial || endedTrial) && row.trial_ends_at ? { trialEnds: row.trial_ends_at } : {}),

@@ -154,6 +154,11 @@ threshold derives from it and the derived values are printed at the start of eac
 
 ## Calendar invitations
 
+Optional [Google Calendar two-way sync](docs/google-calendar-sync.md) lets an
+invited user move only the next weekly call in Google Calendar. The usual weekly
+slot stays unchanged. It is disabled until organizer OAuth is configured and
+the native-calendar pilot has been verified; migration **0036** is required.
+
 Callers can opt in during signup or in **Your calls → Contact and preferences**.
 The service emails a single `.ics` invitation for the next booked weekly call and
 sends its successor after the current call finishes. It never creates a recurring

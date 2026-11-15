@@ -7,6 +7,8 @@ import { letterHtml } from './letter.ts';
 import { ResendMailer } from './resend.ts';
 import type { Receipt, SendOptions, TransportInfo } from '../messages/types.ts';
 import { calendarFile } from '../calendar/ical.ts';
+import { GoogleCalendarMailer } from '../calendar/google-mailer.ts';
+import { openGoogleCalendar, type GoogleCalendar } from '../calendar/google-client.ts';
 
 export interface Mailer extends TransportInfo {
   send(to: string, recap: Recap, options?: SendOptions): Promise<void | Receipt>;
@@ -25,10 +27,13 @@ export interface Mailer extends TransportInfo {
  * on it where failing costs nobody their week. Nothing ever falls back the
  * other way: a recap is not quietly dropped while the logs say a call went fine.
  */
-export function openMailer(): Mailer {
+export function openMailer(google: GoogleCalendar | undefined = openGoogleCalendar()): Mailer {
   const key = process.env['RESEND_API_KEY'];
   const from = process.env['RECAP_FROM_ADDRESS'];
-  if (key && from) return new ResendMailer(key, from);
+  if (key && from) {
+    const email=new ResendMailer(key,from);
+    return google ? new GoogleCalendarMailer(email,google) : email;
+  }
   if (key || from) {
     log('recap.misconfigured', {
       note: `RESEND_API_KEY and RECAP_FROM_ADDRESS go together — ${key ? 'RECAP_FROM_ADDRESS' : 'RESEND_API_KEY'} is missing, so recaps are written, not sent`,

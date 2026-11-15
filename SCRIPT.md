@@ -2763,6 +2763,24 @@ _Explicit opt-in. Generic messages only: no private call details on a lock scree
 `calendar.manage`
 > "Manage your calls"
 
+`calendar.google.invite`
+> "You can move this call in Google Calendar. Only this call moves; your usual weekly time stays the same. Allow a minute for confirmation. You can also use Manage your calls."
+
+`calendar.google.upgrade`
+> "Use Google Calendar"
+
+`calendar.google.upgrade.detail`
+> "Replace your next invitation with one you can move in Google Calendar. Your call time and usual weekly time stay the same."
+
+`calendar.google.moved`
+> "Your call is now {{when}}. Your usual weekly time stays the same."
+
+`calendar.google.rejected`
+> "We couldn't apply that calendar change. Your call remains {{when}}. Keep the call to 15 minutes and choose a time at least two minutes from now, or use Manage your calls."
+
+`calendar.google.late`
+> "That calendar change couldn't be confirmed before the call was due. Open Manage your calls to choose another time. Your usual weekly time stays the same."
+
 `calendar.event.title`
 > "8&80 · A little time for yourself"
 

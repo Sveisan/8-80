@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "calendar:google": "node --import tsx src/calendar/google-cli.ts",
     "weekly:flow": "node --import tsx src/weekly/flow-cli.ts",
     "quality:tips": "node --import tsx src/weekly/cli.ts",
     "weekly:tools": "node --import tsx src/weekly/provision-cli.ts",
@@ -47,6 +48,7 @@
   "dependencies": {
     "dotenv": "^16.4.5",
     "drizzle-orm": "^0.45.2",
+    "google-auth-library": "^11.3.4",
     "postgres": "^3.4.9",
     "telnyx": "^7.17.0",
     "twilio": "^6.1.0",

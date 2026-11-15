@@ -166,11 +166,35 @@ export const calendarInvitations = pgTable('calendar_invitations', {
   recipientEnc: text('recipient_enc'),
   sequence: integer('sequence').notNull().default(0),
   state: text('state').notNull().default('active'),
+  provider: text('provider').notNull().default('ics'),
+  googleCalendarId: text('google_calendar_id'),
+  googleEventId: text('google_event_id'),
+  googleEtag: text('google_etag'),
+  googleValid: boolean('google_valid').notNull().default(false),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, t => [
   index('calendar_invitations_caller').on(t.phoneHash),
   uniqueIndex('calendar_invitations_active_source').on(t.phoneHash, t.sourceKey).where(sql`${t.state} = 'active'`),
+  uniqueIndex('calendar_invitations_google_event').on(t.googleCalendarId, t.googleEventId),
 ]);
+
+/** One cursor per organizer calendar; no access to customers' other calendars. */
+export const googleCalendarSync = pgTable('google_calendar_sync', {
+  calendarId: text('calendar_id').primaryKey(),
+  syncTokenEnc: text('sync_token_enc'),
+  leaseId: text('lease_id'),
+  leaseUntil: timestamp('lease_until', { withTimezone: true }),
+  lastSyncedAt: timestamp('last_synced_at', { withTimezone: true }),
+  failed: boolean('failed').notNull().default(true),
+});
+
+/** Durable cleanup after erasure; contains no customer address or phone hash. */
+export const googleCalendarDeletes = pgTable('google_calendar_deletes', {
+  eventId: text('event_id').primaryKey(),
+  calendarId: text('calendar_id').notNull(),
+  notify: boolean('notify').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
 
 /**
  * Somebody who has filled in the form and not yet proved they own the number.
