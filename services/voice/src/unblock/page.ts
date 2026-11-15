@@ -42,7 +42,7 @@ const KIND_WORDS: Record<string, string> = { limit: 'A real limit', prediction: 
 
 const form = (action: string, body: string, button: string, o: PageOptions, extra = ''): string => {
   const event = randomUUID();
-  const controls = body.replace(/(\s)(for|id|list|aria-describedby|aria-controls)="([^"]+)"/g,
+  const controls = body.replace(/(\s)(for|id|list|aria-describedby|aria-controls|aria-labelledby)="([^"]+)"/g,
     (_, space: string, attribute: string, id: string) => `${space}${attribute}="${event}-${id}"`);
   return `<form method="post" action="${action}"><input type="hidden" name="csrf" value="${escape(o.csrf)}"><input type="hidden" name="event" value="${event}"><input type="hidden" name="revision" value="${o.programme?.revision ?? o.revision ?? 0}">${extra}${controls}<button type="submit">${button}</button></form>`;
 };

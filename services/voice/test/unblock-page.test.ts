@@ -109,6 +109,8 @@ test('the account offers no pause or resume before the subscription is active, a
 });
 test('the schedule step asks for calls per month, one to eight, default four', () => {
   const html = unblockPage('schedule', {});
+  const reviewLabel = html.match(/aria-labelledby="([^"]+schedule-review-title)"/)?.[1];
+  assert.ok(reviewLabel && html.includes(`id="${reviewLabel}"`), 'the schedule review retains its accessible heading after form IDs are scoped');
   assert.ok(html.includes('Calls per month') && html.includes('<option value="4" selected>')); assert.equal((html.match(/<select id="[^"]*calls"[\s\S]*?<\/select>/)![0].match(/<option /g) ?? []).length, 8);
   assert.ok(unblockPage('schedule', { calls: 7 }).includes('<option value="7" selected>'));
   assert.equal(scheduleInput(normaliseSchedule(new URLSearchParams([['weekly', '17:00'], ['weekday', '0'], ['calls', '2']])), now).calls, 2);
