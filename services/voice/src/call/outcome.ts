@@ -76,7 +76,9 @@ const TOO_SHORT_MS = 90_000;
  * the weeks a person most needed the call to be ordinary.
  */
 export function settle(transcript: CallTranscript, script: ScriptLines, now = new Date(),options:{strictActionAgreement?:boolean}={}): Settlement {
-  const strict=options.strictActionAgreement!==false;
+  // Keep the old caller option source-compatible; all routes now require
+  // explicit caller evidence for agreement and for choosing no action.
+  void options;
   const agentTurns = transcript.turns.filter((t) => t.speaker === 'agent' && t.text.trim());
   const callerTurns = transcript.turns.filter((t) => t.speaker === 'caller' && t.text.trim());
 
@@ -116,7 +118,7 @@ export function settle(transcript: CallTranscript, script: ScriptLines, now = ne
   // This fixed branch is used only after an explicit choice of no action.
   // A later read-back can replace it, but an earlier proposal cannot survive it.
   const invitations=[...script].filter(([key])=>key.startsWith('next.ask.')&&!key.endsWith('.calibrate')).map(([,text])=>text);
-  const declinedAt = transcript.turns.findLastIndex((t,i) => !strict&&t.speaker==='agent'&&containsWeeklyLine(t.text,script,'next.none') || t.speaker==='caller' && (explicitNoAction(t.text)
+  const declinedAt = transcript.turns.findLastIndex((t,i) => t.speaker==='caller' && (explicitNoAction(t.text)
     || /^(no|nope|not this week|nei|ikke denne uken)\b/.test(normalise(t.text))
       && invitations.some(line=>carries(transcript.turns.slice(0,i).findLast(p=>p.speaker==='agent')?.text??'',line))));
   const noAction = declinedAt >= 0 && declinedAt > committedAt
@@ -136,7 +138,32 @@ export function settle(transcript: CallTranscript, script: ScriptLines, now = ne
   // legacy route. Retain its historical courtesy handling without persisting a
   // booking request as a commitment.
   const diverted = divertsReadBack(reply.map(t => t.text).join(' '), actionReadBack);
-  if (noAction || rejected || diverted || strict&&(withdrawn || !confirmsAction(reply, actionReadBack))) commitment = undefined;
+  // Ordinary calls need the same fresh agreement as the private pilot. A
+  // courtesy reply or missing extraction is neither consent nor a refusal.
+  if (noAction || rejected || diverted || withdrawn || !confirmsAction(reply, actionReadBack)) commitment = undefined;
+  // More conversation, or an unnecessary repeated read-back of the SAME
+  // agreed action, cannot erase the caller's earlier explicit agreement.
+  // A different proposal, rejection, withdrawal or no-action choice cannot
+  // reuse that agreement. Compare the full wording, including any day.
+  if (!commitment && current && currentSpan && !noAction && !rejected && !withdrawn) {
+    let end = currentSpan.start;
+    while (end > 0) {
+      const previous = weeklyReadBackSpan(said.slice(0, end), script, 'next.confirm', { strict: true });
+      if (!previous) break;
+      const parsed = extractCommitment(said.slice(previous.start, previous.end + 1).join(' '), new Map(script).set('next.confirm', previous.template), { strict: true });
+      if (!parsed || normalise(`${parsed.text} ${parsed.day ?? ''}`) !== normalise(`${current.text} ${current.day ?? ''}`)) break;
+      const answer: Turn[] = [];
+      for (const turn of transcript.turns.slice((positions[previous.end] ?? -1) + 1)) {
+        if (!turn.text.trim()) continue;
+        if (turn.speaker === 'agent') break;
+        answer.push(turn);
+      }
+      if (confirmsAction(answer, previous.values['commitment'])) { commitment = parsed; break; }
+      end = previous.start;
+    }
+  }
+  const proposedAction = !commitment && !noAction && !rejected && !withdrawn && current
+    && current.text.length <= 240 ? current.text : undefined;
   const map = weeklyReadBackSpan(said, script, 'read.first.keep');
   const selves = map?.values;
 
@@ -179,6 +206,8 @@ export function settle(transcript: CallTranscript, script: ScriptLines, now = ne
   const outcome: CallOutcome = {
     at: now.toISOString(),
     durationMs: transcript.durationMs,
+    actionState: commitment ? 'confirmed' : noAction ? 'declined' : 'unconfirmed',
+    ...(proposedAction ? { proposedAction } : {}),
     ...(onboardingComplete ? { onboardingComplete: true } : {}),
     ...(commitment ? { commitment: commitment.text, ...(commitment.day ? { day: commitment.day } : {}) } : {}),
     ...(noAction ? { noAction: true } : {}),
@@ -239,6 +268,7 @@ function divertsReadBack(text: string, expectedAction?: string): boolean {
 
 /** Narrow explicit choices, not a general intent classifier. */
 function explicitNoAction(text: string): boolean {
+  if (/^i(?:d| would) rather skip (?:choosing|picking) (?:anything|an action|a commitment)(?: today| this week)?$/.test(normalise(text))) return true;
   if (/^(actually |then |no |nei )?(no (new )?(action|commitment)( this week)?|i (dont|do not) want (an action|a commitment)|ingen (handling|forpliktelse)( denne uken)?)\b/.test(normalise(text))) return true;
   // A caller can explain the week before declining a new action in the same
   // turn. Accept only a complete first-person choice clause, not a quoted

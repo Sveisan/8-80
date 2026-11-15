@@ -34,8 +34,11 @@ test('actual outbound requests use pilot agents only for the scoped server conte
     process.env['WEEKLY_TOOLS_READY']='1';assert.equal(JSON.parse(weeklyCallContext('ordinary','Europe/Oslo',new Date(),other)).dialogue_policy,undefined);
   }finally{for(const key of keys){if(before[key]===undefined)delete process.env[key];else process.env[key]=before[key];}}
 });
-test('historical live read-backs retain their old policy while pilot calls require explicit agreement',()=>{
+test('historical read-back without approval stays an unconfirmed proposal on both routes',()=>{
   const script=loadScript(),transcript={providerCallId:'synthetic',durationMs:300000,turns:[{speaker:'caller' as const,text:'Book a lesson.'},{speaker:'agent' as const,text:"Right — book a lesson. I'll ask how it went next time we talk."}]};
-  assert.equal(settle(transcript,script,new Date(),{strictActionAgreement:false}).outcome?.commitment,'book a lesson');
+  const ordinary=settle(transcript,script,new Date(),{strictActionAgreement:false}).outcome;
+  assert.equal(ordinary?.commitment,undefined);
+  assert.equal(ordinary?.proposedAction,'book a lesson');
+  assert.equal(ordinary?.actionState,'unconfirmed');
   assert.equal(settle(transcript,script,new Date(),{strictActionAgreement:true}).outcome?.commitment,undefined);
 });

@@ -72,6 +72,10 @@ export interface CallOutcome {
   onboardingComplete?: boolean;
   /** The commitment for next week, if one was reached. */
   commitment?: string;
+  /** This call's evidence, independent of any older action kept in memory. */
+  actionState?: 'confirmed' | 'declined' | 'unconfirmed';
+  /** Mentioned in a complete read-back but not agreed; recap only, never memory. */
+  proposedAction?: string;
   /** Explicit no-action branch; absence alone must not erase an older action. */
   noAction?: boolean;
   day?: string;

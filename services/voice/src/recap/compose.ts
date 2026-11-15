@@ -77,6 +77,8 @@ export interface RecapContext {
  * break a line without breaking the send.
  */
 export function composeRecap(outcome: CallOutcome, script: ScriptLines, ctx: RecapContext = {}): Recap {
+  const confirmed = !!outcome.commitment && !outcome.noAction && outcome.actionState !== 'unconfirmed' && outcome.actionState !== 'declined';
+  const proposed = !confirmed && !outcome.noAction && outcome.proposedAction?.trim();
   const minutes = Math.max(1, Math.round(outcome.durationMs / 60_000));
   // The complete map was confirmed in THIS call. Do not turn historical memory
   // or an unconfirmed read-back into a new quotation, or invent a motive linking
@@ -87,6 +89,7 @@ export function composeRecap(outcome: CallOutcome, script: ScriptLines, ctx: Rec
     && sameWords(perspective) !== sameWords(outcome.commitment ?? '') ? perspective : '';
   const values: Record<string, string> = {
     commitment: outcome.commitment ?? '',
+    proposal: proposed || '',
     day: outcome.day ?? '',
     minutes: String(minutes),
     next_slot: ctx.nextSlot ?? '',
@@ -129,13 +132,14 @@ export function composeRecap(outcome: CallOutcome, script: ScriptLines, ctx: Rec
 
   const perspectivePart = longerView ? part('body', fill(script.get('email.body.perspective'))) : undefined;
   const paragraphs: (RecapPart | undefined)[] = (
-    outcome.commitment
+    confirmed
       ? [
           part('lead', fill(script.get('email.body.commitment'))),
           perspectivePart,
           part('body', fill(script.get('email.body.ask'))),
         ]
-      : [part('lead', fill(script.get('email.body.none'))), perspectivePart]
+      : [part('lead', fill(script.get(outcome.noAction ? 'email.body.declined'
+        : proposed ? 'email.body.proposed' : outcome.actionState === 'unconfirmed' ? 'email.body.unconfirmed' : 'email.body.none'))), perspectivePart]
   ).concat(part('quiet', fill(script.get(minutes === 1 ? 'email.body.logistics.one' : 'email.body.logistics'))));
 
   if (ctx.trialEnds) paragraphs.push(part('quiet', (script.get('email.trial.reminder') ?? '').replace('{{when}}', ctx.trialEnds)));
@@ -150,7 +154,7 @@ export function composeRecap(outcome: CallOutcome, script: ScriptLines, ctx: Rec
   // the one that arrived reading as blank.
   paragraphs.push(part('signoff', fill(script.get('email.signoff'))));
 
-  const subjectKey = outcome.commitment ? 'email.subject' : 'email.subject.none';
+  const subjectKey = confirmed ? 'email.subject' : 'email.subject.none';
   const subject = fill(script.get(subjectKey)) || fill(script.get('email.subject.none')) || '';
 
   const parts = paragraphs.filter((p): p is RecapPart => p !== undefined);
@@ -164,7 +168,7 @@ export function composeRecap(outcome: CallOutcome, script: ScriptLines, ctx: Rec
     subject: subject.replace(/[—–-]\s*$/, '').trim(),
     body: [...parts.flatMap((p) => p.role === 'signoff' && contact ? [`${contact.label}: ${contact.url}`, p.text] : [p.text]), ...(action ? [`${action.label}: ${action.url}`] : [])].join('\n\n'),
     parts,
-    ...(outcome.commitment
+    ...(confirmed && outcome.commitment
       ? {
           said: {
             label: script.get('email.body.label') ?? '',

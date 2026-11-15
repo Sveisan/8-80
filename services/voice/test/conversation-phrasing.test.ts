@@ -115,9 +115,9 @@ test('courtesy followed by a fresh full read-back and explicit yes saves exactly
   assert.equal(result.commitment, 'phone the sailing school');
 });
 
-test('old no-action wording keeps its historical policy without weakening pilot agreement', () => {
+test('an explicit caller choice to skip an action is respected on both routes', () => {
   const turns = [c("I'd rather skip choosing anything today."), a('We can leave it there this week.')];
   const transcript = { providerCallId: 'synthetic-old-no-action', durationMs: 300_000, turns };
   assert.equal(settle(transcript, script, new Date(), { strictActionAgreement: false }).outcome?.noAction, true);
-  assert.equal(settle(transcript, script, new Date(), { strictActionAgreement: true }).outcome?.noAction, undefined);
+  assert.equal(settle(transcript, script, new Date(), { strictActionAgreement: true }).outcome?.noAction, true);
 });
