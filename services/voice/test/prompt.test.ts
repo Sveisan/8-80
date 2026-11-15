@@ -210,7 +210,7 @@ test('the first call may notice one connection, repairs on a ladder, and never s
   assert.match(p, /Only if the caller explicitly asks again what you mean about choosing an action/);
   assert.match(p, /The cue question keeps its once-plus-one limit/);
   assert.match(p, /never say one back the first time you hear it/);
-  assert.match(p, /You get ONE push/);
+  assert.match(p, /Only an essential ambiguity earns ONE clarification/);
   assert.ok(!/"Which games\?"\)/.test(p), 'the example that got "Can\'t remember" is gone as a model');
 });
 

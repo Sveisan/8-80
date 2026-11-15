@@ -1,7 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { brotliDecompressSync } from 'node:zlib';
 import { syncWeeklyFlows, privateFlowTargets, SpeechifyFlowApi, type FlowApi, type FlowState } from '../src/agent/weekly-flow-sync.ts';
-import { bindWeeklyFlow, weeklyFlow } from '../src/agent/weekly-flow.ts';
+import { bindWeeklyFlow, weeklyFlow, type WeeklyFlow } from '../src/agent/weekly-flow.ts';
 import { CONSOLE_VARIABLES } from '../src/prompt.ts';
 
 const env = {
@@ -40,6 +42,56 @@ function setup() {
   };
   return { api, options, state, events, flows };
 }
+
+const previous = JSON.parse(brotliDecompressSync(readFileSync(new URL('./fixtures/weekly-flow-v1.json.br', import.meta.url))).toString()) as { first: WeeklyFlow; return: WeeklyFlow };
+function previousSetup() {
+  const s = setup();
+  for (const [key, id] of Object.entries(env).filter(([key]) => key.startsWith('SPEECHIFY_DIALOGUE_'))) {
+    const graph = bindWeeklyFlow(previous[key.includes('FIRST_CALL') ? 'first' : 'return'], tools);
+    s.flows.set(id, { active: graph });
+  }
+  return s;
+}
+
+test('an exact PR46 predecessor upgrades all four private roles, keeps backups and never publishes twice', async () => {
+  const s = previousSetup();
+  const check = await syncWeeklyFlows(s.api, { ...s.options, mode: 'check' });
+  assert.ok(check.roles.every(r => !r.activeMatches));
+  assert.ok(!s.events.some(e => /^(PUT|POST) /.test(e)));
+  const upgraded = await syncWeeklyFlows(s.api, { ...s.options, mode: 'activate' });
+  assert.ok(upgraded.roles.every(r => r.activeMatches));
+  assert.equal(upgraded.phoneTestRequired, true);
+  assert.equal(s.events.filter(e => e.endsWith('/publish')).length, 4);
+  assert.ok(s.events.indexOf('backup') < s.events.findIndex(e => e.startsWith('PUT ')));
+  await syncWeeklyFlows(s.api, { ...s.options, mode: 'activate' });
+  assert.equal(s.events.filter(e => e.endsWith('/publish')).length, 4);
+});
+
+test('provider object-key order and node order do not change predecessor recognition', async () => {
+  const s = previousSetup();
+  const reorder = (value: unknown): unknown => Array.isArray(value) ? value.map(reorder)
+    : value && typeof value === 'object' ? Object.fromEntries(Object.entries(value).reverse().map(([key, v]) => [key, reorder(v)])) : value;
+  for (const [id, heads] of s.flows) {
+    const graph = reorder(heads.active) as WeeklyFlow;
+    graph.nodes.reverse(); graph.edges.reverse();
+    s.flows.set(id, { active: graph });
+  }
+  const result = await syncWeeklyFlows(s.api, { ...s.options, mode: 'activate' });
+  assert.ok(result.roles.every(r => r.activeMatches));
+});
+
+test('a predecessor label never authorises edited prompts, mismatched roles or extra tools', async () => {
+  for (const mutation of ['prompt', 'role', 'tool'] as const) {
+    const s = previousSetup();
+    const changed = bindWeeklyFlow(previous[mutation === 'role' ? 'return' : 'first'], tools);
+    const phase = changed.nodes.find(n => n.type === 'subagent')!;
+    if (mutation === 'prompt') phase.config!.system_prompt_override += '\nUnreviewed change.';
+    if (mutation === 'tool') (phase.config!.tools_filter as string[]).push('builtin_hangup');
+    s.flows.set(env.SPEECHIFY_DIALOGUE_FIRST_CALL_AGENT_ID, { active: changed });
+    await assert.rejects(syncWeeklyFlows(s.api, { ...s.options, mode: 'activate' }), /unrelated flow/);
+    assert.ok(!s.events.some(e => /^(PUT|POST) /.test(e)));
+  }
+});
 
 test('tool filters bind verified IDs and cannot accidentally expose end_call', () => {
   const source = weeklyFlow('first'), bound = bindWeeklyFlow(source, tools);

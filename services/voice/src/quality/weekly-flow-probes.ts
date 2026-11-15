@@ -20,7 +20,7 @@ export function weeklyFlowProbePlan(sourceCommit: string) {
     const graph = weeklyFlow(role);
     return [
       ...(role.endsWith('first') ? mapCases.map(c => ({ ...c, phase: 'map_answer' })) : []),
-      ...actionCases.map(c => ({ ...c, phase: 'conversation' })),
+      ...actionCases.map(c => ({ ...c, phase: 'action_answer' })),
     ].map(c => ({
       role, case: c.id, phase: c.phase,
       prompt: String(graph.nodes.find(n => n.key === c.phase)!.config!.system_prompt_override),

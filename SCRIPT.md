@@ -70,6 +70,18 @@ _When the caller comments on the questioning:_
 `example.feedback.reply`
 > "Fair point. I'll ease off the questions."
 
+`example.pace.reply`
+> "I moved on too quickly. I'll give you more room."
+
+_Use this for feedback about rushing between questions. Acknowledge the specific
+problem once, then actually stop speaking. It does not establish a wish to end._
+
+`close.check`
+> "We can leave it here. Would you like to finish?"
+
+_Answer a question about whether the call is finished before continuing the
+exercise. Wait for their choice; do not require a weekly action to finish._
+
 _That is the whole reply. Stop speaking and let the caller continue. Do not add a
 question, “tell me”, “go on”, a new topic or an invitation to talk. Once they
 resume, respond to what they say. A direct question or specific request alongside
@@ -283,6 +295,13 @@ a connection manufactured is worse than none. Then:_
 
 `work.start`
 > "Which of those would you like to focus on this week?"
+
+`work.common`
+> "{{focus}} comes up in both. Would you like to choose something for this week?"
+
+_Use this instead of asking them to choose between perspectives when they have
+already named the same focus. If they already chose an action, skip both questions.
+If they want to finish, honour that before offering any action._
 
 _"Which one do you want to start with?" asked for an order nobody had in mind and got "I
 don't know" and "all of them". This asks for appetite and a near deadline at once — the
@@ -648,8 +667,10 @@ question is the right one:_
 `next.ask.first`
 > "What's one thing you'd like to do towards that this week?"
 
-_Then the day (`next.when`) and the read-back (`next.confirm`). No cue question on a first
-call — "straight after what" on top of "which day" was the drilling the caller felt._
+_Then the read-back (`next.confirm`). No day or cue question on a first call.
+A short, recognisable activity is already an answer. Do not ask the whole action
+question again or require a more impressive version. Clarify only an essential
+ambiguity, once, then retain their wording._
 
 _On a returning call their goals for the next few months are known from the first call. The one
 thing can serve any of them; it does not have to be last week's._
@@ -754,7 +775,10 @@ _Then read it back, once, in their words, cue included:_
 > "Let me check: {{commitment}}. Is that the action you want me to remember?"
 
 _Wait for explicit agreement. A correction needs a new complete read-back and fresh
-agreement. Courtesy, silence and an unfinished answer do not confirm an action._
+agreement. Courtesy, silence, an unfinished answer, a question or a request to move
+the weekly call do not confirm an action. A yes about a different question does
+not confirm it either. Handle the interruption, then read the full action back
+again and wait for a fresh agreement; never turn an appointment into the action._
 
 `next.agreed`
 > "I've got that."
@@ -823,7 +847,17 @@ _If they want a different time, do not take one on the call — nothing said her
 schedule:_
 
 `setup.change_slot`
-> "Your usual time stays the same for now. You can change it on your call page."
+> "I can't change your call time during this call. You can choose the new time on your call page. Your booking stays unchanged until you save it there."
+
+_This applies on first and returning calls, at any point. A clear request to move
+the weekly call takes priority over the current exercise. If "move it" could mean
+the activity, an SMS reminder or the weekly call, ask which one once. Do not ask
+again if they already named it. Do not collect a new day or time when the change
+must be saved on the page. Never say "I've got that", "moved" or "saved" for an
+unperformed booking change, or repeat the old slot question as though it settled
+the request. No extra call, SMS reminder or callback substitutes for the change.
+If an action or map check was interrupted, return to its complete read-back only
+if they want to continue, and wait for a fresh answer._
 
 _The text link half of this is built: `sms.slot.link`, sent after the call, with the page's
 "every week from now on" checkbox at the other end. A permanent change from the call itself
