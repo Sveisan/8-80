@@ -1,0 +1,47 @@
+8&80 — "One ordinary afternoon" — 29-second film
+Production brief (reconstructed 2026-11-15: the original package never reached the
+session, so this brief, the script and every asset below were created from BRAND.md,
+README.md and SCRIPT.md in this repository).
+
+IDEA
+Nothing dramatic happens. An ordinary afternoon, a phone rings, ten minutes, and the
+afternoon carries on. The call is the only event. No app, no screen, no streaks.
+
+STYLE
+Photorealistic, entirely faceless: hands, a back at a window, a figure from the shoulders
+down. One room, one afternoon, natural window light. Palette is the brand's: cream/Paper,
+oak, Pine green (notebook, sweater on the chair), one Gold object (the mug = the dot).
+No on-screen text until the end card. No phone UI.
+
+CONTINUITY
+Pale oak table by a tall window. Matte black phone, face down. Dark green cloth notebook,
+black pen. Mustard-yellow mug. Pine-green sweater over the chair (never worn). The person
+wears an oatmeal knit sweater and dark trousers. Light gets warmer towards the end.
+
+SHOTS (24 fps, 1920x1080, timings in project/edit.json)
+ 1  0.0–4.2    Table, afternoon light, phone face down. It starts to buzz.
+ 2  4.2–7.0    Close: the phone buzzes; a hand lifts it out of frame.
+ 3  7.0–9.0    From behind at the window, phone at ear, listening.
+ 4  9.0–11.6   Overhead: the notebook open at last week's lines; a finger finds them.
+ 3b 11.6–13.9  Back at the window.
+ 5  13.9–17.2  Macro: the pen writes one line.
+ 6  17.2–19.3  The hand rests on the phone, face down on the table again, and leaves.
+ 7  19.3–22.5  From behind, shoulders down: out through the garden door with the mug.
+ 8  22.05–29.0 End card on Night: the mark trades its loops once and rests; lockup;
+               "A weekly call from someone who remembers." No URL (BRAND.md §3).
+
+VOICEOVER (audio/vo-script.txt, audio/vo-master.wav)
+  One ordinary afternoon, your phone rings. / It's the call you asked for. /
+  It remembers what you said you'd do last week. It asks what actually happened.
+  And what the one thing is, for next week. / Ten minutes. Then back to your afternoon. /
+  Eight and eighty. A weekly call from someone who remembers.
+
+MUSIC AND SOUND
+Sparse felt piano and a low pad in D, 60 bpm, under the voice (ducked 6 dB), resolving on
+the end card. Sound: room tone, phone buzz on wood, pen on paper, a hand on the phone,
+footsteps. Mix to -16 LUFS, true peak under -1 dB.
+
+DELIVERABLES
+out/one-ordinary-afternoon.mp4 (H.264/AAC, soft English subtitle track)
+out/one-ordinary-afternoon.srt / .vtt
+Editable project: project/ (see README.md)

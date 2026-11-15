@@ -1,0 +1,2 @@
+import sys; sys.path.insert(0,'project'); from xai import *
+image("s1","Wide still life of a pale oak kitchen table beside a tall window in the afternoon. On the table: a smartphone in a matte black case lying face down, a closed notebook with a dark green cloth cover with a black pen resting on top, and a small mustard-yellow ceramic mug of coffee. A pine-green wool sweater hangs over the back of a wooden chair. Sunlight falls in a diagonal band across the table, dust motes in the light. Nobody in frame.",n=3)

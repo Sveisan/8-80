@@ -1,0 +1,32 @@
+{
+  "title": "One ordinary afternoon",
+  "fps": 24, "width": 1920, "height": 1080, "duration": 29.0,
+  "video": [
+    {"id": "s1", "src": "clips/s1.mp4", "in": 0.6, "start": 0.0,  "end": 4.2,  "note": "The table. Afternoon light. Phone face down."},
+    {"id": "s2", "src": "clips/s2.mp4", "in": 2.0, "start": 4.2,  "end": 7.0,  "note": "Phone buzzes; a hand lifts it."},
+    {"id": "s3", "src": "clips/s3.mp4", "in": 0.3, "start": 7.0,  "end": 9.0,  "note": "At the window, from behind, listening."},
+    {"id": "s4", "src": "clips/s4.mp4", "in": 0.4, "start": 9.0,  "end": 11.6, "note": "Last week's lines in the notebook."},
+    {"id": "s3b","src": "clips/s3.mp4", "in": 3.4, "start": 11.6, "end": 13.9, "note": "Back at the window; the question lands."},
+    {"id": "s5", "src": "clips/s5.mp4", "in": 0.3, "start": 13.9, "end": 17.2, "note": "One line, written."},
+    {"id": "s6", "src": "clips/s6.mp4", "in": 3.2, "start": 17.2, "end": 19.3, "note": "Phone back on the table."},
+    {"id": "s7", "src": "clips/s7.mp4", "in": 0.8, "start": 19.3, "end": 22.55, "note": "Out into the afternoon."}
+  ],
+  "endcard": {"start": 22.05, "crossfade": 0.5, "html": "project/endcard.html"},
+  "fade_in": 0.6, "fade_out": 0.5,
+  "vo": {
+    "src": "audio/vo-master.wav",
+    "lines": [
+      {"in": 0.00,  "out": 2.70,  "at": 1.00,  "text": "One ordinary afternoon, your phone rings."},
+      {"in": 2.90,  "out": 4.30,  "at": 7.20,  "text": "It's the call you asked for."},
+      {"in": 4.50,  "out": 6.72,  "at": 9.30,  "text": "It remembers what you said you'd do last week."},
+      {"in": 6.93,  "out": 8.50,  "at": 12.00, "text": "It asks what actually happened."},
+      {"in": 8.67,  "out": 10.60, "at": 14.30, "text": "And what the one thing is, for next week."},
+      {"in": 10.90, "out": 11.70, "at": 17.70, "text": "Ten minutes."},
+      {"in": 11.81, "out": 13.22, "at": 19.55, "text": "Then back to your afternoon."},
+      {"in": 13.48, "out": 14.36, "at": 23.40, "text": "8&80."},
+      {"in": 14.62, "out": 16.95, "at": 24.70, "text": "A weekly call from someone who remembers."}
+    ]
+  },
+  "sfx": {"buzz": [[3.55, 4.35], [4.85, 5.65]], "pickup": 5.95, "pen": [14.2, 16.4], "pat": 17.75, "steps": [19.7, 20.3, 20.9, 21.5]},
+  "music": {"start": 0.0, "gain_db": -19, "duck_db": -6}
+}
