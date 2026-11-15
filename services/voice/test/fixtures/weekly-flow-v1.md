@@ -14,3 +14,7 @@ and exercise upgrades, idempotence and refusal of edited predecessor graphs.
 at release `27532475ce0b34d170ee12c7f8adefbcc8363115` before the pacing handoffs.
 It uses the same generation and normalization process and contains no caller
 data, credentials or provider IDs.
+
+`weekly-flow-v5-predecessor.json.br` captures the portable graphs at release
+`3b959d817262ee14778562936100bd762937fc19`, including the spoken pacing handoffs.
+It uses the same generation and normalization process.

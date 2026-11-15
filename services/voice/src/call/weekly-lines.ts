@@ -8,6 +8,7 @@ const previous: Record<string, readonly string[]> = {
   'read.first.keep': ['Let me say it back. At eight, {{eight}}. By eighty, {{eighty}}. And in the next three months, {{goals}}. Have I got that right?'],
   'read.first.fix_eight': ['So at eight: {{eight}}. Have I got that right?'],
   'read.first.fix_eighty': ['So by eighty: {{eighty}}. Have I got that right?'],
+  'read.first.fix': ['So the next three months: {{goals}}. Got it.'],
   'onboarding.confirmed': ["That's the map I'll keep for next time."],
   'next.confirm': ["Let me check: {{commitment}}. Is that the action you want me to remember for next week?", "Right — {{commitment}}. I'll ask how it went next time we talk."],
   'next.none': ['We can leave it there this week.'],
@@ -30,6 +31,7 @@ export function containsWeeklyLine(text: string, script: ScriptLines, id: string
 /** Select the latest complete read-back, keeping the same strict boundaries. */
 export function weeklyReadBackSpan(agentTurns: readonly string[], script: ScriptLines, id: string, opts: { strict?: boolean } = {}) {
   let selected: (NonNullable<ReturnType<typeof readBackSpan>> & { template: string }) | undefined;
+  let selectedComplete = false;
   for (const template of weeklyLineTemplates(script, id)) {
     let found = readBackSpan(agentTurns, template, opts);
     // The old "Right —" action must start a read-back turn. A map ending
@@ -44,7 +46,15 @@ export function weeklyReadBackSpan(agentTurns: readonly string[], script: Script
       const direct = readBackSpan([agentTurns[index]!], template, opts)!;
       found = { values: direct.values, start: index, end: index };
     }
-    if (found && (!selected || found.end > selected.end)) selected = { ...found, template };
+    if (found) {
+      // On a wording upgrade, a new template with an optional missing ending
+      // can swallow the old complete ending into its final slot. Prefer the
+      // complete current/legacy anchor when both finish at the same turn.
+      const complete = !!readBackSpan(agentTurns.slice(found.start, found.end + 1), template, { strict: true });
+      if (!selected || found.end > selected.end || found.end === selected.end && complete && !selectedComplete) {
+        selected = { ...found, template }; selectedComplete = complete;
+      }
+    }
   }
   return selected;
 }
