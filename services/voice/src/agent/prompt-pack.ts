@@ -16,7 +16,10 @@ export const agentKeys: Record<AgentRole, string> = {
 export const isManagedModuleRole = (role: AgentRole): boolean => role.startsWith('belief-') || role.startsWith('unblock-');
 /** The custom webhook tool a module role must have attached before its ID may be routed. */
 export const moduleToolName = (role: AgentRole): string | undefined => role.startsWith('belief-') ? 'capture_belief' : role.startsWith('unblock-') ? 'capture_unblock' : undefined;
-export interface PromptSpec { role: AgentRole; name: string; prompt: string; variables: string[]; firstMessage?: string; endCallDescription?:string; }
+export interface PromptSpec { role: AgentRole; name: string; prompt: string; variables: string[]; firstMessage?: string; endCallDescription?:string; responseDelaySeconds?: number; }
+/** Remove an added post-endpoint delay. Caller thinking time is still protected
+ * by endpointing and skip_turn; this is not an inactivity/hangup timeout. */
+export const WEEKLY_RESPONSE_DELAY_SECONDS = 0;
 export const WEEKLY_END_CALL_DESCRIPTION='End only after an explicit request to stop or say goodbye, or a completed mutual close. An isolated thanks, okay, mhm, silence, negative feedback or unanswered question is not permission. Speak the brief goodbye once, let its speech finish, then call this tool. Say nothing after the tool.';
 export const WEEKLY_SKIP_TURN_DESCRIPTION='Stay silent for this turn when the caller is thinking, speaking in fragments, acknowledging an unanswered question or explicitly continuing. Call without any spoken preamble or follow-up. Never use this to ignore a completed answer or a request to stop.';
 /** The platform owns this one opening. The prompt continues after its answer. */
@@ -43,7 +46,7 @@ export function weeklyPrompt(first: boolean): string {
     callNumber: 1, firstName: '{{first_name}}', bookedSlot: '{{booked_slot}}', onboardingProgress: '{{onboarding_progress}}', weeklyContext: '{{weekly_context}}',
     eight: '{{own_eight}}', eighty: '{{own_eighty}}', goals: '{{own_goals}}', lastCommitment: '{{last_commitment}}', nextSlot: '{{next_appointment}}',
   } : {
-    callNumber: '{{call_number}}', firstName: '{{first_name}}', nextSlot: '{{next_appointment}}', lastCommitment: '{{last_commitment}}', weeklyContext: '{{weekly_context}}',
+    callNumber: '{{call_number}}', firstName: '{{first_name}}', nextSlot: '{{next_appointment}}', bookedSlot: '{{booked_slot}}', lastCommitment: '{{last_commitment}}', weeklyContext: '{{weekly_context}}',
     callDay: '{{last_day}}', eight: '{{own_eight}}', eighty: '{{own_eighty}}', belief: '{{last_belief}}',
     consecutiveUndone: '{{weeks_undone_running}}', goals: '{{own_goals}}',
   };
@@ -52,10 +55,10 @@ export function weeklyPrompt(first: boolean): string {
 export function promptPack(group: AgentGroup, env: NodeJS.ProcessEnv = process.env): PromptSpec[] {
   const pack: PromptSpec[] = [];
   if (group !== 'beliefs' && group !== 'unblock' && group !== 'weekly-female') for (const role of ['first', 'return'] as const) pack.push({
-    role, name: `8&80 · ${role === 'first' ? 'First conversation' : 'Weekly conversation'}`, prompt: weeklyPrompt(role === 'first'), variables: [...CONSOLE_VARIABLES], firstMessage:weeklyGreeting(role === 'first'),endCallDescription:WEEKLY_END_CALL_DESCRIPTION,
+    role, name: `8&80 · ${role === 'first' ? 'First conversation' : 'Weekly conversation'}`, prompt: weeklyPrompt(role === 'first'), variables: [...CONSOLE_VARIABLES], firstMessage:weeklyGreeting(role === 'first'),endCallDescription:WEEKLY_END_CALL_DESCRIPTION,responseDelaySeconds:WEEKLY_RESPONSE_DELAY_SECONDS,
   });
   if (group === 'weekly-female' || (group !== 'beliefs' && group !== 'unblock' && ['SPEECHIFY_FEMALE_FIRST_CALL_AGENT_ID', 'SPEECHIFY_FEMALE_AGENT_ID', 'SPEECHIFY_FEMALE_VOICE_ID'].some(key => env[key]))) {
-    for (const role of ['female-first', 'female-return'] as const) pack.push({ role, name: `8&80 · ${role === 'female-first' ? 'First' : 'Weekly'} conversation · Woman’s voice`, prompt: weeklyPrompt(role === 'female-first'), variables: [...CONSOLE_VARIABLES],firstMessage:weeklyGreeting(role === 'female-first'),endCallDescription:WEEKLY_END_CALL_DESCRIPTION });
+    for (const role of ['female-first', 'female-return'] as const) pack.push({ role, name: `8&80 · ${role === 'female-first' ? 'First' : 'Weekly'} conversation · Woman’s voice`, prompt: weeklyPrompt(role === 'female-first'), variables: [...CONSOLE_VARIABLES],firstMessage:weeklyGreeting(role === 'female-first'),endCallDescription:WEEKLY_END_CALL_DESCRIPTION,responseDelaySeconds:WEEKLY_RESPONSE_DELAY_SECONDS });
   }
   if (group !== 'weekly' && group !== 'weekly-female' && group !== 'unblock') for (const kind of ['onboarding', 'daily', 'weekly'] as const) pack.push({
     role: `belief-${kind}`, name: `8&80 Beliefs · ${kind}`,

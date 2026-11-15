@@ -159,6 +159,8 @@ test('payment confirmation and cancellation use provider state and survive reloa
   await page.locator('button[value="cancel-renewal"]').click();
   expect((await fixture(request, 'state', { phone })).cancellations).toBe(0);
   await page.locator('button[value="cancel-renewal-confirm"]').click();
+  // Wait for the submitted page to finish before testing persistence on reload.
+  await expect(page.getByRole('status')).toContainText('Renewal is cancelled.');
   await page.reload();
   const result = await fixture(request, 'state', { phone });
   expect(result.caller).toMatchObject({ cancel_at_period_end: true, billing_status: 'active' });

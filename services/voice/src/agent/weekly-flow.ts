@@ -2,7 +2,7 @@ import { weeklyGreeting, weeklyPrompt } from './prompt-pack.ts';
 import { loadScript } from '../script.ts';
 import { renderForConsole, CONSOLE_VARIABLES } from '../prompt.ts';
 
-export const WEEKLY_FLOW_POLICY = 'weekly-map-correction-wait-v5';
+export const WEEKLY_FLOW_POLICY = 'weekly-appointment-and-pacing-v6';
 export const weeklyFlowRoles = ['first', 'return', 'female-first', 'female-return'] as const;
 export type WeeklyFlowRole = typeof weeklyFlowRoles[number];
 export interface WeeklyFlowNode {
@@ -81,6 +81,7 @@ export function weeklyFlow(role: WeeklyFlowRole): WeeklyFlow {
     'A map or action CONFIRMATION requires a NEW, completed caller answer AFTER its complete read-back, including after corrections or service diversions. Your own last question is not caller input. Never simulate a yes, speak for the caller, or treat a tool return or phase entry as that answer.',
     'For ordinary content questions, a completed answer volunteered earlier IN THIS CALL already counts only when it answers that same question and intent. Check the conversation before asking. If the caller has already chosen an activity FOR THIS WEEK, skip the action invitation and use the complete fixed action read-back. If you accidentally asked the invitation anyway, use their existing choice without demanding that they say it again. A map correction, a long-term goal or last week\'s action is not a new weekly choice. This exception never supplies agreement to a map or action read-back.',
     'When a question still needs an answer and no new caller answer has arrived, call skip_turn without speech. An unfinished answer or a request for more thinking time also uses skip_turn without speech. Do not repeat the question or fill the gap. A completed statement that asks nothing needs no acknowledgement.',
+    'A completed answer needs a response, not skip_turn. After a flow-owned acknowledgement, no extra okay is owed, but a phase entry question is a real question and still gets time for its answer. If the caller explicitly says their answer is finished and asks you to carry on, respond now. This never supplies missing map or action agreement.',
     'The flow, not this model, speaks the final farewell. Do not say goodbye, Take care, or another farewell and do not call end_call. When the caller_done condition is actually met, leave through that condition without spoken preamble or follow-up. The flow then speaks its one short farewell before its end node.',
     'A clear request to stop always takes priority over the introduction or action. A request to continue cancels a close. Ordinary safety rules remain in force; do not claim help was contacted.',
     'A question about whether we are finished needs a direct answer and room to choose, not the next exercise or an automatic hangup. Follow CALLER ASKS WHETHER WE ARE DONE. A short completed answer or an already chosen activity must not be re-asked in different words.',

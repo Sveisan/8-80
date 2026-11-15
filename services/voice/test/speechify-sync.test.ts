@@ -82,6 +82,43 @@ test('read-only check makes no provider writes, backups or state saves', async (
   assert.ok(reports[0]!.changed); assert.equal(saves, 0); assert.ok(p.requests.every(r => r.method === 'GET'));
 });
 
+test('weekly response delay is merged, verified, idempotent and restored without altering interruption or silence settings', async () => {
+  const p = provider(); let backup: Backup | undefined;
+  p.agents['agent_return']!['turn_handling'] = {response_delay_seconds: 1.5, interruption_sensitivity: 'low', inactivity_timeout_seconds: 45};
+  const before = structuredClone(p.agents['agent_return']);
+  const setup = options({specs: [{...spec, responseDelaySeconds: 0}], saveBackup: async (value: Backup) => {backup = value;}});
+  const check = await syncAgents(p.api, {...setup, apply: false});
+  assert.equal(check[0]!.changed, true); assert.ok(p.requests.every(r => r.method === 'GET'));
+  await syncAgents(p.api, setup);
+  assert.deepEqual(p.requests.find(r => r.method === 'PATCH')?.body?.['turn_handling'], {response_delay_seconds: 0});
+  assert.deepEqual(p.agents['agent_return']!['turn_handling'], {response_delay_seconds: 0, interruption_sensitivity: 'low', inactivity_timeout_seconds: 45});
+  const restore = structuredClone(backup), n = p.requests.length;
+  await syncAgents(p.api, setup); assert.ok(p.requests.slice(n).every(r => r.method === 'GET'));
+  await restoreAgents(p.api, restore); assert.deepEqual(p.agents['agent_return'], before);
+});
+
+test('older backups and nonweekly syncs leave turn handling alone', async () => {
+  const p = provider(); let backup: Backup | undefined;
+  const turnHandling = {response_delay_seconds: 1, inactivity_timeout_seconds: 45};
+  p.agents['agent_return']!['turn_handling'] = turnHandling;
+  await syncAgents(p.api, options({saveBackup: async (value: Backup) => {backup = value;}}));
+  assert.ok(!Object.hasOwn(backup!.agents[0]!.agent, 'turn_handling'));
+  await restoreAgents(p.api, backup);
+  assert.deepEqual(p.agents['agent_return']!['turn_handling'], turnHandling);
+  const module = provider(); module.agents['agent_return']!['turn_handling'] = turnHandling;
+  await syncAgents(module.api, options({specs: [{...spec, role: 'belief-daily', responseDelaySeconds: 0}], env: {BELIEFS_DAILY_AGENT_ID: 'agent_return', PUBLIC_URL: 'https://example.com'}}));
+  assert.deepEqual(module.agents['agent_return']!['turn_handling'], turnHandling);
+});
+
+test('new response delay can be rolled back when the previous agent had no turn-handling object', async () => {
+  const p = provider(); let backup: Backup | undefined;
+  const before = structuredClone(p.agents['agent_return']);
+  await syncAgents(p.api, options({specs: [{...spec, responseDelaySeconds: 0}], saveBackup: async (value: Backup) => {backup = value;}}));
+  assert.equal(backup!.agents[0]!.agent['turn_handling'], null);
+  await restoreAgents(p.api, backup);
+  assert.deepEqual(p.agents['agent_return'], before);
+});
+
 test('weekly greeting and end-call instructions are backed up, verified, idempotent and restorable',async()=>{
   const p=provider();let backup:Backup|undefined;
   const tool=(p.agents['agent_return']!['tools'] as Record<string,unknown>[])[0]!;

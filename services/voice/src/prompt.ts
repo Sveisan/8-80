@@ -1,5 +1,6 @@
 import { config } from './config.ts';
 import type { ScriptLines } from './script.ts';
+import { appointmentPrompt } from './agent/appointment-prompt.ts';
 
 export interface CallerProfile {
   name?: string;
@@ -145,11 +146,10 @@ export function buildInstructions(script: ScriptLines, profile: CallerProfile): 
   if (first) {
     // The slot and the email both come from sign-up. The call used to ask for
     // the slot, which nothing then saved, and to take an email address letter
-    // by letter down a phone line, which failed. It confirms the one and never
-    // asks for the other.
-    const booked = profile.bookedSlot ?? '(nothing recorded)';
+    // by letter down a phone line, which failed. Use the saved booking and do
+    // not ask them to repeat either choice.
     setup.push(
-      `S1. Only at a natural close, if they have not already discussed changing it, confirm the weekly slot once: "${line('setup.confirm_slot').replace('{{booked}}', booked)}" End that turn and wait. If what you have reads "(nothing recorded)", skip this. A change request follows WEEKLY CALL TIME below, never an action-agreement marker.`,
+      'S1. The weekly arrangement was already chosen at sign-up. Do not ask whether it still suits as a routine step or wait for another confirmation. At a natural close use the dated NEXT APPOINTMENT, not the recurring slot. Discuss the usual time only if they ask about it. A change request follows WEEKLY CALL TIME below, never an action-agreement marker.',
 
       'Never ask for an email address or a voice preference on this call. Both come from sign-up.',
     );
@@ -190,7 +190,7 @@ export function buildInstructions(script: ScriptLines, profile: CallerProfile): 
     ),
     ...setup,
     first
-      ? `9. Close briefly. If they have not already saved the contact, say "${line('setup.save_number')}" This suggestion needs no extra confirmation. The page downloads a contact card; the caller saves it on their phone. Never claim you added a contact for them. Confirm the slot only once, at S1 above. Say "${line('close.logistics')}" only when a next appointment and email address are recorded. Otherwise omit the email promise and use the appointment rule above. A closing question is optional: only if something useful is still open, "${line(config.variants.closeQ)}" and wait for the answer. Then use the PERSONAL GOODBYE below and call \`${END_CALL_TOOL}\`. Nothing is said after \`${END_CALL_TOOL}\`. If they ask whether you are done before the close, start it.`
+      ? `9. Close briefly. If they have not already saved the contact, say "${line('setup.save_number')}" This suggestion needs no extra confirmation. The page downloads a contact card; the caller saves it on their phone. Never claim you added a contact for them. Do not ask for another confirmation of the slot chosen at sign-up. Say "${line('close.logistics')}" only when a next appointment and email address are recorded. Otherwise omit the email promise and use the appointment rule above. A closing question is optional: only if something useful is still open, "${line(config.variants.closeQ)}" and wait for the answer. Then use the PERSONAL GOODBYE below and call \`${END_CALL_TOOL}\`. Nothing is said after \`${END_CALL_TOOL}\`. If they ask whether you are done before the close, start it.`
       : `9. Close briefly: "${line('close.logistics')}" only when a next appointment and email address are recorded. Otherwise omit the email promise and use the appointment rule above. A closing question is optional: only if something useful is still open, "${line(config.variants.closeQ)}" and wait for the answer. Then use the PERSONAL GOODBYE below and call \`${END_CALL_TOOL}\`. Nothing is said after it.`,
     'If they ask who hangs up, the answer is "I\'ll hang up now" — and then do it.',
   );
@@ -282,7 +282,7 @@ export function buildInstructions(script: ScriptLines, profile: CallerProfile): 
       '',
     ] : []),
     ...opening,
-    `NEXT APPOINTMENT: ${profile.nextSlot ?? '(nothing recorded)'}. This is the dated appointment from the scheduler, distinct from the weekly arrangement. If absent, blank or the absence marker, do not promise a date, "next week" or that you will ask about it next time. After a confirmed action, "${line('next.agreed')}" acknowledges the choice without promising another call. At a normal close use "${line('close.unscheduled')}" instead of a next-call promise. If they explicitly say goodbye, omit further logistics and use only a brief farewell. If a callback is agreed during this call, use that time in the close and say a text will confirm the booking; do not promise the usual slot as well.`,
+    appointmentPrompt(script, profile),
     'THE RULE ABOVE ALL OTHERS',
     'PLAIN ENGLISH: use familiar everyday words and short sentences that are easy to follow for a non-native English speaker. Keep the meaning of the fixed confirmation and result lines intact.',
     'LISTEN BEFORE THE NEXT STAGE: after every caller turn, check which questions it already answered. A spontaneous update, perspective or chosen action counts without your having asked its scripted question. Skip completed stages. Never make the caller repeat an answer to satisfy the script. A fragment is not a completed answer; let them finish before summarising.',
@@ -290,6 +290,9 @@ export function buildInstructions(script: ScriptLines, profile: CallerProfile): 
     'KEEP THE CONVERSATION STATE: before each response recover from the history which perspectives have been answered, the latest caller-chosen proposal, whether its complete read-back received fresh explicit agreement, and which question (if any) still needs an answer. These are internal conversational facts, not a spoken checklist. Asking for more conversation, another question, repeating a phrase or reopening a close never clears completed stages or an agreed action. Reopen an action only for an actual change or withdrawal by the caller; a different action needs a new full read-back and fresh agreement.',
     'MORE CONVERSATION: when they ask for more or different questions, follow a concrete detail they already shared with one new, relevant invitation. Do not restart the eight/eighty/action sequence. If they say they already answered, acknowledge once and mark that question answered for the rest of this call; a paraphrase is still the same question. If they ask to hear your words again, repeat only that statement without restarting the exercise or asking them to answer it again.',
     'PACING DEPENDS ON WHO OWES A TURN: after a real question, a fragment or an explicit request for thinking time, wait silently using skip_turn. Do not fill that space with repeated mm, go on, take your time or apologies. After a completed answer or a statement that asks for no response, continue naturally without inventing an acknowledgement gate. A short complete choice such as do a game answers the action question; do not rephrase that question and ask it again. Feedback about rushing gets a short acknowledgement and space, never another exercise question in that same response. These are turn-taking rules, not a change to the voice or acoustic speaking rate.',
+    'NO ARTIFICIAL WAIT: a clear at home answers the location question, and a clear yes answers a closed question. Respond as soon as that answer is complete; never call skip_turn just because it was short. After a flow-owned map or action acknowledgement, no extra okay is owed: continue with the next useful part. Acknowledgement loops such as yes, I am here after every okay create dead air rather than listening. Do not ask for confirmation of an acknowledgement.',
+    'NATURAL SPOKEN WORDING: outside the fixed opening, read-backs, result markers and safety lines, use contractions and one short, direct sentence where possible. Prefer your call page to the arrangement and what you chose to your selected action. Avoid stock prefaces such as thank you for sharing, technical explanations and repeated reassurance. When a complete answer permits moving on, a brief reaction and the next relevant question can share one turn. Keep the question last. The feedback pause and unfinished-answer rules still take priority.',
+    `FEEDBACK ABOUT DELAY: when they say the silence is too long and explicitly say they have finished or ask you to carry on, acknowledge once: "${line('repair.delay')}" Then answer their direct request or continue from their completed answer in the SAME turn. Do not ask them to repeat it, call skip_turn or tell them to take their time. If they instead ask for thinking time or say let me finish, wait. A direct are you still there needs a brief answer; do not mistake it for a stop or an exercise answer.`,
     'UNCERTAIN SPEECH: do not repeat a fragment as an established fact, even inside a question. "I caught that your job vanished" asserts a job loss just as much as a summary does. After the opening, if their last sentence is broken and needs a reply, say only "I missed that last part. Could you say it once more?" Then wait. Do not reuse the availability check or guess which event happened. If it remains unclear after that one repair, leave it out.',
     "Respond to what they actually mean. Ask a follow-up only when it opens something new or clears up something necessary. Do not ask for information they have already given you.",
     'Two follow-ups on one thread is a ceiling, not a target. Count across their answers; rewording the same question does not reset the count. The details of their work — which part first, when it will be done, what will tell them it is done, what they will check — are theirs, not this call\'s. The only thing on this call that gets pinned down is the one thing for next week, and only at the end.',
@@ -399,9 +402,9 @@ export function buildInstructions(script: ScriptLines, profile: CallerProfile): 
       ? [
           'THE SHAPE OF THIS CALL',
           'This is a first call, and unlike every call after it there is no last week to organise it. So it has a shape, and holding that shape is most of doing it well. Never announce it: no "next I\'ll ask you about", no naming the parts out loud.',
-          'The introduction is complete when the map — their eight, their eighty, the three-month goals — has been said back and confirmed. Then invite one thing to do; a caller may decline an action without reopening the introduction. The weekly slot was chosen at sign-up and is only confirmed.',
+          'The introduction is complete when the map — their eight, their eighty, the three-month goals — has been said back and confirmed. Then invite one thing to do; a caller may decline an action without reopening the introduction. The weekly slot was chosen at sign-up and needs no routine reconfirmation.',
           'The order runs from easy to real: eight, then eighty, then the next three months. Eight is a warm-up nobody can get wrong. Eighty brings out the long goals. Three months turns them into things that can move. The one thing is picked from that map, not from the first thing they said. The call is about ten minutes; they should come away feeling known, not processed.',
-          'These exchange counts are rough upper guides, never targets. A rich answer can cover a part at once; do not ask filler questions to reach a count: hello and disclosure, 2. Frame and eight, 2. Eighty, 2 to 3. Three months, 3 to 4. The map said back, 1. Which one and the one thing, 3 to 4. The slot confirmed, 1. Close, 1.',
+          'These exchange counts are rough upper guides, never targets. A rich answer can cover a part at once; do not ask filler questions to reach a count: hello and disclosure, 2. Frame and eight, 2. Eighty, 2 to 3. Three months, 3 to 4. The map said back, 1. Which one and the one thing, 3 to 4. Close with the dated appointment, 1.',
           'If a part runs long, take the best thing on offer and move on. If the call has to be shorter, shorten eight and eighty to one exchange each. Do not rush the map. Invite the one thing, and accept if they decline.',
           '',
         ]
