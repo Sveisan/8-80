@@ -86,3 +86,22 @@ test('a first-call map can only reach its kept marker through the answer phase',
   }
   assert.ok(weeklyFlow('return').nodes.every(n => !n.key.startsWith('map_')));
 });
+
+test('all four routes put the action marker behind a distinct fresh-answer checkpoint', () => {
+  for (const role of weeklyFlowRoles) {
+    const flow = weeklyFlow(role);
+    assert.deepEqual(flow.edges.filter(e => e.to === 'action_kept'), [
+      { from: 'action_answer', to: 'action_kept', type: 'llm_condition', condition: 'action_agreed' },
+    ]);
+    assert.deepEqual(flow.edges.filter(e => e.to === 'action_answer'), [
+      { from: 'conversation', to: 'action_answer', type: 'llm_condition', condition: 'action_asked' },
+    ]);
+    assert.ok(!flow.edges.some(e => e.from === 'action_answer' && e.type === 'default'));
+    const wait = flow.nodes.find(n => n.key === 'action_answer')!;
+    assert.match(String(wait.config?.system_prompt_override), /A yes about the weekly call.*cannot approve the action/);
+    const agree = (wait.config?.exit_conditions as Array<{name: string; description: string}>).find(c => c.name === 'action_agreed')!;
+    assert.match(agree.description, /repeated COMPLETE read-back and fresh explicit agreement/);
+    assert.equal(flow.nodes.find(n => n.key === 'action_kept')?.config?.text, script.get('next.agreed'));
+    assert.ok(flow.edges.some(e => e.from === 'action_answer' && e.condition === 'caller_done' && e.to === 'farewell'));
+  }
+});

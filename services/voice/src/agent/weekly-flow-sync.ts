@@ -1,5 +1,6 @@
 import { isDeepStrictEqual } from 'node:util';
-import { bindWeeklyFlow, weeklyFlow, weeklyFlowRoles, type WeeklyFlow, type WeeklyFlowRole } from './weekly-flow.ts';
+import { createHash } from 'node:crypto';
+import { bindWeeklyFlow, weeklyFlow, weeklyFlowRoles, WEEKLY_FLOW_POLICY, type WeeklyFlow, type WeeklyFlowRole } from './weekly-flow.ts';
 import { dialogueAgentKeys } from '../weekly/dialogue-policy.ts';
 import { agentKeys } from './prompt-pack.ts';
 import { CONSOLE_VARIABLES } from '../prompt.ts';
@@ -59,6 +60,31 @@ function heads(value: unknown): { active: WeeklyFlow | null; draft: WeeklyFlow |
   return { active: flowGraph(v['active']), draft: flowGraph(v['draft']) };
 }
 
+// Exact portable graphs from PR46 source 48808c8c82a91b40123762aa4243cfaf900e8c8e.
+// Only attached tool IDs vary per agent. Matching a policy label or topology is
+// insufficient: a manually edited prompt must not be silently overwritten.
+const previousGraphDigests = {
+  first: '2afc6fe84690af03707c0ae0622862218a3cf999d7e06975c3270c14a0793fef',
+  return: '3d0b35bcc55bc9bc1c26321d5a1dce74a2ca0705ff6bcc46fcb2db32b6a0bff9',
+};
+function canonical(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonical);
+  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([key, v]) => [key, canonical(v)]));
+  return value;
+}
+function isPreviousGraph(previous: WeeklyFlow, role: WeeklyFlowRole, bound: WeeklyFlow): boolean {
+  const ids = bound.nodes.find(n => n.type === 'subagent')?.config?.tools_filter as string[];
+  const names = new Map(ids.map((id, i) => [id, ['skip_turn', 'weekly_assist'][i]]));
+  const portable = structuredClone(previous);
+  for (const node of portable.nodes.filter(n => n.type === 'subagent')) {
+    const filter = node.config?.tools_filter;
+    if (!Array.isArray(filter) || filter.length !== 2 || filter.some(id => !names.has(id))) return false;
+    node.config!.tools_filter = filter.map(id => names.get(id));
+  }
+  const digest = createHash('sha256').update(JSON.stringify(canonical(flowGraph(portable)))).digest('hex');
+  return digest === previousGraphDigests[role.endsWith('first') ? 'first' : 'return'];
+}
+
 export function privateFlowTargets(env: NodeJS.ProcessEnv): { role: WeeklyFlowRole; id: string }[] {
   const live = Object.values(agentKeys).map(k => env[k]).filter(Boolean);
   const result = weeklyFlowRoles.map(role => ({ role, id: env[dialogueAgentKeys[role]] ?? '' }));
@@ -85,7 +111,8 @@ export async function syncWeeklyFlows(api: FlowApi, options: {
     if (!Array.isArray(variables) || CONSOLE_VARIABLES.some(key => !variables.some(v => v.key === key))) throw new Error('The weekly variable catalog is incomplete.');
     const original = await api.request('GET', path + '/flow'), current = heads(original);
     const expected = flowGraph(graph)!;
-    if ([current.active, current.draft].some(g => g !== null && !isDeepStrictEqual(g, expected))) throw new Error('An unrelated flow exists; it was not overwritten.');
+    if ([current.active, current.draft].some(g => g !== null && !isDeepStrictEqual(g, expected)
+      && (mode === 'deactivate' || !isPreviousGraph(g, target.role, graph)))) throw new Error('An unrelated flow exists; it was not overwritten.');
     entries.push({ ...target, path, graph, expected, current, original });
   }
   if (state.pending) {
@@ -127,5 +154,5 @@ export async function syncWeeklyFlows(api: FlowApi, options: {
     }
     report.push({ role: e.role, draftMatches: isDeepStrictEqual(current.draft, e.expected), activeMatches: isDeepStrictEqual(current.active, e.expected), inactive: current.active === null });
   }
-  return { policy: 'weekly-answer-and-farewell-v1', roles: report, mode, voiceApproved: false, phoneTestRequired: true, callsStarted: 0, messagesSent: 0 };
+  return { policy: WEEKLY_FLOW_POLICY, roles: report, mode, voiceApproved: false, phoneTestRequired: true, callsStarted: 0, messagesSent: 0 };
 }

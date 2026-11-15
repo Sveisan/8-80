@@ -206,6 +206,57 @@ test('signed webhook → encrypted memory → next outbound request and prompt, 
   assert.equal((await db!.sql`select count(*)::int as n from message_outbox where kind='recap'`)[0]!['n'],3);
 });
 
+for (const returning of [false, true]) for (const reconfirmed of [false, true]) {
+  test(`booking diversion preserves memory and sends each after-call message once; returning=${returning}, reconfirmed=${reconfirmed}`, options, async () => {
+    await enrol();
+    if (returning) await db!.store.record(phoneA, {
+      at: now.toISOString(), durationMs: 100_000, commitment: 'visit the library',
+      eight: 'drawing', eighty: 'reading', goals: 'read more books', onboardingComplete: true,
+    });
+    const d = deps();
+    const slotBefore = await d.scheduler.slotFor(phoneA);
+    const counterBefore = (await d.store.load(phoneA)).callNumber;
+    await tick(d, now);
+    const lines: Array<['user' | 'assistant', string]> = returning ? [] : [
+      ['assistant', fill('read.first.keep', { eight: 'drawing', eighty: 'reading', goals: 'read more books' })],
+      ['user', 'Yes.'], ['assistant', fill('onboarding.confirmed')],
+    ];
+    lines.push(['user', 'Read a book.'], ['assistant', fill('next.confirm', { commitment: 'read a book' })],
+      ['user', 'Yes, move the weekly call to Wednesday at six.'],
+      ['assistant', fill('setup.change_slot')], ['user', 'Okay.']);
+    if (reconfirmed) lines.push(['assistant', fill('next.confirm', { commitment: 'read a book' })],
+      ['user', 'Yes, that is right.'], ['assistant', fill('next.agreed')]);
+    lines.push(['user', 'Goodbye.'], ['assistant', 'Take care.']);
+    const payload = event('wire_1', lines);
+    await settleConversation(payload, d, undefined, now);
+    await settleConversation(payload, d, undefined, now);
+    const saved = await d.store.load(phoneA);
+    const expectedAction = reconfirmed ? 'read a book' : returning ? 'visit the library' : undefined;
+    assert.equal(saved.lastCommitment, expectedAction);
+    assert.equal(saved.callNumber, counterBefore + 1);
+    assert.equal(saved.onboarding, 'complete');
+    assert.equal(saved.eight, 'drawing');
+    assert.equal(saved.eighty, 'reading');
+    assert.equal(saved.goals, 'read more books');
+    assert.deepEqual(await d.scheduler.slotFor(phoneA), slotBefore, 'a spoken page-control request cannot silently change the booking');
+    const letters = messages.filter(v => v && typeof v === 'object' && 'parts' in v) as Recap[];
+    assert.equal(letters.length, 1);
+    assert.equal(letters[0]!.said?.commitment, reconfirmed ? 'read a book' : undefined);
+    assert.doesNotMatch(letters[0]!.body, /Wednesday at six|visit the library/);
+    const outbox = await db!.sql`select kind, count(*)::int as n from message_outbox group by kind`;
+    assert.equal(outbox.find(row => row['kind'] === 'recap')?.['n'], 1);
+    assert.equal(messages.filter(v => typeof v === 'string' && /\/r\//.test(v)).length, 1, 'duplicate completion cannot send another slot link');
+    await tick(d, nextWeek);
+    const variables = wire[1]!['dynamic_variables'] as Record<string, string>;
+    assert.equal(variables['last_commitment'], expectedAction ?? NOTHING_RECORDED);
+    assert.equal(variables['own_eight'], 'drawing');
+    assert.equal(variables['own_eighty'], 'reading');
+    assert.equal(variables['own_goals'], 'read more books');
+    assert.equal(wire[1]!['agent_id'], 'return-agent');
+    assert.doesNotMatch(JSON.stringify(variables), /Wednesday at six/);
+  });
+}
+
 for (const [resultLine, resultField] of [['last.did', 'weeksDone'], ['last.partial', 'weeksPartly'], ['nothing.c.follow', 'weeksUndone']] as const) {
   test(`new wording persists ${resultField} and carries the chosen action to the next request`, options, async () => {
     await enrol();

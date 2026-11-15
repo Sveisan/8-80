@@ -1,5 +1,9 @@
 # Weekly answer and farewell pilot
 
+The follow-up [listening and call-time change release](weekly-listening-and-time-changes.md)
+adds a separate action-answer checkpoint and a verified upgrade path from this
+PR46 graph. Use its fresh phone-acceptance gates when deploying that release.
+
 The owner phone test on 13 November exposed two audible failures: the agent moved
 from the complete map question to the kept-map marker before the caller could
 answer, and its final farewell was not heard. The retained transcript agreed

@@ -111,6 +111,7 @@ export function settle(transcript: CallTranscript, script: ScriptLines, now = ne
   const legacyAt = legacy ? positions[legacyIndex] ?? -1 : -1;
   const committedAt = Math.max(currentAt, legacyAt);
   let commitment = currentAt === committedAt ? current : legacy;
+  const actionReadBack = currentAt === committedAt ? currentSpan?.values['commitment'] : legacy?.text;
   const callAgain = extractReschedule(spoken, script);
   // This fixed branch is used only after an explicit choice of no action.
   // A later read-back can replace it, but an earlier proposal cannot survive it.
@@ -131,7 +132,11 @@ export function settle(transcript: CallTranscript, script: ScriptLines, now = ne
   const rejected = /^(no\b(?! problem\b| worries\b)|nope\b|not (that|this week)\b|i (refuse|decline)\b|i (dont|do not) want (that|to)\b|nei\b|jeg vil ikke\b)/.test(normalise(reply.map(t => t.text).join(' ')));
   const withdrawn=transcript.turns.slice(committedAt+1).some(t=>t.speaker==='caller'
     && /\b(dont save that|do not save that|dont remember that|that is not my action|thats not my action|i withdraw|ikke lagre det|ikke husk det)\b/.test(normalise(t.text)));
-  if (noAction || rejected || strict&&(withdrawn || !confirmsAction(reply))) commitment = undefined;
+  // An explicit diversion is never action agreement, including on the ordinary
+  // legacy route. Retain its historical courtesy handling without persisting a
+  // booking request as a commitment.
+  const diverted = divertsReadBack(reply.map(t => t.text).join(' '), actionReadBack);
+  if (noAction || rejected || diverted || strict&&(withdrawn || !confirmsAction(reply, actionReadBack))) commitment = undefined;
   const map = weeklyReadBackSpan(said, script, 'read.first.keep');
   const selves = map?.values;
 
@@ -193,8 +198,10 @@ export function settle(transcript: CallTranscript, script: ScriptLines, now = ne
   };
 }
 /** Agreement to the complete read-back, not assent inferred from politeness. */
-export function confirmsAction(turns:readonly Turn[]):boolean {
-  const answer=normalise(turns.filter(t=>t.speaker==='caller').map(t=>t.text).join(' '));
+export function confirmsAction(turns:readonly Turn[], expectedAction?: string):boolean {
+  const text=turns.filter(t=>t.speaker==='caller').map(t=>t.text).join(' ');
+  const answer=normalise(text);
+  if (divertsReadBack(text, expectedAction)) return false;
   if(/\b(no|nope|not|wrong|incorrect|but|except|maybe|perhaps|nei|ikke|feil|men|kanskje)\b/.test(answer))return false;
   return /^(yes|yeah|yep|exactly|correct|thats right|that is right|you got it|go ahead|ja|stemmer|riktig|det stemmer)\b/.test(answer);
 }
@@ -203,9 +210,31 @@ export function confirmsAction(turns:readonly Turn[]):boolean {
  * next time. This deliberately does not try to infer agreement from a story.
  */
 function confirmsMap(turns: readonly Turn[]): boolean {
-  const answer = normalise(turns.filter(t => t.speaker === 'caller').map(t => t.text).join(' '));
+  const text = turns.filter(t => t.speaker === 'caller').map(t => t.text).join(' ');
+  const answer = normalise(text);
+  if (divertsReadBack(text)) return false;
   if (/\b(no|nope|none|not|wrong|incorrect|but|except|nej|nei|ikke|feil|men)\b/.test(answer)) return false;
   return /^(yes|yeah|yep|exactly|correct|right|thats right|that is right|you got it|ja|stemmer|riktig|det stemmer)\b/.test(answer);
+}
+
+/** A leading yes cannot approve a read-back while the caller is asking something
+ * else or changing a detail. This is a conservative storage veto, not a time or
+ * booking parser; the live agent must clarify and ask the full read-back again. */
+function divertsReadBack(text: string, expectedAction?: string): boolean {
+  const answer = normalise(text);
+  // Repeating the exact proposed activity is not a diversion merely because
+  // it contains "move", "change" or an already read-back cue. Require both a
+  // clear affirmative and an exact match; a different appointment still fails.
+  const affirmed = /^(?:yes|yeah|yep|exactly|correct|thats right|that is right|you got it|go ahead|ja|stemmer|riktig|det stemmer)\b\s+(.+)$/.exec(answer)?.[1];
+  const activity = (value: string) => value.replace(/^(?:i will|ill|jeg vil|jeg skal)\s+/, '');
+  // normalise() intentionally drops digits, so a numeric time can never use
+  // this exact-wording exception: 16:30 and 18:30 would otherwise look equal.
+  if (!/[?\d]/.test(text) && expectedAction && affirmed && activity(affirmed) === activity(normalise(expectedAction))) return false;
+  return text.includes('?')
+    || /\b(change|changing|move|moving|reschedule|switch|instead|endre|endrer|flytt|flytte|heller|i stedet)\b/.test(answer)
+    || /\b(can|could|would|will) (?:you|we)\b|\b(kan|kunne|vil) (?:du|vi)\b/.test(answer)
+    || /\b(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|mandag|tirsdag|onsdag|torsdag|fredag|lordag|lørdag|sondag|søndag)\b/i.test(text)
+    || /\b(?:at|kl|klokken|clock|half past|quarter past|quarter to|halv|kvart)\s+(?:\d{1,2}|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|ett|to|tre|fire|fem|seks|sju|syv|åtte|ni|ti|elleve|tolv)\b|\b\d{1,2}:\d{2}\b/i.test(text);
 }
 
 /** Narrow explicit choices, not a general intent classifier. */

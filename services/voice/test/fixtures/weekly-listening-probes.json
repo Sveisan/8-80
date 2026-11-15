@@ -1,0 +1,153 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "clear_call_change",
+      "phase": "action_answer",
+      "roles": [
+        "first",
+        "return",
+        "female-first",
+        "female-return"
+      ],
+      "definition": {
+        "name": "8&80 fictional listening clear_call_change",
+        "description": "Fictional wording regression. No phone call, customer data or real tool endpoint.",
+        "type": "reply",
+        "config": {
+          "context": "The map is complete. Caller chose read a book. Assistant asked: Let me check: read a book. Is that the action you want me to remember? Caller now answers: Yes, move my weekly call to Wednesday at six.",
+          "success_criteria": "Respond with the complete fixed call-page explanation that the booking cannot be changed during the call and remains unchanged until saved on the page. Do not say I have got that, approve an action, claim a changed booking, ask about the old time, collect another time or create a reminder or callback. Stop after the explanation. Differences in capitalisation and punctuation are acceptable; judge meaning and turn boundaries, not letter case."
+        }
+      }
+    },
+    {
+      "id": "ambiguous_time",
+      "phase": "action_answer",
+      "roles": [
+        "first",
+        "return",
+        "female-first",
+        "female-return"
+      ],
+      "definition": {
+        "name": "8&80 fictional listening ambiguous_time",
+        "description": "Fictional wording regression. No phone call, customer data or real tool endpoint.",
+        "type": "reply",
+        "config": {
+          "context": "The map is complete. Caller chose read a book. Assistant asked the complete fixed action confirmation question. Caller now says: Move it to Wednesday at six. It is unclear whether it means the activity or the weekly call. No SMS reminder exists or was discussed.",
+          "success_criteria": "Ask one brief question to clarify whether they mean the activity or the weekly call. Then wait. Do not approve an action, say I have got that, claim a booking change, choose a referent for them, or introduce an SMS reminder. Differences in capitalisation and punctuation are acceptable; judge meaning and turn boundaries, not letter case."
+        }
+      }
+    },
+    {
+      "id": "resume_action",
+      "phase": "action_answer",
+      "roles": [
+        "first",
+        "return",
+        "female-first",
+        "female-return"
+      ],
+      "definition": {
+        "name": "8&80 fictional listening resume_action",
+        "description": "Fictional wording regression. No phone call, customer data or real tool endpoint.",
+        "type": "reply",
+        "config": {
+          "context": "Caller chose read a book. The complete action read-back was interrupted by a request to move the weekly call. Assistant has now explained the call-page control without claiming a change. Caller now says: Okay, let us go back to the action.",
+          "success_criteria": "Repeat the complete fixed read-back: Let me check: read a book. Is that the action you want me to remember? Then stop. Do not say I have got that or start logistics; a new explicit answer is still needed. Differences in capitalisation and punctuation are acceptable; judge meaning and turn boundaries, not letter case."
+        }
+      }
+    },
+    {
+      "id": "finish_question",
+      "phase": "conversation",
+      "roles": [
+        "first",
+        "return",
+        "female-first",
+        "female-return"
+      ],
+      "definition": {
+        "name": "8&80 fictional listening finish_question",
+        "description": "Fictional wording regression. No phone call, customer data or real tool endpoint.",
+        "type": "reply",
+        "config": {
+          "context": "The opening and map are complete. The flow has spoken I will keep that for next time. No action has been chosen. Caller now asks: Are we finished?",
+          "success_criteria": "Answer the finish question and offer to stop, with one brief choice question, then wait. Do not start the focus or action exercise, insist on homework, claim an action was saved, or say goodbye before they choose. Differences in capitalisation and punctuation are acceptable; judge meaning and turn boundaries, not letter case."
+        }
+      }
+    },
+    {
+      "id": "short_activity",
+      "phase": "conversation",
+      "roles": [
+        "first",
+        "return",
+        "female-first",
+        "female-return"
+      ],
+      "definition": {
+        "name": "8&80 fictional listening short_activity",
+        "description": "Fictional wording regression. No phone call, customer data or real tool endpoint.",
+        "type": "reply",
+        "config": {
+          "context": "The introduction and map are complete, and the caller chose the reading focus. Assistant asked: What is one thing you would like to do towards that this week? Caller answers the complete choice: Read a book.",
+          "success_criteria": "Accept the chosen activity with the complete fixed action read-back: Let me check: read a book. Is that the action you want me to remember? Then stop. Do not repeat the invitation in different words, ask which book, ask a day or companion, invent a title or say the agreed-action marker. Differences in capitalisation and punctuation are acceptable; judge meaning and turn boundaries, not letter case."
+        }
+      }
+    },
+    {
+      "id": "pace_feedback",
+      "phase": "conversation",
+      "roles": [
+        "first",
+        "return",
+        "female-first",
+        "female-return"
+      ],
+      "definition": {
+        "name": "8&80 fictional listening pace_feedback",
+        "description": "Fictional wording regression. No phone call, customer data or real tool endpoint.",
+        "type": "reply",
+        "config": {
+          "context": "The opening and map are complete. The caller comments: You keep jumping to the next question too fast. I need more room before you move on. The caller has not asked to stop.",
+          "success_criteria": "Acknowledge the specific rushing problem briefly, then stop speaking. No question, invitation, instruction to continue, goodbye or tool call. Do not defend the pace or start another exercise. Differences in capitalisation and punctuation are acceptable; judge meaning and turn boundaries, not letter case."
+        }
+      }
+    },
+    {
+      "id": "known_location",
+      "phase": "introduction",
+      "roles": [
+        "first",
+        "female-first"
+      ],
+      "definition": {
+        "name": "8&80 fictional listening known_location",
+        "description": "Fictional wording regression. No phone call, customer data or real tool endpoint.",
+        "type": "reply",
+        "config": {
+          "context": "The flow already greeted: Hello, it is your 8 and 80 call. Is now still a good time? Caller answers: Yes, I am at home.",
+          "success_criteria": "Give the complete AI, written note and right-to-stop disclosure, then the first-call frame. Do not repeat the greeting, availability or location question. Do not treat the short clear answer as unfinished or apologise for interrupting. Differences in capitalisation and punctuation are acceptable; judge meaning and turn boundaries, not letter case."
+        }
+      }
+    },
+    {
+      "id": "shared_focus",
+      "phase": "conversation",
+      "roles": [
+        "first",
+        "female-first"
+      ],
+      "definition": {
+        "name": "8&80 fictional listening shared_focus",
+        "description": "Fictional wording regression. No phone call, customer data or real tool endpoint.",
+        "type": "reply",
+        "config": {
+          "context": "The complete first map is eight = reading; eighty = reading; next three months = read more books. Caller explicitly agreed and the map_kept node spoke. Caller now says: Okay. They have not chosen an activity or asked to finish.",
+          "success_criteria": "Recognise the common reading focus and offer one choice about doing something for this week. Do not make them choose between identical perspectives, re-ask location, start another map or invent a specific action. Differences in capitalisation and punctuation are acceptable; judge meaning and turn boundaries, not letter case."
+        }
+      }
+    }
+  ]
+}

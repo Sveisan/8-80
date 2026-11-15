@@ -2,7 +2,7 @@ import { weeklyGreeting, weeklyPrompt } from './prompt-pack.ts';
 import { loadScript } from '../script.ts';
 import { renderForConsole, CONSOLE_VARIABLES } from '../prompt.ts';
 
-export const WEEKLY_FLOW_POLICY = 'weekly-answer-and-farewell-v1';
+export const WEEKLY_FLOW_POLICY = 'weekly-listening-and-action-answer-v2';
 export const weeklyFlowRoles = ['first', 'return', 'female-first', 'female-return'] as const;
 export type WeeklyFlowRole = typeof weeklyFlowRoles[number];
 export interface WeeklyFlowNode {
@@ -39,7 +39,11 @@ export function bindWeeklyFlow(flow: WeeklyFlow, tools: unknown): WeeklyFlow {
 
 const stop = {
   name: 'caller_done',
-  description: 'The latest completed caller contribution explicitly asks to stop, says goodbye, says now is not a good time, or accepts a mutual close. A question awaiting an answer, silence, thanks, okay, criticism, a fragment or a declined perspective is NOT this condition. A later request to continue cancels earlier closing agreement.',
+  description: 'The latest completed caller contribution explicitly asks to stop, says goodbye, says now is not a good time, or accepts a mutual close. A yes directly answering our finish-choice question can accept that close even with an incomplete map or action. The caller asking whether we are finished is not itself agreement to end. An unanswered exercise question, silence, thanks, okay, criticism, a fragment or a declined perspective alone is NOT this condition. A later request to continue cancels earlier closing agreement.',
+};
+const actionAsked = {
+  name: 'action_asked',
+  description: 'The assistant has JUST spoken the COMPLETE fixed action read-back for the caller-chosen action, ending with Is that the action you want me to remember? It is the latest unanswered question. An older read-back, the focus question, a booking question or an already confirmed action does not qualify. This transition opens the answer phase; it does not imply agreement.',
 };
 const exit = (condition: string) => ({ type: 'llm_condition' as const, condition });
 
@@ -55,6 +59,10 @@ export function weeklyFlow(role: WeeklyFlowRole): WeeklyFlow {
     'When a question is pending and no new caller answer has arrived, call skip_turn without speech. An unfinished answer or a request for more thinking time also uses skip_turn without speech. Do not repeat the question or fill the gap.',
     'The flow, not this model, speaks the final farewell. Do not say goodbye, Take care, or another farewell and do not call end_call. When the caller_done condition is actually met, leave through that condition without spoken preamble or follow-up. The flow then speaks its one short farewell before its end node.',
     'A clear request to stop always takes priority over the introduction or action. A request to continue cancels a close. Ordinary safety rules remain in force; do not claim help was contacted.',
+    'A question about whether we are finished needs a direct answer and room to choose, not the next exercise or an automatic hangup. Follow CALLER ASKS WHETHER WE ARE DONE. A short completed answer or an already chosen activity must not be re-asked in different words.',
+    'A weekly call-time request takes priority wherever it arrives. Follow WEEKLY CALL TIME. A booking change is never an action or map agreement, and a yes to a clarification is not the answer to the interrupted read-back.',
+    'Only the action_kept say node can speak the agreed-action marker. Never say it in a model phase. After its complete read-back, enter action_answer without extra speech.',
+    'If action_declined has spoken for the current choice, move to the brief mutual close without proposing another action. Only the caller can reopen that choice.',
   ].join('\n');
   const phase = (key: string, instructions: string, conditions = [stop]): WeeklyFlowNode => ({
     key, type: 'subagent', config: {
@@ -81,19 +89,21 @@ export function weeklyFlow(role: WeeklyFlowRole): WeeklyFlow {
       'CURRENT PHASE: wait for the answer to the most recent COMPLETE map read-back. You may not say the onboarding-confirmed line or move to actions or logistics here.',
       'On phase entry, a tool return, silence, thanks, mhm, a fragment or any other non-answer, call skip_turn WITHOUT speech. Do not treat a yes given BEFORE the read-back as its answer.',
       'Only a fresh, explicit caller agreement AFTER the full read-back (and after any correction) allows map_agreed. Leave through it WITHOUT speaking: a say node owns the kept-map marker.',
+      'If the caller asks a service question or requests a time change, handle it first without marking the map agreed. If they resume the map, repeat the complete read-back and wait for a fresh answer. A yes to the service clarification cannot confirm the map.',
       'If the caller corrects a part, read back only that correction with the corresponding fixed line below, ending with Have I got that right? Then end your turn and wait for a NEW explicit agreement. A refusal or ambiguous reply is not agreement. Never edit a different part or guess missing words.',
       ...['read.first.fix_eight', 'read.first.fix_eighty', 'read.first.fix'].map(id => `${id}: ${script.get(id)}`),
       'If the caller explicitly withdraws or declines the map, use map_declined without claiming anything is kept. A clear goodbye instead uses caller_done.',
     ].join('\n\n'), [stop,
-      { name: 'map_agreed', description: 'A NEW completed caller turn AFTER the latest full map read-back or required correction explicitly agrees with that read-back. No unanswered question, silence, acknowledgement, earlier yes, partial map or self-generated confirmation can satisfy this condition.' },
+      { name: 'map_agreed', description: 'A NEW completed caller turn directly answering the latest full map read-back or required correction explicitly agrees with that read-back, without another question or change request. After any service question or booking diversion, a repeated complete read-back and a fresh agreement are required. A yes to a different question cannot confirm the map. No silence, acknowledgement, earlier yes, partial map or self-generated confirmation qualifies.' },
       { name: 'map_declined', description: 'The caller explicitly withdraws or declines the read-back rather than correcting a part. Do not mark the introduction complete.' },
     ]));
     nodes.push({ key: 'map_kept', type: 'say', config: { text: script.get('onboarding.confirmed')!, allow_interruptions: true } });
     nodes.push(phase('conversation', [
       'CURRENT PHASE: continue from the caller after the map check. The full conversation history is available. Only the map_kept say node can have confirmed the map; never say that marker yourself.',
       'Do not repeat the greeting, disclosure, location, completed perspectives or map. If a caller declined the map, leave onboarding unfinished and follow what they want to discuss without restarting it.',
-      'If map_kept was spoken, that statement needs no acknowledgement: continue directly with the focus question once, then wait for its answer. Continue to an action only if wanted. Ask the fixed action-confirmation question and END the spoken turn at that question. Wait for a NEW explicit reply before the agreed-action marker. No answer means skip_turn without speech, never an assumed yes.',
-    ].join('\n\n')));
+      'If map_kept was spoken, that statement needs no acknowledgement. First consider the latest caller contribution: answer a question about finishing, handle a service request or take an already chosen focus/action as answered. Only when still needed and wanted, offer the focus question once; use the common-focus alternative when both perspectives converge. Continue to an action only if wanted.',
+      'Ask the complete fixed action-confirmation question, END the spoken turn at it and leave through action_asked WITHOUT extra speech. The separate action_answer phase waits for agreement. If action_kept already spoke for the current action, do not ask the focus or action questions again: move to known logistics and a mutual close. Reopen the action only if the caller changes their choice.',
+    ].join('\n\n'), [stop, actionAsked]));
     edges.push(
       { from: 'introduction', to: 'map_answer', ...exit('map_asked') },
       { from: 'introduction', to: 'farewell', ...exit('caller_done') },
@@ -103,9 +113,32 @@ export function weeklyFlow(role: WeeklyFlowRole): WeeklyFlow {
       { from: 'map_kept', to: 'conversation', type: 'default' },
     );
   } else nodes.push(phase('conversation', [
-    'CURRENT PHASE: returning conversation. The greeting has already been spoken; wait for its answer. Follow the callback and caller-choice rules below.',
-    'After the fixed action-confirmation question END the spoken turn and wait for a NEW explicit answer. Do not speak the agreed-action marker without that answer. No answer or an unfinished reply means skip_turn without speech.',
-  ].join('\n\n')));
+    'CURRENT PHASE: returning conversation. The greeting has already been spoken; wait for its answer only on initial entry if it is still unanswered. On re-entry after action_kept or action_declined, do not wait for or repeat the greeting: continue from the completed choice and the latest caller contribution. Follow the callback and caller-choice rules below.',
+    'After the COMPLETE fixed action-confirmation question END the spoken turn and leave through action_asked WITHOUT extra speech. The separate action_answer phase waits for agreement. If action_kept already spoke for the current action, continue with known logistics and a mutual close without repeating the action questions. A new caller choice needs a new complete read-back.',
+  ].join('\n\n'), [stop, actionAsked]));
+  nodes.push(phase('action_answer', [
+    'CURRENT PHASE: wait for a NEW answer to the latest COMPLETE fixed action read-back. Do not say the agreed-action marker or begin closing logistics yourself.',
+    'On entry, silence, a tool return, a fragment or an unfinished answer: call skip_turn without speech. Only a fresh explicit agreement directly to the complete action read-back allows action_agreed. A courtesy reply is not agreement; use the existing complete read-back repair, then wait.',
+    `A request explicitly naming the weekly call is already clear, including "Yes, move my weekly call". Do not ask whether they mean the activity. Say ONLY the complete booking-control explanation: "${script.get('setup.change_slot')}" Then wait. Never speak the agreed-action marker for this request.`,
+    'A time-change request or another question is a diversion, even when it begins with yes. Only when the referent is genuinely ambiguous, ask which thing the time refers to, then wait. A yes about the weekly call, a reminder, availability or any clarification cannot approve the action. Do not insert the new appointment into the action. After resolving the diversion, if they continue, repeat the COMPLETE fixed action read-back in its own turn and wait for a fresh explicit agreement.',
+    `For an action correction, use the full fixed line again: ${script.get('next.confirm')} Then wait for a NEW explicit agreement. Never guess missing content or mark the earlier proposal agreed.`,
+    'An explicit choice of no action uses action_declined without a spoken preamble; its say node owns the no-action line. A request to stop uses caller_done. A question about finishing follows CALLER ASKS WHETHER WE ARE DONE, without requiring an action.',
+  ].join('\n\n'), [stop,
+    { name: 'action_agreed', description: 'The latest completed caller turn explicitly approves the action in direct answer to the latest COMPLETE fixed action read-back. It contains no question, correction, qualification or time-change request. After any diversion, a repeated COMPLETE read-back and fresh explicit agreement are required. A leading yes to a service clarification, an earlier yes, silence, thanks, a fragment or a time alone never qualifies.' },
+    { name: 'action_declined', description: 'The caller explicitly chooses not to pick or remember an action this week. This is not inferred from silence, shortness, a time-change request, a question about finishing or a correction.' },
+  ]));
+  nodes.push(
+    { key: 'action_kept', type: 'say', config: { text: script.get('next.agreed')!, allow_interruptions: true } },
+    { key: 'action_declined', type: 'say', config: { text: script.get('next.none')!, allow_interruptions: true } },
+  );
+  edges.push(
+    { from: 'conversation', to: 'action_answer', ...exit('action_asked') },
+    { from: 'action_answer', to: 'action_kept', ...exit('action_agreed') },
+    { from: 'action_answer', to: 'action_declined', ...exit('action_declined') },
+    { from: 'action_answer', to: 'farewell', ...exit('caller_done') },
+    { from: 'action_kept', to: 'conversation', type: 'default' },
+    { from: 'action_declined', to: 'conversation', type: 'default' },
+  );
   nodes.push(
     { key: 'farewell', type: 'say', config: { text: script.get('close.flow')!, allow_interruptions: false } },
     { key: 'end', type: 'end' },
