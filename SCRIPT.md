@@ -296,6 +296,14 @@ a connection manufactured is worse than none. Then:_
 `work.start`
 > "Which of those would you like to focus on this week?"
 
+`work.flow_entry`
+> "What would you like to focus on this week?"
+
+_The managed flow speaks this once when the map-answer phase hands over to the
+conversation. It also works after a declined map without implying that the map
+was kept. Do not repeat it. A volunteered activity already answers the action
+invitation; use its full read-back next, then wait for fresh agreement._
+
 `work.common`
 > "{{focus}} comes up in both. Would you like to choose something for this week?"
 
@@ -935,6 +943,14 @@ Then:
 
 `close.flow`
 > "Take care."
+
+`close.flow_offer`
+> "Is there anything else you'd like to talk about?"
+
+_The managed flow speaks this once after the agreed-action or no-action marker.
+Leave time for the answer. An explicit no to this question accepts the close;
+thanks, okay and silence alone do not. A new topic continues the conversation
+without reopening the completed action choice._
 
 _The managed weekly pilot flow speaks this short farewell in its own `say` node,
 then moves to `end`. Model phases do not say another farewell or call `end_call`.

@@ -2,7 +2,7 @@ import { weeklyGreeting, weeklyPrompt } from './prompt-pack.ts';
 import { loadScript } from '../script.ts';
 import { renderForConsole, CONSOLE_VARIABLES } from '../prompt.ts';
 
-export const WEEKLY_FLOW_POLICY = 'weekly-appointment-and-pacing-v4';
+export const WEEKLY_FLOW_POLICY = 'weekly-appointment-and-pacing-v5';
 export const weeklyFlowRoles = ['first', 'return', 'female-first', 'female-return'] as const;
 export type WeeklyFlowRole = typeof weeklyFlowRoles[number];
 export interface WeeklyFlowNode {
@@ -62,7 +62,7 @@ export function bindWeeklyFlow(flow: WeeklyFlow, tools: unknown): WeeklyFlow {
 
 const stop = {
   name: 'caller_done',
-  description: 'The latest completed caller contribution explicitly asks to stop, says goodbye, says now is not a good time, or accepts a mutual close. A yes directly answering our finish-choice question can accept that close even with an incomplete map or action. The caller asking whether we are finished is not itself agreement to end. An unanswered exercise question, silence, thanks, okay, criticism, a fragment or a declined perspective alone is NOT this condition. A later request to continue cancels earlier closing agreement.',
+  description: 'The latest completed caller contribution explicitly asks to stop, says goodbye, says now is not a good time, or accepts a mutual close. A yes directly answering our finish-choice question, or an explicit no directly answering the post-action question about anything else to discuss, can accept that close even with an incomplete map or action. The caller asking whether we are finished is not itself agreement to end. An unanswered exercise question, silence, thanks, okay, criticism, a fragment or a declined perspective alone is NOT this condition. A later request to continue cancels earlier closing agreement.',
 };
 const actionAsked = {
   name: 'action_asked',
@@ -78,9 +78,10 @@ export function weeklyFlow(role: WeeklyFlowRole): WeeklyFlow {
   const script = loadScript();
   const common = [
     `MANAGED WEEKLY FLOW ${WEEKLY_FLOW_POLICY}. These phase boundaries override the stage checklist and its old end_call instructions.`,
-    'Before advancing past a question, require a NEW, completed caller answer after that question. Your own last question is not caller input. Never simulate a yes, speak for the caller, or treat a tool return or phase entry as that answer.',
-    'When a question is pending and no new caller answer has arrived, call skip_turn without speech. An unfinished answer or a request for more thinking time also uses skip_turn without speech. Do not repeat the question or fill the gap.',
-    'A completed answer needs a response, not skip_turn. After a flow-owned acknowledgement, continue without waiting for another okay. This exception never supplies a missing answer to a map or action read-back. If the caller explicitly says their answer is finished and asks you to carry on, continue now; do not manufacture another thinking pause.',
+    'A map or action CONFIRMATION requires a NEW, completed caller answer AFTER its complete read-back, including after corrections or service diversions. Your own last question is not caller input. Never simulate a yes, speak for the caller, or treat a tool return or phase entry as that answer.',
+    'For ordinary content questions, a completed answer volunteered earlier already counts. Check the conversation before asking. If the caller has already chosen an activity, skip the action invitation and use the complete fixed action read-back. If you accidentally asked the invitation anyway, use their existing choice without demanding that they say it again. This exception never supplies agreement to a map or action read-back.',
+    'When a question still needs an answer and no new caller answer has arrived, call skip_turn without speech. An unfinished answer or a request for more thinking time also uses skip_turn without speech. Do not repeat the question or fill the gap. A completed statement that asks nothing needs no acknowledgement.',
+    'A completed answer needs a response, not skip_turn. After a flow-owned acknowledgement, no extra okay is owed, but a phase entry question is a real question and still gets time for its answer. If the caller explicitly says their answer is finished and asks you to carry on, respond now. This never supplies missing map or action agreement.',
     'The flow, not this model, speaks the final farewell. Do not say goodbye, Take care, or another farewell and do not call end_call. When the caller_done condition is actually met, leave through that condition without spoken preamble or follow-up. The flow then speaks its one short farewell before its end node.',
     'A clear request to stop always takes priority over the introduction or action. A request to continue cancels a close. Ordinary safety rules remain in force; do not claim help was contacted.',
     'A question about whether we are finished needs a direct answer and room to choose, not the next exercise or an automatic hangup. Follow CALLER ASKS WHETHER WE ARE DONE. A short completed answer or an already chosen activity must not be re-asked in different words.',
@@ -88,11 +89,12 @@ export function weeklyFlow(role: WeeklyFlowRole): WeeklyFlow {
     'Only the action_kept say node can speak the agreed-action marker. Never say it in a model phase. In conversation, after its complete read-back enter action_answer without extra speech. After the action_kept or action_declined marker, continue in post_action; do not restart the earlier exercise.',
     'If action_declined has spoken for the current choice, move to the brief mutual close without proposing another action. Only the caller can reopen that choice.',
   ].join('\n');
-  const phase = (key: string, instructions: string, conditions = [stop]): WeeklyFlowNode => ({
+  const phase = (key: string, instructions: string, conditions = [stop], firstMessage?: string): WeeklyFlowNode => ({
     key, type: 'subagent', config: {
       system_prompt_override: renderForConsole(weeklyPrompt(first) + '\n\n' + common + '\n\n' + instructions, CONSOLE_VARIABLES),
       tools_filter: ['skip_turn', 'weekly_assist'],
       exit_conditions: conditions, max_turns: 0,
+      ...(firstMessage ? { first_message: firstMessage } : {}),
     },
   });
   const nodes: WeeklyFlowNode[] = [
@@ -125,9 +127,9 @@ export function weeklyFlow(role: WeeklyFlowRole): WeeklyFlow {
     nodes.push(phase('conversation', [
       'CURRENT PHASE: continue from the caller after the map check. The full conversation history is available. Only the map_kept say node can have confirmed the map; never say that marker yourself.',
       'Do not repeat the greeting, disclosure, location, completed perspectives or map. If a caller declined the map, leave onboarding unfinished and follow what they want to discuss without restarting it.',
-      'If map_kept was spoken, that statement needs no acknowledgement. Continue on entry without skip_turn unless the caller is actually speaking, thinking, or a real question still needs an answer. First consider the latest caller contribution: answer a question about finishing, handle a service request or take an already chosen focus/action as answered. Only when still needed and wanted, offer the focus question once; use the common-focus alternative when both perspectives converge. Continue to an action only if wanted.',
+      'The flow has already spoken this phase\'s opening focus question. Do not repeat it or ask for acknowledgement of the kept-map statement. Wait if the caller is thinking; then follow their answer. A short choice or activity already answers the relevant content question: "The last one. Do something fun" goes directly to the full action read-back, without another action invitation. If a focus or action was already volunteered, accept it without asking for it again. A request to finish, service question or request for more conversation takes priority over the action checklist.',
       'Ask the complete fixed action-confirmation question, END the spoken turn at it and leave through action_asked WITHOUT extra speech. The separate action_answer phase waits for agreement. After the resulting marker, post_action owns logistics, any caller-led correction and the mutual close.',
-    ].join('\n\n'), [stop, actionAsked]));
+    ].join('\n\n'), [stop, actionAsked], script.get('work.flow_entry')!));
     edges.push(
       { from: 'introduction', to: 'map_answer', ...exit('map_asked') },
       { from: 'introduction', to: 'farewell', ...exit('caller_done') },
@@ -157,13 +159,13 @@ export function weeklyFlow(role: WeeklyFlowRole): WeeklyFlow {
   );
   nodes.push(phase('post_action', [
     'CURRENT PHASE: after the action choice. The flow already spoke the agreed-action or no-action marker. Continue from that completed choice and the latest caller contribution. Do not repeat the greeting, map, focus or invitation to choose an action.',
-    'The marker is a statement, not another question. Continue on entry with known appointment information at a natural close; do not wait for another acknowledgement or use skip_turn solely because the marker just played. Still leave room when the caller is actually thinking or continuing, and never assume agreement to a later revised action.',
+    'This phase\'s opening question about anything else to discuss has already been spoken on entry. Do not repeat it or wait for an acknowledgement of the action marker. Give the caller time to answer this actual question. A clear no directly to it accepts the close; a yes leaves room for their topic. Thanks, okay or silence alone do not answer it or permit a hangup. Follow a substantive topic immediately without another action question.',
     'Use only known logistics and leave room for questions, feedback or a request to keep talking. An acknowledgement, silence or a request to move the weekly call is not a mutual close. A clear goodbye uses caller_done; the flow alone speaks the farewell.',
     'If the caller reopens their choice, handle later corrections HERE, without returning to conversation or action_answer. Keep the current choice unless they actually change it. An earlier no-action choice does not prevent a new caller-chosen activity.',
     `Read a changed action back with the COMPLETE fixed question: ${script.get('next.confirm')} END the spoken turn there and wait for a NEW explicit answer, including after every correction or service diversion. With no new answer, call skip_turn without speech. Never use a yes to a booking clarification as approval, invent an activity or treat a courtesy reply as agreement.`,
     'Only after that fresh explicit approval may you briefly acknowledge the revised choice and continue. Do not repeat the flow-owned agreed-action marker or claim technical storage succeeded. The strict read-back-plus-caller-answer storage boundary applies to every revision; an acknowledgement alone saves nothing.',
     'A weekly booking change still follows WEEKLY CALL TIME, with the complete fixed call-page explanation and no invented success. A question about finishing still follows CALLER ASKS WHETHER WE ARE DONE. Neither requires an action before the caller can end.',
-  ].join('\n\n')));
+  ].join('\n\n'), [stop], script.get('close.flow_offer')!));
   edges.push(
     { from: 'conversation', to: 'action_answer', ...exit('action_asked') },
     { from: 'action_answer', to: 'action_kept', ...exit('action_agreed') },

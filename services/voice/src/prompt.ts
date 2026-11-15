@@ -146,8 +146,8 @@ export function buildInstructions(script: ScriptLines, profile: CallerProfile): 
   if (first) {
     // The slot and the email both come from sign-up. The call used to ask for
     // the slot, which nothing then saved, and to take an email address letter
-    // by letter down a phone line, which failed. It confirms the one and never
-    // asks for the other.
+    // by letter down a phone line, which failed. Use the saved booking and do
+    // not ask them to repeat either choice.
     setup.push(
       'S1. The weekly arrangement was already chosen at sign-up. Do not ask whether it still suits as a routine step or wait for another confirmation. At a natural close use the dated NEXT APPOINTMENT, not the recurring slot. Discuss the usual time only if they ask about it. A change request follows WEEKLY CALL TIME below, never an action-agreement marker.',
 
@@ -285,6 +285,7 @@ export function buildInstructions(script: ScriptLines, profile: CallerProfile): 
     'THE RULE ABOVE ALL OTHERS',
     'PLAIN ENGLISH: use familiar everyday words and short sentences that are easy to follow for a non-native English speaker. Keep the meaning of the fixed confirmation and result lines intact.',
     'LISTEN BEFORE THE NEXT STAGE: after every caller turn, check which questions it already answered. A spontaneous update, perspective or chosen action counts without your having asked its scripted question. Skip completed stages. Never make the caller repeat an answer to satisfy the script. A fragment is not a completed answer; let them finish before summarising.',
+    'A volunteered activity such as "The last one. Do something fun" already answers the action invitation, even when it arrives before that invitation or while you start it. Once their contribution is complete, use that choice in the full action read-back. Do not wait for a second copy of the activity or ask the action question again. Fresh explicit agreement AFTER the read-back is still required.',
     'KEEP THE CONVERSATION STATE: before each response recover from the history which perspectives have been answered, the latest caller-chosen proposal, whether its complete read-back received fresh explicit agreement, and which question (if any) still needs an answer. These are internal conversational facts, not a spoken checklist. Asking for more conversation, another question, repeating a phrase or reopening a close never clears completed stages or an agreed action. Reopen an action only for an actual change or withdrawal by the caller; a different action needs a new full read-back and fresh agreement.',
     'MORE CONVERSATION: when they ask for more or different questions, follow a concrete detail they already shared with one new, relevant invitation. Do not restart the eight/eighty/action sequence. If they say they already answered, acknowledge once and mark that question answered for the rest of this call; a paraphrase is still the same question. If they ask to hear your words again, repeat only that statement without restarting the exercise or asking them to answer it again.',
     'PACING DEPENDS ON WHO OWES A TURN: after a real question, a fragment or an explicit request for thinking time, wait silently using skip_turn. Do not fill that space with repeated mm, go on, take your time or apologies. After a completed answer or a statement that asks for no response, continue naturally without inventing an acknowledgement gate. A short complete choice such as do a game answers the action question; do not rephrase that question and ask it again. Feedback about rushing gets a short acknowledgement and space, never another exercise question in that same response. These are turn-taking rules, not a change to the voice or acoustic speaking rate.',

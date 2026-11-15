@@ -13,6 +13,35 @@ const c = (text: string): Turn => ({ speaker: 'caller', text });
 const fullMap = script.get('read.first.keep')!.replace('{{eight}}', 'playing games').replace('{{eighty}}', 'time with family').replace('{{goals}}', 'learn to sail');
 const outcome = (turns: Turn[]) => settle({ providerCallId: 'fictional', durationMs: 160_000, turns }, script).outcome;
 
+test('statement handoffs speak an entry question while answer checkpoints retain a silent entry', () => {
+  for (const role of weeklyFlowRoles) {
+    const flow = weeklyFlow(role);
+    const post = flow.nodes.find(n => n.key === 'post_action')!;
+    assert.equal(post.config?.first_message, script.get('close.flow_offer'));
+    assert.match(String(post.config?.system_prompt_override), /Thanks, okay or silence alone do not answer it/);
+    for (const key of ['introduction', 'map_answer', 'action_answer']) {
+      const checkpoint = flow.nodes.find(n => n.key === key);
+      if (checkpoint) assert.equal(checkpoint.config?.first_message, undefined, key + ' must not talk over its pending answer');
+    }
+    const conversation = flow.nodes.find(n => n.key === 'conversation')!;
+    assert.equal(conversation.config?.first_message, role.endsWith('first') ? script.get('work.flow_entry') : undefined);
+    assert.match(String(conversation.config?.system_prompt_override), /If you accidentally asked the invitation anyway, use their existing choice/);
+  }
+});
+
+test('entry questions and acknowledgements cannot supply map or action consent', () => {
+  const confirm = script.get('next.confirm')!.replace('{{commitment}}', 'do something fun');
+  for (const reply of [[], [c('Let me think.')], [c('Okay.')], [c('Thanks.')]]) {
+    assert.equal(outcome([a(fullMap), ...reply, a(script.get('onboarding.confirmed')!), a(script.get('work.flow_entry')!)])?.onboardingComplete, undefined);
+    assert.equal(outcome([c('Do something fun.'), a(confirm), ...reply, a(script.get('next.agreed')!), a(script.get('close.flow_offer')!)])?.commitment, undefined);
+  }
+  const good = outcome([a(fullMap), c('Uh, yeah, I guess so.'), a(script.get('onboarding.confirmed')!),
+    a(script.get('work.flow_entry')!), c('The last one. Do something fun.'), a(confirm), c('Yeah.'),
+    a(script.get('next.agreed')!), a(script.get('close.flow_offer')!), c('No, thank you.'), a('Take care.')]);
+  assert.equal(good?.onboardingComplete, true);
+  assert.equal(good?.commitment, 'do something fun');
+});
+
 test('provider pause probes carry each actual phase prompt without claiming exit or audio evidence', () => {
   const plan = weeklyFlowProbePlan('a'.repeat(40));
   assert.equal(plan.probes.length, 20);

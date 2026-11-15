@@ -62,18 +62,21 @@ function heads(value: unknown): { active: WeeklyFlow | null; draft: WeeklyFlow |
 
 // Exact portable graphs from PR46 source 48808c8c82a91b40123762aa4243cfaf900e8c8e.
 // PR56 source 97fc501 and publishable successor 46e67b9 are also pinned below.
-// PR59/60 source 2753247 is the appointment/pacing predecessor.
+// The last pair pins the deployed PR59/60 graph (2753247) before entry speech.
+// PR61 source 3b959d8 pins the entry-question graph before appointment fixes.
 // Only attached tool IDs vary per agent. Matching a policy label or topology is
 // insufficient: a manually edited prompt must not be silently overwritten.
 const previousGraphDigests = {
   first: ['2afc6fe84690af03707c0ae0622862218a3cf999d7e06975c3270c14a0793fef',
     '31ad484e6994b5dd7f55d0eb8219d7cebff5db59b91f2fd8cb74a7087322de6d',
     '75c7d098f2efdc79a0c18ce3fe2031dc03df4c2cee7239a663febd78bd141716',
-    '2f57ce9b064d5dd5eddf7ef21f586993acdb71e8db27880e4f39bf11db91aee8'],
+    '2f57ce9b064d5dd5eddf7ef21f586993acdb71e8db27880e4f39bf11db91aee8',
+    '645ed965255e49963127a39ad2f2b038d1f9f435de162e610ac574ad5a3c7ee4'],
   return: ['3d0b35bcc55bc9bc1c26321d5a1dce74a2ca0705ff6bcc46fcb2db32b6a0bff9',
     '15aace53134f9622f4959ccde308ea00f47d9936dd1873fb5e1711bb541dce5b',
     '4d5586a24e901cfaa71b9ed49646e84e6891be2f36f0fbe44fcfaad2f0005f1b',
-    '5971985ff0719c38b300cfe8ba852803bc931d1c3e0f1e856842cd1309b48d48'],
+    '5971985ff0719c38b300cfe8ba852803bc931d1c3e0f1e856842cd1309b48d48',
+    '960d83f793e23294644b519785fadcd80823cb202ce24f11a28c2aaf814bc01c'],
 };
 function canonical(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonical);

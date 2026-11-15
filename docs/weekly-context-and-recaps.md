@@ -64,7 +64,9 @@ single flow-owned farewell retain their existing contracts.
 
 Completed short answers and flow-owned acknowledgement statements no longer
 create an extra waiting gate. The first call no longer asks routinely whether
-the weekly time chosen at sign-up still suits. An explicit request to carry on after delay
+the weekly time chosen at sign-up still suits. PR61's spoken phase-entry
+questions remain in place and still wait for an actual answer; an
+acknowledgement of a marker is not an extra prerequisite. An explicit request to carry on after delay
 feedback gets a response; unfinished answers and requests for thinking time
 still use `skip_turn`. All four weekly source specs also request
 `turn_handling.response_delay_seconds = 0`. The settings sync backs it up,
@@ -84,7 +86,7 @@ four private pilot agents, retaining the existing pilot hold. Use the private
 pilot settings setup (`syncAgents` with `dialoguePilot: true` and verified private
 role IDs); ordinary `speechify:sync --apply` remains blocked during that hold.
 Then stage, activate and read back the four graphs with `weekly:flow --owner-pilot`.
-An exact PR59/60 graph can be upgraded, while an edited prompt or unrelated draft
+An exact PR59/60 or PR61 graph can be upgraded, while an edited prompt or unrelated draft
 is still refused. No migration is needed. A later explicitly authorized phone
 test must confirm conversational pace and the audible farewell before voice
 approval; text-test success alone cannot approve the experience.
