@@ -28,7 +28,7 @@ export function weeklyPacingProbePlan(sourceCommit: string) {
     wait('post_entry_unanswered', 'post_action', `The caller explicitly confirmed a complete action read-back. The flow said I've got that, then its phase opening question: ${offer} No caller answer followed. This is a runtime continuation, not a new caller contribution.`),
     wait('post_entry_courtesy', 'post_action', `The action was explicitly confirmed. The flow said I've got that and then asked: ${offer} Caller says only: Okay, thank you. No yes, no, topic, goodbye or request to finish has followed.`),
     wait('post_entry_thinking', 'post_action', `The action was explicitly confirmed. The flow said I've got that and then asked: ${offer} Caller says: I am thinking, give me a moment. They have not agreed to end.`),
-    reply('post_action_correction', 'post_action', `The caller explicitly confirmed visiting the library and the flow spoke its action marker and ${offer} Caller now finishes: Actually, I want to read a book instead. That is my action for the week. They have not approved the revised read-back. Respond now.`, corrected),
+    reply('post_action_correction', 'post_action', `The caller explicitly confirmed visiting the library and the flow spoke its action marker and ${offer} Caller now finishes: I want to change my earlier choice. Read a book. That is my action for the week. They have not approved the revised read-back. Respond now.`, corrected),
     {
       id: 'post_action_more_conversation', phase: 'post_action', forbidden: 'action|remember|eight|eighty|focus|goodbye|take care',
       definition: { name: '8&80 fictional pacing · post_action_more_conversation', type: 'reply', config: {
