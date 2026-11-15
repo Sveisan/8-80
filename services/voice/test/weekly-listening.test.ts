@@ -22,6 +22,8 @@ for (const reply of [
   'Yes, at 16:30.',
   'Yes, half past four.',
   'Ja, klokken 16:30.',
+  'Ja, lørdag.',
+  'Ja, søndag.',
   'Ja, flytt den ukentlige samtalen til onsdag klokken 18.',
   'Ja. Kan vi endre tidspunktet',
   'Yes, but change the action.',

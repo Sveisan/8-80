@@ -233,7 +233,7 @@ function divertsReadBack(text: string, expectedAction?: string): boolean {
   return text.includes('?')
     || /\b(change|changing|move|moving|reschedule|switch|instead|endre|endrer|flytt|flytte|heller|i stedet)\b/.test(answer)
     || /\b(can|could|would|will) (?:you|we)\b|\b(kan|kunne|vil) (?:du|vi)\b/.test(answer)
-    || /\b(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|mandag|tirsdag|onsdag|torsdag|fredag|lordag|lørdag|sondag|søndag)\b/.test(answer)
+    || /\b(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|mandag|tirsdag|onsdag|torsdag|fredag|lordag|lørdag|sondag|søndag)\b/i.test(text)
     || /\b(?:at|kl|klokken|clock|half past|quarter past|quarter to|halv|kvart)\s+(?:\d{1,2}|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|ett|to|tre|fire|fem|seks|sju|syv|åtte|ni|ti|elleve|tolv)\b|\b\d{1,2}:\d{2}\b/i.test(text);
 }
 
