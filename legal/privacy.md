@@ -153,6 +153,13 @@ Our service suppliers:
 - **TypeSafe (Jev)**, when quality review is enabled, receives the text of completed weekly calls and the conversational paragraphs of their recap to flag unnecessary repeated questions and unsupported recap claims. Phone numbers, email addresses, account identifiers and billing/scheduling paragraphs are not added to this request; personal details spoken in the conversation can still be present. This review does not decide or change your actions, consent, memory, bookings or messages.
 - **Twilio** send the texts. They receive your number.
 - **Resend** send the email. They receive your address.
+- **Google Calendar**, when native calendar invitations are enabled and you opt in,
+  receives your invitation address, a generic call title and the appointment time.
+  Moving that invitation can update the next call; it does not change your fixed
+  weekly time. We read changes to 8&80's own events, not the rest of your calendar.
+  We request removal of the organizer's event when you delete your account and
+  remove completed organizer events after 30 days. Your calendar provider may
+  retain its own copy under its settings.
 - **The payment provider shown at checkout (Stripe or Lemon Squeezy)** processes
   payments. It receives the information you submit there. We receive subscription
   and customer ids, status, renewal cancellation and paid-period dates. When you

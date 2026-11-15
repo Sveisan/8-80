@@ -84,6 +84,11 @@ export class Scheduler {
           and (not cancel_at_period_end or paid_until > ${now})
           and next_call_at is not null
           and next_call_at <= ${now}
+          and (calendar_invites_enabled=false or not exists (
+            select 1 from calendar_invitations i where i.phone_hash=callers.phone_hash and i.provider='google' and i.scheduled_at=callers.next_call_at
+              and (not i.google_valid or not exists (select 1 from google_calendar_sync g where g.calendar_id=i.google_calendar_id
+                and g.failed=false and g.last_synced_at>=${new Date(+now-2*60_000)}))
+          ))
           and slot_weekday is not null
           and slot_minute is not null
           and timezone is not null

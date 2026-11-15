@@ -7,6 +7,7 @@ import { repoRoot } from './config.ts';
  * exactly which field is wrong.
  */
 import { config } from './config.ts';
+import { googleCalendarConfig, googleCalendarReady } from './calendar/google-config.ts';
 
 export interface Check {
   ok: boolean;
@@ -115,6 +116,12 @@ function placeholders(env: NodeJS.ProcessEnv, checks: Check[]): void {
 
 export function preflight(env: NodeJS.ProcessEnv = process.env): Check[] {
   const checks: Check[] = [];
+  const google = googleCalendarConfig(env);
+  if (google.enabled || google.clientId || google.clientSecret || google.refreshToken || google.calendarId) checks.push({
+    ok:googleCalendarReady(env) && !!env['RESEND_API_KEY'] && !!env['RECAP_FROM_ADDRESS'] && /^https:\/\//.test(env['PUBLIC_URL'] ?? ''),
+    label:'Google Calendar has organizer OAuth, an explicit calendar ID, email and a public controls URL',
+    detail:'Follow docs/google-calendar-sync.md before enabling; use an organizer refresh token, not a service account or a customer calendar.',
+  });
   if (env['WEEKLY_TOOLS_READY']==='1') {
     const number=(env['SMS_FROM_NUMBER']??'').replace(/[\s()-]/g,'');
     const callerId=(env['SPEECHIFY_CALLER_ID_NUMBER']??'').replace(/[\s()-]/g,'');

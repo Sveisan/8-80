@@ -10,6 +10,8 @@ export interface CalendarEvent {
   description?: string;
   /** Null omits the place; absent preserves the contents of older queued mail. */
   location?: string | null;
+  /** Captured per invitation: existing .ics events keep their original transport. */
+  google?: { calendarId: string; eventId: string; expectedEtag?: string };
 }
 
 const timestamp = (iso: string): string => new Date(iso).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');

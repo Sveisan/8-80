@@ -29,6 +29,7 @@ export class ResendMailer implements Mailer {
   ) {}
 
   async send(to: string, recap: Recap, options?: SendOptions): Promise<Receipt> {
+    if (recap.calendar?.google) throw new SendFailure('retry','Google Calendar transport is unavailable; a second ICS invitation was not sent');
     const res = await fetch(this.endpoint, {
       method: 'POST',
       signal: AbortSignal.timeout(8000), redirect: 'error',

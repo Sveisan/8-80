@@ -6,6 +6,7 @@
     "services/*"
   ],
   "scripts": {
+    "calendar:google": "npm run -w @8and80/voice calendar:google --",
     "weekly:flow": "npm run -w @8and80/voice weekly:flow --",
     "quality:tips": "npm run -w @8and80/voice quality:tips --",
     "weekly:tools": "npm run -w @8and80/voice weekly:tools --",

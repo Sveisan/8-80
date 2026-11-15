@@ -1,6 +1,6 @@
 import { qualityRoutes } from './quality/routes.ts';
 import { serveDesignAsset } from './design-system/assets.ts';
-import { setCalendarInvitations, syncCalendarInvitations } from './calendar/invitations.ts';
+import { setCalendarInvitations, syncCalendarInvitations, useGoogleCalendar } from './calendar/invitations.ts';
 import { countRequest } from './journey/measure.ts';
 import twilio from 'twilio';
 import { randomUUID } from 'node:crypto';
@@ -24,6 +24,7 @@ import { Scheduler, checkedIn } from './schedule/scheduler.ts';
 import { replyAlertText } from './call/safety.ts';
 import { SpeechifyAgent } from './agent/speechify.ts';
 import { openMailer } from './recap/mailer.ts';
+import { openGoogleCalendar } from './calendar/google-client.ts';
 import { openSms } from './sms/index.ts';
 import { handleReply } from './sms/missed.ts';
 import { verifySignature } from './webhook/signature.ts';
@@ -651,9 +652,10 @@ async function yourPage(
     await measured(true);
     return await page(undefined, undefined, { scheduleNote: 'page.nudges.saved' });
   }
-  if (action === 'calendar-on' || action === 'calendar-off') {
+  if (action === 'calendar-on' || action === 'calendar-off' || action === 'calendar-google') {
     if (action === 'calendar-on' && !caller.email) return await page(undefined, undefined, { scheduleNote: 'calendar.preference.email' });
-    const ids = await setCalendarInvitations(deps.store.raw, phoneHash, action === 'calendar-on', deps.script);
+    const ids = action === 'calendar-google' ? await useGoogleCalendar(deps.store.raw,phoneHash,deps.script)
+      : await setCalendarInvitations(deps.store.raw, phoneHash, action === 'calendar-on', deps.script);
     for (const id of ids) await dispatchMessage(deps, id);
     await measured(true);
     return await page(undefined, undefined, { scheduleNote: 'calendar.preference.saved' });
@@ -783,6 +785,7 @@ async function emailEverything(deps: LoopDeps, phone: string, email: string | un
 /** Everything the loop needs, from the environment. */
 export function openDeps(): LoopDeps {
   const store = openStore();
+  const googleCalendar = openGoogleCalendar();
   if (!(store instanceof PostgresStore)) {
     throw new Error('The control plane needs DATABASE_URL: a file store cannot turn a hash back into a number.');
   }
@@ -796,7 +799,8 @@ export function openDeps(): LoopDeps {
       config.speechify.base,
       config.speechify.send,
     ),
-    mailer: openMailer(),
+    mailer: openMailer(googleCalendar),
+    ...(googleCalendar ? {googleCalendar} : {}),
     sms: openSms(),
     script: loadScript(),
     deliveries: new Deliveries(store.raw),

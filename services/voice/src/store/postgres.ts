@@ -323,6 +323,9 @@ export class PostgresStore implements Store {
       await tx`delete from access_codes where phone_hash = ${hash}`;
       await tx`delete from message_attempts where message_id in (select id from message_outbox where phone_hash = ${hash})`;
       await tx`delete from message_outbox where phone_hash = ${hash}`;
+      await tx`insert into google_calendar_deletes (event_id,calendar_id)
+        select google_event_id,google_calendar_id from calendar_invitations
+        where phone_hash=${hash} and provider='google' on conflict do nothing`;
       await tx`delete from calendar_invitations where phone_hash = ${hash}`;
       await tx`delete from webhook_deliveries where conversation_id in (
         select provider_call_id from call_attempts where phone_hash = ${hash} and provider_call_id is not null
