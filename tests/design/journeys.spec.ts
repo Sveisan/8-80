@@ -6,13 +6,13 @@ test.beforeEach(async ({ request }) => { await fixture(request, 'reset'); });
 test('booking verifies the SMS code before creating a caller and preserves field errors', async ({ page, request }, testInfo) => {
   const phone = testInfo.project.name === 'chromium' ? '+4792110101' : '+4792110201';
   await page.goto('/start');
-  await page.getByLabel('What shall we call you?', { exact: true }).fill('Alex');
+  await page.getByLabel('What shall we call you? (optional)', { exact: true }).fill('Alex');
   await page.getByLabel('Your number', { exact: true }).fill(phone);
   await page.getByLabel('Email', { exact: true }).fill('alex@');
   await page.getByRole('button', { name: 'Book my first call', exact: true }).click();
   await expect(page.getByLabel('Email', { exact: true })).toHaveAttribute('aria-invalid', 'true');
   await expect(page.getByLabel('Email', { exact: true })).toBeFocused();
-  await expect(page.getByLabel('What shall we call you?', { exact: true })).toHaveValue('Alex');
+  await expect(page.getByLabel('What shall we call you? (optional)', { exact: true })).toHaveValue('Alex');
   await page.getByLabel('Email', { exact: true }).fill('alex@example.com');
   await page.getByRole('button', { name: 'Book my first call', exact: true }).click();
   await expect(page.locator('#code')).toBeVisible();
@@ -24,6 +24,7 @@ test('booking verifies the SMS code before creating a caller and preserves field
   await page.locator('#code').fill(String(code));
   await expect(page).toHaveURL(/\/me$/);
   await expect(page.locator('.appointment')).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('weekly-booked.png'), fullPage: true });
   const { caller } = await fixture(request, 'state', { phone });
   expect(caller).toMatchObject({ billing_status: 'trialing', onboarding: 'pending', paused: false });
 });
@@ -61,7 +62,7 @@ test('an expired verification code and an expired link lead back to recovery', a
 test('a slow submission keeps its accessible label and back navigation restores the form', async ({ page }, testInfo) => {
   const phone = testInfo.project.name === 'chromium' ? '+4792170101' : '+4792170201';
   await page.goto('/start');
-  await page.getByLabel('What shall we call you?', { exact: true }).fill('Alex');
+  await page.getByLabel('What shall we call you? (optional)', { exact: true }).fill('Alex');
   await page.getByLabel('Your number', { exact: true }).fill(phone);
   await page.getByLabel('Email', { exact: true }).fill('alex@example.com');
   let release!: () => void;

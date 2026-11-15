@@ -77,7 +77,7 @@ test('the sign-up page says it is an AI, first among its questions', () => {
   const page = signupPage(script);
   assert.match(page, /\ban AI\b/i, 'the page no longer says what is on the other end');
 
-  const first = /<summary[^>]*>([\s\S]*?)<\/summary>/.exec(page)?.[1] ?? '';
+  const first = /<section class="faq">[\s\S]*?<summary[^>]*>([\s\S]*?)<\/summary>/.exec(page)?.[1] ?? '';
   assert.ok(first, 'no questions on the page — this test is checking nothing');
   assert.match(first, /Who&#39;s on the other end\?/, `the first question is "${first.trim()}"`);
   assert.ok(page.includes("ask for a card"), "the free month is stated near the button");
@@ -88,6 +88,16 @@ test('nothing on the sign-up page asks for a password', () => {
   const page = signupPage(script);
   assert.ok(!page.includes('type="password"'));
   assert.ok(!/sign in|log in|login/i.test(page));
+});
+
+test('the offer says a weekly phone call and discloses the AI before booking, with optional preferences collapsed', () => {
+  const page = signupPage(script);
+  assert.ok(page.includes('A weekly phone call'));
+  assert.doesNotMatch(page, /A weekly AI phone/);
+  assert.ok(page.indexOf('Calls are with an AI') < page.indexOf('<form method="post" action="/start"'));
+  assert.ok(page.indexOf('href="/access">Your calls') < page.indexOf('class="signup-layout"'));
+  assert.match(page, /<details class="booking-options">/);
+  assert.ok(page.indexOf('id="when"') < page.indexOf('class="booking-options"'));
 });
 
 test('the code page carries the number so a reload does not lose it', () => {

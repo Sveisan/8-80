@@ -14,21 +14,26 @@ for (const theme of ['light', 'dark']) {
   });
 }
 
-test('200 percent text and the narrowest supported viewport preserve reflow', async ({ page }) => {
-  await page.setViewportSize({ width: 320, height: 800 });
-  for (const path of ['/start', '/access', '/me', '/memory', '/feedback', '/beliefs', '/beliefs/account', '/privacy', '/unblock', '/unblock/account', '/unblock/schedule']) {
-    await page.goto(`${preview}${path}`);
-    await page.addStyleTag({ content: 'html { font-size: 200% !important; }' });
-    const size = await page.evaluate(() => ({ viewport: document.documentElement.clientWidth, content: document.documentElement.scrollWidth }));
-    expect(size.content, path).toBeLessThanOrEqual(size.viewport + 1);
-    await expect(page.locator('h1')).toBeVisible();
-    for (const day of await page.locator('.days .pick > span').all()) {
-      if (!await day.isVisible()) continue;
-      const text = await day.evaluate(element => {
-        const selection = document.createRange(); selection.selectNodeContents(element);
-        return { height: selection.getBoundingClientRect().height, line: parseFloat(getComputedStyle(element).lineHeight) };
-      });
-      expect(text.height, 'weekday abbreviations stay together').toBeLessThanOrEqual(text.line + 1);
+test('normal and enlarged text preserve reflow and unbroken weekday labels on narrow screens', async ({ page }) => {
+  for (const width of [320, 375]) {
+    await page.setViewportSize({ width, height: 800 });
+    for (const path of ['/start', '/access', '/me', '/memory', '/feedback', '/beliefs', '/beliefs/account', '/privacy', '/unblock', '/unblock/account', '/unblock/schedule']) {
+      await page.goto(`${preview}${path}`);
+      for (const scale of [100, 200]) {
+        await page.addStyleTag({ content: `html { font-size: ${scale}% !important; }` });
+        const size = await page.evaluate(() => ({ viewport: document.documentElement.clientWidth, content: document.documentElement.scrollWidth }));
+        expect(size.content, `${path} at ${width}px / ${scale}%`).toBeLessThanOrEqual(size.viewport + 1);
+        await expect(page.locator('h1')).toBeVisible();
+        for (const day of await page.locator('.days .pick > span:first-of-type').all()) {
+          const text = await day.evaluate(element => {
+            const selection = document.createRange(); selection.selectNodeContents(element);
+            const bounds = selection.getBoundingClientRect(), style = getComputedStyle(element);
+            return { height: bounds.height, width: bounds.width, available: element.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight), line: parseFloat(style.lineHeight) };
+          });
+          expect(text.height, 'weekday abbreviations stay together').toBeLessThanOrEqual(text.line + 1);
+          expect(text.width, 'weekday abbreviations fit inside their control').toBeLessThanOrEqual(text.available + 1);
+        }
+      }
     }
   }
 });
@@ -40,6 +45,8 @@ test('Unblock keeps native light-call choices visible, labelled and usable', asy
   await none.check();
   await expect(none).toBeChecked();
   await expect(none).toHaveCSS('opacity', '1');
+  await expect(page.locator('[data-light-settings]')).toBeHidden();
+  await page.getByRole('radio', { name: 'Choose light-call evenings', exact: true }).check();
   const monday = page.getByRole('checkbox', { name: 'Mon', exact: true });
   await monday.uncheck();
   await expect(monday).not.toBeChecked();

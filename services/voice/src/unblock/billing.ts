@@ -11,6 +11,8 @@ import { unblockConfig } from './config.ts';
 import { UnblockRepository, type Enrollment } from './repository.ts';
 import type { Programme } from './model.ts';
 import { decrypt } from '../store/crypto.ts';
+import { describeAppointment } from '../schedule/time.ts';
+import { contactCardUrl } from '../link/vcard.ts';
 
 /**
  * Unblock's own monthly subscription, separate from the weekly 8&80 one. It reuses the weekly provider code (signature check, gateway reads,
@@ -79,8 +81,13 @@ export async function applySubscription(deps: LoopDeps, enrollmentId: string, ch
 async function confirmation(tx: postgres.TransactionSql, deps: LoopDeps, hash: string, provider: string, subscriptionId: string, now: Date): Promise<string | undefined> {
   const phone = await deps.store.in(tx).phoneFor(hash); const base = config.link.publicUrl().replace(/\/$/, '');
   if (!phone || !base) return undefined;
+  const loaded = await new UnblockRepository(tx).load(hash);
+  const e = loaded?.enrollment;
+  const next = e ? [e.opening_at, e.next_weekly_at].filter((d): d is Date => !!d && d > now).sort((a, b) => +a - +b)[0] : undefined;
+  const card = contactCardUrl(base);
+  const appointment = next && e ? `We will call your phone ${describeAppointment(next, e.timezone)}. ` : 'Choose or check your call times. ';
   return enqueue(tx, { eventKey: `unblock:subscription:${provider}:${subscriptionId}:${randomUUID()}`, phoneHash: hash, channel: 'sms', kind: 'unblock', to: phone,
-    body: `Your 8&80 Unblock subscription is confirmed. Choose or check your call times: ${base}/unblock/access` }, now);
+    body: `Your 8&80 Unblock subscription is confirmed. ${appointment}Manage your calls: ${base}/unblock/account${card ? `\nSave our number: ${card}` : ''}` }, now);
 }
 
 /** Refresh after the caller returns from the provider's billing portal, where they may have cancelled, resumed or changed their card. */

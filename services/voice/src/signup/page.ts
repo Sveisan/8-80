@@ -150,6 +150,7 @@ export function signupPage(
 
   return shell(
     `
+    <nav class="product-nav" aria-label="Products"><span aria-current="page">${say('signup.nav.weekly')}</span><a href="/unblock">Unblock</a><a href="/access">${say('page.title')}</a></nav>
     <div class="signup-layout">
     <section class="signup-intro" aria-labelledby="intro-heading">
     ${LOCKUP}
@@ -157,7 +158,7 @@ export function signupPage(
     <h1 id="intro-heading">${say(headline)}${second}</h1>
     ${inFaq('signup.honest') ? '' : `<p class="honest">${say('signup.honest')}</p>`}
 
-    <p class="honest intro-summary">${say('signup.summary')}</p>
+    <p class="honest intro-summary">${say('signup.summary')}</p><p class="honest intro-summary">${say('signup.summary.detail')} ${say('signup.honest.short')}</p>
     <figure class="perspectives">
       <svg viewBox="0 0 440 170" aria-hidden="true" focusable="false">
         <path d="M80 100 C140 25 300 25 360 100" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".35"/>
@@ -170,7 +171,7 @@ export function signupPage(
       </svg>
       <figcaption><span>${say('signup.visual.eight')}</span><span>${say('signup.visual.eighty')}</span></figcaption>
     </figure>
-    <p class="intro-note">${say('signup.visual.detail')}</p>
+
     </section>
     <section class="booking-panel" aria-labelledby="booking-heading">
     <p class="eyebrow">${say('signup.booking.step')}</p>
@@ -180,15 +181,11 @@ export function signupPage(
 
     <form method="post" action="/start" novalidate>
       <div class="fields">
-        ${field('name', say('signup.name'), 'text', 'autocomplete="given-name" autocapitalize="words" maxlength="80" enterkeyhint="next"')}
+        ${field('name', say('signup.name.optional'), 'text', 'autocomplete="given-name" autocapitalize="words" maxlength="80" enterkeyhint="next"')}
         ${field('phone', say('signup.phone'), 'tel', 'autocomplete="tel" inputmode="tel" enterkeyhint="next" required')}
         ${field('email', say(script.get('signup.email.short') ? 'signup.email.short' : 'signup.email'), 'email', 'autocomplete="email" autocapitalize="off" spellcheck="false" enterkeyhint="done" required')}
       </div>
 
-      ${femaleVoiceReady() ? `<fieldset class="voice-choice"><legend>${say('signup.voice')}</legend><div class="voice-options">
-        ${(['male', 'female'] as const).map(voice => `<label class="pick"><input type="radio" name="voice" value="${voice}"${(v.voice || 'male') === voice ? ' checked' : ''}/><span>${say(`signup.voice.${voice}`)}</span></label>`).join('')}
-      </div><p class="quiet small">${say('signup.voice.detail')}</p></fieldset>` : ''}
-      ${note('voice')}
       <fieldset${v.weekday || v.time ? '' : ' data-auto'} id="when">
         <legend>${say('signup.when')}</legend>
         <p class="zone" id="zone" data-other="${say('time.zone.other')}">${say('time.zone.home')}</p>
@@ -219,9 +216,16 @@ export function signupPage(
         <button type="submit" formaction="/start/preview" formnovalidate>${say('signup.appointment.check')}</button>
       </div>
       <p class="quiet small">${say('signup.appointment.detail')}</p>
+      <details class="booking-options"${wrong.has('voice') || wrong.has('nudges') ? ' open' : ''}>
+        <summary>${say('signup.options')}</summary>
+      ${femaleVoiceReady() ? `<fieldset class="voice-choice"><legend>${say('signup.voice')}</legend><div class="voice-options">
+        ${(['male', 'female'] as const).map(voice => `<label class="pick"><input type="radio" name="voice" value="${voice}"${(v.voice || 'male') === voice ? ' checked' : ''}/><span>${say(`signup.voice.${voice}`)}</span></label>`).join('')}
+      </div><p class="quiet small">${say('signup.voice.detail')}</p></fieldset>` : ''}
+      ${note('voice')}
       ${sameMessageNumber() ? `<label class="nudge-choice"><input type="checkbox" name="nudges" value="yes"${v.nudges === 'yes' ? ' checked' : ''}/><span><strong>${say('signup.nudges')}</strong><small>${say('signup.nudges.detail')}</small></span></label>` : ''}
       ${note('nudges')}
       <label class="nudge-choice"><input type="checkbox" name="calendar" value="yes"${v.calendar === 'yes' ? ' checked' : ''}/><span><strong>${say('calendar.signup')}</strong><small>${say('calendar.preference.detail')}</small></span></label>
+      </details>
       <p class="quiet small" id="signup-verify">${say('signup.verify.detail')}</p>
       <button class="primary" aria-describedby="signup-verify">${busyLabel(say('signup.submit'))}</button>
       ${inFaq('signup.free') ? '' : `<p class="quiet small centre">${say('signup.free')}</p>`}
@@ -234,6 +238,7 @@ export function signupPage(
       <a href="/access">${say('access.title')} <span aria-hidden="true">&rarr;</span></a>
     </div>
 
+    <p class="quiet small centre product-note">${say('signup.unblock')} <a href="/unblock">Explore Unblock</a>.</p>
     ${
       faq.length
         ? `<section class="faq">${faq
@@ -397,6 +402,6 @@ function shell(body: string, language = 'en', wide = false): string {
 ${FOUNDATION_CSS}${CONTROL_CSS}${SIGNUP_CSS}
 </style>
 </head>
-<body><main${wide ? ' class="signup-wide"' : ''}>${body}</main>${BUSY}${MOTION}${feedbackWidget()}</body>
+<body><!--email_off--><main${wide ? ' class="signup-wide"' : ''}>${body}</main>${BUSY}${MOTION}${feedbackWidget()}<!--/email_off--></body>
 </html>`;
 }

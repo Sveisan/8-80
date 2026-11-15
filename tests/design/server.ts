@@ -1,4 +1,9 @@
 import { createServer } from 'node:http';
+import { createServer as createSecureServer } from 'node:https';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { controlPlane } from '../../services/voice/src/control.ts';
 import { openTestDb } from '../../services/voice/test/helpers/db.ts';
@@ -13,17 +18,28 @@ import type { Subscription } from '../../services/voice/src/billing/gateway.ts';
 import type { Recap } from '../../services/voice/src/recap/compose.ts';
 import { queueEncouragement } from '../../services/voice/src/encouragement/runtime.ts';
 import { dispatchMessages } from '../../services/voice/src/messages/outbox.ts';
+import { UnblockRepository } from '../../services/voice/src/unblock/repository.ts';
+import { applyCommand, finishCall } from '../../services/voice/src/unblock/model.ts';
 
 if (!process.env['TEST_DATABASE_URL']) throw new Error('Browser journeys require an explicit TEST_DATABASE_URL.');
-const port = Number(process.env['DESIGN_JOURNEY_PORT'] ?? 8791);
+const unblock = process.env['DESIGN_UNBLOCK_TEST'] === '1';
+const port = Number(process.env['DESIGN_JOURNEY_PORT'] ?? (unblock ? 8792 : 8791));
 Object.assign(process.env, {
-  DATA_ENCRYPTION_KEY: Buffer.alloc(32, 42).toString('base64'), PUBLIC_URL: `http://127.0.0.1:${port}`,
+  DATA_ENCRYPTION_KEY: Buffer.alloc(32, 42).toString('base64'), PUBLIC_URL: `${unblock ? 'https' : 'http'}://127.0.0.1:${port}`,
   SIGNUP_OPEN: '1', TWILIO_ACCOUNT_SID: 'design-test', TWILIO_AUTH_TOKEN: 'design-test',
   SMS_FROM_NUMBER: '+4790008800', SPEECHIFY_CALLER_ID_NUMBER: '+4790008800',
   SPEECHIFY_FEMALE_FIRST_CALL_AGENT_ID: 'synthetic-female-first', SPEECHIFY_FEMALE_AGENT_ID: 'synthetic-female-weekly',
   BILLING_PROVIDER: 'stripe', STRIPE_WEBHOOK_SECRET: 'design-test-webhook',
 });
-const opened = await openTestDb('design_browser');
+if (unblock) Object.assign(process.env, {
+  UNBLOCK_ENABLED: 'true', UNBLOCK_LIVE_CALLS: 'false', UNBLOCK_SAFETY_APPROVED: 'true', UNBLOCK_SCRIPTS_APPROVED: 'true', UNBLOCK_AGENTS_VERIFIED: 'true',
+  UNBLOCK_PRICE_VERIFIED: 'true', UNBLOCK_PRICE_LABEL: '249 kr / month (synthetic)', UNBLOCK_PRODUCT_ID: 'synthetic-unblock',
+  UNBLOCK_CHECKOUT_URL: 'https://buy.stripe.com/synthetic', UNBLOCK_TOOL_SECRET: 'synthetic-unblock-browser-secret'.repeat(2),
+  UNBLOCK_OPENING_AGENT_ID: 'synthetic-unblock-opening', UNBLOCK_WEEKLY_AGENT_ID: 'synthetic-unblock-regular', UNBLOCK_LIGHT_AGENT_ID: 'synthetic-unblock-light',
+  UNBLOCK_SUPPORT_HOURS: 'Synthetic staffed window', UNBLOCK_COVERAGE_START: '00:00', UNBLOCK_COVERAGE_END: '24:00',
+  SUPPORT_EMAIL: 'support@example.com', OPERATOR_PHONE: '+4790008899', SPEECHIFY_API_KEY: 'synthetic', SPEECHIFY_WEBHOOK_SECRET: 'synthetic', STRIPE_SECRET_KEY: 'synthetic',
+});
+const opened = await openTestDb(unblock ? 'design_browser_unblock' : 'design_browser');
 if (typeof opened === 'string') throw new Error(opened);
 const db = opened;
 const script = loadScript();
@@ -39,7 +55,8 @@ const reset = async (): Promise<void> => {
   texts.length = 0; emails.length = 0; failSms = failMail = false; cancellations = 0;
   process.env['ENCOURAGEMENT_PILOT_HASHES']='';process.env['ENCOURAGEMENT_READY']='0';process.env['ENCOURAGEMENT_PHONE_TEST_PASSED']='0';
   subscription = { provider: 'stripe', subscriptionId: 'sub_design', customerId: 'cus_design', standing: 'active',
-    status: 'active', event: 'customer.subscription.updated', cancelAtPeriodEnd: false, endsAt: new Date(Date.now() + 20 * 86400_000).toISOString() };
+    status: 'active', event: 'customer.subscription.updated', cancelAtPeriodEnd: false, endsAt: new Date(Date.now() + 20 * 86400_000).toISOString(),
+    ...(unblock ? { productIds: ['synthetic-unblock'] } : {}) };
 };
 await reset();
 const deps: LoopDeps = {
@@ -54,7 +71,12 @@ const deps: LoopDeps = {
   },
 };
 const app = controlPlane(deps, 'synthetic-webhook');
-const server = createServer((req, res) => { void (async () => {
+// A separate TLS fixture exercises the production HTTPS/secure-cookie readiness
+// boundary. Certificates and all credentials are ephemeral synthetic test data.
+const tlsDir = unblock ? mkdtempSync(join(tmpdir(), '8and80-unblock-browser-tls-')) : undefined;
+if (tlsDir) execFileSync('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-keyout', join(tlsDir, 'key.pem'), '-out', join(tlsDir, 'cert.pem'), '-days', '1', '-subj', '/CN=127.0.0.1'], { stdio: 'ignore' });
+const server = tlsDir ? createSecureServer({ key: readFileSync(join(tlsDir, 'key.pem')), cert: readFileSync(join(tlsDir, 'cert.pem')) }) : createServer();
+server.on('request', (req, res) => { void (async () => {
   const url = new URL(req.url ?? '/', `http://127.0.0.1:${port}`);
   if (!url.pathname.startsWith('/__test/')) { app.emit('request', req, res); return; }
   if (req.headers['x-design-fixture-key'] !== 'synthetic-design-fixture') { res.writeHead(403); res.end(); return; }
@@ -103,6 +125,20 @@ const server = createServer((req, res) => { void (async () => {
     const memory = await db.store.load(String(form.phone));
     reply({ caller, goals: memory.goals, commitment: memory.lastCommitment, cancellations, calendarEmails: emails.flatMap(email => email.calendar ? [email.calendar] : []) }); return;
   }
+  if (url.pathname === '/__test/unblock-state') {
+    const loaded = await new UnblockRepository(db.sql).load(phoneKey(String(form.phone)));
+    reply(loaded ? { enrollment: loaded.enrollment, programme: loaded.programme, cancellations } : { enrollment: null }); return;
+  }
+  if (url.pathname === '/__test/unblock-opening') {
+    const hash = phoneKey(String(form.phone));
+    const loaded = await new UnblockRepository(db.sql).load(hash);
+    if (!loaded) throw Error('Synthetic Unblock account missing.');
+    let p = applyCommand(loaded.programme, { type: 'wish', text: 'Learn to sail a small boat', why: 'Time outside matters to me' }, 'synthetic-wish');
+    p = applyCommand(p, { type: 'step', week: 1, text: 'Ask a neighbour about a sailing course' }, 'synthetic-step');
+    p = finishCall(p, 'opening', 0);
+    await db.sql`update unblock_enrollments set programme_enc=${encrypt(JSON.stringify(p))},revision=${p.revision},opening_at=null where phone_hash=${hash}`;
+    reply({ ok: true }); return;
+  }
   if (url.pathname === '/__test/revision') {
     const hash = phoneKey(String(form.phone));
     await db.sql`update callers set goals_enc = ${encrypt('A newer goal saved elsewhere.')} where phone_hash = ${hash}`;
@@ -112,4 +148,4 @@ const server = createServer((req, res) => { void (async () => {
   res.writeHead(404); res.end();
 })().catch(error => { console.error(error); if (!res.headersSent) res.writeHead(500); res.end('Synthetic fixture failed.'); }); });
 server.listen(port, '127.0.0.1', () => console.log(`Design journey server: http://127.0.0.1:${port}`));
-for (const signal of ['SIGTERM', 'SIGINT'] as const) process.on(signal, () => { server.closeAllConnections(); server.close(() => { void db.close().then(() => process.exit(0)); }); });
+for (const signal of ['SIGTERM', 'SIGINT'] as const) process.on(signal, () => { server.closeAllConnections(); server.close(() => { void db.close().then(() => { if (tlsDir) rmSync(tlsDir, { recursive: true, force: true }); process.exit(0); }); }); });

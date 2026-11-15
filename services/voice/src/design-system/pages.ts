@@ -121,12 +121,21 @@ export const SIGNUP_CSS = `
      a sign-up page hoping nobody looks. */
   .legal { margin-top: var(--space-8); }
   .legal a { color: var(--quiet); }
+  .product-nav { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: var(--space-4); margin-bottom: var(--space-6); font-size: var(--text-caption); }
+  .product-nav a { display: inline-flex; align-items: center; min-height: var(--target-min); }
+  .product-nav span { margin-right: auto; color: var(--quiet); }
+  .booking-options { margin: var(--space-4) 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .booking-options summary { cursor: pointer; min-height: var(--target-min); padding: var(--space-3) 0; font-size: var(--text-small); }
+  .booking-options .nudge-choice { margin: var(--space-4) 0; }
+  .days { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 2.25em), 1fr)); gap: var(--space-1); font-size: var(--text-caption); }
+  .days .pick span:first-of-type { min-width: 0; padding-inline: 0; white-space: nowrap; overflow-wrap: normal; font-size: var(--text-caption); }
   .signup-wide { max-width: var(--measure-wide); }
   .signup-layout { display: grid; gap: var(--space-10); }
   .signup-intro { padding-top: var(--space-2); }
   .signup-intro .lockup { justify-content: flex-start; margin-bottom: var(--space-8); }
   .eyebrow { font-size: var(--text-caption); letter-spacing: var(--tracking-wide); font-weight: var(--weight-control); color: var(--quiet); margin: 0 0 var(--space-4); }
   .signup-intro h1 { font-size: var(--text-display); line-height: 1.06; margin-bottom: var(--space-6); }
+  .product-note { max-width: var(--measure-reading); margin: var(--space-8) auto 0; }
   .intro-summary { font-size: var(--text-small); line-height: 1.7; max-width: var(--measure-form); }
   .perspectives { margin: var(--space-6) 0 var(--space-4); max-width: var(--measure-form); }
   .perspectives svg { color-scheme: light; width: 100%; display: block; font-family: var(--serif); }
@@ -212,6 +221,8 @@ export const ACCOUNT_CSS = `
   legend { padding: 0; margin: 0 0 var(--space-1); font-size: var(--text-small); color: var(--quiet); }
   .zone { margin: 0 0 var(--space-2); font-size: var(--text-caption); color: var(--quiet); }
   ${TIME_PICKER_CSS}
+  .days { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 2.25em), 1fr)); gap: var(--space-1); font-size: var(--text-caption); }
+  .days .pick span:first-of-type { min-width: 0; padding-inline: 0; white-space: nowrap; overflow-wrap: normal; font-size: var(--text-caption); }
 `;
 
 export const READING_CSS = `
@@ -227,6 +238,15 @@ export const READING_CSS = `
 `;
 
 export const UNBLOCK_CSS = `
+  .wrong, .notice[role=alert] { color: var(--bad); }
+  .wrong { font-size: var(--text-small); }
+  .schedule-review, .product-comparison { border-top: 1px solid var(--line); padding-top: var(--space-5); margin-top: var(--space-6); }
+  .schedule-review h2, .schedule-review h3 { font-size: var(--text-subhead); }
+  .hero-offer { max-width: var(--measure-reading); margin: 0 auto var(--space-6); font-size: var(--text-small); color: var(--quiet); }
+  .form details summary { min-height: var(--target-min); cursor: pointer; }
+  [data-light-settings] { border: 0; padding: 0; }
+  fieldset:has([name=light_choice][value=none]:checked) [data-light-settings] { display: none; }
+
   .stack > * + * { margin-top: var(--space-8); }
   .stack h2 { font-size: var(--text-subhead); margin: 0 0 var(--space-2); }
   .quote { font-size: var(--text-subhead); line-height: 1.45; color: var(--ink) !important; margin: var(--space-2) 0; }
@@ -245,6 +265,7 @@ export const UNBLOCK_CSS = `
   .solo { margin-top: var(--space-4); }
   .soft { border-color: var(--line); background: transparent; }
   .soft form button { background: transparent; color: var(--ink); border: 1px solid var(--control-border); }
+  .account-signout button { background: transparent; color: var(--quiet); border-color: var(--control-border); }
 `;
 
 export const PRACTICE_CSS = `
@@ -343,5 +364,5 @@ export const PRODUCT_FEEDBACK_CSS = `
 .pf summary{cursor:pointer;font-size:var(--text-caption);padding:var(--space-2) 0;min-height:var(--target-min);box-sizing:border-box}
 .pf .pf-report{border-top:1px solid var(--line);padding:var(--space-3) 0}.pf .pf-report button{margin-right:var(--space-2)}
 .pf button[aria-pressed=true]{background:var(--accent);color:var(--on-accent)}
-@media(max-width:${breakpoints.narrow}){.pf dialog{inset:auto 0 0;width:100%;max-height:85dvh;border-radius:var(--radius-panel) var(--radius-panel) 0 0;padding-bottom:max(var(--space-6),env(safe-area-inset-bottom))}}
+@media(max-width:${breakpoints.narrow}){body:has(.pf){position:relative;padding-bottom:max(var(--space-16),env(safe-area-inset-bottom))}.pf{position:absolute;bottom:var(--space-4);right:var(--space-5)}.pf .pf-trigger{position:static}.pf dialog{inset:auto 0 0;width:100%;max-height:85dvh;border-radius:var(--radius-panel) var(--radius-panel) 0 0;padding-bottom:max(var(--space-6),env(safe-area-inset-bottom))}}
 `;
