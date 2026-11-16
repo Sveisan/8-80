@@ -65,6 +65,7 @@ export function toTranscript(payload: unknown): CallTranscript {
   if (!Array.isArray(raw)) throw new UnreadablePayload('no messages array');
 
   const turns: Turn[] = [];
+  const completionTimes: (number | undefined)[] = [];
   raw.forEach((m, i) => {
     if (!m || typeof m !== 'object') throw new UnreadablePayload(`message ${i} is not an object`);
     const msg = m as Record<string, unknown>;
@@ -74,7 +75,21 @@ export function toTranscript(payload: unknown): CallTranscript {
     if (!speaker) throw new UnreadablePayload(`message ${i} has an unknown role ${JSON.stringify(role)}`);
     const text = str(msg['content']) ?? str(msg['text']) ?? '';
     turns.push({ speaker, text });
+    // Streamed replies can retain a speech-start timestamp from before the
+    // question they answer. Order finalized speech by its completion instead.
+    // An unfinished fragment keeps its start position; never discard it.
+    const start = speechTime(msg['started_at']);
+    const end = speechTime(msg['ended_at']);
+    const invalidEnd = msg['ended_at'] != null && end === undefined;
+    completionTimes.push(start === undefined || invalidEnd || end !== undefined && end < start ? undefined : end ?? start);
   });
+  // Legacy and mixed payloads have no reliable common clock. Preserve their
+  // supplied order rather than partially sorting or inventing timestamps.
+  if (completionTimes.every(t => t !== undefined)) {
+    const ordered = turns.map((turn, index) => ({ turn, index }))
+      .sort((a, b) => completionTimes[a.index]! - completionTimes[b.index]! || a.index - b.index);
+    turns.splice(0, turns.length, ...ordered.map(t => t.turn));
+  }
 
   // Milliseconds or seconds, each named so. A bare `duration` is not read: the
   // unit would be a guess, and a call recorded as 18 milliseconds long reads
@@ -140,6 +155,11 @@ export function shapeOf(value: unknown, depth = 0, limit = 3): string {
 }
 
 const str = (v: unknown): string | undefined => (typeof v === 'string' && v ? v : undefined);
+const speechTime = (v: unknown): number | undefined => {
+  if (typeof v !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(v)) return undefined;
+  const time = Date.parse(v);
+  return Number.isFinite(time) ? time : undefined;
+};
 const obj = (v: unknown): Record<string, unknown> | undefined =>
   v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : undefined;
 const scale = (v: number | undefined): number | undefined => (v === undefined ? undefined : Math.round(v * 1000));
