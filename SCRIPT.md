@@ -278,7 +278,9 @@ _If they correct it, say back only the corrected part and wait for agreement._
 `read.first.which_part`
 > "Which part would you like to change?"
 
-_Ask this only after a completed correction whose map part is unclear. Leave an
+_Ask this after a completed "No" to the map check, or a completed correction
+whose map part is unclear. A bare "No" rejects accuracy, not the whole exercise.
+If they name a part without its replacement, ask what they want it to say. Leave an
 unfinished correction silent. After they identify the part, read that correction
 back with its complete fixed question and wait for fresh explicit agreement.
 A yes to this clarification cannot confirm the map. A corrected detail is not

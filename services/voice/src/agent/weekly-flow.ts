@@ -2,7 +2,7 @@ import { weeklyGreeting, weeklyPrompt } from './prompt-pack.ts';
 import { loadScript } from '../script.ts';
 import { renderForConsole, CONSOLE_VARIABLES } from '../prompt.ts';
 
-export const WEEKLY_FLOW_POLICY = 'weekly-appointment-and-pacing-v6';
+export const WEEKLY_FLOW_POLICY = 'weekly-map-repair-and-reactions-v7';
 export const weeklyFlowRoles = ['first', 'return', 'female-first', 'female-return'] as const;
 export type WeeklyFlowRole = typeof weeklyFlowRoles[number];
 export interface WeeklyFlowNode {
@@ -115,6 +115,7 @@ export function weeklyFlow(role: WeeklyFlowRole): WeeklyFlow {
       'CURRENT PHASE: wait for the answer to the most recent COMPLETE map read-back. You may not say the onboarding-confirmed line or move to actions or logistics here.',
       'On phase entry, a tool return, silence, thanks, mhm, a fragment or any other non-answer, call skip_turn WITHOUT speech. Do not treat a yes given BEFORE the read-back as its answer.',
       'CORRECTION IS NOT AGREEMENT. The latest caller contribution must itself explicitly affirm the latest completed read-back. Never select an older yes while the latest caller contribution corrects, restates or finishes a map detail. In particular, "Statue building" alone after a map is NOT map_agreed, even if an earlier "Yeah" appears in the history. It is not an answer to a future focus question either.',
+      `A completed "No", "No, no, no" or "That is not right" answering the map question rejects its accuracy; it is neither an unfinished correction nor a choice to abandon the map. Ask ONLY: "${script.get('read.first.which_part')}" Then wait for their correction. If they identify a part, look for replacement content already given during this repair: "Statue building" followed by "The eighty-year-old part" supplies BOTH. Read back that correction now. Ask what they want that part to say ONLY if no replacement was supplied anywhere in this repair, then wait. Never guess a replacement or treat a yes to either clarification as approval. Do not repeat the clarification while it remains unanswered. An explicit request to skip the map or stop still takes priority.`,
       'If a correction is unfinished or the caller asks for thinking time, call skip_turn without speech and let them finish. Once a correction is complete, read back only the clearly identified changed part using its full fixed question, then STOP and wait for a fresh explicit agreement. A yes followed by a correction still needs this new read-back and answer.',
       `If a completed phrase could refer to more than one map part, ask ONLY: "${script.get('read.first.which_part')}" Wait for the part to be identified, then read that correction back with its full fixed question and wait again. A yes to the part-clarification question cannot approve the map. Do not guess which part changed or say the kept-map marker.`,
       'Only a fresh, explicit caller agreement AFTER the full read-back (and after any correction) allows map_agreed. Leave through it WITHOUT speaking: a say node owns the kept-map marker.',
@@ -124,7 +125,7 @@ export function weeklyFlow(role: WeeklyFlowRole): WeeklyFlow {
       'If the caller explicitly withdraws or declines the map, use map_declined without claiming anything is kept. A clear goodbye instead uses caller_done.',
     ].join('\n\n'), [stop,
       { name: 'map_agreed', description: 'The LATEST completed caller contribution AFTER the latest full map or fixed correction question explicitly affirms that read-back, for example Yes, Yeah, That is right or Correct. It contains no correction, new map content, unfinished thought, question or change request. A bare phrase such as Statue building is NOT an affirmation. Never search older caller turns for a yes when the latest contribution is a correction or restatement. After ANY correction, identify its part, speak the COMPLETE fixed correction question and receive a NEW explicit affirmation AFTER it. A yes to a part clarification, service question or booking diversion cannot approve the map; the read-back and fresh agreement must follow that diversion. Silence, courtesy and phase entry cannot qualify.' },
-      { name: 'map_declined', description: 'The caller explicitly withdraws or declines the read-back rather than correcting a part. Do not mark the introduction complete.' },
+      { name: 'map_declined', description: 'The caller explicitly chooses to abandon or skip the map, rather than rejecting its accuracy. A bare No, No no no or That is not right after Have I got that right is NOT withdrawal: ask which part to change and remain here. Do not mark the introduction complete.' },
     ]));
     nodes.push({ key: 'map_kept', type: 'say', config: { text: script.get('onboarding.confirmed')!, allow_interruptions: true } });
     nodes.push(phase('conversation', [
