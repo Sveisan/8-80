@@ -101,9 +101,9 @@ test('a complete positive intent matrix permits only a phone pilot, never automa
     ...('expectedTool'in c?{testType:'tool',toolCalled:c.expectedTool}:{testType:'reply',reply:['complete_short_reply','full_map_before_confirmation','partial_map_repair'].includes(c.id)?full:c.id==='listening_sound_feedback'?"I'll stop adding those sounds.":c.id==='caller_reopens_close'?'Of course.':'You want more money.'}),
   })));
   const r=dialogueBatchReport(rows);
-  assert.equal(r.total,154);assert.equal(r.complete,true);assert.equal(r.approvedForPhonePilot,true);
+  assert.equal(r.total,170);assert.equal(r.complete,true);assert.equal(r.approvedForPhonePilot,true);
   assert.equal(r.approved,false);assert.equal(r.quietTurnVoiceChecks.length,30);
-  assert.deepEqual(r.checks,{wording:{total:124,passed:124},toolIntent:{total:30,passed:30}});
+  assert.deepEqual(r.checks,{wording:{total:140,passed:140},toolIntent:{total:30,passed:30}});
 });
 
 test('warmth probes reject invented motives, repeated meaning questions and pressure while preserving plain support',()=>{
