@@ -65,17 +65,20 @@ function heads(value: unknown): { active: WeeklyFlow | null; draft: WeeklyFlow |
 // PR59/60 (2753247) and PR61 (3b959d8) pin the last two portable graph pairs.
 // PR63 source 5832cef pins the correction-wait graph before appointment fixes.
 // PR62/64 source a84de859 pins the phone-tested v6 appointment graph.
+// PR65 source 294f363 pins the v7 map-repair and reaction graph.
 // Only attached tool IDs vary per agent. Matching a policy label or topology is
 // insufficient: a manually edited prompt must not be silently overwritten.
 const previousGraphDigests = {
-  first: ['2afc6fe84690af03707c0ae0622862218a3cf999d7e06975c3270c14a0793fef',
+  first: ['702da32fe97b8ad3082b1c317f00b1ff7b9d0b774e36075c5e7505c0ed4a0980',
+    '2afc6fe84690af03707c0ae0622862218a3cf999d7e06975c3270c14a0793fef',
     '31ad484e6994b5dd7f55d0eb8219d7cebff5db59b91f2fd8cb74a7087322de6d',
     '75c7d098f2efdc79a0c18ce3fe2031dc03df4c2cee7239a663febd78bd141716',
     '2f57ce9b064d5dd5eddf7ef21f586993acdb71e8db27880e4f39bf11db91aee8',
     '645ed965255e49963127a39ad2f2b038d1f9f435de162e610ac574ad5a3c7ee4',
     '0b85a7a5f5eb3ab8727def5a571dd4d897aa8a96d987ca9420bb3fc832f9ed3b',
     'b863f8098f6d6bb0f26293399c9b9db7f4652070aa70825ae9248c37fdfd60e0'],
-  return: ['3d0b35bcc55bc9bc1c26321d5a1dce74a2ca0705ff6bcc46fcb2db32b6a0bff9',
+  return: ['70133db7a71d2a03a6604ca1ae6ab7c79f443289befdda34e75684466879163e',
+    '3d0b35bcc55bc9bc1c26321d5a1dce74a2ca0705ff6bcc46fcb2db32b6a0bff9',
     '15aace53134f9622f4959ccde308ea00f47d9936dd1873fb5e1711bb541dce5b',
     '4d5586a24e901cfaa71b9ed49646e84e6891be2f36f0fbe44fcfaad2f0005f1b',
     '5971985ff0719c38b300cfe8ba852803bc931d1c3e0f1e856842cd1309b48d48',
