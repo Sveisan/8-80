@@ -103,7 +103,7 @@ test('the browser that signed up lands on its own page, and it says done', { ski
     assert.ok(body.includes(script.get('page.booked') ?? ''), 'says it is done');
     assert.match(body, /Tuesday/);
     // The time and the address, and the calm version of the page.
-    assert.ok(body.includes('name="weekday"') && body.includes('name="time"'), 'the time can be changed here');
+    assert.ok(body.includes('name="day"') && body.includes('name="time"'), 'the time can be changed here');
     assert.ok(body.includes('value="email"'));
     // Nothing about the person, as on every other version of this page.
     assert.ok(!body.includes('Eirik'), 'no name');
@@ -166,7 +166,7 @@ test('the bare address goes to their page; /start is still the form', { skip: sk
 
       // The explicit way out must bypass that remembered-browser redirect.
       const account = await (await fetch(`${base}/me`, withCookie(`browser=${code}`))).text();
-      const back = /<nav class="page-nav">[\s\S]*?<a href="([^"]+)"/.exec(account)?.[1];
+      const back = /<a class="account-brand" href="([^"]+)"/.exec(account)?.[1];
       assert.ok(back, 'the call page has a visible way back');
       const welcome = await fetch(`${base}${back}`, withCookie(`browser=${code}`));
       assert.equal(welcome.status, 200, 'going back must not redirect to the call page again');

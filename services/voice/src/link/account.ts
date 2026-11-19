@@ -11,6 +11,8 @@ export interface AccountState {
   canCall: boolean;
   trialEnds?: Date;
   next?: Date;
+  /** Stored occurrence, including an expired or ineligible one, for stale-form checks. */
+  scheduledAt?: Date;
   subscribed?: boolean;
   feedbackOptOut?: boolean;
   cancelAtPeriodEnd?: boolean;
@@ -36,6 +38,7 @@ export async function accountState(sql: postgres.Sql, hash: string, now = new Da
     ...(row.google_calendar ? {googleCalendarInvites:true} : {}),
     feedbackOptOut: row.feedback_opt_out, subscribed: !!row.ls_subscription_id, cancelAtPeriodEnd: row.cancel_at_period_end, ...(row.paid_until ? { paidUntil: row.paid_until } : {}),
     onHold: row.held_for_review, paused: row.paused, billing: endedTrial ? 'trial_ended' : row.billing_status, canCall,
+    ...(next ? { scheduledAt: next } : {}),
     ...((trial || endedTrial) && row.trial_ends_at ? { trialEnds: row.trial_ends_at } : {}),
     ...(canCall && !row.paused && !row.held_for_review && next && next > now && (!row.cancel_at_period_end || (!!row.paid_until && next < row.paid_until)) && (!trial || !row.trial_ends_at || next < row.trial_ends_at) ? { next } : {}),
   };

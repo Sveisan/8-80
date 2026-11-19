@@ -8,7 +8,9 @@ const script = loadScript();
 
 /** Run the actual inline display script against the server-rendered appointment. */
 function display(at: string, browserZone?: string, bookingZone = 'Europe/Oslo') {
-  const html = reschedulePage({ weekday: 2, minute: 480, timezone: bookingZone }, script, 'en', undefined, undefined, { next: new Date(at) });
+  const html = reschedulePage({ weekday: 2, minute: 480, timezone: bookingZone }, script, 'en', undefined, undefined, {
+    now: new Date('2026-10-12T16:00:00Z'), next: new Date(at),
+  });
   const tag = /<time class="appointment"[^>]*>/.exec(html)?.[0];
   assert.ok(tag);
   const attributes = new Map([...tag.matchAll(/([a-z-]+)="([^"]*)"/g)].map(match => [match[1]!, match[2]!]));
@@ -84,8 +86,8 @@ test('local display keeps the skip target and explicitly labelled weekly picker 
   const shown = display(at, 'Europe/London');
   assert.equal(shown.clock, '07:00');
   assert.equal(shown.attributes.get('datetime'), new Date(at).toISOString());
-  assert.match(shown.html, /Usually Tuesday 08:00 · Norwegian time\./);
+  assert.match(shown.html, /Tuesday 08:00 · Norwegian time/);
   assert.match(shown.html, /name="skip_at" value="2026-10-13T06:00:00\.000Z"/);
-  assert.match(shown.html, /name="time" value="08:00" checked/);
-  assert.match(shown.html, /<p class="zone">Norwegian time<\/p>/);
+  assert.match(shown.html, /id="weekly-time" name="time" value="08:00"/);
+  assert.match(shown.html, /<p class="zone" id="weekly-zone">Norwegian time<\/p>/);
 });

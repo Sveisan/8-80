@@ -2501,7 +2501,7 @@ ask another confirmation question just to read these facts out._
 > "Manage payment details"
 
 `page.billing.verify`
-> "Verify your phone to manage billing"
+> "Verify your phone to manage billing or cancel renewal"
 
 `page.billing.continue`
 > "See the price and continue"
@@ -2651,13 +2651,13 @@ ask another confirmation question just to read these facts out._
 > "Your data"
 
 `page.move.open`
-> "Reschedule next call"
+> "Move this call"
 
 `page.move.detail`
 > "Leave this unchecked to move only your next call."
 
 `page.notes.detail`
-> "Verify your phone to view or edit your saved goals."
+> "Your notes are private. We may ask you to verify your phone."
 
 `page.notes.review`
 > "Review or edit my goals"
@@ -2897,6 +2897,117 @@ _Explicit opt-in. Generic messages only: no private call details on a lock scree
 
 `page.move.preview`
 > "Choose a day and time. The confirmed appointment will be shown after saving."
+
+`page.move.open.weekly`
+> "Change weekly time"
+
+`page.move.open.unscheduled`
+> "Choose a call time"
+
+`page.move.date`
+> "Date"
+
+`page.move.weekday`
+> "Weekly day"
+
+`page.move.time`
+> "Time"
+
+`page.move.review`
+> "Review new time"
+
+`page.move.edit`
+> "Edit my choice"
+
+`page.move.scope.first`
+> "This changes your first call and sets your usual weekly time."
+
+`page.move.scope.once`
+> "This changes one call. Your usual weekly time stays the same."
+
+`page.move.scope.weekly`
+> "This changes your next call and your usual time every week."
+
+`page.move.saved.weekly`
+> "Your next call and usual weekly time are updated."
+
+`page.move.saved.once`
+> "Your next call is updated. Your usual weekly time stays the same."
+
+`page.move.stale`
+> "Your booking or the proposed time changed while you were editing. Check the times and review your choice again."
+
+`page.move.unconfirmed`
+> "We couldn’t confirm the new time. Check your booking and try again."
+
+`page.move.future`
+> "Choose a date and time in the future."
+
+`page.contact.save`
+> "Save our number"
+
+`page.account.help`
+> "Get help"
+
+`page.account.incoming`
+> "We’ll call you."
+
+`page.account.booking_clock`
+> "Booking time"
+
+`page.account.weekly`
+> "Usual weekly time"
+
+`page.account.paused`
+> "Calls paused"
+
+`page.account.resume`
+> "Resume calls"
+
+`page.account.resume.detail`
+> "Resume when you’re ready and we’ll schedule your next call."
+
+`page.account.paused.billing`
+> "Billing continues while calls are paused."
+
+`page.account.pause`
+> "Pause calls"
+
+`page.account.pause.confirm`
+> "Pause your calls?"
+
+`page.account.pause.keep`
+> "Keep my calls"
+
+`page.account.notes`
+> "Open my commitment and goals"
+
+`page.account.preferences`
+> "Preferences"
+
+`page.account.plan`
+> "Plan and billing"
+
+`page.account.data`
+> "Data and privacy"
+
+`page.account.calendar`
+> "Calendar invitations"
+
+`page.account.voice`
+> "Call voice"
+
+`page.account.nudges`
+> "Between-call texts"
+
+`page.account.feedback`
+> "Feedback requests"
+
+`page.account.on`
+> "On"
+
+`page.account.off`
+> "Off"
 
 `signup.nav.weekly`
 > "Weekly calls"

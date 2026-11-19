@@ -8,6 +8,7 @@ import { phoneKey } from '../src/store/postgres.ts';
 import { Links } from '../src/link/token.ts';
 import { controlPlane } from '../src/control.ts';
 import { nextSlotAfter, type Slot } from '../src/schedule/time.ts';
+import { moveVersion } from '../src/link/move.ts';
 import type { LoopDeps } from '../src/loop/deps.ts';
 
 const KEY = Buffer.alloc(32, 7).toString('base64');
@@ -146,6 +147,30 @@ test('a skip form targets the displayed appointment and cannot skip twice', { sk
   });
 });
 
+test('a reviewed move cannot overwrite a newer booking or silently change its proposed date', { skip: skip() }, async () => {
+  const phone = '+4790000071';
+  const token = await enrolled(phone);
+  await store!.record(phone, { at: new Date().toISOString(), durationMs: 300_000, onboardingComplete: true });
+  const booked = await sched!.setSlot(phone, OSLO);
+  const draft = { scope: 'weekly', day: '4', time: '07:30', version: moveVersion(OSLO, booked) };
+  await serving(async base => {
+    const review = await post(base, token, { action: 'move-review', ...draft });
+    const html = await review.text();
+    const proposed = /name="proposed_at" value="([^"]+)"/.exec(html)?.[1];
+    assert.ok(proposed);
+    assert.equal((await sched!.nextCallFor(phone))?.toISOString(), booked.toISOString(), 'review is read-only');
+    const stale = { action: 'move-save', ...draft, proposed_at: proposed };
+    const wrongDate = await post(base, token, { ...stale, proposed_at: booked.toISOString() });
+    assert.match(await wrongDate.text(), /changed while you were editing/);
+    const newer = nextSlotAfter(new Date(), { ...OSLO, weekday: 5 });
+    assert.equal(await sched!.moveIfActive(phone, newer), true);
+    const outdated = await post(base, token, stale);
+    assert.match(await outdated.text(), /changed while you were editing/);
+    assert.equal((await sched!.nextCallFor(phone))?.toISOString(), newer.toISOString());
+    assert.deepEqual(await sched!.slotFor(phone), OSLO);
+  });
+});
+
 test('legacy later and untargeted skip forms cannot change a returning caller schedule', { skip: skip() }, async () => {
   const phone = '+4790000068';
   const token = await enrolled(phone);
@@ -242,7 +267,7 @@ test('a review hold is visible without promising or resuming a blocked appointme
     const html = await (await fetch(`${base}/r/${token}`)).text();
     assert.match(html, /Your calls are on hold/);
     assert.match(html, /name="action" value="stop"/);
-    assert.doesNotMatch(html, /name="action" value="move"/);
+    assert.doesNotMatch(html, /name="action" value="move-review"/);
     assert.doesNotMatch(html, /Next call Tuesday/);
   });
   await sched!.setPaused(phone, true);

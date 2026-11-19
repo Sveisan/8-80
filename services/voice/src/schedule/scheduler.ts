@@ -208,7 +208,13 @@ export class Scheduler {
   }
 
   /** A move cannot undo a concurrent pause or book beyond eligible access. */
-  async moveIfActive(phone: string, at: Date, weekly?: Slot, continuation?: string): Promise<boolean> {
+  async moveIfActive(phone: string, at: Date, weekly?: Slot, continuation?: string,
+    expected?: { slot: Slot; scheduledAt?: Date }): Promise<boolean> {
+    const reviewed = expected ? this.sql`
+      and ${at}::timestamptz > now()
+      and next_call_at is not distinct from ${expected.scheduledAt ?? null}::timestamptz
+      and slot_weekday = ${expected.slot.weekday} and slot_minute = ${expected.slot.minute} and timezone = ${expected.slot.timezone}
+    ` : this.sql``;
     const changed = await this.sql<{ phone_hash: string }[]>`
       update callers set next_call_at = ${at},
         next_call_cycle = case when ${!!weekly} then null else coalesce(${continuation ?? null}, next_call_cycle) end,
@@ -219,6 +225,7 @@ export class Scheduler {
         and (not cancel_at_period_end or paid_until > ${at})
         and (billing_status in ('comped', 'active', 'past_due')
           or (billing_status = 'trialing' and (trial_ends_at is null or trial_ends_at > ${at})))
+        ${reviewed}
       returning phone_hash
     `;
     return changed.length > 0;

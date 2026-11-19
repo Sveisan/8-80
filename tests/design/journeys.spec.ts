@@ -27,6 +27,22 @@ test('booking verifies the SMS code before creating a caller and preserves field
   await page.screenshot({ path: testInfo.outputPath('weekly-booked.png'), fullPage: true });
   const { caller } = await fixture(request, 'state', { phone });
   expect(caller).toMatchObject({ billing_status: 'trialing', onboarding: 'pending', paused: false });
+  await expect(page.getByRole('link', { name: 'Save our number' })).toHaveAttribute('href', '/contact.vcf');
+  await expect(page.locator('button[value="skip"], #move-weekly, #notes-heading')).toHaveCount(0);
+  await page.locator('#move-call summary').click();
+  await page.locator('#first-day').selectOption({ index: 2 });
+  await page.locator('#first-time').fill('18:00');
+  await page.getByRole('button', { name: 'Review new time' }).click();
+  await expect(page.getByRole('heading', { name: 'Review new time' })).toBeVisible();
+  await expect(page.getByText('This changes your first call and sets your usual weekly time.', { exact: false })).toBeVisible();
+  const firstProposal = await page.locator('time').getAttribute('datetime');
+  expect((await fixture(request, 'state', { phone })).caller).toEqual(caller);
+  await page.screenshot({ path: testInfo.outputPath('weekly-first-move-review.png'), fullPage: true });
+  await page.getByRole('button', { name: 'Save new time' }).click();
+  await expect(page).toHaveURL(/\/me\?schedule=weekly$/);
+  await expect(page.locator('.appointment')).toHaveAttribute('datetime', firstProposal!);
+  await expect(page.locator('.usual-time')).toContainText('18:00');
+  expect((await fixture(request, 'state', { phone })).caller).toMatchObject({ slot_minute: 1080, next_call_at: firstProposal });
 });
 
 test('SMS delivery failure gives a usable way forward', async ({ page, request }, testInfo) => {
@@ -93,44 +109,93 @@ test('a slow submission keeps its accessible label and back navigation restores 
   await expect(page.getByLabel('Your number', { exact: true })).toBeEnabled();
 });
 
-test('a saved schedule and private corrections survive reload; pause and resume are explicit', async ({ page, request }, testInfo) => {
+test('weekly account moves, skips, private corrections and pause survive reload', async ({ page, request }, testInfo) => {
   const phone = testInfo.project.name === 'chromium' ? '+4792130101' : '+4792130201';
-  await fixture(request, 'seed', { phone });
-  await signIn(page, request, phone);
+  const { link } = await fixture(request, 'seed', { phone, paid: true });
+  await page.goto(String(link));
+  await expect(page.getByRole('heading', { name: 'Your next call' })).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('weekly-returning.png'), fullPage: true });
   await page.locator('#move-call summary').click();
-  await page.locator('input[name="weekday"][value="2"]').check();
-  await page.locator('input[name="time"][value="18:00"]').check();
-  await page.locator('input[name="always"]').check();
-  const accountPath = new URL(page.url()).pathname;
-  // WebKit can finish the click before the form navigation starts. Await the
-  // save response and rendered confirmation so the following goto neither
-  // aborts the POST nor races its document navigation.
-  const [saved] = await Promise.all([
-    page.waitForResponse(response => response.request().method() === 'POST' && new URL(response.url()).pathname === accountPath),
-    page.locator('button[value="move"]').click(),
-  ]);
-  expect(saved.ok()).toBeTruthy();
-  await expect(page.getByRole('heading', { name: /Moved for good\./ })).toBeVisible();
-  await page.goto('/me');
-  await expect(page.locator('.usual-time')).toContainText('18:00');
+  const originalDay = await page.locator('#once-day').inputValue();
+  const initialAt = await page.locator('.appointment').getAttribute('datetime');
+  await page.locator('#once-time').fill('18:00');
+  await page.getByRole('button', { name: 'Review new time' }).click();
+  await expect(page.getByRole('heading', { name: 'Review new time' })).toBeVisible();
+  await expect(page.getByText(/This changes one call. Your usual weekly time stays the same/)).toBeVisible();
+  await page.getByRole('button', { name: 'Edit my choice' }).click();
+  await expect(page.locator('#once-time')).toHaveValue('18:00');
+  await expect(page.locator('#once-day')).toHaveValue(originalDay);
+  await page.getByRole('button', { name: 'Review new time' }).click();
+  await expect(page.getByRole('heading', { name: 'Review new time' })).toBeVisible();
+  const onceAt = await page.locator('time').getAttribute('datetime');
+  expect(onceAt).not.toBe(initialAt);
+  await page.getByRole('button', { name: 'Save new time' }).click();
+  await expect(page).toHaveURL(/\?schedule=once$/);
+  await expect(page.locator('.appointment')).toHaveAttribute('datetime', onceAt!);
+  await expect(page.getByRole('status')).toContainText('Your usual weekly time stays the same.');
+  await expect(page.locator('.usual-time')).toContainText('17:30');
   await page.reload();
-  expect((await fixture(request, 'state', { phone })).caller).toMatchObject({ slot_weekday: 2, slot_minute: 1080 });
-  await page.goto('/memory');
+  await page.locator('#move-call summary').click();
+  await expect(page.locator('#once-time')).toHaveValue('18:00');
+  await expect(page.locator('#once-day')).toHaveValue(originalDay);
+  await expect(page.locator('#weekly-time')).toHaveValue('17:30');
+  await page.getByRole('button', { name: 'Skip this call' }).click();
+  await expect(page.getByRole('status')).toContainText('Skipped');
+  await expect(page.locator('.appointment')).not.toHaveAttribute('datetime', onceAt!);
+  await expect(page.locator('.usual-time')).toContainText('17:30');
+
+  await page.getByRole('link', { name: 'Open my commitment and goals' }).click();
+  await expect(page).toHaveURL(/\/access\?for=memory$/);
+  await expect(page.getByText(/Confirm your phone number again/)).toBeVisible();
+  await page.getByLabel('Your number', { exact: true }).fill(phone);
+  await page.getByRole('button', { name: 'Text me a code', exact: true }).click();
+  await expect(page.locator('#code')).toBeVisible();
+  const { code } = await fixture(request, 'code', { phone });
+  await page.locator('#code').fill(String(code));
+  await page.getByRole('button', { name: 'Open my notes', exact: true }).click();
+  await expect(page).toHaveURL(/\/memory$/);
   await page.locator('#goals').fill('Spend more time outside with friends.');
   await page.locator('button[value="save"]').click();
   await expect(page.getByRole('status')).toBeVisible();
   await page.reload();
   await expect(page.locator('#goals')).toHaveValue('Spend more time outside with friends.');
   expect((await fixture(request, 'state', { phone })).goals).toBe('Spend more time outside with friends.');
+
   await page.goto('/me');
-  await page.locator('button[value="stop"]').click();
+  await expect(page.getByRole('link', { name: 'Verify your phone to manage billing or cancel renewal' })).toBeVisible();
+  await page.locator('#preferences > summary').click();
+  await page.getByRole('button', { name: 'Turn on calendar invitations' }).click();
+  await expect(page.getByRole('button', { name: 'Turn off calendar invitations' })).toBeVisible();
+  const weeklyEditor = page.locator('#move-weekly');
+  if (testInfo.project.name === 'chromium') await weeklyEditor.locator('summary').press('Enter');
+  else await weeklyEditor.locator('summary').click();
+  await weeklyEditor.getByLabel('Weekly day').selectOption('2');
+  await weeklyEditor.getByLabel('Time', { exact: true }).fill('19:00');
+  await weeklyEditor.getByRole('button', { name: 'Review new time' }).click();
+  await expect(page.getByRole('heading', { name: 'Review new time' })).toBeVisible();
+  await expect(page.getByText(/This changes your next call and your usual time every week/)).toBeVisible();
+  const weeklyAt = await page.locator('time').getAttribute('datetime');
+  await page.getByRole('button', { name: 'Save new time' }).click();
+  await expect(page).toHaveURL(/\/me\?schedule=weekly$/);
+  await expect(page.locator('.appointment')).toHaveAttribute('datetime', weeklyAt!);
+  await expect(page.locator('.usual-time')).toContainText('Tuesday 19:00');
+  await page.reload();
+  const weeklyState = await fixture(request, 'state', { phone });
+  expect(weeklyState.caller).toMatchObject({ slot_weekday: 2, slot_minute: 1140, next_call_at: weeklyAt, calendar_invites_enabled: true });
+  expect(weeklyState.calendarEmails).toEqual(expect.arrayContaining([expect.objectContaining({ at: weeklyAt, method: 'REQUEST' })]));
+  await page.getByRole('button', { name: 'Pause calls', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Pause your calls?' })).toBeVisible();
   expect((await fixture(request, 'state', { phone })).caller).toMatchObject({ paused: false });
   await page.locator('button[value="stop-confirm"]').click();
-  await expect(page.getByRole('heading', { name: /stopped/i })).toBeVisible();
-  expect((await fixture(request, 'state', { phone })).caller).toMatchObject({ paused: true });
-  await page.reload();
-  await page.locator('button[value="start"]').click();
-  expect((await fixture(request, 'state', { phone })).caller).toMatchObject({ paused: false });
+  await expect(page.getByRole('heading', { name: 'Calls paused' })).toBeVisible();
+  await expect(page.getByText('Billing continues while calls are paused.')).toBeVisible();
+  expect((await fixture(request, 'state', { phone })).caller).toMatchObject({ paused: true, billing_status: 'active' });
+  await page.goto(String(link));
+  await expect(page.getByRole('button', { name: 'Cancel subscription renewal' })).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('weekly-paused.png'), fullPage: true });
+  await page.getByRole('button', { name: 'Resume calls' }).click();
+  await expect(page.locator('.appointment')).toBeVisible();
+  expect((await fixture(request, 'state', { phone })).caller).toMatchObject({ paused: false, billing_status: 'active' });
 });
 
 test('a stale private form does not overwrite newer saved goals', async ({ page, request }, testInfo) => {
