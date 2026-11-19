@@ -115,6 +115,14 @@ test('weekly account moves, skips, private corrections and pause survive reload'
   const { link } = await fixture(request, 'seed', { phone, paid: true });
   await page.goto(String(link));
   await expect(page.getByRole('heading', { name: 'Your next call' })).toBeVisible();
+  const calls = page.getByRole('region', { name: 'Your next call' });
+  const notes = page.getByRole('region', { name: 'Your commitment and goals' });
+  await expect(calls.getByRole('button', { name: 'Pause calls', exact: true })).toBeInViewport();
+  await expect(page.getByRole('region', { name: 'Plan and billing' }).getByRole('button', { name: 'Pause calls' })).toHaveCount(0);
+  const callBounds = (await calls.boundingBox())!;
+  const notesBounds = (await notes.boundingBox())!;
+  if (testInfo.project.name === 'chromium') expect(callBounds.x + callBounds.width).toBeLessThan(notesBounds.x);
+  else expect(callBounds.y + callBounds.height).toBeLessThan(notesBounds.y);
   await page.screenshot({ path: testInfo.outputPath('weekly-returning.png'), fullPage: true });
   await page.locator('#move-call summary').click();
   const originalDay = await page.locator('#once-day').inputValue();
@@ -122,6 +130,7 @@ test('weekly account moves, skips, private corrections and pause survive reload'
   const pauseAndResume = async (expectedAt: string) => {
     await page.getByRole('button', { name: 'Pause calls', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Pause your calls?' })).toBeVisible();
+    await expect(page.getByText('Billing continues while calls are paused.')).toBeVisible();
     await page.locator('button[value="stop-confirm"]').click();
     await expect(page.getByRole('heading', { name: 'Calls paused' })).toBeVisible();
     await page.getByRole('button', { name: 'Resume calls' }).click();
@@ -154,10 +163,15 @@ test('weekly account moves, skips, private corrections and pause survive reload'
   await expect(page.locator('.appointment')).not.toHaveAttribute('datetime', onceAt!);
   await expect(page.locator('.usual-time')).toContainText('17:30');
   const skippedTo = await page.locator('.appointment').getAttribute('datetime');
+  await page.goto(String(link));
+  await expect(page.locator('.appointment')).toHaveAttribute('datetime', skippedTo!);
+  await expect(page.getByRole('button', { name: 'Undo skip' })).toBeInViewport();
   await page.screenshot({ path: testInfo.outputPath('weekly-undo-skip.png'), fullPage: true });
   await page.getByRole('button', { name: 'Undo skip' }).click();
   await expect(page.getByRole('status')).toContainText('Your skipped call is back on the schedule.');
   await expect(page.locator('.appointment')).toHaveAttribute('datetime', onceAt!);
+  await page.goto(String(link));
+  await expect(page.getByRole('button', { name: 'Undo skip' })).toHaveCount(0);
   await page.getByRole('button', { name: 'Skip this call' }).click();
   await expect(page.locator('.appointment')).toHaveAttribute('datetime', skippedTo!);
   await pauseAndResume(skippedTo!);
@@ -226,7 +240,7 @@ test('weekly account moves, skips, private corrections and pause survive reload'
 });
 
 test.describe('while travelling', () => {
-  test.use({ timezoneId: 'America/New_York' });
+  test.use({ timezoneId: 'America/Los_Angeles' });
 
   test('review compares both clocks and cancel keeps the saved appointment', async ({ page, request }, testInfo) => {
     const phone = testInfo.project.name === 'chromium' ? '+4792180101' : '+4792180201';
@@ -243,29 +257,50 @@ test.describe('while travelling', () => {
     const changed = await proposal.locator('time').getAttribute('datetime');
     expect(changed).not.toBe(booked);
     const local = new Intl.DateTimeFormat('en-GB', {
-      hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'America/New_York',
+      hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'America/Los_Angeles',
     });
     for (const [card, instant, bookingTime] of [[current, booked!, '17:30'], [proposal, changed!, '18:00']] as const) {
-      await expect(card.locator('.appointment-zone')).toHaveText('New York time');
+      await expect(card.locator('.appointment-zone')).toHaveText('Los Angeles time');
       await expect(card.locator('.appointment-clock')).toHaveText(local.format(new Date(instant)));
       await expect(card.locator('.booking-clock')).toBeVisible();
       await expect(card.locator('.booking-clock')).toContainText(`${bookingTime} · Norwegian time`);
+      await expect(card.locator('.booking-date')).toBeHidden();
     }
+    await expect(page.locator('.review-date')).toBeVisible();
     const currentBounds = (await current.boundingBox())!;
     const proposalBounds = (await proposal.boundingBox())!;
     if (testInfo.project.name === 'chromium') expect(currentBounds.x + currentBounds.width).toBeLessThan(proposalBounds.x);
     else expect(currentBounds.y + currentBounds.height).toBeLessThan(proposalBounds.y);
     await page.screenshot({ path: testInfo.outputPath('weekly-review-travel.png'), fullPage: true });
+    const cancel = page.getByRole('link', { name: 'Cancel change' });
     if (testInfo.project.name !== 'chromium') {
       await page.setViewportSize({ width: 320, height: 667 });
+      await expect(cancel).toBeInViewport({ ratio: 1 });
+      await page.screenshot({ path: testInfo.outputPath('weekly-review-320.png') });
       await page.addStyleTag({ content: 'html {font-size: 200% !important}' });
       const width = await page.evaluate(() => [document.documentElement.clientWidth, document.documentElement.scrollWidth]);
       expect(width[1]).toBeLessThanOrEqual(width[0]! + 1);
+      await expect(cancel).toBeInViewport({ ratio: 1 });
     }
-    await page.getByRole('link', { name: 'Cancel change' }).click();
+    await cancel.click();
     await expect(page.getByRole('heading', { name: 'Your next call' })).toBeVisible();
     await expect(page.locator('.appointment')).toHaveAttribute('datetime', booked!);
     expect((await fixture(request, 'state', { phone })).caller).toMatchObject({ next_call_at: booked, slot_minute: 1050 });
+
+    await page.locator('#move-call summary').click();
+    await page.locator('#once-time').fill('06:00');
+    await page.getByRole('button', { name: 'Review new time' }).click();
+    await expect(proposal.locator('.booking-date')).toBeVisible();
+    await expect(page.locator('.review-date')).toBeHidden();
+    await expect(proposal.locator('.appointment-date')).toBeVisible();
+    await cancel.click();
+    await page.getByRole('button', { name: 'Skip this call' }).click();
+    await expect(page.getByRole('status')).toHaveText('Skipped one call.');
+    await expect(page.locator('.appointment-zone')).toHaveText('Los Angeles time');
+    await expect(page.locator('.booking-clock')).toContainText('17:30 · Norwegian time');
+    await page.goto(String(link));
+    await page.getByRole('button', { name: 'Undo skip' }).click();
+    await expect(page.locator('.appointment')).toHaveAttribute('datetime', booked!);
   });
 });
 

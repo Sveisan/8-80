@@ -208,13 +208,14 @@ export const ACCOUNT_CSS = `
   fieldset { border: 0; padding: 0; margin: 0 0 var(--space-3); min-width: 0; }
   legend { padding: 0; margin: 0 0 var(--space-1); font-size: var(--text-small); color: var(--quiet); }
   .zone { margin: 0 0 var(--space-2); font-size: var(--text-caption); color: var(--quiet); }
-  .review-schedule { display: grid; gap: var(--space-3); margin: var(--space-5) 0 var(--space-3); }
+  .review-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 0 var(--space-4); }
+  .review-date { color: var(--quiet); font-size: var(--text-small); margin: var(--space-2) 0 0; }
+  .review-schedule { display: grid; gap: var(--space-2); margin: var(--space-3) 0; }
   .review-slot { min-width: 0; padding: var(--space-4); border: 1px solid var(--line); border-radius: var(--radius-panel); }
   .review-slot.proposed { border-color: var(--accent); background: var(--card); }
   .review-slot .appointment-time { font-size: var(--text-heading); overflow-wrap: anywhere; }
   .review-slot .booking-clock { margin-bottom: 0; }
-  .review-actions { display: grid; gap: var(--space-3); margin-top: var(--space-6); }
-  .review-actions .account-link { justify-self: start; }
+  .review-actions { display: grid; gap: var(--space-2); margin-top: var(--space-4); }
   .weekly-account { padding: var(--space-3) var(--space-4) var(--space-10); }
   .weekly-account main { max-width: 35rem; }
   .weekly-account h1 { line-height: 1.15; }
@@ -229,7 +230,8 @@ export const ACCOUNT_CSS = `
   .account-notice { margin: var(--space-3) 0; padding: var(--space-3) var(--space-4); background: var(--card);
     border-inline-start: 3px solid var(--accent); font-size: var(--text-small); }
   .account-notice p { margin: 0; }
-  .account-notice .undo-skip { margin: var(--space-2) 0 0; }
+  .skip-notice { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2) var(--space-4); }
+  .account-notice .undo-skip { margin: 0; }
   .undo-skip button { width: auto; }
   .weekly-account .call-overview { padding: var(--space-4); margin: var(--space-3) 0 0; background: var(--card); }
   .call-overview .appointment { margin-bottom: var(--space-3); }
@@ -239,7 +241,8 @@ export const ACCOUNT_CSS = `
   .weekly-account .change-time { margin-bottom: var(--space-2); }
   .weekly-account summary { min-height: var(--control-height); padding: var(--space-3) var(--space-4); overflow-wrap: anywhere; }
   .weekly-account .change-time:not(.reschedule) > summary { border-color: var(--control-border); }
-  .weekly-account .skip { margin: 0; }
+  .call-controls { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+  .call-controls form { flex: 1 1 7.5em; margin: 0; }
   .weekly-time { border-top: 1px solid var(--line); margin-top: var(--space-4); padding-top: var(--space-3); }
   .weekly-time .usual-time { margin: var(--space-1) 0 var(--space-2); }
   .weekly-time .weekly-editor { margin-bottom: 0; }
@@ -262,7 +265,13 @@ export const ACCOUNT_CSS = `
   @media (min-width: ${breakpoints.medium}) {
     .weekly-account { padding: var(--space-6) var(--space-6) var(--space-12); }
     .weekly-account .call-overview { padding: var(--space-5); }
-    .review-schedule { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .review-schedule { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+  }
+  @media (min-width: ${breakpoints.split}) {
+    .account-dashboard main { max-width: 56rem; }
+    .account-dashboard .account-layout { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr); gap: var(--space-8); align-items: start; }
+    .account-dashboard .account-sidebar { padding-inline-start: var(--space-6); border-inline-start: 1px solid var(--line); margin-top: var(--space-3); }
+    .account-dashboard .account-sidebar > .account-section:first-child { border-top: 0; margin-top: 0; padding-top: var(--space-2); }
   }
 `;
 

@@ -9,6 +9,7 @@ import { Links } from '../src/link/token.ts';
 import { controlPlane } from '../src/control.ts';
 import { nextSlotAfter, type Slot } from '../src/schedule/time.ts';
 import { moveVersion } from '../src/link/move.ts';
+import { skipReceipt } from '../src/link/undo-skip.ts';
 import type { LoopDeps } from '../src/loop/deps.ts';
 
 const KEY = Buffer.alloc(32, 7).toString('base64');
@@ -177,6 +178,7 @@ test('undo skip is account-bound and an old receipt cannot undo a newer skip to 
   await store!.record(phone, { at: new Date().toISOString(), durationMs: 300_000, onboardingComplete: true });
   const original = await sched!.setSlot(phone, OSLO);
   const otherToken = await enrolled('+4790000074');
+  const browserSession = await new Links(sql!).mint(phoneKey(phone), new Date(), 'browser');
   const skip = { action: 'skip', skip_at: original.toISOString() };
   await serving(async (base) => {
     const first = await (await post(base, token, skip)).text();
@@ -185,7 +187,16 @@ test('undo skip is account-bound and an old receipt cannot undo a newer skip to 
     const undo = { action: 'undo-skip', receipt };
     const rejected = await post(base, otherToken, undo);
     assert.match(await rejected.text(), /can no longer be undone/);
-    const restored = await post(base, token, undo);
+    await store!.upsertProfile(phone, { name: 'Alex' });
+    const browser = { cookie: `browser=${browserSession}` };
+    const reopened = await (await fetch(`${base}/me`, { headers: browser })).text();
+    const reopenedReceipt = /name="receipt" value="([^"]+)"/.exec(reopened)?.[1];
+    assert.ok(reopenedReceipt, 'another account entry point still offers undo after a profile edit');
+    const restored = await fetch(`${base}/me`, {
+      method: 'POST',
+      headers: { ...browser, 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ ...undo, receipt: reopenedReceipt }),
+    });
     assert.match(await restored.text(), /back on the schedule/);
     assert.deepEqual(await sched!.nextCallFor(phone), original);
 
@@ -197,7 +208,34 @@ test('undo skip is account-bound and an old receipt cannot undo a newer skip to 
     const stale = await post(base, token, undo);
     assert.match(await stale.text(), /can no longer be undone/);
     assert.deepEqual(await sched!.nextCallFor(phone), newerSkip);
-    await post(base, token, { ...undo, receipt: newerReceipt });
+    assert.ok(newerSkip);
+    await sched!.moveIfActive(phone, original);
+    await sched!.moveIfActive(phone, newerSkip);
+    const newerAgain = await (await fetch(`${base}/r/${token}`)).text();
+    assert.doesNotMatch(newerAgain, /value="undo-skip"/, 'moving back to the same time does not revive the old skip');
+    const withdrawn = await post(base, token, { ...undo, receipt: newerReceipt });
+    assert.match(await withdrawn.text(), /can no longer be undone/);
+    assert.deepEqual(await sched!.nextCallFor(phone), newerSkip);
+  });
+});
+
+test('an open undo form from before persistence still works until its original appointment changes', { skip: skip() }, async () => {
+  const phone = '+4790000075';
+  const token = await enrolled(phone);
+  const hash = phoneKey(phone);
+  await store!.record(phone, { at: new Date().toISOString(), durationMs: 300_000, onboardingComplete: true });
+  const original = await sched!.setSlot(phone, OSLO);
+  const next = nextSlotAfter(original, OSLO);
+  const [legacy] = await sql!<{ revision: string }[]>`
+    update callers set next_call_at = ${next}, updated_at = clock_timestamp()
+    where phone_hash = ${hash} returning updated_at::text as revision
+  `;
+  const receipt = skipReceipt(hash, {
+    skippedAt: original.toISOString(), replacementAt: next.toISOString(), cycle: null, revision: legacy!.revision,
+  });
+  await serving(async base => {
+    const restored = await post(base, token, { action: 'undo-skip', receipt });
+    assert.match(await restored.text(), /back on the schedule/);
     assert.deepEqual(await sched!.nextCallFor(phone), original);
   });
 });

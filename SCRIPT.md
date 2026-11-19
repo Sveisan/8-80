@@ -1621,6 +1621,12 @@ and no way to send START, so the way back cannot live only in a message._
 `page.skip`
 > "Skip this call"
 
+`page.skip.saved`
+> "Skipped one call."
+
+`page.skip.unchanged`
+> "No call changed. Check the schedule below."
+
 `page.skip.undo`
 > "Undo skip"
 
@@ -2351,6 +2357,9 @@ permissions. Neither screen displays stored commitments, goals or other private 
 `page.no_next.trial`
 > "There is no upcoming appointment within your free month. You can choose an earlier time below."
 
+`page.no_next.paid`
+> "There is no upcoming appointment before your paid access ends."
+
 `page.support`
 > "Contact us about your account"
 
@@ -2988,6 +2997,12 @@ _Explicit opt-in. Generic messages only: no private call details on a lock scree
 `page.account.resume`
 > "Resume calls"
 
+`page.account.resume.saved`
+> "Calls resumed."
+
+`page.account.resume.unavailable`
+> "Calls could not be resumed. Check your account below."
+
 `page.account.resume.detail`
 > "Resume when you’re ready. We’ll keep your next call if it’s still available."
 
@@ -2999,6 +3014,9 @@ _Explicit opt-in. Generic messages only: no private call details on a lock scree
 
 `page.account.pause.confirm`
 > "Pause your calls?"
+
+`page.account.pause.detail`
+> "Calls will stop until you come back to resume them."
 
 `page.account.pause.keep`
 > "Keep my calls"

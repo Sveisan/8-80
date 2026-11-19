@@ -1,8 +1,8 @@
-import type { SkipUndo } from '../schedule/scheduler.ts';
+import type { SkipUndo, StoredSkipUndo } from '../schedule/scheduler.ts';
 import { decrypt, encrypt } from '../store/crypto.ts';
 
 /** An account-bound receipt. The scheduler checks its revision and availability on use. */
-export function skipReceipt(phoneHash: string, undo: SkipUndo): string {
+export function skipReceipt(phoneHash: string, undo: StoredSkipUndo): string {
   return encrypt(JSON.stringify({ purpose: 'weekly-skip-undo', phoneHash, ...undo }));
 }
 
