@@ -288,6 +288,13 @@
       "when": 1795125444514,
       "tag": "0040_weekly_skip_undo",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1795126418252,
+      "tag": "0041_unblock_incident_actions",
+      "breakpoints": true
     }
   ]
 }

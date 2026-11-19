@@ -144,6 +144,9 @@ export async function claimUnblock(deps: LoopDeps, now = new Date(), availableSi
 }
 const recovery = (): string => `Check or change your next Unblock call in your private account: ${route()}`;
 async function unblockNotice(sql: postgres.TransactionSql, deps: LoopDeps, hash: string, id: string, text: string, now: Date): Promise<void> {
+  const [eligible] = await sql`select c.phone_hash from callers c join call_attempts a on a.phone_hash=c.phone_hash
+    where c.phone_hash=${hash} and a.id=${id} and not c.held_for_review and not c.all_calls_stopped and not c.sms_opt_out and a.safety_tier is null`;
+  if (!eligible) return; // A held conversation never produces an automatic participant follow-up, including on timeout.
   const phone = await deps.store.in(sql).phoneFor(hash); if (!phone || !config.link.publicUrl()) return;
   await enqueue(sql, { eventKey: `unblock:call:${id}`, phoneHash: hash, channel: 'sms', kind: 'unblock', reference: id, to: phone, body: text }, now);
 }
@@ -231,13 +234,14 @@ export async function settleUnblock(payload: unknown, deps: LoopDeps, event?: st
 export async function closeUnblockSession(deps: LoopDeps, id: string, now = new Date()): Promise<boolean> {
   const [s] = await deps.store.raw<Session[]>`select * from unblock_sessions where id=${id}`; if (!s) return false;
   await deps.store.raw.begin(async tx => {
-    await tx`select phone_hash from callers where phone_hash=${s.phone_hash} for update`;
-    const [a] = await tx`select status from call_attempts where id=${id} for update`;
+    const [caller] = await tx`select held_for_review,all_calls_stopped,sms_opt_out from callers where phone_hash=${s.phone_hash} for update`;
+    const [a] = await tx`select status,safety_tier from call_attempts where id=${id} for update`;
     if (!a || !['claimed', 'placed', 'settling'].includes(a['status'])) return;
     await tx`update call_attempts set status='failed',ended_at=${now},note='unblock call unconfirmed; no automatic redial' where id=${id}`;
     const [latest] = await tx`select snapshot_enc from unblock_sessions where id=${id} for update`;
     const snapshot = JSON.parse(decrypt(latest!['snapshot_enc'])) as Snapshot;
     await tx`update unblock_sessions set complete=true,snapshot_enc=${encrypt(closedSnapshot(snapshot, s.kind, s.week ?? 0))},coverage_enc=${encrypt(JSON.stringify(snapshot.coverage))} where id=${id}`;
-    if (s.kind !== 'light') await unblockNotice(tx, deps, s.phone_hash, id, recovery(), now);
+    if (s.kind !== 'light' && caller && !caller['held_for_review'] && !caller['all_calls_stopped'] && !caller['sms_opt_out'] && a['safety_tier'] == null)
+      await unblockNotice(tx, deps, s.phone_hash, id, recovery(), now);
   }); return true;
 }

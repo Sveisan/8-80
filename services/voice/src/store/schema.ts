@@ -1,4 +1,4 @@
-import { boolean, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
+import { boolean, check, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import type { StoredSkipUndo } from '../schedule/scheduler.ts';
 
@@ -636,8 +636,18 @@ export const unblockIncidents = pgTable('unblock_incidents', {
   acknowledgedAt: timestamp('acknowledged_at', { withTimezone: true }),
   blockedAt: timestamp('blocked_at', { withTimezone: true }),
   failure: text('failure'),
+  escalatedAt: timestamp('escalated_at', { withTimezone: true }),
+  disclosedAt: timestamp('disclosed_at', { withTimezone: true }),
+  disclosureBasis: text('disclosure_basis'),
+  handoffAt: timestamp('handoff_at', { withTimezone: true }),
+  handoffBasis: text('handoff_basis'),
+  resolution: text('resolution'),
   resolvedAt: timestamp('resolved_at', { withTimezone: true }),
-}, t => [index('unblock_incidents_open_idx').on(t.ackDueAt).where(sql`${t.resolvedAt} is null`)]);
+}, t => [index('unblock_incidents_open_idx').on(t.ackDueAt).where(sql`${t.resolvedAt} is null`),
+  check('unblock_incidents_disclosure_check', sql`(${t.disclosedAt} is null and ${t.disclosureBasis} is null) or (${t.disclosedAt} is not null and ${t.disclosureBasis} is not null and ${t.disclosureBasis} in ('consent','reviewed_emergency_basis'))`),
+  check('unblock_incidents_handoff_check', sql`(${t.handoffAt} is null and ${t.handoffBasis} is null) or (${t.handoffAt} is not null and ${t.handoffBasis} is not null and ${t.handoffBasis} in ('caller_confirmed','human_confirmed'))`),
+  check('unblock_incidents_resolution_check', sql`${t.resolution} is null or (${t.resolvedAt} is not null and (${t.resolution}='no_handoff_needed' or (${t.resolution}='handoff_confirmed' and ${t.handoffAt} is not null)))`),
+]);
 
 export const unblockSessions = pgTable('unblock_sessions', {
   id: text('id').primaryKey().references(() => callAttempts.id, { onDelete: 'cascade' }),

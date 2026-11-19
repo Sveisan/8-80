@@ -130,3 +130,7 @@ Same gates as Beliefs, unchanged: approved urgent-response procedure and staffed
 What to measure in a pilot, without invented targets: whether callers can name a wish in the opening call; step outcomes by call; light-call answer rate and opt-outs; how the close and its sign-off land (one open question, in their words); which calls-per-month callers choose and keep; drop-off by month; connected minutes and cost.
 
 The approved daily Available/Away rule is implemented via the private `unblock:availability` CLI; see [operator review](operator-review.md) for commands and remaining urgent-response approval. Dashboard Web tests with blank session variables cannot use the production capture tool. The private provider prompts/greetings were updated on 19 November; full registered-session audio verification remains pending.
+
+## Current launch approvals · 19 November 2026
+
+The four consolidated safety/privacy operating decisions are owner-approved; see [the procedure and private action commands](escalation-handoff.md). Live call/alert tests were explicitly removed from the launch checklist and remain unverified, rather than passed. The next owner review is commercial readiness. Qualified safety/privacy review and explicit activation remain separate; enrolment and live calls stay closed.

@@ -1,11 +1,11 @@
-# Unblock operator procedure · review draft
+# Unblock operator procedure · approved operating controls
 
-**Operational procedure owner-approved, 19 November 2026; core spoken response owner-approved; routing still draft.** This record makes the owner decisions explicit. It does not provide clinical triage or an approved urgent spoken response. A qualified reviewer must complete and approve that part before `UNBLOCK_SAFETY_APPROVED` can be set.
+**Operating controls, core response, Norway routing and consolidated safety/privacy procedure owner-approved, 19 November 2026.** This record makes the owner decisions explicit. The current policy and private command reference are [the consolidated procedure](escalation-handoff.md). Qualified review remains required before safety approval/activation; this record is not clinical triage.
 
 ## Approved ownership and hours
 
 - Sole operator: Eirik, confirmed by the owner on 19 November 2026 for the initial launch. The owner clarified “Same” as “Sole operator”.
-- Backup: none appointed, by the owner's explicit choice. This supersedes the earlier draft request for a named backup; do not keep requesting a backup name. Daily availability is approved and implemented locally; the five-minute acknowledgement and failure-to-Away rule are also owner-approved; the exact spoken/emergency procedure remains under review.
+- Backup: none appointed, by the owner's explicit choice. This supersedes the earlier draft request for a named backup; do not keep requesting a backup name. Daily availability is approved and implemented locally; the five-minute acknowledgement and failure-to-Away rule are also owner-approved; the core speech, routing and four operating-policy decisions are now approved; qualified review remains separate.
 - Owner-approved staffed period (19 November 2026): Monday–Friday, 09:00–17:00, Europe/Oslo. Calls start 09:00–16:30; optional light calls are suggested for Mon/Wed/Fri at 16:00.
 - Approved release settings, to apply after staffing/procedure and release checks: `UNBLOCK_COVERAGE_DAYS=1,2,3,4,5`, `UNBLOCK_COVERAGE_START=09:00`, `UNBLOCK_COVERAGE_END=17:00`.
 - The owner approved a five-minute acknowledgement target and Away on alert/acknowledgement failure. Qualified review must settle the exact emergency response when Eirik cannot respond. Calls should not be offered outside the agreed staffed coverage.
@@ -35,7 +35,7 @@ Available can be set on an Oslo working day before 17:00, including before 09:00
 
 Slots due before the current check-in are missed, including a short Away interval; they are not caught up after returning. Regular/opening missed slots use the existing neutral account notice; light slots are skipped silently. Billing is unchanged pending the commercial decision.
 
-`UNBLOCK_OPERATOR_PHONE` must be configured privately to Eirik's agreed alert contact. It has no fallback to shared weekly/Beliefs operators. Unblock's urgent alert and weekday 09:00–17:00 daily review reminder are scoped to that contact; Unblock cases are excluded from the shared digest. No real alert delivery or acknowledgement has yet been verified. The incident system now supplies acknowledgement and operational failure blocking; clinical escalation and spoken response remain separate approvals.
+`UNBLOCK_OPERATOR_PHONE` must be configured privately to Eirik's agreed alert contact. It has no fallback to shared weekly/Beliefs operators. Unblock's urgent alert and weekday 09:00–17:00 daily review reminder are scoped to that contact; Unblock cases are excluded from the shared digest. No real alert delivery or acknowledgement has yet been verified. The incident system now supplies acknowledgement and operational failure blocking; the operating policy and core speech are now approved; qualified review remains separate. Live alert tests were owner-waived, so delivery and acknowledgement remain unverified.
 
 ## Urgent-response operational procedure · owner-approved 19 November 2026
 
@@ -47,7 +47,7 @@ Slots due before the current check-in are missed, including a short Away interva
 4. **Failed alert or missed acknowledgement.** Owner-approved rule: set global Unblock Away, block new calls, retain the individual's hold, and raise a persistent incident for Eirik. There is no independent backup. An active caller must receive the reviewer-approved emergency direction; the service must never suggest that an unattended queue is emergency support. Availability alone cannot resolve an existing incident. Delivery acceptance is not delivery or human acknowledgement.
 5. **Human decision and controlled return.** Eirik reviews privately and follows the qualified, jurisdiction-appropriate escalation procedure. Contacting emergency services and any disclosure of caller data need a reviewed basis and practical instructions. Record the minimum necessary outcome privately; no automatic texts to the participant, release, billing change or restart. Release a safety hold only after the required review, while preserving STOP and carrier opt-out. Resolve the operational incident separately before a deliberate return to Available.
 
-The exact spoken response, handling of ambiguous or non-imminent disclosures (including abuse), current-location uncertainty, emergency escalation/disclosure, failure of the sole operator, incident retention, call ending, and repeat incidents require appropriately qualified review. The existing pack remains private-test-only until this is settled. Do not copy the weekly “same evening” response target into Unblock.
+The operating policy is owner-approved. Clinical exception handling and the legal basis/conditions for disclosure still require the agreed qualified review. The existing pack remains private-test-only until this is settled. Do not copy the weekly “same evening” response target into Unblock.
 
 Primary background checked on 19 November 2026: [Helsenorge guidance for helping someone at risk](https://www.helsenorge.no/en/psykisk-helse/suicidal-thoughts-and-suicide/how-to-help-others/) supports taking disclosures seriously, listening, and promptly contacting emergency services for acute risk. It does not validate an automated voice service or this proposed acknowledgement target. Do not infer a caller's current country from their telephone number, language or timezone; the reviewer must define supported jurisdictions and the fallback for an unknown location.
 
@@ -62,11 +62,11 @@ Primary background checked on 19 November 2026: [Helsenorge guidance for helping
 
 ## Provisioning check before launch
 
-The local Unblock alert code now requires its own explicit operator contact, and shared digests exclude Unblock cases. Before deployment, configure and verify this contact privately, confirm existing private review access, and test actual alert delivery and acknowledgement. Do not inherit a shared backup or change weekly 8&80/Beliefs recipients or access implicitly. The ownership decision is not evidence of configured contact details, delivery, permissions or an approved response procedure.
+The local Unblock alert code now requires its own explicit operator contact, and shared digests exclude Unblock cases. Before deployment, verify the scoped contact and private review access without a send. Live alert and acknowledgement tests were explicitly waived by the owner; do not record them as passed. Do not inherit a shared backup or change weekly 8&80/Beliefs recipients or access implicitly. The ownership decision is not evidence of configured contact details, delivery, permissions or an approved response procedure.
 
 ## Review record required
 
-Record the procedure version, reviewer and owner names, approval date, sole-operator acceptance, availability rule, staffed window and acknowledgement target. Test alert delivery, a held conversation, suppression of the next call, and controlled release. Keep real participant details and incident notes out of Git.
+Record the procedure version, reviewer and owner names, approval date, sole-operator acceptance, availability rule, staffed window and acknowledgement target. Automated tests cover held conversations, suppression, incident outcomes and controlled release. Live calls/alert delivery tests were owner-waived and remain unverified. Keep real participant details and incident notes out of Git.
 
 The weekly [safety runbook](../SAFETY-RUNBOOK.md) is background evidence. Its existence does not approve a new Unblock spoken procedure.
 
@@ -77,7 +77,7 @@ Migration `0038_unblock_incidents` stores one incident and one alert intent per 
 ```sh
 npm run unblock:incidents -- --list
 npm run unblock:incidents -- --ack INCIDENT_ID
-npm run unblock:incidents -- --resolve INCIDENT_ID --reviewed
+npm run unblock:incidents -- --resolve INCIDENT_ID --outcome handoff-confirmed --reviewed
 npm run unblock:availability -- --available
 ```
 
@@ -89,4 +89,4 @@ Account erasure nulls the private call/message links while preserving an unresol
 
 Tier-two findings retain the caller hold and scoped daily review reminder; they are not silently converted into a clinical diagnosis or a tier-one incident. Trigger coverage and any escalation of ambiguous/non-imminent disclosures still need qualified review.
 
-The core spoken response is now owner-approved and implemented in the three scripts and safety-tool response. Next: review emergency routing in [the response record](urgent-response.md). Full qualified procedure approval and activation remain separate.
+The core, routing and consolidated operating policy are owner-approved. See [the current procedure](escalation-handoff.md) for exact escalation/disclosure/handoff commands, the explicit no-handoff-needed review outcome and the live-test waiver. Next: commercial readiness; qualified review and activation remain separate.

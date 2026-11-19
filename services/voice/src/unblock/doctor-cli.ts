@@ -6,4 +6,4 @@ console.log(unblockConfig().price ? 'Price label: set' : 'Price label: not set (
 console.log(unblockConfig().live ? 'Live-call switch: ON' : 'Live-call switch: OFF');
 console.log('Placement also requires today’s manual Available check-in; inspect with npm run unblock:availability -- --status.');
 if (missing.length) { for (const item of missing) console.log('Required: ' + item); process.exitCode = 1; }
-else console.log('Configuration gates present. Provider tests, the payment seam and staffed coverage still require operational verification.');
+else console.log('Configuration gates present. Private provider configuration, the payment seam, staffed coverage and remaining approvals still need verification. Live call/alert testing was owner-waived; audible behaviour and real delivery remain unverified.');

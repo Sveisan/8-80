@@ -88,7 +88,7 @@ npm run speechify:sync -- --group unblock --apply --write-ids
 
 ## Still needed before real callers
 
-- A test call to each agent confirms the greeting, the tool call and a recorded note. A listed tool is not proof.
+- Live-call and alert tests were explicitly owner-waived for the initial launch on 19 November. Audible behaviour and delivery remain unverified. Verify private configuration and automated tool/session contracts without placing a call; a listed tool is not proof of real use.
 - Speechify phase/flow overrides, if any, can replace the uploaded prompt. Check none exist on these agents.
 - The safety procedure must be approved before `UNBLOCK_SAFETY_APPROVED` is set; that is a separate decision.
 - Undo: `npm run unblock:tools -- --disable --tool-id TOOL_ID`, or `npm run speechify:sync -- --restore BACKUP_FILENAME` for prompt and greeting changes.
