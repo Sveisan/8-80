@@ -236,10 +236,10 @@ export class Scheduler {
     return await transaction(this.sql, async tx => {
       const [row] = await tx<{
         slot_weekday: number | null; slot_minute: number | null; timezone: string | null;
-        billing_status: string; trial_ends_at: Date | null; cancel_at_period_end: boolean; paid_until: Date | null; held_for_review: boolean;
-      }[]>`select slot_weekday, slot_minute, timezone, billing_status, trial_ends_at, cancel_at_period_end, paid_until, held_for_review
+        billing_status: string; trial_ends_at: Date | null; cancel_at_period_end: boolean; paid_until: Date | null; held_for_review: boolean; all_calls_stopped: boolean;
+      }[]>`select slot_weekday, slot_minute, timezone, billing_status, trial_ends_at, cancel_at_period_end, paid_until, held_for_review, all_calls_stopped
         from callers where phone_hash = ${phoneKey(phone)} for update`;
-      if (!row || row.held_for_review || row.slot_weekday === null || row.slot_minute === null || !row.timezone) return undefined;
+      if (!row || row.held_for_review || row.all_calls_stopped || row.slot_weekday === null || row.slot_minute === null || !row.timezone) return undefined;
       const next = nextSlotAfter(now, { weekday: row.slot_weekday, minute: row.slot_minute, timezone: row.timezone });
       const eligible = ['comped', 'active', 'past_due'].includes(row.billing_status)
         || (row.billing_status === 'trialing' && (!row.trial_ends_at || row.trial_ends_at > next));

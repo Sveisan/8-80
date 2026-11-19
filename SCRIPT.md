@@ -2961,6 +2961,9 @@ _Explicit opt-in. Generic messages only: no private call details on a lock scree
 `page.account.paused`
 > "Calls paused"
 
+`page.account.stopped_by_text`
+> "You stopped calls by text. Reply START in your 8&80 text thread to resume, or contact us for help."
+
 `page.account.resume`
 > "Resume calls"
 

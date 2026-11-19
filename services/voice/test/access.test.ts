@@ -276,6 +276,23 @@ test('trial boundaries, paid and overdue states match scheduler eligibility, ind
   });
 });
 
+test('the account respects a global text STOP on a remembered booking', options, async () => {
+  await enrol();
+  await db!.sql`update callers set all_calls_stopped = true where phone_hash = ${hash}`;
+  const token = await new Links(db!.sql).mint(hash);
+  await serve(async base => {
+    const html = await (await fetch(`${base}/r/${token}`)).text();
+    assert.match(html, /Reply START in your 8&amp;80 text thread/);
+    assert.doesNotMatch(html, /class="appointment"|value="start"/);
+    const res = await fetch(`${base}/r/${token}`, form({ action: 'start' }));
+    assert.match(await res.text(), /Reply START/);
+    assert.equal((await accountState(db!.sql, hash))?.next, undefined);
+    assert.equal(await new Scheduler(db!.sql).resumeIfEligible(phone), undefined);
+    const [row] = await db!.sql`select all_calls_stopped from callers where phone_hash = ${hash}`;
+    assert.equal(row?.['all_calls_stopped'], true);
+  });
+});
+
 test('a legacy move returns the updated authorised controls without SMS instructions', options, async () => {
   await enrol();
   const token = await new Links(db!.sql).mint(hash);

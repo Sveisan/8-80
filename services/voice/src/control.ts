@@ -648,6 +648,7 @@ async function yourPage(
   // A stale page must not resume paused calls by changing their weekly slot.
   if (['start', 'move', 'skip', 'later'].includes(action ?? '') &&
       (!state.canCall || (state.paused && action !== 'start'))) return await page();
+  if (action === 'start' && state.stoppedByText) return await page();
   if (action === 'move-review' || action === 'move-save' || action === 'move-edit') {
     const version = moveVersion(slot, state.scheduledAt);
     // An old form must not overwrite a newer appointment or a change to its weekly slot.

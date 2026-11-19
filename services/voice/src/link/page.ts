@@ -259,6 +259,7 @@ export function reschedulePage(
     ${status ? `<p class="account-notice" role="status">${esc(status)}</p>` : ''}
     ${state?.onHold ? `<p class="account-intro">${say('page.held.detail')}</p>`
       : state && !state.canCall ? `<p class="account-intro">${say('page.ended.detail')}</p>`
+      : state?.stoppedByText ? `<p class="account-intro">${say('page.account.stopped_by_text')}</p>`
       : state?.paused ? `<p class="account-intro">${say('page.account.resume.detail')}</p>
         <form method="post" action="?" class="resume"><button name="action" value="start" class="primary">${say('page.account.resume')}</button></form>` : ''}
     ${arranging ? `<section class="account-section call-overview" aria-labelledby="call-heading">
