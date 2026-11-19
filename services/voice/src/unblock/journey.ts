@@ -18,10 +18,16 @@ export const JOURNEY_SCRIPT = `(()=>{
     const form=root.closest('form'), zone=form.elements.namedItem('timezone');
     if(root.hasAttribute('data-detect-zone')){try{
       const detected=Intl.DateTimeFormat().resolvedOptions().timeZone;
-      if(detected){zone.value=detected;const first=form.elements.namedItem('opening_local');if(first){
-        const tomorrow=new Date(Date.now()+86400000);
-        first.value=new Intl.DateTimeFormat('sv-SE',{timeZone:detected,year:'numeric',month:'2-digit',day:'2-digit'}).format(tomorrow)+'T18:00';
-      }}
+      if(detected){zone.value=detected;
+        const date=iso=>new Date(iso), parts=iso=>new Intl.DateTimeFormat('en-GB',{timeZone:detected,weekday:'long',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(date(iso));
+        const local=iso=>{const p=parts(iso),get=t=>p.find(x=>x.type===t).value;return {day:['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'].indexOf(get('weekday')),time:get('hour')+':'+get('minute')};};
+        const first=form.elements.namedItem('opening_local');if(first){const iso=root.dataset.openingDefault;
+          first.value=new Intl.DateTimeFormat('sv-SE',{timeZone:detected,year:'numeric',month:'2-digit',day:'2-digit'}).format(date(iso))+'T'+local(iso).time;
+        }
+        const regular=local(root.dataset.regularDefault);form.elements.namedItem('weekday').value=String(regular.day);form.elements.namedItem('weekly').value=regular.time;
+        const light=root.dataset.lightDefaults.split(',').map(local);form.elements.namedItem('light').value=light[0].time;
+        for(const input of form.querySelectorAll('[name=light_day]'))input.checked=light.some(slot=>slot.day===Number(input.value));
+      }
     }catch{}}
     const days=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
     const update=()=>{

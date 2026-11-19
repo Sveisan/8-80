@@ -13,7 +13,7 @@ export const LEDGER_READBACK_MAX = 5;
 /** First weekly call is never sooner than this after a verified opening call. */
 export const FIRST_WEEK_GAP_DAYS = 5;
 export const DEFAULT_LIGHT_DAYS = [1, 3, 5];
-export const DEFAULT_LIGHT_MINUTE = 19 * 60;
+export const DEFAULT_LIGHT_MINUTE = 16 * 60;
 
 export type CallKind = 'opening' | 'weekly' | 'light';
 export type BlockKind = 'limit' | 'prediction' | 'unsure';
@@ -34,6 +34,8 @@ export interface Programme {
   /** Calls in the current chapter including the close, frozen at chapter start. Absent = 4. */
   chapterCalls?: number;
   chapterStartedAt?: string;
+  /** First paid activation, preserved through new chapters and reactivation. Absent for older programmes with no known start. */
+  startedAt?: string;
   /** Closings of finished chapters; `closing` is the current chapter's. */
   closings?: Closing[];
   wishes: Wish[]; blocks: Block[]; steps: Step[]; ledger: LedgerEntry[]; closing: Closing | null;
@@ -164,9 +166,34 @@ export function selectLedgerReadback(ledger: readonly LedgerEntry[], max = LEDGE
   }
   return picked.sort((a, b) => a.at.localeCompare(b.at) || a.occurredOn.localeCompare(b.occurredOn));
 }
-/** What the close reads back: this chapter's ledger, or for the year chapter one-per-chapter across the year. */
-export function closeReadback(p: Programme, chapter: Chapter): LedgerEntry[] {
-  if (chapter.readback === 'chapter') return selectLedgerReadback(monthEntries(p, p.ledger));
+/** Thirty caller-local dates including today. Independent of billing months and DST day length. */
+export function reflectionRange(now: Date, timezone: string): { from_day: string; through_day: string } {
+  const through = localDay(now, timezone);
+  const from = new Date(through + 'T00:00:00Z'); from.setUTCDate(from.getUTCDate() - 29);
+  return { from_day: from.toISOString().slice(0, 10), through_day: through };
+}
+type ReflectionPeriod =
+  | { kind: 'since_start' | 'rolling_30_days' | 'recent_history'; label: string; from_day: string; through_day: string }
+  | { kind: 'programme_year'; label: string; year: number };
+/** Never describe a new caller's history as thirty days, or invent a start date for an older programme. */
+function reflectionPeriod(p: Programme, chapter: Chapter, now: Date, timezone: string): ReflectionPeriod {
+  if (chapter.readback === 'year') return { kind: 'programme_year', label: 'this programme year', year: chapterPos(monthOf(p)).year };
+  const range = reflectionRange(now, timezone);
+  const start = p.startedAt ? new Date(p.startedAt) : null;
+  if (!start || !Number.isFinite(+start) || +start > +now) return { kind: 'recent_history', label: 'recently', ...range };
+  const startDay = localDay(start, timezone);
+  return startDay > range.from_day
+    ? { kind: 'since_start', label: 'since we started', from_day: startDay, through_day: range.through_day }
+    : { kind: 'rolling_30_days', label: 'the last 30 days', ...range };
+}
+function reflectionEntries<T extends { month?: number }>(p: Programme, entries: readonly T[], chapter: Chapter, now: Date, timezone: string, day: (entry: T) => string): T[] {
+  const period = reflectionPeriod(p, chapter, now, timezone);
+  if (period.kind === 'programme_year') return entries.filter(e => chapterPos(e.month ?? 1).year === period.year);
+  return entries.filter(e => { const at = day(e); return /^\d{4}-\d{2}-\d{2}$/.test(at) && at >= period.from_day && at <= period.through_day; });
+}
+/** What the close reads back: since starting, capped at thirty local dates, or the current programme year at its year close. */
+export function closeReadback(p: Programme, chapter: Chapter, now = new Date(), timezone = 'Europe/Oslo'): LedgerEntry[] {
+  if (chapter.readback === 'chapter') return selectLedgerReadback(reflectionEntries(p, p.ledger, chapter, now, timezone, e => e.occurredOn), LEDGER_READBACK_MAX, e => (e.month ?? 1) * MAX_CALLS + e.week);
   const year = chapterPos(monthOf(p)).year;
   return selectLedgerReadback(p.ledger.filter(e => chapterPos(e.month ?? 1).year === year), LEDGER_READBACK_MAX, e => e.month ?? 1);
 }
@@ -191,7 +218,7 @@ export function signOff(p: Programme, input: SignOffInput, timezone: string, clo
 }
 
 /** A human-support address has no purpose in a voice prompt or tool response. */
-export function voiceProgramme(p: Programme, ctx: { kind: CallKind; week: number; preferredName: string; schedule?: Schedule; cancelling?: boolean; ended?: boolean; nextCallAt?: Date | null }): Record<string, unknown> {
+export function voiceProgramme(p: Programme, ctx: { kind: CallKind; week: number; preferredName: string; schedule?: Schedule; cancelling?: boolean; ended?: boolean; nextCallAt?: Date | null; now?: Date }): Record<string, unknown> {
   const wish = currentWish(p);
   const weekly = ctx.kind === 'weekly';
   const calls = callsOf(p), month = monthOf(p), pos = chapterPos(month), chapter = chapterOfMonth(month);
@@ -200,8 +227,12 @@ export function voiceProgramme(p: Programme, ctx: { kind: CallKind; week: number
     ? { weekday: ctx.schedule.weeklyWeekday, time: clock(ctx.schedule.weeklyMinute), timezone: ctx.schedule.timezone } : undefined;
   const lightOn = ctx.schedule ? lightEnabled(p, ctx.schedule) : false;
   const steps = monthEntries(p, p.steps);
-  const moments = monthEntries(p, p.ledger);
   const tz = ctx.schedule?.timezone ?? 'Europe/Oslo';
+  const now = ctx.now ?? new Date();
+  const recordedDay = (at: string): string => { const stamp = new Date(at); return Number.isFinite(+stamp) ? localDay(stamp, tz) : ''; };
+  const summarySteps = close ? reflectionEntries(p, p.steps, chapter, now, tz, s => recordedDay(s.outcomeAt ?? s.at)) : [];
+  const summaryMoments = close ? reflectionEntries(p, p.ledger, chapter, now, tz, e => e.occurredOn) : [];
+  const summaryBlocks = close ? reflectionEntries(p, p.blocks, chapter, now, tz, b => recordedDay(b.at)) : [];
   return {
     state: p.state,
     stage: ctx.kind === 'opening' ? 'opening' : ctx.kind === 'light' ? 'light' : `week_${ctx.week}`,
@@ -215,11 +246,12 @@ export function voiceProgramme(p: Programme, ctx: { kind: CallKind; week: number
     last_step: steps.find(s => s.week === ctx.week && s.outcome === null)?.text ?? null,
     light_calls: { enabled: lightOn, days: ctx.schedule?.lightWeekdays ?? [], time: ctx.schedule?.lightMinute != null ? clock(ctx.schedule.lightMinute) : null },
     ledger_count: p.ledger.length,
-    ledger_readback: close ? closeReadback(p, chapter).map(e => ({ occurred_on: e.occurredOn, text: e.text })) : [],
-    // The caller's own saved words for this month, only for the close: the guide builds the summary from these and nothing else.
-    ...(close ? { month_words: { steps: steps.map(s => ({ text: s.text, outcome: s.outcome, outcome_text: s.outcomeText })),
-      moments: selectLedgerReadback(moments, 10).map(e => ({ occurred_on: e.occurredOn, text: e.text })),
-      blocks: monthEntries(p, p.blocks).map(b => ({ text: b.text, kind: b.kind })) } } : {}),
+    ledger_readback: close ? closeReadback(p, chapter, now, tz).map(e => ({ occurred_on: e.occurredOn, text: e.text })) : [],
+    // The legacy month_words key contains only caller words from the stated reflection period.
+    ...(close ? { reflection_period: reflectionPeriod(p, chapter, now, tz),
+      month_words: { steps: summarySteps.map(s => ({ text: s.text, outcome: s.outcome, outcome_text: s.outcomeText })),
+        moments: selectLedgerReadback(summaryMoments, 10, e => (e.month ?? 1) * MAX_CALLS + e.week).map(e => ({ occurred_on: e.occurredOn, text: e.text })),
+        blocks: summaryBlocks.map(b => ({ text: b.text, kind: b.kind })) } } : {}),
     call_context: { preferred_name: ctx.preferredName, call_kind: ctx.kind, week: ctx.week, ...(slot ? { weekly_slot: slot } : {}) },
   };
 }

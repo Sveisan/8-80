@@ -11,7 +11,7 @@ export function unblockReadiness(): string[] {
   if (!c.priceApproved || !c.price || !c.productId || !c.checkout) missing.push('monthly subscription product (UNBLOCK_PRICE_VERIFIED, UNBLOCK_PRICE_LABEL, UNBLOCK_PRODUCT_ID, UNBLOCK_CHECKOUT_URL)');
   if (!config.billing.checkoutReady()) missing.push('payment provider key, webhook secret and HTTPS PUBLIC_URL (subscription checkout, cancel and billing portal)');
   if (c.toolSecret.length < 32) missing.push('UNBLOCK_TOOL_SECRET');
-  if (!c.supportHours || !config.company.supportEmail() || !config.operator.phones().length) missing.push('human support and safety response coverage');
+  if (!c.supportHours || !config.company.supportEmail() || !/^\+[1-9]\d{7,14}$/.test(c.operatorPhone)) missing.push('human support and safety response coverage (UNBLOCK_OPERATOR_PHONE)');
   if (!coverageReady()) missing.push('UNBLOCK_COVERAGE_START and UNBLOCK_COVERAGE_END');
   if (Object.values(c.agentIds).some(id => !id) || new Set(Object.values(c.agentIds)).size !== 3) missing.push('three distinct Unblock agents');
   if (!smsConfigured()) missing.push('verification SMS');

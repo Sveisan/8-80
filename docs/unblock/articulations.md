@@ -28,7 +28,7 @@ Money, health, care for others, time — these can be real. "I'd be laughed at",
 
 **4. The way is already pointing.**
 Moments of aliveness, a person who keeps appearing, a small lucky opening, the subject you return to when nobody is asking — these are signs in the plain sense: information about direction. No mysticism, no promise that the world arranges itself.
-→ *"When did you last feel the pull toward this, even for a minute?"*
+→ *"When did you last feel the pull toward this, even just for a minute?"*
 
 **5. It gets harder after you start.**
 The first step often goes surprisingly well. Then it gets difficult, usually right when giving up would be easiest to justify. Expecting that stretch is half of getting through it. Stopping is also allowed.
@@ -49,6 +49,12 @@ The point is not to arrive somewhere and then begin living. Each step and each n
 
 Unblock is the rare place where both mentors want the same thing: for you to stop postponing your own life.
 
+## Conversational delivery · owner review, 18 November 2026
+
+Acknowledge the caller's check-in answer before moving on. If they seem very engaged and keen to continue, ask one light follow-up about a detail they offered; otherwise let the conversation move on without another check-in question by default.
+
+Vary invitations to act across the opening and regular calls. Use the caller's actual aim and the chapter's conversation, without mechanically repeating “one small step” or the aim in every question. For example: “What would you like to try next with [their aim]?”, “Given what you've noticed, what would suit you now?” or “Is there anything you'd like to do differently next time?” Bracketed phrases are delivery cues replaced with the caller's own words. “Next time” refers only to an activity they actually described. Choose one fitting invitation, not a sequence or a fixed rotation; if they already chose an action, read it back for agreement rather than asking again. Rest, waiting, no action and optional timing remain valid. Closing calls do not ask for a next step, and light calls keep their short structure.
+
 ## Public lines (candidates)
 
 Name candidates: **Unblock** · **The Way Home** · **Lit** · **Already Here**.
@@ -63,7 +69,7 @@ Never: "manifest", "the universe will provide", "your destiny", "unlock your pot
 
 ## Norsk
 
-Første lanseringsspråk er sannsynligvis norsk. Dette er utgangspunktet, ikke ferdig manus — en norsk samtalepakke trenger egen gjennomgang for tone og muntlighet.
+Første lansering er godkjent som engelsk-only 15. november 2026. De norske linjene nedenfor er referanse for en eventuell senere språkpakke, som trenger egen gjennomgang for tone og muntlighet.
 
 **Kjernen:**
 

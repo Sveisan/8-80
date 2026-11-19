@@ -17,7 +17,7 @@ import { resolve } from 'node:path';
 export type ChapterSave = 'step' | 'block' | 'light' | 'wish' | 'closing' | 'reflect';
 export interface ChapterWeek {
   title: string;
-  /** The opening question for the theme, spoken as written. */
+  /** Opening prompt; bracketed delivery cues are replaced with the caller's own words. */
   question: string;
   /** Optional follow-ups; the guide uses at most one or two. */
   followUps: string[];
@@ -47,15 +47,15 @@ export interface Chapter {
 
 export const CHAPTERS: readonly Chapter[] = [
   {
-    number: 1, slug: 'the-wish', title: 'The Wish', status: 'draft', readback: 'chapter',
+    number: 1, slug: 'the-wish', title: 'The Wish', status: 'approved', readback: 'chapter',
     analogy: 'Most people have a map they drew a long time ago and folded away in a drawer. This month is about taking it out and looking at it again.',
     milestone: 'One wish in your own words, what has kept it a wish, a first few steps, and the start of your light ledger.',
     question: 'What have you wanted for a long time and kept for "someday"?',
     // Must stay verbatim with the WEEK 1–4 branches of docs/unblock/weekly-script.md (tested).
     themes: [
-      { title: 'What keeps it a wish', saves: 'block', question: 'If you moved properly toward this, what would it put at risk?',
+      { title: 'What keeps it a wish', saves: 'block', question: 'If you took a step toward this, what might feel at risk?',
         followUps: ['Which part of that is happening now, and which part is what you expect would happen?'] },
-      { title: 'Signs', saves: 'light', question: 'When did you last feel the pull toward this, even for a minute?',
+      { title: 'Signs', saves: 'light', question: 'When did you last feel the pull toward this, even just for a minute?',
         followUps: ['Is there a person who keeps coming up when you think about it?', 'Has anything opened up — a small chance, a coincidence, a conversation?', "What do you find yourself coming back to, when no one's asking?"] },
       { title: 'The hard stretch', saves: 'step', revisesWish: true, question: 'Has anything got harder since you started?',
         followUps: ['What is it teaching you?', 'Do you want to keep the step, make it smaller, change it — or pause?'] },
@@ -64,57 +64,57 @@ export const CHAPTERS: readonly Chapter[] = [
       followUps: ['And the wish — where is it now?', "How do you want to live with both — the wish and what's already here?"] },
   },
   {
-    number: 2, slug: 'the-first-mile', title: 'The First Mile', status: 'draft', readback: 'chapter',
+    number: 2, slug: 'the-first-mile', title: 'The First Mile', status: 'approved', readback: 'chapter',
     analogy: "New boots are stiff for the first mile. The rubbing isn't a sign you chose the wrong road; it's the boots learning your feet.",
     milestone: 'A step small enough to keep doing every week, and a month of it in your own record — whatever happened each time.',
     question: 'What could you keep doing, even in a bad week?',
     themes: [
-      { title: 'A rhythm', saves: 'step', question: "What's the smallest version of your step that you could do even in a bad week?",
-        followUps: ['When in the week does it fit most naturally?'] },
-      { title: 'Where it rubs', saves: 'block', question: 'Where does it rub — what makes the step harder than it needs to be?',
+      { title: 'A rhythm', saves: 'step', question: "What's the smallest version of your step that you could do, even in a bad week?",
+        followUps: ['When in the next seven days would that fit most naturally?'] },
+      { title: 'Where it rubs', saves: 'block', question: 'What makes this step harder than it needs to be?',
         followUps: ['Is that the step itself, the timing, or something around it?'] },
       { title: 'The fit', saves: 'step', question: 'What would you change so it fits your life a bit better?',
         followUps: ['Do you want to keep it, shrink it, or move it?'] },
     ],
-    close: { title: 'The mile walked', saves: 'closing', question: "Looking back at this month's steps, what do you notice about how you move?",
-      followUps: ['What do you want to keep from this month?'] },
+    close: { title: 'The mile walked', saves: 'closing', question: "Looking back at the steps you've taken during this time, what do you notice about how you move?",
+      followUps: ['What would you like to carry forward?'] },
   },
   {
-    number: 3, slug: 'companions', title: 'Companions', status: 'draft', readback: 'chapter',
+    number: 3, slug: 'companions', title: 'Companions', status: 'approved', readback: 'chapter',
     analogy: 'Nobody walks a long road completely alone. Some people carry water, some point the way, and some, without meaning to, add weight to the pack.',
     milestone: 'One person — or group, class or community — who knows about the wish, and one clear thing you asked for.',
-    question: 'Who walks with you on this?',
+    question: 'As you take steps toward this wish, who could you turn to for support?',
     themes: [
       { title: 'Who knows', saves: 'reflect', question: 'Who knows about this wish right now?',
-        followUps: ['Who would you like to know?', "If there's nobody obvious — is there a group, a class, a neighbour or someone online who would understand?"] },
+        followUps: ['Who would you feel comfortable sharing this wish with?', "If there's nobody obvious — is there a group, a class, a colleague, a neighbour or someone online who would understand?"] },
       { title: 'Lighter and heavier', saves: 'light', question: 'Is there someone who makes the wish feel lighter — and someone who makes it feel heavier?',
         followUps: ['What do they do that has that effect?'] },
       { title: 'Asking', saves: 'step', question: 'Is there one specific thing you could ask someone for before we next speak?',
         followUps: ['What would make it easy for them to say yes, or no?'] },
     ],
     close: { title: 'Who is beside you', saves: 'closing', question: 'What did telling or asking someone change, if anything?',
-      followUps: ['Who do you want beside you next month?'] },
+      followUps: ['Who would you like beside you as you take your next steps?'] },
   },
   {
-    number: 4, slug: 'making-room', title: 'Making Room', status: 'draft', readback: 'chapter',
-    analogy: "A pack only holds so much. To carry something new a long way, something else usually comes out — not because it was bad, but because there's only so much room.",
-    milestone: 'One thing set down or made smaller to make room for the wish — chosen by you, and only if it was yours to set down.',
-    question: 'What takes up the room this wish needs?',
+    number: 4, slug: 'making-room', title: 'Making Room', status: 'approved', readback: 'chapter',
+    analogy: "Giving this wish some time or attention can start with deciding, for yourself, that it's worth trying. Then you can look at one small change in your day that could help.",
+    milestone: 'One thing set aside or made smaller to give the wish more time or attention — chosen by you, and only if it was yours to set aside.',
+    question: 'What could you change to give this wish more time or attention?',
     themes: [
       { title: 'What you carry', saves: 'reflect', question: 'Where do your time and energy go in an ordinary week?',
         followUps: ['Which of those do you actually choose, and which are real obligations?', 'If most of your time is already your own — what tends to fill it?'] },
       { title: 'Out of habit', saves: 'block', question: 'Is there something you keep carrying out of habit rather than because it matters to you?',
-        followUps: ['What would it cost to put it down for a while?'] },
-      { title: 'Setting it down', saves: 'step', question: "What's one thing you could set down or make smaller before we next speak?",
-        followUps: ['What would you do with that room?'] },
+        followUps: ['What would it cost to put it to the side for a while?'] },
+      { title: 'Setting it aside', saves: 'step', question: "What's one thing you could set aside or make smaller before we next speak?",
+        followUps: ['What would you like to do with that extra time or energy?'] },
     ],
     close: { title: 'The room you made', saves: 'closing', question: 'What did you notice with a little more room?',
       followUps: ['Is there anything you want to pick back up?'] },
   },
   {
-    number: 5, slug: 'losing-the-trail', title: 'Losing the Trail', status: 'draft', readback: 'chapter',
+    number: 5, slug: 'losing-the-trail', title: 'Losing the Trail', status: 'approved', readback: 'chapter',
     analogy: "On any long walk there's a stretch where the path disappears — fog, a wrong turn, a missing sign. Being lost for a while is part of the route, not proof you shouldn't have set out.",
-    milestone: 'One setback looked at plainly, in your words, and a way back that you chose yourself.',
+    milestone: "A clearer understanding of what got in the way, and one small step you've chosen to take toward your wish.",
     question: 'When you lose the way, how do you find it again?',
     themes: [
       { title: 'Where it went quiet', saves: 'reflect', question: 'Has there been a moment recently when you lost the thread of this?',
@@ -124,14 +124,14 @@ export const CHAPTERS: readonly Chapter[] = [
       { title: 'A step back on', saves: 'step', question: "What's a small step back onto the path, from where you are now?",
         followUps: [] },
     ],
-    close: { title: 'Knowing the fog', saves: 'closing', question: "What do you know about getting lost now that you didn't a month ago?",
+    close: { title: 'Knowing the fog', saves: 'closing', question: 'Looking back over this time, what have you learned about finding your way again?',
       followUps: ['What do you want to remember the next time the path disappears?'] },
   },
   {
-    number: 6, slug: 'the-well', title: 'The Well', status: 'draft', readback: 'chapter',
-    analogy: "Halfway along a long road there's often a place to stop — a well, a bench, some shade. You rest, drink, and look back at the distance before you look ahead.",
-    milestone: "A halfway account in your own words: what has changed, what you're keeping, and whether the wish still fits.",
-    question: 'What do you need, halfway?',
+    number: 6, slug: 'the-well', title: 'The Well', status: 'approved', readback: 'chapter',
+    analogy: "Along a long road, you sometimes come to a place to stop — a well, a bench, some shade. You can rest for a moment, look back at where you've been, and decide how you want to go on.",
+    milestone: 'A clearer sense of what has changed, what you want to keep, and whether this is still the wish you want to pursue.',
+    question: 'Wherever you are with this wish, what would help you right now?',
     themes: [
       { title: 'Rest', saves: 'step', question: 'What would real rest look like for you right now?',
         followUps: ['Could resting be your next step?'] },
@@ -140,28 +140,28 @@ export const CHAPTERS: readonly Chapter[] = [
       { title: 'Does it still fit', saves: 'wish', question: 'Does the wish still fit — or has it changed shape?',
         followUps: ["It's allowed to change. What do you want now?"] },
     ],
-    close: { title: 'The second half', saves: 'closing', question: 'What are you taking with you into the second half?',
-      followUps: ['What are you leaving at the well?'] },
+    close: { title: 'The way ahead', saves: 'closing', question: 'What would you like to take with you as you go on?',
+      followUps: ["Is there anything you'd like to set aside for now?"] },
   },
   {
-    number: 7, slug: 'the-craft', title: 'The Craft', status: 'draft', readback: 'chapter',
-    analogy: 'On a long road you stop just walking and start learning the trade — how to read the ground, pack lighter, pace yourself. Skill grows quietly, by doing the same thing a little better.',
-    milestone: "One skill the wish needs, practised on purpose, and one person or source you're learning from.",
-    question: 'What does this wish ask you to get better at?',
+    number: 7, slug: 'the-craft', title: 'The Craft', status: 'approved', readback: 'chapter',
+    analogy: "Trying a new recipe can show you things the instructions alone don't: what needs more time, what to adjust, and what you'd do differently next time.",
+    milestone: 'One useful skill, someone or something to learn from, and a clear idea of what you want to try or change next.',
+    question: 'To help you [their stated aim], what would you like to get better at?',
     themes: [
-      { title: 'The skill', saves: 'reflect', question: "What's one skill this wish asks of you?",
+      { title: 'The skill', saves: 'reflect', question: "What's one skill that would help you [their stated aim]?",
         followUps: ['Where are you with it now, honestly?'] },
       { title: 'A teacher', saves: 'step', question: 'Who or what could you learn it from?',
         followUps: ['What would a first small lesson look like?'] },
-      { title: 'Practice', saves: 'light', question: "What did practising teach you that thinking about it didn't?",
-        followUps: [] },
+      { title: 'Practice', saves: 'light', question: 'When you tried [what they practised], what did you notice?',
+        followUps: ['What would you change on your next try?'] },
     ],
-    close: { title: 'A little better', saves: 'closing', question: "What can you do now that you couldn't do a month ago — however small?",
+    close: { title: 'A little better', saves: 'closing', question: 'What can you do now that you found difficult before — however small?',
       followUps: ['What do you want to keep practising?'] },
   },
   {
-    number: 8, slug: 'open-ground', title: 'Open Ground', status: 'draft', readback: 'chapter',
-    analogy: 'Sooner or later the road leaves the trees and crosses open ground, where you can be seen. It usually feels more exposed than it is.',
+    number: 8, slug: 'open-ground', title: 'Open Ground', status: 'approved', readback: 'chapter',
+    analogy: 'Sometimes the road leaves the trees and crosses open ground, where you can be seen. You can choose whether to step out, how much to share, and who you share it with.',
     milestone: 'One visible act toward the wish — something shown, sent, asked or said out loud, in a way that suits you.',
     question: 'What would it mean to be seen doing this?',
     themes: [
@@ -176,8 +176,8 @@ export const CHAPTERS: readonly Chapter[] = [
       followUps: ['What do you want to show next?'] },
   },
   {
-    number: 9, slug: 'reading-the-weather', title: 'Reading the Weather', status: 'draft', readback: 'chapter',
-    analogy: 'People who walk far learn to read the weather: when to push on, when to wait, when to take shelter. The signs are usually there before the storm.',
+    number: 9, slug: 'reading-the-weather', title: 'Reading the Weather', status: 'approved', readback: 'chapter',
+    analogy: "Someone who grew up in a very rainy town learns to notice the little signs that rain might be coming — a change in the clouds, a sudden shift in light, or small breezes of cooler wind. The rain might not bother them much — they're probably used to it. But if they're going to be outside for a while, they adapt and plan accordingly by bringing an umbrella or putting on a raincoat.",
     milestone: "A short list, in your own words, of the signals that tell you you're on course — and the ones that tell you to slow down.",
     question: "How do you know when you're on course?",
     themes: [
@@ -192,7 +192,7 @@ export const CHAPTERS: readonly Chapter[] = [
       followUps: [] },
   },
   {
-    number: 10, slug: 'the-view-back', title: 'The View Back', status: 'draft', readback: 'chapter',
+    number: 10, slug: 'the-view-back', title: 'The View Back', status: 'approved', readback: 'chapter',
     analogy: 'From high enough up you can see the whole road behind you, including the stretches that felt like nothing at the time.',
     milestone: "A record of what these months have given you that wasn't the plan.",
     question: "What have you gained that you weren't looking for?",
@@ -208,7 +208,7 @@ export const CHAPTERS: readonly Chapter[] = [
       followUps: [] },
   },
   {
-    number: 11, slug: 'passing-it-on', title: 'Passing It On', status: 'draft', readback: 'chapter',
+    number: 11, slug: 'passing-it-on', title: 'Passing It On', status: 'approved', readback: 'chapter',
     analogy: 'Travellers leave things for the people behind them: a marker at a confusing turn, water at the well, a word about the road ahead.',
     milestone: "One thing you passed on — help, encouragement or something you've learned — to someone with a wish of their own.",
     question: 'What could you pass on?',
@@ -224,7 +224,7 @@ export const CHAPTERS: readonly Chapter[] = [
       followUps: [] },
   },
   {
-    number: 12, slug: 'home-by-a-new-road', title: 'Home by a New Road', status: 'draft', readback: 'year',
+    number: 12, slug: 'home-by-a-new-road', title: 'Home by a New Road', status: 'approved', readback: 'year',
     analogy: 'At the end of a long journey you come back to where you started, and it looks different — not because it changed, but because you did.',
     milestone: 'The year read back in your own words, and your own choice about what comes next: carry on, rest, or a new wish.',
     question: "What do you see now that you're back?",
@@ -304,6 +304,9 @@ export function chapterTheme(chapter: Chapter, call: number, calls = CHAPTER_WEE
     `CHAPTER ${chapter.number} OF ${CHAPTERS.length} — ${chapter.title.toUpperCase()} · CALL ${call} OF ${plan.length} — ${label}`,
     `The month's question: "${chapter.question}"`,
   ];
+  if ([chapter.question, w?.question ?? '', ...(w?.followUps ?? [])].some(text => /\[[^\]]+\]/.test(text))) {
+    lines.push('Square-bracketed phrases in questions are delivery cues, never spoken text. Replace them with a short, grammatical reference to what this caller actually wants to do or has practised, using their own words from the context or this conversation. Never invent an aim, skill or attempt. If that context is missing, ask what they want to work on; if they have not tried it, do not assume practice happened.');
+  }
   if (call === 1 && step.kind !== 'close') lines.push(`Near the start, offer the month's picture once, in these words or close to them: "${chapter.analogy}" Do not explain it.`);
   if (!w) {
     lines.push('No new theme this call. After the last step, ask what is alive in their days right now, and what has changed since last time. Then the next step. Follow the caller.');
@@ -317,9 +320,10 @@ export function chapterTheme(chapter: Chapter, call: number, calls = CHAPTER_WEE
     : `On read-back and agreement, save with command ${w.saves}.`);
   if (step.kind === 'close') {
     lines.push(chapter.readback === 'year'
-      ? 'This is the closing call of the year. Before the theme question, read back up to five ledger entries spread across the year, verbatim.'
-      : "This is the chapter's closing call, the last call of the month. Before the theme question, read back up to five of this chapter's ledger entries, verbatim.");
-    lines.push(`After the theme question, offer the month's picture as a summary of THEIR month: "${chapter.analogy}" Build it only from month_words in the context and what they have said today: one or two plain sentences that use their own words for their steps, what happened and the moments they noticed. Never add facts, never embellish, never claim progress they did not describe. Ask whether it fits; if not, drop it and use their version.`);
+      ? 'This is the closing call of the programme year. Before the theme question, read back up to five supplied ledger entries spread across that programme year, verbatim.'
+      : "This is the chapter's closing call. Before the theme question, read back up to five supplied ledger entries from reflection_period, verbatim. Its date range starts no earlier than the caller's known programme start and covers at most 30 local dates, independent of calendar or billing boundaries. For a new caller say 'since we started'; only say 'the last 30 days' when that is the supplied label. If the start is unknown, say 'recently'. Never infer elapsed time from the call or chapter number.");
+    lines.push('Use this chapter\'s Theme question and Possible follow-ups for the close; the HOME questions in the regular script are for chapter 1 only. Describe the time window using reflection_period.label from the context.');
+    lines.push(`After the theme question, offer the chapter's picture as a summary of THEIR reflection period: "${chapter.analogy}" Build it only from month_words in the context and what they have said today: one or two plain sentences that use their own words for their steps, what happened and the moments they noticed. Never add facts, never embellish, never claim progress they did not describe. Ask whether it fits; if not, drop it and use their version.`);
     lines.push(`What the caller may leave with this month: ${chapter.milestone} Never announce it as reached or missed.`);
   }
   return lines.join('\n');

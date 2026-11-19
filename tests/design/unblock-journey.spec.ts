@@ -38,11 +38,11 @@ test('Unblock: contact and schedule errors preserve work; verified payment, firs
   await expect(page).toHaveURL(`${base}/unblock/schedule`);
   await expect(page.getByRole('radio', { name: 'No light calls', exact: true })).toBeChecked();
   await expect(page.locator('[data-light-settings]')).toBeHidden();
-  const opening = localTime(new Date(Date.now() + 2 * 86400_000));
+  const opening = await page.getByLabel('First conversation', { exact: true }).inputValue();
   await page.getByLabel('First conversation', { exact: true }).fill(opening);
   await page.getByLabel('Calls per month', { exact: true }).selectOption('5');
   await page.getByLabel('Regular call · day', { exact: true }).selectOption('2');
-  await page.getByLabel('Regular call · time', { exact: true }).fill('17:00');
+  await page.getByLabel('Regular call · time', { exact: true }).fill('15:00');
   await expect(page.locator('[data-schedule-summary]')).toContainText('Tuesday and Friday');
   await page.getByText('Change timezone', { exact: true }).click();
   await page.getByLabel('Your timezone', { exact: true }).fill('Oslo');

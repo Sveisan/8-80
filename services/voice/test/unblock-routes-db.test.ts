@@ -49,11 +49,11 @@ const row = async () => (await repo().load(hash))!;
 beforeEach(async () => {
   if (db) await db.sql`truncate jev_quality_reviews,product_feedback,unblock_sessions,unblock_enrollments,belief_refund_requests,belief_sessions,belief_enrollments,callers,call_attempts,links,signups,access_codes,message_outbox,message_attempts,feedback,journey_events,journey_tracking,journey_counts,webhook_deliveries,heartbeats`;
   texts = []; clients = 0;
-  Object.assign(process.env, { DATA_ENCRYPTION_KEY: Buffer.alloc(32, 15).toString('base64'), PUBLIC_URL: 'https://8and80.example', OPERATOR_PHONE: '+4791000000', SUPPORT_EMAIL: 'support@example.com',
+  Object.assign(process.env, { DATA_ENCRYPTION_KEY: Buffer.alloc(32, 15).toString('base64'), PUBLIC_URL: 'https://8and80.example', OPERATOR_PHONE: '+4791000000', UNBLOCK_OPERATOR_PHONE: '+4791000000', SUPPORT_EMAIL: 'support@example.com',
     UNBLOCK_ENABLED: 'true', UNBLOCK_LIVE_CALLS: 'false', UNBLOCK_SAFETY_APPROVED: 'true', UNBLOCK_SCRIPTS_APPROVED: 'true', UNBLOCK_AGENTS_VERIFIED: 'true', UNBLOCK_PRICE_VERIFIED: 'true',
     UNBLOCK_PRICE_LABEL: 'Synthetic price label', UNBLOCK_PRODUCT_ID: 'synthetic-product', UNBLOCK_CHECKOUT_URL: 'https://buy.stripe.com/synthetic', UNBLOCK_SUPPORT_HOURS: 'Synthetic staffed window',
     UNBLOCK_OPENING_AGENT_ID: 'synthetic-open', UNBLOCK_WEEKLY_AGENT_ID: 'synthetic-weekly', UNBLOCK_LIGHT_AGENT_ID: 'synthetic-light', UNBLOCK_TOOL_SECRET: 'u'.repeat(40),
-    UNBLOCK_COVERAGE_START: '00:00', UNBLOCK_COVERAGE_END: '24:00', TWILIO_ACCOUNT_SID: 'synthetic', TWILIO_AUTH_TOKEN: 'synthetic', SMS_FROM_NUMBER: '+4791000001', SPEECHIFY_API_KEY: 'synthetic', SPEECHIFY_WEBHOOK_SECRET: 'synthetic', BILLING_PROVIDER: 'stripe', STRIPE_SECRET_KEY: 'synthetic', STRIPE_WEBHOOK_SECRET: 'synthetic' });
+    UNBLOCK_COVERAGE_START: '00:00', UNBLOCK_COVERAGE_END: '24:00', UNBLOCK_COVERAGE_DAYS: '0,1,2,3,4,5,6', TWILIO_ACCOUNT_SID: 'synthetic', TWILIO_AUTH_TOKEN: 'synthetic', SMS_FROM_NUMBER: '+4791000001', SPEECHIFY_API_KEY: 'synthetic', SPEECHIFY_WEBHOOK_SECRET: 'synthetic', BILLING_PROVIDER: 'stripe', STRIPE_SECRET_KEY: 'synthetic', STRIPE_WEBHOOK_SECRET: 'synthetic' });
   delete process.env['OPERATOR_PHONE_BACKUP'];
 });
 after(async () => db?.close());
@@ -185,9 +185,9 @@ test('schedule: saved with default three light evenings, a clear none, coverage 
   await db!.sql`update unblock_enrollments set weekly_weekday=null,weekly_minute=null,light_weekdays='{}',light_minute=null,next_weekly_at=null,next_light_at=null`;
   const page = await priv(token, '/unblock/schedule'); assert.ok(page!.body.includes('First conversation')); assert.ok(page!.body.includes('Make room for it'));
   const base = { action: 'schedule', timezone: 'Europe/Oslo', weekday: '0', weekly: '17:00', opening_local: '2026-11-12T18:00' };
-  const saved = await priv(token, '/unblock/action', csrfForm(token, { ...base, light_choice: 'evenings', light_day: '1' }));
+  const saved = await priv(token, '/unblock/action', csrfForm(token, { ...base, light_choice: 'days', light_day: '1' }));
   assert.equal(saved!.status, 303); assert.equal(saved!.headers!['location'], '/unblock/account?saved=schedule');
-  let e = (await row()).enrollment; assert.deepEqual(e.light_weekdays, [1]); assert.equal(e.light_minute, 1140); assert.equal(e.timezone, 'Europe/Oslo');
+  let e = (await row()).enrollment; assert.deepEqual(e.light_weekdays, [1]); assert.equal(e.light_minute, 960); assert.equal(e.timezone, 'Europe/Oslo');
   assert.equal(e.opening_at!.toISOString(), '2026-11-12T17:00:00.000Z'); assert.equal(e.weekly_weekday, 0); assert.equal(e.weekly_minute, 1020);
   assert.equal((await priv(token, '/unblock/action', csrfForm(token, base)))!.status, 303); e = (await row()).enrollment; assert.deepEqual(e.light_weekdays, [1, 3, 5], 'untouched light choice is the default three evenings');
   assert.equal((await priv(token, '/unblock/action', csrfForm(token, { ...base, light_choice: 'none' })))!.status, 303); e = (await row()).enrollment;

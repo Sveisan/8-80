@@ -43,7 +43,8 @@
     "unblock:chapters": "node --import tsx src/unblock/chapters.ts",
     "unblock:tools": "node --import tsx src/unblock/tools-cli.ts",
     "quality:jev": "node --import tsx src/quality/jev-cli.ts",
-    "quality:jev:worker": "node --import tsx src/quality/worker-cli.ts"
+    "quality:jev:worker": "node --import tsx src/quality/worker-cli.ts",
+    "unblock:availability": "node --import tsx src/unblock/availability-cli.ts"
   },
   "dependencies": {
     "dotenv": "^16.4.5",

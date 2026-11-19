@@ -615,6 +615,13 @@ export const unblockEnrollments = pgTable('unblock_enrollments', {
 }, t=>[uniqueIndex('unblock_enrollments_current_idx').on(t.phoneHash).where(sql`${t.isCurrent} = true`), index('unblock_enrollments_owner_idx').on(t.phoneHash)]);
 
 /** Shares the call-attempt/safety review infrastructure without advancing the base call cycle. */
+export const unblockAvailability = pgTable('unblock_availability', {
+  id: text('id').primaryKey(),
+  checkedInAt: timestamp('checked_in_at', { withTimezone: true }),
+  expiresAt: timestamp('expires_at', { withTimezone: true }),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const unblockSessions = pgTable('unblock_sessions', {
   id: text('id').primaryKey().references(() => callAttempts.id, { onDelete: 'cascade' }),
   phoneHash: text('phone_hash').notNull().references(() => callers.phoneHash, { onDelete: 'cascade' }),

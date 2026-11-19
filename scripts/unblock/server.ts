@@ -26,7 +26,7 @@ Object.assign(process.env, {
   UNBLOCK_SUPPORT_HOURS: 'Sandbox only', UNBLOCK_COVERAGE_START: '00:00', UNBLOCK_COVERAGE_END: '24:00',
   TWILIO_ACCOUNT_SID: 'synthetic-no-provider', TWILIO_AUTH_TOKEN: 'synthetic-no-provider', SMS_FROM_NUMBER: '+4790008800',
   SPEECHIFY_API_KEY: 'synthetic-no-provider', SPEECHIFY_WEBHOOK_SECRET: 'synthetic-no-provider',
-  OPERATOR_PHONE: '+4792300999', SUPPORT_EMAIL: 'sandbox@example.invalid', BILLING_PROVIDER: 'stripe',
+  OPERATOR_PHONE: '+4792300999', UNBLOCK_OPERATOR_PHONE: '+4792300999', SUPPORT_EMAIL: 'sandbox@example.invalid', BILLING_PROVIDER: 'stripe',
   SIGNUP_OPEN: '0', PRODUCT_FEEDBACK_ENABLED: '0', GOOGLE_CALENDAR_READY: '0', ENCOURAGEMENT_READY: '0',
 });
 await applyMigrations(checked.databaseUrl);

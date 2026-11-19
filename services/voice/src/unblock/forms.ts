@@ -17,7 +17,7 @@ export function normaliseSchedule(form: URLSearchParams): URLSearchParams {
   out.delete('light_day');
   if (choice === 'none') out.set('light_days', 'none');
   else if (days.length) out.set('light_days', [...new Set(days)].map(d => WEEKDAYS[d]!.toLowerCase()).join(','));
-  else if (choice === 'evenings') throw new PracticeError('days_invalid');
+  else if (choice === 'days' || choice === 'evenings') throw new PracticeError('days_invalid');
   else out.set('light_days', '');
   return out;
 }
@@ -35,7 +35,7 @@ export const messages: Record<string, string> = {
   nonexistent_local_time: 'That local time does not exist when the clocks change. Choose another time.',
   calls_too_close: 'Leave at least 45 minutes between a light call and your regular calls (with five or more calls a month, a second regular day is added three days after your usual one).',
   base_calls_too_close: 'Leave at least 45 minutes between these calls and your weekly 8&80 call.',
-  outside_coverage: 'Choose call times within the human response hours shown below. Contact us if you need another time.',
+  outside_coverage: 'Choose call times within the human response hours, leaving 30 minutes before they end. Initial launch: Monday–Friday, 09:00–16:30 Europe/Oslo. Check the corresponding time in your timezone.',
   occurrence_too_late: 'Choose a time after your usual one and before the following usual call, or skip this call instead.',
   occurrence_too_early: 'Choose a time after your usual one and before the following usual call, or skip this call instead.',
   call_in_progress: 'A call is already being placed. Change the next call after it finishes.',

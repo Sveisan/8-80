@@ -18,6 +18,7 @@ import { cancelUnblock, refreshUnblock, standingFor, syncUnblockSubscription, un
 import { unblockCheckout } from '../src/unblock/payment.ts';
 import { chapterComplete, emptyProgramme, finishCall, type Programme } from '../src/unblock/model.ts';
 import { sessionToken } from '../src/unblock/protocol.ts';
+import { setUnblockAvailability } from '../src/unblock/availability.ts';
 import { addMonths, periodEnd, periodStart, planNext, tooClose, weekdaysFor, occurrences } from '../src/unblock/cadence.ts';
 import { describeAppointment } from '../src/schedule/time.ts';
 
@@ -61,9 +62,9 @@ beforeEach(async () => {
   if (db) await db.sql`truncate jev_quality_reviews,product_feedback,unblock_sessions,unblock_enrollments,belief_refund_requests,belief_sessions,belief_enrollments,callers,call_attempts,links,signups,access_codes,message_outbox,message_attempts,feedback,journey_events,journey_tracking,journey_counts,webhook_deliveries,heartbeats`;
   process.env['DATA_ENCRYPTION_KEY'] = Buffer.alloc(32, 16).toString('base64');
   for (const key of ['UNBLOCK_ENABLED', 'UNBLOCK_LIVE_CALLS', 'UNBLOCK_SAFETY_APPROVED', 'UNBLOCK_SCRIPTS_APPROVED', 'UNBLOCK_AGENTS_VERIFIED', 'UNBLOCK_PRICE_VERIFIED']) process.env[key] = 'true';
-  Object.assign(process.env, { PUBLIC_URL: 'https://8and80.example', OPERATOR_PHONE: '+4791000000', SUPPORT_EMAIL: 'support@example.com', UNBLOCK_PRICE_LABEL: 'Synthetic price', UNBLOCK_PRODUCT_ID: price,
+  Object.assign(process.env, { PUBLIC_URL: 'https://8and80.example', OPERATOR_PHONE: '+4791000000', UNBLOCK_OPERATOR_PHONE: '+4791000000', SUPPORT_EMAIL: 'support@example.com', UNBLOCK_PRICE_LABEL: 'Synthetic price', UNBLOCK_PRODUCT_ID: price,
     UNBLOCK_CHECKOUT_URL: 'https://buy.stripe.com/synthetic', UNBLOCK_SUPPORT_HOURS: 'Synthetic window', UNBLOCK_OPENING_AGENT_ID: 'synthetic-opening', UNBLOCK_WEEKLY_AGENT_ID: 'synthetic-weekly', UNBLOCK_LIGHT_AGENT_ID: 'synthetic-light',
-    UNBLOCK_TOOL_SECRET: 'u'.repeat(40), UNBLOCK_COVERAGE_START: '00:00', UNBLOCK_COVERAGE_END: '24:00', TWILIO_ACCOUNT_SID: 'synthetic', TWILIO_AUTH_TOKEN: 'synthetic', SMS_FROM_NUMBER: '+4791000001',
+    UNBLOCK_TOOL_SECRET: 'u'.repeat(40), UNBLOCK_COVERAGE_START: '00:00', UNBLOCK_COVERAGE_END: '24:00', UNBLOCK_COVERAGE_DAYS: '0,1,2,3,4,5,6', TWILIO_ACCOUNT_SID: 'synthetic', TWILIO_AUTH_TOKEN: 'synthetic', SMS_FROM_NUMBER: '+4791000001',
     SPEECHIFY_API_KEY: 'synthetic', SPEECHIFY_WEBHOOK_SECRET: 'synthetic', BILLING_PROVIDER: 'stripe', STRIPE_SECRET_KEY: 'synthetic', STRIPE_WEBHOOK_SECRET: 'billing_secret' });
   delete process.env['OPERATOR_PHONE_BACKUP'];
   texts.length = 0; cancels = 0; portals = 0; providerSub = stripe();
@@ -113,6 +114,7 @@ test('the webhook: a signed checkout event activates only after an authoritative
   assert.equal(e.standing, 'active'); assert.equal(e.subscription_id, 'sub_ub'); assert.equal(e.customer_id, 'cus_ub'); assert.equal(e.provider, 'stripe'); assert.equal(e.product_id, price);
   assert.equal(e.cancel_at_period_end, false); assert.equal(e.paid_until!.toISOString(), '2026-12-10T10:00:00.000Z'); assert.ok(e.paid_at);
   assert.ok(e.anchor_at && e.chapter_started_at && p.chapterStartedAt, 'the chapter clock starts at first activation'); assert.equal(p.chapterCalls, 4); assert.equal(e.chapter, 1); assert.equal(e.year, 1);
+  assert.equal(p.startedAt, e.anchor_at.toISOString(), 'the first paid activation records a stable programme start');
   assert.equal(e.opening_at, null, 'a first-conversation date that already passed is not rung'); assert.ok(e.next_weekly_at! > e.anchor_at!, 'the next call is refreshed to the next usual slot');
   assert.equal(e.next_weekly_at!.toISOString().slice(11, 16), '17:00');
   assert.equal((await db!.sql`select count(*)::int as n from message_outbox where kind='unblock'`)[0]!['n'], 1, 'one confirmation text, not one per delivery');
@@ -161,6 +163,8 @@ test('standing follows the provider: past_due keeps calling, a first payment tha
   providerSub = stripe({ subscriptionId: 'sub_new' });
   await syncUnblockSubscription(deps(), { id: 'e4', type: 'checkout.session.completed', data: { object: { object: 'checkout.session', client_reference_id: (await load()).enrollment.checkout_reference, subscription: 'sub_new', customer: 'cus_ub' } } }, {}, day(30));
   const back = await load(); assert.equal(back.enrollment.standing, 'active'); assert.equal(back.programme.state, 'active'); assert.equal(back.enrollment.subscription_id, 'sub_new');
+  assert.equal(back.programme.startedAt, now.toISOString(), 'reactivation preserves the first programme start');
+  assert.equal(back.programme.chapterStartedAt, day(30).toISOString(), 'the billing clock can restart independently');
 });
 
 test('cancel, billing portal, refresh and account deletion all go through the provider; pause is calls-only and never touches billing', options, async () => {
@@ -198,18 +202,19 @@ const stepFor = (n: number): [string, Record<string, unknown>] => [`I will take 
 const noLight = () => db!.sql`update unblock_enrollments set light_weekdays='{}', light_minute=null, next_light_at=null`;
 
 test('a month of three calls: spread across the billing month, the third is the close with a personal sign-off context for the real next chapter and call', options, async () => {
-  await enroll({ calls: 3 }); await activate(); await noLight();
+  await enroll({ calls: 3 }); await db!.sql`update unblock_enrollments set weekly_minute=900`; await activate(); await noLight();
   assert.deepEqual(await repo().setCalls(hash, 6, now), { applied: 'next_chapter' });
   const stamp = async () => (await load()).enrollment.next_weekly_at!.toISOString().slice(0, 16);
-  assert.equal(await stamp(), '2026-11-10T17:00', 'spread over the month: first call on the first slot');
-  const one = await held(new Date('2026-11-10T17:00:00Z'), [stepFor(2)]);
+  assert.equal(await stamp(), '2026-11-10T14:00', 'spread over the month: first call on the first slot');
+  const one = await held(new Date('2026-11-10T14:00:00Z'), [stepFor(2)]);
   assert.equal(one.s.week, 1); assert.equal(one.result!.status, 'completed');
-  assert.equal(await stamp(), '2026-11-24T17:00', 'then the middle of what is left');
-  const two = await held(new Date('2026-11-24T17:00:00Z'), [stepFor(3)]); assert.equal(two.s.week, 2);
-  assert.equal(await stamp(), '2026-12-08T17:00', 'the close lands on the last slot of the month');
+  assert.equal(await stamp(), '2026-11-24T14:00', 'then the middle of what is left');
+  const two = await held(new Date('2026-11-24T14:00:00Z'), [stepFor(3)]); assert.equal(two.s.week, 2);
+  assert.equal(await stamp(), '2026-12-08T14:00', 'the close lands on the last slot of the month');
   let sent: { dynamic_variables: Record<string, string> } | undefined;
   const fetcher: typeof fetch = async (_u, init) => { sent = JSON.parse(String(init!.body)); return new Response(JSON.stringify({ conversation_id: 'conv-close' })); };
-  await tickUnblock(deps(), new Date('2026-12-08T17:00:00Z'), fetcher);
+  await setUnblockAvailability(db!.sql, true, new Date('2026-12-08T14:00:00Z'));
+  await tickUnblock(deps(), new Date('2026-12-08T14:00:00Z'), fetcher);
   const context = JSON.parse(sent!.dynamic_variables['unblock_context']!);
   assert.equal(context.is_close, true); assert.equal(context.chapter.calls_this_month, 3); assert.equal(context.chapter.number, 1); assert.equal(context.sign_off.mode, 'continue');
   assert.equal(context.sign_off.next_chapter_title, 'The First Mile'); assert.match(context.sign_off.next_call_local, /Friday 11 December/, 'the real first call of the next month (six calls use Tuesday and Friday)');
@@ -234,6 +239,7 @@ test('the close: staged and verified, it completes the chapter; nothing is place
   assert.equal(rolled.programme.month, 2); assert.equal(rolled.programme.chapterCalls, 5); assert.equal(rolled.programme.weeksHeld, 1); assert.deepEqual([rolled.enrollment.chapter, rolled.enrollment.year, rolled.enrollment.calls_per_month, rolled.enrollment.pending_calls_per_month], [2, 1, 5, null]);
   assert.equal(rolled.programme.closings!.length, 1); assert.equal(rolled.programme.closing, null); assert.equal(rolled.programme.steps.filter(s => s.month === 2).length, 1);
   assert.equal(rolled.enrollment.chapter_started_at!.toISOString(), '2026-12-10T10:00:00.000Z');
+  assert.equal(rolled.programme.startedAt, now.toISOString(), 'a new chapter preserves the first programme start');
 });
 
 test('a missed close is offered at the next slot, even in the next month, before a new chapter starts', options, async () => {
