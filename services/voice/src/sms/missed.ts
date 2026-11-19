@@ -1,6 +1,6 @@
 import { log } from '../log.ts';
 import type { ScriptLines } from '../script.ts';
-import type { Scheduler } from '../schedule/scheduler.ts';
+import type { Scheduler, SkipUndo } from '../schedule/scheduler.ts';
 import { describeAppointment, type Slot } from '../schedule/time.ts';
 import { moveTo, parseReply } from './reply.ts';
 import { OptedOut, type Sms } from './types.ts';
@@ -130,6 +130,7 @@ export interface ReplyOutcome {
   action: 'moved' | 'moved_always' | 'needs_time' | 'skipped' | 'unchanged' | 'stopped' | 'started' | 'unread';
   /** What we said back, so a caller always gets an answer from a person's system. */
   said: string;
+  undo?: SkipUndo;
 }
 
 /**
@@ -195,13 +196,15 @@ export async function handleReply(
     case 'skip': {
       const result = await deps.scheduler.skipCall(phone, now, context.skipAt);
       if (result.kind === 'inactive') return { action: 'unchanged', said: await say('sms.skip.inactive') };
-      if (!result.next) return { action: 'skipped', said: await say(result.kind === 'skipped' && result.paidAccessEnded ? 'sms.skipped.paid_end' : 'sms.skipped.trial_end') };
+      const undo = result.kind === 'skipped' && result.undo ? { undo: result.undo } : {};
+      if (!result.next) return { action: 'skipped', said: await say(result.kind === 'skipped' && result.paidAccessEnded ? 'sms.skipped.paid_end' : 'sms.skipped.trial_end'), ...undo };
       return {
         action: result.kind,
         said: await say(
           result.kind === 'skipped' ? 'sms.skipped' : 'sms.skip.unchanged',
           describeAppointment(result.next, slot.timezone, context.language),
         ),
+        ...undo,
       };
     }
 

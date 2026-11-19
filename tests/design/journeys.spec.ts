@@ -35,7 +35,8 @@ test('booking verifies the SMS code before creating a caller and preserves field
   await page.getByRole('button', { name: 'Review new time' }).click();
   await expect(page.getByRole('heading', { name: 'Review new time' })).toBeVisible();
   await expect(page.getByText('This changes your first call and sets your usual weekly time.', { exact: false })).toBeVisible();
-  const firstProposal = await page.locator('time').getAttribute('datetime');
+  const firstProposal = await page.getByRole('region', { name: 'Proposed' }).locator('time').getAttribute('datetime');
+  await expect(page.getByRole('region', { name: 'Current' }).locator('time')).toHaveAttribute('datetime', (caller as { next_call_at: string }).next_call_at);
   expect((await fixture(request, 'state', { phone })).caller).toEqual(caller);
   await page.screenshot({ path: testInfo.outputPath('weekly-first-move-review.png'), fullPage: true });
   await page.getByRole('button', { name: 'Save new time' }).click();
@@ -118,6 +119,14 @@ test('weekly account moves, skips, private corrections and pause survive reload'
   await page.locator('#move-call summary').click();
   const originalDay = await page.locator('#once-day').inputValue();
   const initialAt = await page.locator('.appointment').getAttribute('datetime');
+  const pauseAndResume = async (expectedAt: string) => {
+    await page.getByRole('button', { name: 'Pause calls', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Pause your calls?' })).toBeVisible();
+    await page.locator('button[value="stop-confirm"]').click();
+    await expect(page.getByRole('heading', { name: 'Calls paused' })).toBeVisible();
+    await page.getByRole('button', { name: 'Resume calls' }).click();
+    await expect(page.locator('.appointment')).toHaveAttribute('datetime', expectedAt);
+  };
   await page.locator('#once-time').fill('18:00');
   await page.getByRole('button', { name: 'Review new time' }).click();
   await expect(page.getByRole('heading', { name: 'Review new time' })).toBeVisible();
@@ -127,7 +136,7 @@ test('weekly account moves, skips, private corrections and pause survive reload'
   await expect(page.locator('#once-day')).toHaveValue(originalDay);
   await page.getByRole('button', { name: 'Review new time' }).click();
   await expect(page.getByRole('heading', { name: 'Review new time' })).toBeVisible();
-  const onceAt = await page.locator('time').getAttribute('datetime');
+  const onceAt = await page.getByRole('region', { name: 'Proposed' }).locator('time').getAttribute('datetime');
   expect(onceAt).not.toBe(initialAt);
   await page.getByRole('button', { name: 'Save new time' }).click();
   await expect(page).toHaveURL(/\?schedule=once$/);
@@ -139,10 +148,19 @@ test('weekly account moves, skips, private corrections and pause survive reload'
   await expect(page.locator('#once-time')).toHaveValue('18:00');
   await expect(page.locator('#once-day')).toHaveValue(originalDay);
   await expect(page.locator('#weekly-time')).toHaveValue('17:30');
+  await pauseAndResume(onceAt!);
   await page.getByRole('button', { name: 'Skip this call' }).click();
   await expect(page.getByRole('status')).toContainText('Skipped');
   await expect(page.locator('.appointment')).not.toHaveAttribute('datetime', onceAt!);
   await expect(page.locator('.usual-time')).toContainText('17:30');
+  const skippedTo = await page.locator('.appointment').getAttribute('datetime');
+  await page.screenshot({ path: testInfo.outputPath('weekly-undo-skip.png'), fullPage: true });
+  await page.getByRole('button', { name: 'Undo skip' }).click();
+  await expect(page.getByRole('status')).toContainText('Your skipped call is back on the schedule.');
+  await expect(page.locator('.appointment')).toHaveAttribute('datetime', onceAt!);
+  await page.getByRole('button', { name: 'Skip this call' }).click();
+  await expect(page.locator('.appointment')).toHaveAttribute('datetime', skippedTo!);
+  await pauseAndResume(skippedTo!);
 
   await page.getByRole('link', { name: 'Open my commitment and goals' }).click();
   await expect(page).toHaveURL(/\/access\?for=memory$/);
@@ -174,7 +192,7 @@ test('weekly account moves, skips, private corrections and pause survive reload'
   await weeklyEditor.getByRole('button', { name: 'Review new time' }).click();
   await expect(page.getByRole('heading', { name: 'Review new time' })).toBeVisible();
   await expect(page.getByText(/This changes your next call and your usual time every week/)).toBeVisible();
-  const weeklyAt = await page.locator('time').getAttribute('datetime');
+  const weeklyAt = await page.getByRole('region', { name: 'Proposed' }).locator('time').getAttribute('datetime');
   await page.getByRole('button', { name: 'Save new time' }).click();
   await expect(page).toHaveURL(/\/me\?schedule=weekly$/);
   await expect(page.locator('.appointment')).toHaveAttribute('datetime', weeklyAt!);
@@ -183,6 +201,15 @@ test('weekly account moves, skips, private corrections and pause survive reload'
   const weeklyState = await fixture(request, 'state', { phone });
   expect(weeklyState.caller).toMatchObject({ slot_weekday: 2, slot_minute: 1140, next_call_at: weeklyAt, calendar_invites_enabled: true });
   expect(weeklyState.calendarEmails).toEqual(expect.arrayContaining([expect.objectContaining({ at: weeklyAt, method: 'REQUEST' })]));
+  await page.getByRole('button', { name: 'Skip this call' }).click();
+  await expect(page.getByRole('status')).toContainText('Skipped');
+  const laterAt = await page.locator('.appointment').getAttribute('datetime');
+  expect(laterAt).not.toBe(weeklyAt);
+  await page.getByRole('button', { name: 'Undo skip' }).click();
+  await expect(page.locator('.appointment')).toHaveAttribute('datetime', weeklyAt!);
+  const restoredState = await fixture(request, 'state', { phone });
+  const calendar = restoredState.calendarEmails as { at: string; method: string }[];
+  expect(calendar.slice(-2)).toMatchObject([{ at: laterAt, method: 'REQUEST' }, { at: weeklyAt, method: 'REQUEST' }]);
   await page.getByRole('button', { name: 'Pause calls', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Pause your calls?' })).toBeVisible();
   expect((await fixture(request, 'state', { phone })).caller).toMatchObject({ paused: false });
@@ -194,8 +221,52 @@ test('weekly account moves, skips, private corrections and pause survive reload'
   await expect(page.getByRole('button', { name: 'Cancel subscription renewal' })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath('weekly-paused.png'), fullPage: true });
   await page.getByRole('button', { name: 'Resume calls' }).click();
-  await expect(page.locator('.appointment')).toBeVisible();
+  await expect(page.locator('.appointment')).toHaveAttribute('datetime', weeklyAt!);
   expect((await fixture(request, 'state', { phone })).caller).toMatchObject({ paused: false, billing_status: 'active' });
+});
+
+test.describe('while travelling', () => {
+  test.use({ timezoneId: 'America/New_York' });
+
+  test('review compares both clocks and cancel keeps the saved appointment', async ({ page, request }, testInfo) => {
+    const phone = testInfo.project.name === 'chromium' ? '+4792180101' : '+4792180201';
+    const { link } = await fixture(request, 'seed', { phone });
+    await page.goto(String(link));
+    const booked = await page.locator('.appointment').getAttribute('datetime');
+    await page.locator('#move-call summary').click();
+    await page.locator('#once-time').fill('18:00');
+    await page.getByRole('button', { name: 'Review new time' }).click();
+    await expect(page.getByRole('heading', { name: 'Review new time' })).toBeVisible();
+    const current = page.getByRole('region', { name: 'Current' });
+    const proposal = page.getByRole('region', { name: 'Proposed' });
+    await expect(current.locator('time')).toHaveAttribute('datetime', booked!);
+    const changed = await proposal.locator('time').getAttribute('datetime');
+    expect(changed).not.toBe(booked);
+    const local = new Intl.DateTimeFormat('en-GB', {
+      hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'America/New_York',
+    });
+    for (const [card, instant, bookingTime] of [[current, booked!, '17:30'], [proposal, changed!, '18:00']] as const) {
+      await expect(card.locator('.appointment-zone')).toHaveText('New York time');
+      await expect(card.locator('.appointment-clock')).toHaveText(local.format(new Date(instant)));
+      await expect(card.locator('.booking-clock')).toBeVisible();
+      await expect(card.locator('.booking-clock')).toContainText(`${bookingTime} · Norwegian time`);
+    }
+    const currentBounds = (await current.boundingBox())!;
+    const proposalBounds = (await proposal.boundingBox())!;
+    if (testInfo.project.name === 'chromium') expect(currentBounds.x + currentBounds.width).toBeLessThan(proposalBounds.x);
+    else expect(currentBounds.y + currentBounds.height).toBeLessThan(proposalBounds.y);
+    await page.screenshot({ path: testInfo.outputPath('weekly-review-travel.png'), fullPage: true });
+    if (testInfo.project.name !== 'chromium') {
+      await page.setViewportSize({ width: 320, height: 667 });
+      await page.addStyleTag({ content: 'html {font-size: 200% !important}' });
+      const width = await page.evaluate(() => [document.documentElement.clientWidth, document.documentElement.scrollWidth]);
+      expect(width[1]).toBeLessThanOrEqual(width[0]! + 1);
+    }
+    await page.getByRole('link', { name: 'Cancel change' }).click();
+    await expect(page.getByRole('heading', { name: 'Your next call' })).toBeVisible();
+    await expect(page.locator('.appointment')).toHaveAttribute('datetime', booked!);
+    expect((await fixture(request, 'state', { phone })).caller).toMatchObject({ next_call_at: booked, slot_minute: 1050 });
+  });
 });
 
 test('a stale private form does not overwrite newer saved goals', async ({ page, request }, testInfo) => {

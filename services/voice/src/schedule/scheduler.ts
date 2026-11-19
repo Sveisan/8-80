@@ -24,8 +24,15 @@ export class UnknownCaller extends Error {
 
 export type AttemptStatus = 'claimed' | 'placed' | 'settling' | 'completed' | 'rescheduled' | 'interrupted' | 'unverified' | 'silent' | 'failed' | 'missed';
 
+export interface SkipUndo {
+  skippedAt: Date;
+  replacementAt: Date;
+  cycle: string | null;
+  revision: string;
+}
+
 export type SkipResult =
-  | { kind: 'skipped'; next?: Date; paidAccessEnded?: boolean }
+  | { kind: 'skipped'; next?: Date; paidAccessEnded?: boolean; undo?: SkipUndo }
   | { kind: 'unchanged'; next: Date }
   | { kind: 'inactive' };
 
@@ -231,20 +238,24 @@ export class Scheduler {
     return changed.length > 0;
   }
 
-  /** Resume only when the stored weekly arrangement has an eligible next call. */
+  /** Keep a saved future appointment, including skips and one-off moves. */
   async resumeIfEligible(phone: string, now = new Date()): Promise<Date | undefined> {
     return await transaction(this.sql, async tx => {
       const [row] = await tx<{
         slot_weekday: number | null; slot_minute: number | null; timezone: string | null;
+        next_call_at: Date | null; next_call_cycle: string | null;
         billing_status: string; trial_ends_at: Date | null; cancel_at_period_end: boolean; paid_until: Date | null; held_for_review: boolean; all_calls_stopped: boolean;
-      }[]>`select slot_weekday, slot_minute, timezone, billing_status, trial_ends_at, cancel_at_period_end, paid_until, held_for_review, all_calls_stopped
+      }[]>`select slot_weekday, slot_minute, timezone, next_call_at, next_call_cycle,
+        billing_status, trial_ends_at, cancel_at_period_end, paid_until, held_for_review, all_calls_stopped
         from callers where phone_hash = ${phoneKey(phone)} for update`;
       if (!row || row.held_for_review || row.all_calls_stopped || row.slot_weekday === null || row.slot_minute === null || !row.timezone) return undefined;
-      const next = nextSlotAfter(now, { weekday: row.slot_weekday, minute: row.slot_minute, timezone: row.timezone });
+      const saved = row.next_call_at && row.next_call_at > now ? row.next_call_at : undefined;
+      const next = saved ?? nextSlotAfter(now, { weekday: row.slot_weekday, minute: row.slot_minute, timezone: row.timezone });
       const eligible = ['comped', 'active', 'past_due'].includes(row.billing_status)
         || (row.billing_status === 'trialing' && (!row.trial_ends_at || row.trial_ends_at > next));
       if (!eligible || (row.cancel_at_period_end && (!row.paid_until || row.paid_until <= next))) return undefined;
-      await tx`update callers set paused = false, next_call_at = ${next}, next_call_cycle = null, updated_at = now() where phone_hash = ${phoneKey(phone)}`;
+      await tx`update callers set paused = false, next_call_at = ${next},
+        next_call_cycle = ${saved ? row.next_call_cycle : null}, updated_at = now() where phone_hash = ${phoneKey(phone)}`;
       return next;
     });
   }
@@ -258,12 +269,12 @@ export class Scheduler {
   async skipCall(phone: string, now = new Date(), expectedAt?: Date): Promise<SkipResult> {
     return await transaction(this.sql, async (tx) => {
       const [row] = await tx<{
-        next_call_at: Date | null; slot_weekday: number | null; slot_minute: number | null;
+        next_call_at: Date | null; next_call_cycle: string | null; slot_weekday: number | null; slot_minute: number | null;
         timezone: string | null; eligible: boolean; trial_until: Date | null; cancel_at_period_end: boolean;
       }[]>`
-        select next_call_at, slot_weekday, slot_minute, timezone, cancel_at_period_end,
+        select next_call_at, next_call_cycle, slot_weekday, slot_minute, timezone, cancel_at_period_end,
           case when cancel_at_period_end then paid_until when billing_status = 'trialing' then trial_ends_at end as trial_until,
-          (paused = false and (
+          (paused = false and all_calls_stopped = false and held_for_review = false and (
             billing_status in ('comped', 'active', 'past_due')
             or (billing_status = 'trialing' and (trial_ends_at is null or trial_ends_at > ${now}))
           ) and (not cancel_at_period_end or paid_until > ${now})) as eligible
@@ -288,9 +299,31 @@ export class Scheduler {
         after = new Date(weekEnd.getTime() - 1);
       }
       const next = nextSlotAfter(after, slot);
-      await tx`update callers set next_call_at = ${next}, next_call_cycle = null, updated_at = now() where phone_hash = ${phoneKey(phone)}`;
-      return { kind: 'skipped' as const, ...(row.trial_until && next >= row.trial_until ? { paidAccessEnded: row.cancel_at_period_end } : { next }) };
+      const [changed] = await tx<{ revision: string }[]>`
+        update callers set next_call_at = ${next}, next_call_cycle = null, updated_at = clock_timestamp()
+        where phone_hash = ${phoneKey(phone)} returning updated_at::text as revision
+      `;
+      const undo = expectedAt && current > now && changed
+        ? { skippedAt: current, replacementAt: next, cycle: row.next_call_cycle, revision: changed.revision } : undefined;
+      return { kind: 'skipped' as const, ...(undo ? { undo } : {}),
+        ...(row.trial_until && next >= row.trial_until ? { paidAccessEnded: row.cancel_at_period_end } : { next }) };
     });
+  }
+
+  /** Restore the skipped occurrence only while this exact skip is still reversible. */
+  async undoSkip(phone: string, undo: SkipUndo, now?: Date): Promise<boolean> {
+    // Keep the revision as text until PostgreSQL compares it at full precision.
+    const rows = await this.sql<{ phone_hash: string }[]>`
+      update callers set next_call_at = ${undo.skippedAt}, next_call_cycle = ${undo.cycle}, updated_at = clock_timestamp()
+      where phone_hash = ${phoneKey(phone)} and paused = false and all_calls_stopped = false and held_for_review = false
+        and next_call_at = ${undo.replacementAt} and updated_at = (${undo.revision}::text)::timestamptz
+        and ${undo.skippedAt}::timestamptz > coalesce(${now ?? null}::timestamptz, clock_timestamp())
+        and (not cancel_at_period_end or paid_until > ${undo.skippedAt})
+        and (billing_status in ('comped', 'active', 'past_due')
+          or (billing_status = 'trialing' and (trial_ends_at is null or trial_ends_at > ${undo.skippedAt})))
+      returning phone_hash
+    `;
+    return rows.length > 0;
   }
 
   /** Their choice to stop. The slot stays, so resuming is not re-entering it. */
