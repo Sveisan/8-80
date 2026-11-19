@@ -622,6 +622,19 @@ export const unblockAvailability = pgTable('unblock_availability', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+/** Operational metadata only. Account deletion removes the private links, not an unresolved incident. */
+export const unblockIncidents = pgTable('unblock_incidents', {
+  id: text('id').primaryKey(),
+  attemptId: text('attempt_id').unique().references(() => callAttempts.id, { onDelete: 'set null' }),
+  alertId: text('alert_id').references(() => messageOutbox.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+  ackDueAt: timestamp('ack_due_at', { withTimezone: true }).notNull(),
+  acknowledgedAt: timestamp('acknowledged_at', { withTimezone: true }),
+  blockedAt: timestamp('blocked_at', { withTimezone: true }),
+  failure: text('failure'),
+  resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+}, t => [index('unblock_incidents_open_idx').on(t.ackDueAt).where(sql`${t.resolvedAt} is null`)]);
+
 export const unblockSessions = pgTable('unblock_sessions', {
   id: text('id').primaryKey().references(() => callAttempts.id, { onDelete: 'cascade' }),
   phoneHash: text('phone_hash').notNull().references(() => callers.phoneHash, { onDelete: 'cascade' }),

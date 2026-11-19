@@ -44,7 +44,7 @@ beforeEach(async()=>{
   process.env['GOOGLE_CALENDAR_ENABLED']='1';process.env['GOOGLE_CALENDAR_ID']='organizer@example.com';
   process.env['GOOGLE_CALENDAR_CLIENT_ID']='test';process.env['GOOGLE_CALENDAR_CLIENT_SECRET']='test';process.env['GOOGLE_CALENDAR_REFRESH_TOKEN']='test';
   if(!db)return;
-  await db.sql`truncate callers,calendar_invitations,google_calendar_sync,google_calendar_deletes,message_outbox,message_attempts,call_attempts cascade`;
+  await db.sql`truncate unblock_incidents,callers,calendar_invitations,google_calendar_sync,google_calendar_deletes,message_outbox,message_attempts,call_attempts cascade`;
   await db.store.upsertProfile(phone,{email});
   await db.sql`update callers set billing_status='comped',onboarding='complete',call_number=2 where phone_hash=${hash}`;
   await new Scheduler(db.sql).setSlot(phone,slot,now);

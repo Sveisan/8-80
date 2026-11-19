@@ -13,6 +13,7 @@ import { unblockConfig } from './config.ts';
 import { unblockReadiness } from './readiness.ts';
 import { withinCallWindow } from './coverage.ts';
 import { lockUnblockAvailability, unblockAvailability } from './availability.ts';
+import { blockingUnblockIncident, openUnblockIncident, reconcileUnblockIncidents } from './incidents.ts';
 import { UnblockRepository, callsAllowed, chapterWindow, lightGuard, planWeekly, scheduleOf, signOffCall } from './repository.ts';
 import { callWeek, callsOf, chapterComplete, closeAt, finishCall, lightEnabled, monthOf, nextLight, rollChapter, slotKind, voiceProgramme, FIRST_WEEK_GAP_DAYS, type CallKind, type Programme } from './model.ts';
 import { chapterPos } from './chapters.ts';
@@ -27,8 +28,7 @@ async function safety(sql: postgres.TransactionSql, session: Session, callerText
   const finding = safetyTier([{ speaker: 'caller', text: callerText }], emptyScript); if (!finding) return false;
   await sql`update call_attempts set safety_tier=least(coalesce(safety_tier,3),${finding.tier}) where id=${session.id}`;
   await sql`update callers set held_for_review=true,updated_at=${now} where phone_hash=${session.phone_hash}`;
-  if (finding.tier === 1 && unblockConfig().operatorPhone) await enqueue(sql, { eventKey: `unblock:safety:${session.id}:0`, phoneHash: session.phone_hash, channel: 'sms', kind: 'safety', to: unblockConfig().operatorPhone,
-    body: '8&80: an Unblock call needs urgent human review (tier 1). All calls for this account are on hold. On the server: npm run enrol -- --review' }, now);
+  if (finding.tier === 1) await openUnblockIncident(sql, session, now);
   return true;
 }
 /** `capture_unblock`: shared envelope and guarantees of `capture_belief`. Every utterance is safety-checked; saves are provisional. */
@@ -139,6 +139,7 @@ async function unblockNotice(sql: postgres.TransactionSql, deps: LoopDeps, hash:
 }
 export async function tickUnblock(deps: LoopDeps, now = new Date(), fetcher: typeof fetch = fetch): Promise<{ claimed: number; placed: number; failed: number }> {
   const out = { claimed: 0, placed: 0, failed: 0 };
+  await reconcileUnblockIncidents(deps.store.raw, now);
   if (!unblockConfig().live || unblockReadiness().length || !withinCallWindow(now)) return out;
   const availability = await unblockAvailability(deps.store.raw, now);
   if (!availability.available) return out;
@@ -160,7 +161,7 @@ export async function tickUnblock(deps: LoopDeps, now = new Date(), fetcher: typ
         const context = voiceProgramme(loaded.programme, voiceContext(loaded.enrollment, loaded.programme, s.kind, week, loaded.programme.contact?.name || caller['name'] || '', now));
         // A database lock/load can cross the cutoff. Check the clock again at the actual placement boundary.
         const placementAt = new Date(+now + Math.floor(performance.now() - started));
-        if (!withinCallWindow(placementAt) || !available.expiresAt || available.expiresAt <= placementAt) throw new PracticeError('dispatch_stopped');
+        if (!withinCallWindow(placementAt) || !available.expiresAt || available.expiresAt <= placementAt || await blockingUnblockIncident(tx, placementAt)) throw new PracticeError('dispatch_stopped');
         const response = await fetcher('https://api.speechify.ai/v1/agents/outbound-calls', { method: 'POST', redirect: 'error', signal: AbortSignal.timeout(20000),
           headers: { authorization: `Bearer ${process.env['SPEECHIFY_API_KEY']}`, 'content-type': 'application/json', 'Idempotency-Key': `unblock:${s.id}` },
           body: JSON.stringify({ agent_id: c.agentIds[s.kind], to: phone, ...(config.speechify.callerIdNumber ? { caller_id_number: config.speechify.callerIdNumber } : {}),
