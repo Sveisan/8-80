@@ -5,7 +5,7 @@ import { decrypt, encrypt } from '../store/crypto.ts';
 import { nextSlotAfter, parseLocalTime, parseWeekday } from '../schedule/time.ts';
 import { PracticeError } from '../beliefs/model.ts';
 import { appointmentInput } from '../beliefs/repository.ts';
-import { withinCoverage } from './coverage.ts';
+import { withinCallWindow } from './coverage.ts';
 import { applyCommand, callsOf, chapterComplete, DEFAULT_CALLS, DEFAULT_LIGHT_DAYS, DEFAULT_LIGHT_MINUTE, emptyProgramme, FIRST_WEEK_GAP_DAYS, lightEnabled, monthOf, nextLight, parseCalls, parseDays, rollChapter, slotKind, startChapter, type Command, type Programme, type Schedule } from './model.ts';
 import { chapterPos } from './chapters.ts';
 import { nextOccurrence, periodEnd, periodStart, planNext, tooClose, weekdaysFor, type Cadence } from './cadence.ts';
@@ -78,7 +78,7 @@ export function scheduleProblem(s: ScheduleShape, base: { weekday: number; minut
   for (let at = now, i = 0; i < 6 * weekdays.length; i++) { at = nextOccurrence(cad, at); instants.push(at); }
   if (s.lightMinute !== null) { let l = now; for (let i = 0; i < 21; i++) { l = nextLight(l, s.lightDays, s.lightMinute, s.timezone)!; instants.push(l); } }
   if (base && instants.some(at => Math.abs(+at - +nextSlotAfter(new Date(+at - 45 * 60_000), base)) < 45 * 60_000)) return 'base_calls_too_close';
-  if (!instants.every(at => withinCoverage(at))) return 'outside_coverage';
+  if (!instants.every(at => withinCallWindow(at))) return 'outside_coverage';
   return undefined;
 }
 
@@ -188,7 +188,7 @@ export class UnblockRepository {
       const problem = await this.problem(tx, moved, [choice.calls, choice.pending ?? choice.calls, callsOf(choice.programme ?? p)], now);
       if (problem) throw new PracticeError(problem);
       // The opening conversation's own date must also be inside coverage and clear of the usual slots.
-      if (s.opening && !withinCoverage(s.opening)) throw new PracticeError('outside_coverage');
+      if (s.opening && !withinCallWindow(s.opening)) throw new PracticeError('outside_coverage');
       const programme = choice.programme ?? p;
       const slot: Schedule = { timezone: s.timezone, weeklyWeekday: s.weekday, weeklyMinute: s.weekly, lightWeekdays: s.lightDays, lightMinute: s.lightMinute };
       const light = lightEnabled(programme, slot) ? nextLight(now, s.lightDays, s.lightMinute!, s.timezone) : null;
@@ -240,6 +240,7 @@ export class UnblockRepository {
     if (!returning || !p.chapterStartedAt) p = startChapter(p, calls, now);
     else if (chapterComplete(p)) { calls = pending ?? calls; pending = null; p = rollChapter(p, calls, now); }
     else { p.chapterStartedAt = now.toISOString(); p.revision++; }
+    if (!returning) p.startedAt ??= now.toISOString();
     p.state = 'active';
     const moved: Enrollment = { ...row, anchor_at: now, calls_per_month: calls, pending_calls_per_month: pending, opening_at: !p.openingHeld && row.opening_at && row.opening_at > now ? row.opening_at : null };
     const weekly = weeklyPointer(moved, p, now);
@@ -299,7 +300,7 @@ export class UnblockRepository {
         if (following && +following - +at < 45 * 60_000) throw new PracticeError('calls_too_close');
       }
       if (column === 'opening_at' && e.next_weekly_at && at >= e.next_weekly_at) throw new PracticeError('occurrence_too_late');
-      if (!withinCoverage(at)) throw new PracticeError('outside_coverage');
+      if (!withinCallWindow(at)) throw new PracticeError('outside_coverage');
       const nearby: Date[] = []; const before = new Date(+at - 45 * 60_000);
       if (column !== 'next_light_at' && lightEnabled(p, slot)) nearby.push(nextLight(before, slot.lightWeekdays, slot.lightMinute!, e.timezone)!, ...(e.next_light_at ? [e.next_light_at] : []));
       if (column === 'opening_at' && e.next_weekly_at) nearby.push(e.next_weekly_at);

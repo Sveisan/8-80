@@ -8,7 +8,7 @@ Read with: [articulations](articulations.md) (the language bank) · [research an
 
 **See the light in your own life — and take the step that has been waiting.**
 
-A monthly subscription of phone calls. Each month is a chapter (see [chapters](chapters.md)) with its own picture and milestone; chapter 1 begins with an opening call. The caller names something they want and have kept as a wish, looks honestly at what keeps it a wish, takes one small step at a time, and — throughout — notices the moments in their ordinary days that are already alive. The last call of every month, the chapter close, reads those moments back in their own words and sums up their month using only what they said.
+A monthly subscription of phone calls. Each month is a chapter (see [chapters](chapters.md)) with its own picture and milestone; chapter 1 begins with an opening call. The caller names something they want and have kept as a wish, looks honestly at what keeps it a wish, takes one small step at a time, and — throughout — notices the moments in their ordinary days that are already alive. The last call of every chapter reads back moments since the caller started, capped at the last 30 caller-local dates, and reflects on that period using only what they said; the year close retains its programme-year reflection.
 
 Two things are "unblocked", and the module refuses to treat only one of them:
 
@@ -55,11 +55,11 @@ With four calls a month these are calls 1 to 4. With fewer, the themes are sprea
 
 **The sign-off is personal and true.** The guide uses the caller's preferred name and one thing in their own words from the month, then says what really happens next: the next chapter's title and the real next call day and time (continuing), that calls are paused until they restart in the account (paused), or that this is the last call for now and everything stays in the account (ending). Calls other than the close end with the real next call ("Talk to you on Thursday"). Never a price, an offer or a sales line.
 
-Each weekly call opens by asking what happened with last week's step. Done, partly, not done and "it changed" are equally valid answers; a step not taken is information, not failure. The guide never praises attendance and never counts.
+Each regular call opens with an ordinary exchange and acknowledgement of the caller's answer, then asks what happened with the previous step. Done, partly, not done and "it changed" are equally valid answers; a step not taken is information, not failure. A rough timing plan is optional, and the guide never insists on an exact time or deadline for a step. The guide never praises attendance and never counts.
 
 **The wish may change.** Week 3 explicitly allows changing it. A wish that turns out to belong to someone else is a real finding.
 
-**The ledger is the centrepiece.** Light calls default to three evenings a week at a time the caller chooses; they can choose none. Without light calls, each weekly call asks for one moment from the past week instead, so the ledger is never empty at the close. The close reads back up to five of the caller's own entries from that chapter, verbatim, chosen by recency and spread — never ranked by the model for "positivity".
+**The ledger is the centrepiece.** Light calls default to three days a week at a time the caller chooses; they can choose none. Without light calls, each regular call asks for one moment since they last spoke; if nothing comes, it is left there. The ordinary close reads back up to five of the caller's own entries since the caller started, capped at the last 30 local dates, verbatim, chosen by recency and spread — never ranked by the model for "positivity". A new caller hears “since we started”; once the programme spans 30 local dates, “the last 30 days”. If the start is unknown, say “recently”. Other regular calls use “since we last spoke”. The year close retains the current programme-year read-back.
 
 ## Data (implemented; see [contracts](contracts.md))
 
@@ -75,6 +75,8 @@ unblock_closing     chapter, text, carry_text   (one per chapter)
 All personal text encrypted at rest, caller words only, read-back and explicit agreement before canonical save — the same staged-session and signed-transcript rule Beliefs uses (`docs/beliefs/contracts.md`). The model may classify a block's `kind` only if the caller agrees with the classification; otherwise `unsure`.
 
 Tool: `capture_unblock`, same envelope as `capture_belief` (`session_id`, `session_token`, `event_id`, verbatim `caller_text`, optional `command`). Commands: `wish`, `block`, `step`, `step_outcome`, `light`, `closing`, `light_schedule`, `pause`. Every caller utterance is sent for the shared safety keyword check.
+
+Owner-approved initial call window: Monday–Friday, 09:00–16:30 Europe/Oslo, with staffed response coverage until 17:00. Opening and regular suggestions are 15:00; optional light calls are suggested at 16:00 on Mon/Wed/Fri. The form converts suggestions into the caller's timezone. All bookings, voice schedule changes, rescheduling and dispatch use the staffed window with a 30-minute finish buffer. Operator ownership/procedure, publication and activation remain separate decisions.
 
 ## Sendouts (implemented)
 
@@ -97,7 +99,7 @@ The verification codes (join and return) are the only other messages the web pag
 | `/unblock` | Landing: promise, the opening call, regular calls, light calls, AI disclosure, price label (`UNBLOCK_PRICE_LABEL`, never invented) |
 | `/unblock/join` | Preferred name, optional support email, editable +47 phone, adult/AI/service consent; sends a code, creates nothing until it is verified |
 | `/unblock/access`, `/unblock/verify` | Returning owner, fresh phone verification; unknown numbers get the identical response and no message. Verification sets a scoped, HttpOnly, one-hour `unblock` cookie |
-| `/unblock/schedule` | IANA zone (Oslo fallback), first conversation, **calls per month (1–8)**, regular day/time, light evenings (default Mon/Wed/Fri 19:00, or "No light calls"). All inputs live in one component, `scheduleInputs()` |
+| `/unblock/schedule` | IANA zone (Oslo fallback), first conversation, **calls per month (1–8)**, regular day/time, light-call days (default Mon/Wed/Fri 16:00, or "No light calls"). All inputs live in one component, `scheduleInputs()` |
 | `/unblock/account` | The wish and earlier versions, named blocks, steps by week with outcomes, the light ledger, the closing reflection when it exists, this month's chapter, closings per chapter, next call with move/skip (a light call can only be skipped), the **subscription card** (status line, calls per month, pause/resume, cancel at period end, manage billing), full download, whole-account deletion (which also cancels the Unblock subscription), sign out. A quiet footer line may mention the sibling programme; nowhere else does |
 
 Same invariants as Beliefs: CSRF tokens separated by product, same-site checks, `no-store`/`no-referrer`, escaped caller words, one hashed inline script, rate limits, no personal text in SMS, email or URLs. A regular call can only be moved later, before the following planned call, because the claim plans the following call from the clock.
@@ -116,8 +118,8 @@ Same invariants as Beliefs: CSRF tokens separated by product, same-site checks, 
 | --- | --- |
 | Pricing | Monthly subscription, flat price whatever the calls per month; the amount is the provider product's. Month 1 = chapter 1. The earlier one-time purchase is dropped |
 | Calls per month | 1–8, default 4, caller's choice at signup and in the account; applies from the next chapter. Open: the exact price and whether the label should say "from" |
-| Light call default | Three evenings a week, opt-out in the opening call |
-| Language | English scripts here; a Norwegian pack is the likely first launch language and needs its own review — see the Norwegian lines in [articulations](articulations.md) |
+| Light call default | Optional; suggested Mon/Wed/Fri at 16:00 Europe/Oslo. Callers can choose other supported slots or none |
+| Language | English-only initial launch is owner-approved. Other language packs need their own review |
 | Bridge to Beliefs | Account page only, never in a call |
 | Name | "Unblock" internally. Public candidates in [articulations](articulations.md) |
 
@@ -126,3 +128,5 @@ Same invariants as Beliefs: CSRF tokens separated by product, same-site checks, 
 Same gates as Beliefs, unchanged: approved urgent-response procedure and staffed coverage, approved scripts, separately configured and verified voice agents, payment test mode, consent/privacy terms, and a measured pilot. This module talks about what people want and are afraid to lose — that will surface grief, regret and hopelessness more often than a commitment call does. The safety gate matters more here, not less.
 
 What to measure in a pilot, without invented targets: whether callers can name a wish in the opening call; step outcomes by call; light-call answer rate and opt-outs; how the close and its sign-off land (one open question, in their words); which calls-per-month callers choose and keep; drop-off by month; connected minutes and cost.
+
+The approved daily Available/Away rule is implemented via the private `unblock:availability` CLI; see [operator review](operator-review.md) for commands and remaining urgent-response approval. Dashboard Web tests with blank session variables cannot use the production capture tool. The private provider prompts/greetings were updated on 19 November; full registered-session audio verification remains pending.

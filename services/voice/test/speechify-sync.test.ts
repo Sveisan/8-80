@@ -405,9 +405,9 @@ test('unblock source pack: three roles, fixed greetings, declared variables, no 
   const pack = promptPack('unblock', {});
   assert.deepEqual(pack.map(s => s.role), ['unblock-opening', 'unblock-weekly', 'unblock-light']);
   assert.deepEqual(pack.map(s => s.firstMessage), [
-    "Hi, it's your Unblock call from 8 and 80. Is now still a good time to talk?",
-    "Hi, it's your Unblock call from 8 and 80. Is now still a good time?",
-    "Hi, it's your Unblock call from 8 and 80 — just a quick one.",
+    "Hi, it's your Unblock call. Is now still a good time to talk?",
+    "Hi, it's your Unblock call. Is now still a good time?",
+    "Hi, it's your Unblock call — just a quick one.",
   ]);
   for (const item of pack) {
     assert.deepEqual(item.variables, ['unblock_context', 'call_kind', 'week', 'session_id', 'session_token']);

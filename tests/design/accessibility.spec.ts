@@ -46,7 +46,7 @@ test('Unblock keeps native light-call choices visible, labelled and usable', asy
   await expect(none).toBeChecked();
   await expect(none).toHaveCSS('opacity', '1');
   await expect(page.locator('[data-light-settings]')).toBeHidden();
-  await page.getByRole('radio', { name: 'Choose light-call evenings', exact: true }).check();
+  await page.getByRole('radio', { name: 'Choose light-call days', exact: true }).check();
   const monday = page.getByRole('checkbox', { name: 'Mon', exact: true });
   await monday.uncheck();
   await expect(monday).not.toBeChecked();

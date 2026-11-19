@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { PracticeError } from '../src/beliefs/model.ts';
-import { applyCommand, arc, callHeld, callWeek, callsOf, chapterComplete, currentWish, emptyProgramme, finishCall, firstWeekly, isCloseWeek, lightEnabled, monthOf, nextLight, parseCalls, parseDays, parseTime, rollChapter, selectLedgerReadback, slotKind, voiceProgramme, type Command, type LedgerEntry, type Programme } from '../src/unblock/model.ts';
+import { applyCommand, arc, callHeld, callWeek, callsOf, chapterComplete, closeReadback, currentWish, emptyProgramme, finishCall, firstWeekly, isCloseWeek, lightEnabled, monthOf, nextLight, parseCalls, parseDays, parseTime, reflectionRange, rollChapter, selectLedgerReadback, slotKind, voiceProgramme, type Command, type LedgerEntry, type Programme } from '../src/unblock/model.ts';
+import { chapterFor } from '../src/unblock/chapters.ts';
 import { capture, closedSnapshot, sessionToken, UNBLOCK_TOOL_PARAMS, unblockWebhookArguments, verifiedProgramme, verifySessionToken, heldCall, type Kind, type Snapshot } from '../src/unblock/protocol.ts';
 import { scheduleInput } from '../src/unblock/repository.ts';
 import { unblockReadiness } from '../src/unblock/readiness.ts';
@@ -69,7 +70,7 @@ test('the close context: read-back, the month in the caller\'s words and a perso
   assert.equal(first.is_close, false); assert.equal(first.sign_off.mode, 'continue'); assert.equal(first.sign_off.next_call_weekday, 'Thursday'); assert.equal(first.sign_off.next_chapter_title, undefined);
   assert.deepEqual(first.ledger_readback, []); assert.equal(first.month_words, undefined); assert.ok(first.chapter_theme.includes('CALL 1 OF 2'));
   p = finishCall(p, 'weekly', 1);
-  const close = voiceProgramme(p, { kind: 'weekly', week: 2, preferredName: 'Mari', nextCallAt: at }) as Ctx;
+  const close = voiceProgramme(p, { kind: 'weekly', week: 2, preferredName: 'Mari', nextCallAt: at, now }) as Ctx;
   assert.equal(close.is_close, true); assert.equal(close.sign_off.mode, 'continue'); assert.equal(close.sign_off.next_chapter_title, 'The First Mile'); assert.ok(close.sign_off.next_call_local!.includes('Thursday'));
   assert.deepEqual(close.ledger_readback.map((e: { text: string }) => e.text), ['Rain on stone']);
   assert.deepEqual(close.month_words!.steps.map((e: { text: string }) => e.text), ['Phone the club']); assert.deepEqual(close.month_words!.moments.map((e: { text: string }) => e.text), ['Rain on stone']);
@@ -154,13 +155,107 @@ test('ledger read-back: up to five verbatim entries, newest of each week in turn
 test('voice context carries ledger_readback only for the week-4 call and never the support contact', () => {
   let p = emptyProgramme(); p.contact = { name: 'Syn', email: 'support-only@example.com' };
   for (let i = 0; i < 7; i++) p = run(p, { type: 'light', text: 'moment ' + i, occurredOn: '2026-11-0' + (i + 1), source: 'light_call', week: 1 + (i % 4) });
-  const week4 = voiceProgramme(p, { kind: 'weekly', week: 4, preferredName: 'Syn' });
+  const week4 = voiceProgramme(p, { kind: 'weekly', week: 4, preferredName: 'Syn', now });
   assert.equal((week4['ledger_readback'] as unknown[]).length, 5); assert.equal(week4['ledger_count'], 7);
   assert.deepEqual(voiceProgramme(p, { kind: 'weekly', week: 2, preferredName: 'Syn' })['ledger_readback'], []);
   assert.deepEqual(voiceProgramme(p, { kind: 'light', week: 2, preferredName: 'Syn' })['ledger_readback'], []);
   assert.ok(!JSON.stringify(week4).includes('support-only@example.com'));
   assert.equal((week4['call_context'] as Record<string, unknown>)['preferred_name'], 'Syn');
 });
+test('reflection dates are thirty caller-local days across DST, leap years and UTC midnight', () => {
+  assert.deepEqual(reflectionRange(new Date('2026-03-30T00:30:00Z'), 'Europe/Oslo'), { from_day: '2026-03-01', through_day: '2026-03-30' });
+  assert.deepEqual(reflectionRange(new Date('2028-03-01T12:00:00Z'), 'Europe/Oslo'), { from_day: '2028-02-01', through_day: '2028-03-01' });
+  assert.deepEqual(reflectionRange(new Date('2027-03-01T12:00:00Z'), 'Europe/Oslo'), { from_day: '2027-01-31', through_day: '2027-03-01' });
+  const at = new Date('2026-11-01T00:30:00Z');
+  assert.deepEqual(reflectionRange(at, 'Europe/Oslo'), { from_day: '2026-10-03', through_day: '2026-11-01' });
+  assert.deepEqual(reflectionRange(at, 'America/Los_Angeles'), { from_day: '2026-10-02', through_day: '2026-10-31' });
+});
+
+test('a closing reflection includes the last thirty days across chapter boundaries and excludes older or future records', () => {
+  const at = new Date('2026-03-30T00:30:00Z');
+  const p: Programme = { ...emptyProgramme(), startedAt: '2026-01-10T10:00:00Z', month: 3, openingHeld: true, weeksHeld: 3,
+    ledger: [
+      { ...entry(1, '2026-02-28T10:00:00Z', 'Too old, even in this chapter'), month: 3 },
+      { ...entry(4, '2026-03-01T10:00:00Z', 'The first day of the window, from the previous chapter'), month: 2 },
+      { ...entry(3, '2026-03-29T22:30:00Z', 'Today in Oslo'), occurredOn: '2026-03-30', month: 3 },
+      { ...entry(4, '2026-03-31T10:00:00Z', 'A future date'), month: 3 },
+    ],
+    steps: [
+      { week: 1, text: 'Old step', outcome: null, outcomeText: '', at: '2026-02-28T10:00:00Z', month: 3 },
+      { week: 4, text: 'Recent step from the previous chapter', outcome: null, outcomeText: '', at: '2026-03-01T10:00:00Z', month: 2 },
+      { week: 3, text: 'Older step with a recent outcome', outcome: 'done', outcomeText: 'I tried it', at: '2026-02-01T10:00:00Z', outcomeAt: '2026-03-29T10:00:00Z', month: 2 },
+    ],
+    blocks: [
+      { id: 'old', wishVersion: 1, text: 'Old block', kind: 'unsure', week: 1, at: '2026-02-28T10:00:00Z', month: 3 },
+      { id: 'recent', wishVersion: 1, text: 'Recent block', kind: 'limit', week: 4, at: '2026-03-01T10:00:00Z', month: 2 },
+    ],
+  };
+  const context = voiceProgramme(p, { kind: 'weekly', week: 4, preferredName: 'Synthetic', now: at,
+    schedule: { timezone: 'Europe/Oslo', weeklyWeekday: 1, weeklyMinute: 600, lightWeekdays: [], lightMinute: null } }) as {
+      reflection_period: { kind: string; label: string; from_day: string; through_day: string };
+      ledger_readback: { text: string }[]; month_words: { steps: { text: string }[]; moments: { text: string }[]; blocks: { text: string }[] };
+    };
+  assert.deepEqual(context.reflection_period, { kind: 'rolling_30_days', label: 'the last 30 days', from_day: '2026-03-01', through_day: '2026-03-30' });
+  const expected = ['The first day of the window, from the previous chapter', 'Today in Oslo'];
+  assert.deepEqual(context.ledger_readback.map(e => e.text), expected);
+  assert.deepEqual(context.month_words.moments.map(e => e.text), expected);
+  assert.deepEqual(context.month_words.steps.map(e => e.text), ['Recent step from the previous chapter', 'Older step with a recent outcome']);
+  assert.deepEqual(context.month_words.blocks.map(e => e.text), ['Recent block']);
+  assert.equal(p.ledger.length, 4); assert.equal(p.month, 3, 'reflection never changes billing/chapter state');
+  const ordinary = voiceProgramme(p, { kind: 'weekly', week: 3, preferredName: 'Synthetic', now: at });
+  assert.equal(ordinary['reflection_period'], undefined); assert.equal(ordinary['month_words'], undefined); assert.deepEqual(ordinary['ledger_readback'], []);
+});
+
+test('early closes use the actual programme start, whatever the number of calls, and clip all reflection records to it', () => {
+  const at = new Date('2026-03-30T00:30:00Z');
+  for (const calls of [1, 2, 8]) {
+    const p: Programme = { ...emptyProgramme(), startedAt: '2026-03-20T23:30:00Z', openingHeld: true, chapterCalls: calls,
+      ledger: [entry(1, '2026-03-20T10:00:00Z', 'Before we started'), entry(1, '2026-03-21T10:00:00Z', 'Since we started')],
+      steps: [
+        { week: 1, text: 'Earlier step', outcome: null, outcomeText: '', at: '2026-03-20T10:00:00Z' },
+        { week: 1, text: 'A recent step', outcome: null, outcomeText: '', at: '2026-03-21T10:00:00Z' },
+      ],
+      blocks: [
+        { id: 'old', wishVersion: 1, text: 'Earlier block', kind: 'unsure', week: 1, at: '2026-03-20T10:00:00Z' },
+        { id: 'new', wishVersion: 1, text: 'A recent block', kind: 'unsure', week: 1, at: '2026-03-21T10:00:00Z' },
+      ],
+    };
+    const context = voiceProgramme(p, { kind: 'weekly', week: calls, preferredName: 'Synthetic', now: at });
+    assert.deepEqual(context['reflection_period'], { kind: 'since_start', label: 'since we started', from_day: '2026-03-21', through_day: '2026-03-30' });
+    assert.deepEqual(context['ledger_readback'], [{ occurred_on: '2026-03-21', text: 'Since we started' }]);
+    const words = context['month_words'] as { steps: { text: string }[]; moments: { text: string }[]; blocks: { text: string }[] };
+    assert.deepEqual(words.steps.map(s => s.text), ['A recent step']);
+    assert.deepEqual(words.moments.map(s => s.text), ['Since we started']);
+    assert.deepEqual(words.blocks.map(s => s.text), ['A recent block']);
+    for (const kind of ['opening', 'light'] as const) assert.equal(voiceProgramme(p, { kind, week: calls, preferredName: 'Synthetic', now: at })['reflection_period'], undefined);
+  }
+});
+
+test('closing labels switch after thirty local dates, without borrowing a later chapter start or inventing a missing programme start', () => {
+  const at = new Date('2026-03-30T00:30:00Z');
+  const period = (startedAt?: string) => voiceProgramme({ ...emptyProgramme(), startedAt, chapterStartedAt: '2026-03-28T10:00:00Z' },
+    { kind: 'weekly', week: 4, preferredName: 'Synthetic', now: at })['reflection_period'];
+  assert.deepEqual(period('2026-03-01T23:30:00Z'), { kind: 'since_start', label: 'since we started', from_day: '2026-03-02', through_day: '2026-03-30' });
+  assert.deepEqual(period('2026-03-01T10:00:00Z'), { kind: 'rolling_30_days', label: 'the last 30 days', from_day: '2026-03-01', through_day: '2026-03-30' });
+  assert.deepEqual(period('2026-01-01T10:00:00Z'), period('2026-03-01T10:00:00Z'));
+  for (const start of [undefined, 'not a date', '2026-03-31T10:00:00Z']) {
+    assert.deepEqual(period(start), { kind: 'recent_history', label: 'recently', from_day: '2026-03-01', through_day: '2026-03-30' });
+  }
+});
+
+test('the year close retains its programme-year read-back instead of being truncated to thirty days', () => {
+  const p: Programme = { ...emptyProgramme(), month: 23, openingHeld: true, weeksHeld: 3, ledger: [
+    { ...entry(4, '2026-11-01T10:00:00Z', 'Previous programme year'), month: 12 },
+    { ...entry(1, '2026-12-01T10:00:00Z', 'Beginning of programme year two'), month: 13 },
+    { ...entry(4, '2027-10-01T10:00:00Z', 'End of programme year two'), month: 23 },
+    { ...entry(1, '2027-11-01T10:00:00Z', 'A different programme year'), month: 24 },
+  ] };
+  const at = new Date('2027-10-30T10:00:00Z');
+  assert.deepEqual(closeReadback(p, chapterFor(12)!, at).map(e => e.text), ['Beginning of programme year two', 'End of programme year two']);
+  const context = voiceProgramme(p, { kind: 'weekly', week: 4, preferredName: 'Synthetic', now: at });
+  assert.deepEqual(context['reflection_period'], { kind: 'programme_year', label: 'this programme year', year: 2 });
+});
+
 test('held-call rules: closing is required to finish the programme; light calls need no saves', () => {
   assert.equal(callHeld('opening', 0, []), false); assert.equal(callHeld('opening', 0, ['wish']), true);
   assert.equal(callHeld('weekly', 2, ['pause']), false); assert.equal(callHeld('weekly', 2, ['step_outcome']), true);
@@ -305,14 +400,14 @@ test('closed snapshots keep identifiers and capture kinds, not private wording',
   const closed = closedSnapshot(s, 'opening', 0, true);
   assert.ok(!closed.includes('sail')); assert.deepEqual(JSON.parse(closed).captureKinds, ['wish']); assert.equal(JSON.parse(closed).canonicalVerified, true);
 });
-test('schedule input: Oslo fallback, three default evenings, explicit none, collisions and zones', () => {
+test('schedule input: Oslo fallback, three suggested light-call days, explicit none, collisions and zones', () => {
   const form = (o: Record<string, string>) => new URLSearchParams(o);
   const d = scheduleInput(form({ weekday: 'tue', weekly: '18:00' }), now);
-  assert.deepEqual([d.timezone, d.lightDays, d.lightMinute], ['Europe/Oslo', [1, 3, 5], 1140]);
+  assert.deepEqual([d.timezone, d.lightDays, d.lightMinute], ['Europe/Oslo', [1, 3, 5], 960]);
   assert.deepEqual(scheduleInput(form({ weekday: '2', weekly: '18:00', light_days: 'none' }), now).lightDays, []);
   assert.equal(scheduleInput(form({ weekday: '2', weekly: '18:00', light_days: 'sat,sun', light: '20:30', timezone: 'Europe/London' }), now).lightMinute, 1230);
   assert.throws(() => scheduleInput(form({ weekday: '2', weekly: '18:00', timezone: 'Mars/Base' }), now), /timezone_invalid/);
-  assert.throws(() => scheduleInput(form({ weekday: '1', weekly: '19:20' }), now), /calls_too_close/);
+  assert.throws(() => scheduleInput(form({ weekday: '1', weekly: '16:20' }), now), /calls_too_close/);
   assert.throws(() => scheduleInput(form({ weekday: 'xx', weekly: '18:00' }), now), /schedule_invalid/);
 });
 test('readiness lists every gate and all launch flags default to off', () => {

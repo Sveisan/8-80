@@ -13,8 +13,9 @@ export function unblockConfig() {
     toolSecret: value('UNBLOCK_TOOL_SECRET'),
     agentIds: { opening: value('UNBLOCK_OPENING_AGENT_ID'), weekly: value('UNBLOCK_WEEKLY_AGENT_ID'), light: value('UNBLOCK_LIGHT_AGENT_ID') },
     supportHours: value('UNBLOCK_SUPPORT_HOURS'),
+    operatorPhone: value('UNBLOCK_OPERATOR_PHONE'),
     coverageStart: value('UNBLOCK_COVERAGE_START'),
     coverageEnd: value('UNBLOCK_COVERAGE_END'),
-    coverageDays: value('UNBLOCK_COVERAGE_DAYS') || '0,1,2,3,4,5,6',
+    coverageDays: value('UNBLOCK_COVERAGE_DAYS') || '1,2,3,4,5',
   };
 }

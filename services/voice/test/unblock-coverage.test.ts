@@ -1,6 +1,6 @@
 import { test, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { coverageReady, withinCoverage } from '../src/unblock/coverage.ts';
+import { coverageReady, withinCallWindow, withinCoverage } from '../src/unblock/coverage.ts';
 
 const keys = ['UNBLOCK_COVERAGE_START', 'UNBLOCK_COVERAGE_END', 'UNBLOCK_COVERAGE_DAYS'] as const;
 const original = Object.fromEntries(keys.map(k => [k, process.env[k]]));
@@ -16,9 +16,22 @@ test('weekday coverage follows Oslo time and rejects evenings and weekends', () 
   assert.ok(withinCoverage(new Date('2026-11-20T15:59:00Z')));
   for (const iso of ['2026-11-16T07:59:00Z', '2026-11-16T16:00:00Z', '2026-11-21T11:00:00Z', '2026-11-15T11:00:00Z']) assert.equal(withinCoverage(new Date(iso)), false, iso);
 });
-test('missing weekday configuration preserves existing all-week behaviour', () => {
+test('missing weekday configuration defaults to the approved weekday policy', () => {
   delete process.env['UNBLOCK_COVERAGE_DAYS'];
-  assert.ok(withinCoverage(new Date('2026-11-15T11:00:00Z')));
+  assert.equal(withinCoverage(new Date('2026-11-15T11:00:00Z')), false);
+  assert.ok(withinCoverage(new Date('2026-11-16T11:00:00Z')));
+});
+test('call starts leave the final thirty minutes staffed, including the whole 16:30 minute', () => {
+  for (const iso of ['2026-11-16T08:00:00Z', '2026-11-16T15:30:00Z', '2026-11-16T15:30:59Z']) assert.ok(withinCallWindow(new Date(iso)), iso);
+  for (const iso of ['2026-11-16T07:59:59Z', '2026-11-16T15:31:00Z', '2026-11-16T15:59:00Z', '2026-11-21T11:00:00Z']) assert.equal(withinCallWindow(new Date(iso)), false, iso);
+  assert.ok(withinCoverage(new Date('2026-11-16T15:59:00Z')), 'response coverage continues after the call-start cutoff');
+});
+test('the call-start cutoff follows Oslo summer time and the actual configured staffed end', () => {
+  assert.ok(withinCallWindow(new Date('2026-06-22T14:30:00Z')));
+  assert.equal(withinCallWindow(new Date('2026-06-22T14:31:00Z')), false);
+  process.env['UNBLOCK_COVERAGE_END'] = '16:00';
+  assert.ok(withinCallWindow(new Date('2026-06-22T13:30:00Z')));
+  assert.equal(withinCallWindow(new Date('2026-06-22T13:31:00Z')), false);
 });
 test('invalid or repeated coverage days fail closed', () => {
   for (const value of ['7', '1,1', '1,,2', 'Monday', '-1']) {

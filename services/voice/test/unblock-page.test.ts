@@ -46,7 +46,7 @@ test('copy: plain, no streaks, scores, counts or praise; no one-time, five-week 
   const landing = pages[0]!;
   assert.ok(landing.includes('See the light in your own life — and take the step that has been waiting.')); assert.ok(landing.includes('Each month is a chapter'));
   assert.ok(landing.includes('Calls are with an AI')); assert.ok(landing.includes('Synthetic price label')); assert.ok(!pages[1]!.includes('Synthetic price label'));
-  assert.ok(landing.includes('three evenings a week'));
+  assert.ok(landing.includes('three days a week'));
   assert.ok(!unblockPage('landing', { available: false }).includes('/unblock/join'), 'closed enrolment shows no join link');
   const closed = unblockPage('landing', { available: false, support: 'mailto:human@example.com' });
   assert.match(closed, /<!--email_off--><a href="mailto:human@example.com">Ask about Unblock<\/a> · human@example.com<!--\/email_off-->/,

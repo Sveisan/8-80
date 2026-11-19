@@ -18,3 +18,8 @@ export function withinCoverage(at: Date): boolean {
   const minute = Number(parts.find(p => p.type === 'hour')!.value) * 60 + Number(parts.find(p => p.type === 'minute')!.value);
   return start < end ? minute >= start && minute < end : minute >= start || minute < end;
 }
+/** Leave thirty minutes before staffed coverage ends. A configured 09:00–17:00 window permits starts through 16:30. */
+export function withinCallWindow(at: Date): boolean {
+  const minuteStart = Math.floor(+at / 60_000) * 60_000;
+  return withinCoverage(at) && withinCoverage(new Date(minuteStart + 30 * 60_000 - 1));
+}

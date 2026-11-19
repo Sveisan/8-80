@@ -36,8 +36,8 @@ if (unblock) Object.assign(process.env, {
   UNBLOCK_PRICE_VERIFIED: 'true', UNBLOCK_PRICE_LABEL: '249 kr / month (synthetic)', UNBLOCK_PRODUCT_ID: 'synthetic-unblock',
   UNBLOCK_CHECKOUT_URL: 'https://buy.stripe.com/synthetic', UNBLOCK_TOOL_SECRET: 'synthetic-unblock-browser-secret'.repeat(2),
   UNBLOCK_OPENING_AGENT_ID: 'synthetic-unblock-opening', UNBLOCK_WEEKLY_AGENT_ID: 'synthetic-unblock-regular', UNBLOCK_LIGHT_AGENT_ID: 'synthetic-unblock-light',
-  UNBLOCK_SUPPORT_HOURS: 'Synthetic staffed window', UNBLOCK_COVERAGE_START: '00:00', UNBLOCK_COVERAGE_END: '24:00',
-  SUPPORT_EMAIL: 'support@example.com', OPERATOR_PHONE: '+4790008899', SPEECHIFY_API_KEY: 'synthetic', SPEECHIFY_WEBHOOK_SECRET: 'synthetic', STRIPE_SECRET_KEY: 'synthetic',
+  UNBLOCK_SUPPORT_HOURS: 'Monday–Friday, 09:00–17:00 Europe/Oslo (synthetic)', UNBLOCK_COVERAGE_START: '09:00', UNBLOCK_COVERAGE_END: '17:00', UNBLOCK_COVERAGE_DAYS: '1,2,3,4,5',
+  SUPPORT_EMAIL: 'support@example.com', OPERATOR_PHONE: '+4790008899', UNBLOCK_OPERATOR_PHONE: '+4790008899', SPEECHIFY_API_KEY: 'synthetic', SPEECHIFY_WEBHOOK_SECRET: 'synthetic', STRIPE_SECRET_KEY: 'synthetic',
 });
 const opened = await openTestDb(unblock ? 'design_browser_unblock' : 'design_browser');
 if (typeof opened === 'string') throw new Error(opened);

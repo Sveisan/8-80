@@ -11,7 +11,8 @@ import { obj, str } from '../billing/types.ts';
 import { PracticeError } from '../beliefs/model.ts';
 import { unblockConfig } from './config.ts';
 import { unblockReadiness } from './readiness.ts';
-import { withinCoverage } from './coverage.ts';
+import { withinCallWindow } from './coverage.ts';
+import { lockUnblockAvailability, unblockAvailability } from './availability.ts';
 import { UnblockRepository, callsAllowed, chapterWindow, lightGuard, planWeekly, scheduleOf, signOffCall } from './repository.ts';
 import { callWeek, callsOf, chapterComplete, closeAt, finishCall, lightEnabled, monthOf, nextLight, rollChapter, slotKind, voiceProgramme, FIRST_WEEK_GAP_DAYS, type CallKind, type Programme } from './model.ts';
 import { chapterPos } from './chapters.ts';
@@ -26,7 +27,7 @@ async function safety(sql: postgres.TransactionSql, session: Session, callerText
   const finding = safetyTier([{ speaker: 'caller', text: callerText }], emptyScript); if (!finding) return false;
   await sql`update call_attempts set safety_tier=least(coalesce(safety_tier,3),${finding.tier}) where id=${session.id}`;
   await sql`update callers set held_for_review=true,updated_at=${now} where phone_hash=${session.phone_hash}`;
-  if (finding.tier === 1) for (const [i, to] of config.operator.phones().entries()) await enqueue(sql, { eventKey: `unblock:safety:${session.id}:${i}`, phoneHash: session.phone_hash, channel: 'sms', kind: 'safety', to,
+  if (finding.tier === 1 && unblockConfig().operatorPhone) await enqueue(sql, { eventKey: `unblock:safety:${session.id}:0`, phoneHash: session.phone_hash, channel: 'sms', kind: 'safety', to: unblockConfig().operatorPhone,
     body: '8&80: an Unblock call needs urgent human review (tier 1). All calls for this account are on hold. On the server: npm run enrol -- --review' }, now);
   return true;
 }
@@ -59,10 +60,10 @@ export async function unblockTool(deps: LoopDeps, input: unknown, now = new Date
 
 /** What the voice context needs besides the programme: the schedule, how the subscription stands and the call the guide may name when signing off. */
 export function voiceContext(e: Parameters<typeof scheduleOf>[0], p: Programme, kind: CallKind, week: number, preferredName: string, now: Date) {
-  return { kind, week, preferredName, schedule: scheduleOf(e), cancelling: e.cancel_at_period_end, ended: e.standing === 'ended', nextCallAt: signOffCall(e, p, kind, week, now) };
+  return { kind, week, preferredName, now, schedule: scheduleOf(e), cancelling: e.cancel_at_period_end, ended: e.standing === 'ended', nextCallAt: signOffCall(e, p, kind, week, now) };
 }
 
-export async function claimUnblock(deps: LoopDeps, now = new Date()): Promise<Session[]> {
+export async function claimUnblock(deps: LoopDeps, now = new Date(), availableSince?: Date): Promise<Session[]> {
   const candidates = await deps.store.raw<{ id: string; phone_hash: string }[]>`select id,phone_hash from unblock_enrollments where is_current and standing in ('active','past_due') and
     (opening_at<=${now} or next_weekly_at<=${now} or next_light_at<=${now}) order by updated_at limit 50`;
   const claimed: Session[] = [];
@@ -113,7 +114,7 @@ export async function claimUnblock(deps: LoopDeps, now = new Date()): Promise<Se
       next_light_at = case when ${finished || lightDue} then ${followingLight}::timestamptz else next_light_at end, updated_at=${now} where id=${e.id}`;
     for (const d of due) {
       const blocked = caller['held_for_review'] || caller['all_calls_stopped'] || caller['sms_opt_out'] || p.state !== 'active';
-      const late = +now - +d.at > 5 * 60_000;
+      const late = +now - +d.at > 5 * 60_000 || (!!availableSince && d.at < availableSince);
       const nearBase = caller['next_call_at'] && Math.abs(+caller['next_call_at'] - +d.at) < 45 * 60_000;
       const recent = await tx`select id from call_attempts where phone_hash=${e.phone_hash} and
         (status in ('claimed','placed','settling') or scheduled_for between ${new Date(+now - 45 * 60_000)} and ${new Date(+now + 45 * 60_000)}) limit 1`;
@@ -138,18 +139,28 @@ async function unblockNotice(sql: postgres.TransactionSql, deps: LoopDeps, hash:
 }
 export async function tickUnblock(deps: LoopDeps, now = new Date(), fetcher: typeof fetch = fetch): Promise<{ claimed: number; placed: number; failed: number }> {
   const out = { claimed: 0, placed: 0, failed: 0 };
-  if (!unblockConfig().live || unblockReadiness().length || !withinCoverage(now)) return out;
-  const sessions = await claimUnblock(deps, now); out.claimed = sessions.length;
+  if (!unblockConfig().live || unblockReadiness().length || !withinCallWindow(now)) return out;
+  const availability = await unblockAvailability(deps.store.raw, now);
+  if (!availability.available) return out;
+  const started = performance.now();
+  const sessions = await claimUnblock(deps, now, availability.checkedInAt!); out.claimed = sessions.length;
   for (const s of sessions) {
     try {
       // Hold the account lock through the placement request so STOP/deletion cannot race dispatch.
       await deps.store.raw.begin(async tx => {
+        const dispatchAt = new Date(+now + Math.floor(performance.now() - started));
+        const available = await lockUnblockAvailability(tx, dispatchAt);
+        const [attempt] = await tx`select scheduled_for from call_attempts where id=${s.id}`;
+        if (!available.available || !withinCallWindow(dispatchAt) || !attempt || attempt['scheduled_for'] < available.checkedInAt!) throw new PracticeError('dispatch_stopped');
         const [caller] = await tx`select name,held_for_review,all_calls_stopped,sms_opt_out from callers where phone_hash=${s.phone_hash} for update`;
         const loaded = await new UnblockRepository(tx, s.programme_id).load(s.phone_hash);
         if (!caller || caller['held_for_review'] || caller['all_calls_stopped'] || caller['sms_opt_out'] || !loaded || !callsAllowed(loaded.enrollment, now) || loaded.programme.state !== 'active') throw new PracticeError('dispatch_stopped');
         const phone = await deps.store.in(tx).phoneFor(s.phone_hash); if (!phone) throw new PracticeError('dispatch_stopped');
         const c = unblockConfig(); const week = s.week ?? 0;
         const context = voiceProgramme(loaded.programme, voiceContext(loaded.enrollment, loaded.programme, s.kind, week, loaded.programme.contact?.name || caller['name'] || '', now));
+        // A database lock/load can cross the cutoff. Check the clock again at the actual placement boundary.
+        const placementAt = new Date(+now + Math.floor(performance.now() - started));
+        if (!withinCallWindow(placementAt) || !available.expiresAt || available.expiresAt <= placementAt) throw new PracticeError('dispatch_stopped');
         const response = await fetcher('https://api.speechify.ai/v1/agents/outbound-calls', { method: 'POST', redirect: 'error', signal: AbortSignal.timeout(20000),
           headers: { authorization: `Bearer ${process.env['SPEECHIFY_API_KEY']}`, 'content-type': 'application/json', 'Idempotency-Key': `unblock:${s.id}` },
           body: JSON.stringify({ agent_id: c.agentIds[s.kind], to: phone, ...(config.speechify.callerIdNumber ? { caller_id_number: config.speechify.callerIdNumber } : {}),
