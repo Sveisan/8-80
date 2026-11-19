@@ -249,9 +249,11 @@ test('unconfigured checkout stays unavailable; returning from checkout does not 
 });
 
 test('SMS START and moves cannot promise calls beyond paid access or undo a pause', options, async () => {
-  await enrol(); await scheduler().setPaused(phone, true);
-  const slot = (await scheduler().slotFor(phone))!;
   const now = new Date('2026-10-03T12:00:00Z');
+  await enrol();
+  const slot = (await scheduler().slotFor(phone))!;
+  await scheduler().setSlot(phone, slot, now);
+  await scheduler().setPaused(phone, true);
   await db!.sql`update callers set cancel_at_period_end = true, paid_until = '2026-10-04T00:00:00Z'`;
   const [before] = await db!.sql`select paused, next_call_at, slot_weekday, slot_minute from callers`;
   const start = await handleReply(phone, 'START', slot, deps(), now);
@@ -277,4 +279,6 @@ test('skipping the last paid call does not describe the account as a free trial'
   const result = await handleReply(phone, 'skip', slot, deps(), now, { skipAt: at });
   assert.equal(result.action, 'skipped'); assert.match(result.said, /paid access ends/);
   assert.doesNotMatch(result.said, /free month|Next call/);
+  await scheduler().setPaused(phone, true);
+  assert.equal(await scheduler().resumeIfEligible(phone, now), undefined, 'resume must not restore the skipped final call');
 });

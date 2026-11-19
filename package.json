@@ -62,7 +62,8 @@
     "quality:jev": "npm run -w @8and80/voice quality:jev --",
     "quality:jev:worker": "npm run -w @8and80/voice quality:jev:worker --",
     "unblock:availability": "npm run -w @8and80/voice unblock:availability --",
-    "unblock:incidents": "npm run -w @8and80/voice unblock:incidents --"
+    "unblock:incidents": "npm run -w @8and80/voice unblock:incidents --",
+    "weekly:release": "npm run -w @8and80/voice weekly:release --"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.14.0",

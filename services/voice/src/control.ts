@@ -50,6 +50,7 @@ import { femaleVoiceReady, sameMessageNumber } from './agent/voices.ts';
 import { setNudges } from './sms/nudges.ts';
 import { accountState } from './link/account.ts';
 import { moveVersion, proposedMove, readMove } from './link/move.ts';
+import { readSkipReceipt, skipReceipt } from './link/undo-skip.ts';
 import { available as encouragementAvailable, loadPreferences, parsePreferences, savePreferences } from './encouragement/preferences.ts';
 import { feedback as encouragementFeedback, recent as recentEncouragement } from './encouragement/runtime.ts';
 import { readMemory, correctMemory } from './memory/context.ts';
@@ -649,6 +650,16 @@ async function yourPage(
   if (['start', 'move', 'skip', 'later'].includes(action ?? '') &&
       (!state.canCall || (state.paused && action !== 'start'))) return await page();
   if (action === 'start' && state.stoppedByText) return await page();
+  if (action === 'undo-skip') {
+    const undo = readSkipReceipt(form.get('receipt'), phoneHash);
+    const invitations = undo && await deps.store.raw.begin(async tx => {
+      const restored = await new Scheduler(tx).undoSkip(phone, undo);
+      return restored ? await syncCalendarInvitations(tx, phoneHash, deps.script) : undefined;
+    });
+    await measured(!!invitations);
+    if (invitations) for (const id of invitations) await dispatchMessage(deps, id);
+    return await page(undefined, undefined, { scheduleNote: invitations ? 'page.skip.restored' : 'page.skip.undo_unavailable' });
+  }
   if (action === 'move-review' || action === 'move-save' || action === 'move-edit') {
     const version = moveVersion(slot, state.scheduledAt);
     // An old form must not overwrite a newer appointment or a change to its weekly slot.
@@ -662,7 +673,7 @@ async function yourPage(
     const { at, weekly } = proposal;
     const cutoff = state.cancelAtPeriodEnd ? state.paidUntil : state.trialEnds;
     if (cutoff && at >= cutoff) return await page(undefined, undefined, { moveDraft: draft, scheduleNote: 'page.move.unavailable' });
-    if (action === 'move-review') return html(res, 200, reviewMovePage(draft, at, slot, version, deps.script, language));
+    if (action === 'move-review') return html(res, 200, reviewMovePage(draft, at, state.next, slot, version, deps.script, language));
     if (at.toISOString() !== form.get('proposed_at')) {
       return await page(undefined, undefined, { moveDraft: draft, scheduleNote: 'page.move.stale' });
     }
@@ -795,8 +806,13 @@ async function yourPage(
   if (!said) return await page();
   // Straight through the same path a text would take, so the two ways of
   // moving a call cannot drift apart.
-  const out = await handleReply(phone, said, slot, { ...deps, sms: silent }, new Date(), { skipAt, language });
-  for (const id of await syncCalendarInvitations(deps.store.raw, phoneHash, deps.script)) await dispatchMessage(deps, id);
+  const reply = (scheduler: Scheduler) => handleReply(phone, said, slot, { script: deps.script, scheduler, sms: silent },
+    new Date(), { skipAt, language });
+  const [out, invitations] = action === 'skip'
+    ? await deps.store.raw.begin(async tx =>
+      [await reply(new Scheduler(tx)), await syncCalendarInvitations(tx, phoneHash, deps.script)] as const)
+    : [await reply(deps.scheduler), await syncCalendarInvitations(deps.store.raw, phoneHash, deps.script)] as const;
+  for (const id of invitations) await dispatchMessage(deps, id);
   await measured(['moved', 'moved_always', 'skipped', 'stopped', 'started'].includes(out.action));
   // Re-render persisted state after pause/resume, so a revisit shows the same
   // result. Recovery remains available if the credential later expires.
@@ -805,7 +821,9 @@ async function yourPage(
     return await page(undefined, undefined, { scheduleNote: out.action === 'moved_always' ? 'page.move.saved.weekly' : 'page.move.saved.once' });
   }
   if (out.action === 'unchanged' && action === 'move') return await page(undefined, undefined, { scheduleNote: 'page.move.unavailable' });
-  if (action === 'skip' || action === 'start') return await page(undefined, undefined, { scheduleMessage: out.said });
+  if (action === 'skip' || action === 'start') return await page(undefined, undefined, {
+    scheduleMessage: out.said, ...(out.undo ? { skipUndoReceipt: skipReceipt(phoneHash, out.undo) } : {}),
+  });
   return html(res, 200, donePage(out.said, deps.script, language, back));
 }
 
