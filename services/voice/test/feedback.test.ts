@@ -40,7 +40,7 @@ after(async () => {
 });
 
 beforeEach(async () => {
-  if (sql) await sql`truncate jev_quality_reviews,product_feedback,belief_sessions,unblock_sessions, belief_refund_requests, belief_enrollments,unblock_enrollments, message_attempts, message_outbox, callers, call_attempts, links, feedback`;
+  if (sql) await sql`truncate unblock_incidents,jev_quality_reviews,product_feedback,belief_sessions,unblock_sessions, belief_refund_requests, belief_enrollments,unblock_enrollments, message_attempts, message_outbox, callers, call_attempts, links, feedback`;
   process.env['DATA_ENCRYPTION_KEY'] = KEY;
   process.env['PUBLIC_URL'] = 'https://8and80.me';
   delete process.env['FEEDBACK_AFTER_CALL'];
@@ -92,7 +92,7 @@ test('the call number it follows is a setting', { skip: skip() }, async () => {
   assert.equal(await sendDueFeedback(deps(), now), 1);
   assert.match(sent[0]?.body ?? '', /^Four calls in/);
 
-  await sql`truncate table message_attempts, message_outbox, feedback`;
+  await sql`truncate table unblock_incidents,message_attempts, message_outbox, feedback`;
   sent = [];
   process.env['FEEDBACK_AFTER_CALL'] = '0';
   assert.equal(await sendDueFeedback(deps(), now), 0, '0 switches it off');
@@ -102,7 +102,7 @@ test('a short call or one that ended early waits for the next call', { skip: ski
   await caller('+4790000203');
   await call('+4790000203', now, 20 * MIN, { minutes: 2 });
   assert.equal(await sendDueFeedback(deps(), now), 0);
-  await sql`truncate jev_quality_reviews,belief_sessions,unblock_sessions, message_attempts, message_outbox, call_attempts`;
+  await sql`truncate unblock_incidents,jev_quality_reviews,belief_sessions,unblock_sessions, message_attempts, message_outbox, call_attempts`;
   await call('+4790000203', now, 20 * MIN, { note: 'moved during the call' });
   assert.equal(await sendDueFeedback(deps(), now), 0);
   assert.equal((await sql`select 1 from feedback`).length, 0, 'not written off, only deferred');

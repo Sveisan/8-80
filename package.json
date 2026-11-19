@@ -60,7 +60,9 @@
     "design:verify": "node scripts/design/verify.mjs",
     "design:update": "DESIGN_VISUAL_ONLY=1 playwright test --project=chromium --grep @visual --update-snapshots",
     "quality:jev": "npm run -w @8and80/voice quality:jev --",
-    "quality:jev:worker": "npm run -w @8and80/voice quality:jev:worker --"
+    "quality:jev:worker": "npm run -w @8and80/voice quality:jev:worker --",
+    "unblock:availability": "npm run -w @8and80/voice unblock:availability --",
+    "unblock:incidents": "npm run -w @8and80/voice unblock:incidents --"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.14.0",

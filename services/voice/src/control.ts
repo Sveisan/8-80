@@ -1,3 +1,4 @@
+import { dispatchUnblockIncidentAlerts } from './unblock/incidents.ts';
 import { qualityRoutes } from './quality/routes.ts';
 import { serveDesignAsset } from './design-system/assets.ts';
 import { setCalendarInvitations, syncCalendarInvitations, useGoogleCalendar } from './calendar/invitations.ts';
@@ -257,7 +258,13 @@ export function controlPlane(deps: LoopDeps, secret: string | readonly string[] 
           const input: unknown = JSON.parse(body.toString('utf8'));
           // Speechify's operator probe carries no session authority and never executes an action.
           if (req.headers['speechify-webhook-test'] === 'true') return send(res, 200, { ok: true, probe: true, action_performed: false });
-          return send(res, 200, await unblockTool(deps, unblockWebhookArguments(input)));
+          const result = await unblockTool(deps, unblockWebhookArguments(input));
+          send(res, 200, result);
+          if (result['held'] === true) {
+            try { await dispatchUnblockIncidentAlerts(deps); }
+            catch { log('unblock.incident_dispatch_pending', {}); }
+          }
+          return;
         } catch (error) { return send(res, error instanceof PracticeError && error.code === 'unauthorized' ? 401 : 409, { error: error instanceof PracticeError ? error.code : 'tool unavailable' }); }
       }
       if (url.pathname === '/beliefs' || url.pathname.startsWith('/beliefs/')) {

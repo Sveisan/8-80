@@ -1,14 +1,14 @@
 # Unblock operator procedure · review draft
 
-**Not approved for real participants.** This operational draft makes the owner decisions explicit. It does not provide clinical triage or an approved urgent spoken response. A qualified reviewer must complete and approve that part before `UNBLOCK_SAFETY_APPROVED` can be set.
+**Operational procedure owner-approved, 19 November 2026; spoken response still draft.** This record makes the owner decisions explicit. It does not provide clinical triage or an approved urgent spoken response. A qualified reviewer must complete and approve that part before `UNBLOCK_SAFETY_APPROVED` can be set.
 
 ## Approved ownership and hours
 
 - Sole operator: Eirik, confirmed by the owner on 19 November 2026 for the initial launch. The owner clarified “Same” as “Sole operator”.
-- Backup: none appointed, by the owner's explicit choice. This supersedes the earlier draft request for a named backup; do not keep requesting a backup name. Daily availability is approved and implemented locally; the urgent no-operator contingency remains under review.
+- Backup: none appointed, by the owner's explicit choice. This supersedes the earlier draft request for a named backup; do not keep requesting a backup name. Daily availability is approved and implemented locally; the five-minute acknowledgement and failure-to-Away rule are also owner-approved; the exact spoken/emergency procedure remains under review.
 - Owner-approved staffed period (19 November 2026): Monday–Friday, 09:00–17:00, Europe/Oslo. Calls start 09:00–16:30; optional light calls are suggested for Mon/Wed/Fri at 16:00.
 - Approved release settings, to apply after staffing/procedure and release checks: `UNBLOCK_COVERAGE_DAYS=1,2,3,4,5`, `UNBLOCK_COVERAGE_START=09:00`, `UNBLOCK_COVERAGE_END=17:00`.
-- Owner/reviewer must confirm alert acknowledgement times and what happens when Eirik cannot respond. Calls should not be offered outside the agreed staffed coverage.
+- The owner approved a five-minute acknowledgement target and Away on alert/acknowledgement failure. Qualified review must settle the exact emergency response when Eirik cannot respond. Calls should not be offered outside the agreed staffed coverage.
 
 ## Daily availability rule · approved 19 November 2026
 
@@ -35,16 +35,16 @@ Available can be set on an Oslo working day before 17:00, including before 09:00
 
 Slots due before the current check-in are missed, including a short Away interval; they are not caught up after returning. Regular/opening missed slots use the existing neutral account notice; light slots are skipped silently. Billing is unchanged pending the commercial decision.
 
-`UNBLOCK_OPERATOR_PHONE` must be configured privately to Eirik's agreed alert contact. It has no fallback to shared weekly/Beliefs operators. Unblock's urgent alert and weekday 09:00–17:00 daily review reminder are scoped to that contact; Unblock cases are excluded from the shared digest. No real alert delivery or acknowledgement has yet been verified. The current implementation does not supply a separate incident acknowledgement/escalation system.
+`UNBLOCK_OPERATOR_PHONE` must be configured privately to Eirik's agreed alert contact. It has no fallback to shared weekly/Beliefs operators. Unblock's urgent alert and weekday 09:00–17:00 daily review reminder are scoped to that contact; Unblock cases are excluded from the shared digest. No real alert delivery or acknowledgement has yet been verified. The incident system now supplies acknowledgement and operational failure blocking; clinical escalation and spoken response remain separate approvals.
 
-## Next owner decision: urgent-response operational procedure · draft
+## Urgent-response operational procedure · owner-approved 19 November 2026
 
-**Proposed for owner review; not approved or implemented as a complete incident workflow.** A five-minute acknowledgement target below is a proposed operating target, not a clinical recommendation or a promise to the caller.
+**Approved by Eirik:** “Yes, approve the operational procedure with the five-minute acknowledgement target. Go ahead and implement it, then let’s review the exact spoken response next.do the merge”. The operational workflow below is implemented. The five-minute target is an operator commitment, not a clinical recommendation or a promise of a callback to the caller. Exact spoken wording remains draft.
 
 1. **Pause and hold.** On a safety hold, stop programme questions and put future calls for that caller on hold. The keyword detector is a precaution, not a diagnosis or proof of immediate danger. Do not automatically resume when the operator becomes Available.
-2. **Calm spoken response.** Candidate wording for qualified review: “Let’s pause here. What you’ve said matters. This automated call can’t provide emergency support. If you’re in immediate danger, please contact emergency services now.” Do not promise a live transfer, a callback time or that someone is already responding. The qualified reviewer must settle any direct clarification, jurisdiction-specific wording, local resources and the safe call-ending/handoff behaviour before publication.
-3. **Alert the sole operator.** Send Eirik a private, content-free urgent alert; keep identity, transcript and incident notes in the private review system. Proposed target: acknowledge within **five minutes** during coverage and review immediately. Emergency action must not wait for this target if an immediate danger is already known.
-4. **Failed alert or missed acknowledgement.** Proposed rule: set global Unblock Away, block new calls, retain the individual's hold, and raise a persistent incident for Eirik. There is no independent backup. An active caller must receive the reviewer-approved emergency direction; the service must never suggest that an unattended queue is emergency support. Availability alone cannot resolve an existing incident. Delivery acceptance is not delivery or human acknowledgement.
+2. **Calm spoken response.** Candidate wording, still awaiting exact-response review: “Let’s pause here. What you’ve said matters. This automated call can’t provide emergency support. If you’re in immediate danger, please contact emergency services now.” Do not promise a live transfer, a callback time or that someone is already responding. The qualified reviewer must settle any direct clarification, jurisdiction-specific wording, local resources and the safe call-ending/handoff behaviour before publication.
+3. **Alert the sole operator.** Send Eirik a private, content-free urgent alert; keep identity, transcript and incident notes in the private review system. Owner-approved target: acknowledge within **five minutes** during coverage and review immediately. Emergency action must not wait for this target if an immediate danger is already known.
+4. **Failed alert or missed acknowledgement.** Owner-approved rule: set global Unblock Away, block new calls, retain the individual's hold, and raise a persistent incident for Eirik. There is no independent backup. An active caller must receive the reviewer-approved emergency direction; the service must never suggest that an unattended queue is emergency support. Availability alone cannot resolve an existing incident. Delivery acceptance is not delivery or human acknowledgement.
 5. **Human decision and controlled return.** Eirik reviews privately and follows the qualified, jurisdiction-appropriate escalation procedure. Contacting emergency services and any disclosure of caller data need a reviewed basis and practical instructions. Record the minimum necessary outcome privately; no automatic texts to the participant, release, billing change or restart. Release a safety hold only after the required review, while preserving STOP and carrier opt-out. Resolve the operational incident separately before a deliberate return to Available.
 
 The exact spoken response, handling of ambiguous or non-imminent disclosures (including abuse), current-location uncertainty, emergency escalation/disclosure, failure of the sole operator, incident retention, call ending, and repeat incidents require appropriately qualified review. The existing pack remains private-test-only until this is settled. Do not copy the weekly “same evening” response target into Unblock.
@@ -69,3 +69,24 @@ The local Unblock alert code now requires its own explicit operator contact, and
 Record the procedure version, reviewer and owner names, approval date, sole-operator acceptance, availability rule, staffed window and acknowledgement target. Test alert delivery, a held conversation, suppression of the next call, and controlled release. Keep real participant details and incident notes out of Git.
 
 The weekly [safety runbook](../SAFETY-RUNBOOK.md) is background evidence. Its existence does not approve a new Unblock spoken procedure.
+
+## Incident controls · implemented
+
+Migration `0038_unblock_incidents` stores one incident and one alert intent per urgent call, with a deadline five minutes after the concern is first captured. Repeated tool calls and completion cannot restart that clock or enqueue duplicate urgent alerts. The HTTP response is sent before attempting SMS delivery, so provider latency does not delay the held response. The durable worker retries pending intents and polls urgent receipts separately from the general ten-minute cadence. Neither provider acceptance nor delivery counts as human acknowledgement.
+
+```sh
+npm run unblock:incidents -- --list
+npm run unblock:incidents -- --ack INCIDENT_ID
+npm run unblock:incidents -- --resolve INCIDENT_ID --reviewed
+npm run unblock:availability -- --available
+```
+
+These are private server commands, available at the repository root. List output contains operational timestamps and a private provider conversation reference; keep it on the server. Acknowledge means a human has seen the incident. Resolve attests that the required private human review is complete. Neither action releases a caller's safety hold or STOP, changes billing, sends a participant text or resumes availability. A blocking incident must be resolved before a separate manual check-in succeeds.
+
+At the exact deadline without acknowledgement, or on missing/failed/uncertain alert delivery, the placement/check-in gate returns Away even before a delayed worker runs. The worker persists Away and the incident failure; a late acknowledgement cannot erase it. Actual provider failure after acceptance is also monitored. Away waits for a placement already in progress, without cutting off an active conversation. Operator CLI acknowledgement uses the clock after lock waits.
+
+Account erasure nulls the private call/message links while preserving an unresolved operational block. Only IDs, timestamps and fixed failure categories are retained; no phone, wish, step, transcript or free-text incident note is copied into this table. Resolved operational metadata is pruned after 30 days; unresolved incidents require human review. Final privacy/clinical review remains a launch gate.
+
+Tier-two findings retain the caller hold and scoped daily review reminder; they are not silently converted into a clinical diagnosis or a tier-one incident. Trigger coverage and any escalation of ambiguous/non-imminent disclosures still need qualified review.
+
+Next: review [the exact spoken-response draft](urgent-response.md). No new urgent wording is published by implementing this operational workflow.

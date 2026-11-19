@@ -12,6 +12,7 @@ import { tick } from './loop/tick.ts';
 import { maintainBeliefPolicies } from './beliefs/policies.ts';
 import { tickBeliefs } from './beliefs/runtime.ts';
 import { tickUnblock } from './unblock/runtime.ts';
+import { dispatchUnblockIncidentAlerts } from './unblock/incidents.ts';
 import { sweep } from './loop/sweep.ts';
 import { expireTrials } from './billing/trials.ts';
 import { beat } from './schedule/scheduler.ts';
@@ -33,6 +34,8 @@ import { syncFeedbackIssues } from './product-feedback/github.ts';
  */
 const deps = openDeps();
 try {
+  try { await dispatchUnblockIncidentAlerts(deps); }
+  catch { log('unblock.incident_dispatch_pending', {}); }
   const result = await tick(deps);
   const beliefs = await tickBeliefs(deps);
   if (beliefs.claimed) log('beliefs.tick', beliefs);

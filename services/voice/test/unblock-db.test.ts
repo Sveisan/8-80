@@ -19,6 +19,8 @@ import { chapterComplete, emptyProgramme, finishCall, type Programme } from '../
 import { sessionToken as beliefToken } from '../src/beliefs/protocol.ts';
 import { sessionToken } from '../src/unblock/protocol.ts';
 import { setUnblockAvailability, unblockAvailability, lockUnblockAvailability } from '../src/unblock/availability.ts';
+import { acknowledgeUnblockIncident, blockingUnblockIncident, dispatchUnblockIncidentAlerts, reconcileUnblockIncidents, resolveUnblockIncident } from '../src/unblock/incidents.ts';
+import { SendFailure } from '../src/messages/types.ts';
 
 const opened = await openTestDb('unblock'); const db = typeof opened === 'string' ? undefined : opened;
 const options = { skip: typeof opened === 'string' ? opened : false };
@@ -54,7 +56,7 @@ async function call(at: Date, saves: [string, Record<string, unknown>][], extraT
   return { s, result };
 }
 beforeEach(async () => {
-  if (db) await db.sql`truncate jev_quality_reviews,product_feedback,unblock_sessions,unblock_enrollments,belief_refund_requests,belief_sessions,belief_enrollments,callers,call_attempts,links,signups,access_codes,message_outbox,message_attempts,feedback,journey_events,journey_tracking,journey_counts,webhook_deliveries,heartbeats`;
+  if (db) await db.sql`truncate unblock_incidents,jev_quality_reviews,product_feedback,unblock_sessions,unblock_enrollments,belief_refund_requests,belief_sessions,belief_enrollments,callers,call_attempts,links,signups,access_codes,message_outbox,message_attempts,feedback,journey_events,journey_tracking,journey_counts,webhook_deliveries,heartbeats`;
   if (db) await setUnblockAvailability(db.sql, false, now);
   process.env['DATA_ENCRYPTION_KEY'] = Buffer.alloc(32, 14).toString('base64');
   Object.assign(process.env, { UNBLOCK_TOOL_SECRET: 'u'.repeat(40), PUBLIC_URL: 'https://8and80.example', OPERATOR_PHONE: '+4791000000', UNBLOCK_OPERATOR_PHONE: '+4791000000', UNBLOCK_COVERAGE_START: '00:00', UNBLOCK_COVERAGE_END: '24:00', UNBLOCK_COVERAGE_DAYS: '0,1,2,3,4,5,6', UNBLOCK_ENABLED: 'false', UNBLOCK_LIVE_CALLS: 'false' });
@@ -461,6 +463,124 @@ test('Unblock alerts use only its explicit sole operator, never the shared backu
   assert.deepEqual(digests.map(r => r['event_key']), ['unblock:safety:digest:2026-11-10:0']);
   delete process.env['UNBLOCK_OPERATOR_PHONE']; fakeReady();
   assert.equal((await tickUnblock(deps(), now, async () => { throw Error('must not place'); })).placed, 0);
+});
+async function urgentIncident() {
+  await enroll({ due: 'opening' }); await setUnblockAvailability(db!.sql, true, now);
+  const [s] = await claimUnblock(deps(), now); await place(s!.id, 'synthetic-urgent');
+  await say(s!.id, 'I want to kill myself', {});
+  const [incident] = await db!.sql<{ id: string; alert_id: string; ack_due_at: Date }[]>`select id,alert_id,ack_due_at from unblock_incidents`;
+  return { incident: incident!, session: s! };
+}
+test('the held HTTP response reaches the caller before a slow operator-alert transport finishes', options, async () => {
+  const at = new Date(); await enroll({ due: 'opening' });
+  await db!.sql`update unblock_enrollments set next_weekly_at=${at}`;
+  const [session] = await claimUnblock(deps(), at); assert.ok(session);
+  await place(session.id, 'synthetic-http-urgent');
+  let release!: () => void; const waiting = new Promise<void>(r => { release = r; });
+  let started = false;
+  const server = controlPlane({ ...deps(), sms: { send: async () => { started = true; await waiting; return { id: 'synthetic-held-alert' }; } } });
+  await new Promise<void>(r => server.listen(0, '127.0.0.1', r));
+  const address = server.address() as { port: number };
+  try {
+    const response = await fetch(`http://127.0.0.1:${address.port}/unblock/tool`, { method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ session_id: session.id, session_token: token(session.id), caller_text: 'I want to kill myself' }), signal: AbortSignal.timeout(1500) });
+    assert.equal(response.status, 200); assert.equal((await response.json() as { held: boolean }).held, true);
+    release();
+    const until = Date.now() + 2000;
+    while (Date.now() < until) {
+      const [m] = await db!.sql`select status from message_outbox where event_key like 'unblock:safety:%'`;
+      if (m?.['status'] === 'accepted') break;
+      await new Promise(r => setTimeout(r, 10));
+    }
+    assert.equal(started, true);
+    assert.equal((await db!.sql`select status from message_outbox where event_key like 'unblock:safety:%'`)[0]!['status'], 'accepted');
+  } finally { release(); await new Promise<void>(r => server.close(() => r())); }
+});
+test('urgent capture atomically holds the caller and creates one content-free incident/alert with a five-minute deadline', options, async () => {
+  const { incident, session } = await urgentIncident();
+  assert.equal(+incident.ack_due_at - +now, 5 * 60_000);
+  await say(session.id, 'I want to kill myself', {});
+  await settleUnblock(payload('synthetic-urgent', 'I want to kill myself'), deps(), undefined, now);
+  assert.equal((await db!.sql`select count(*)::int as n from unblock_incidents`)[0]!['n'], 1);
+  const rows = await db!.sql`select payload_enc from message_outbox where event_key like 'unblock:safety:%'`;
+  assert.equal(rows.length, 1);
+  const alert = decrypt(rows[0]!['payload_enc']);
+  assert.ok(alert.includes(incident.id)); assert.ok(!alert.includes('kill myself') && !alert.includes('Synthetic tester'));
+  assert.equal((await db!.sql`select held_for_review from callers`)[0]!['held_for_review'], true);
+});
+test('acceptance/delivery never acknowledge; the exact five-minute boundary blocks placement even without a worker tick', options, async () => {
+  const { incident } = await urgentIncident();
+  await db!.sql`update message_outbox set status='delivered' where id=${incident.alert_id}`;
+  assert.equal(await blockingUnblockIncident(db!.sql, new Date(+now + 299999)), false);
+  const deadline = new Date(+now + 300000);
+  assert.equal((await unblockAvailability(db!.sql, deadline)).available, false);
+  await assert.rejects(() => setUnblockAvailability(db!.sql, true, deadline), /incident/);
+  await reconcileUnblockIncidents(db!.sql, deadline);
+  const [row] = await db!.sql`select checked_in_at from unblock_availability`;
+  assert.equal(row!['checked_in_at'], null);
+  const [i] = await db!.sql`select failure,acknowledged_at from unblock_incidents`;
+  assert.equal(i!['failure'], 'ack_overdue'); assert.equal(i!['acknowledged_at'], null);
+});
+test('timely acknowledgement is durable and idempotent; resolving never resumes availability or releases STOP/holds', options, async () => {
+  const { incident } = await urgentIncident();
+  const at = new Date(+now + 120000);
+  await acknowledgeUnblockIncident(db!.sql, incident.id, at);
+  await acknowledgeUnblockIncident(db!.sql, incident.id, new Date(+at + 1000));
+  assert.equal(+(await db!.sql`select acknowledged_at from unblock_incidents`)[0]!['acknowledged_at'], +at);
+  assert.equal(await reconcileUnblockIncidents(db!.sql, new Date(+now + 600000)), 0);
+  await setUnblockAvailability(db!.sql, false, now);
+  await db!.sql`update callers set all_calls_stopped=true`;
+  await resolveUnblockIncident(db!.sql, incident.id, at);
+  assert.equal((await unblockAvailability(db!.sql, at)).available, false);
+  const [caller] = await db!.sql`select held_for_review,all_calls_stopped from callers`;
+  assert.equal(caller!['held_for_review'], true); assert.equal(caller!['all_calls_stopped'], true);
+});
+test('late acknowledgement retains Away until an explicit completed review and a new check-in', options, async () => {
+  const { incident } = await urgentIncident(); const late = new Date(+now + 301000);
+  await assert.rejects(() => resolveUnblockIncident(db!.sql, incident.id, now), /Acknowledge/);
+  await acknowledgeUnblockIncident(db!.sql, incident.id, late);
+  await assert.rejects(() => setUnblockAvailability(db!.sql, true, late), /incident/);
+  await resolveUnblockIncident(db!.sql, incident.id, late);
+  assert.equal((await unblockAvailability(db!.sql, late)).available, false);
+  assert.equal((await setUnblockAvailability(db!.sql, true, late)).available, true);
+});
+test('terminal, uncertain and retrying alert failures force Away before the acknowledgement deadline', options, async () => {
+  const { incident } = await urgentIncident();
+  const failDeps = { ...deps(), sms: { send: async () => { throw new SendFailure('permanent', 'synthetic failed alert'); } } };
+  await dispatchUnblockIncidentAlerts(failDeps, now);
+  assert.equal((await unblockAvailability(db!.sql, now)).available, false);
+  assert.equal((await db!.sql`select failure from unblock_incidents`)[0]!['failure'], 'alert_failed');
+  for (const state of ['uncertain', 'suppressed', 'pending']) {
+    await db!.sql`update unblock_incidents set blocked_at=null,failure=null`;
+    await db!.sql`update message_outbox set status=${state},attempts=1,reason='retry' where id=${incident.alert_id}`;
+    assert.equal(await blockingUnblockIncident(db!.sql, now), true, state);
+  }
+});
+test('urgent receipt polling detects a provider delivery failure before the general ten-minute cadence', options, async () => {
+  const { incident } = await urgentIncident();
+  await db!.sql`update message_outbox set status='accepted',provider_id='synthetic-receipt',checked_at=${now} where id=${incident.alert_id}`;
+  const deliveryDeps = { ...deps(), sms: { send: async () => undefined, deliveryStatus: async () => 'failed' as const } };
+  await dispatchUnblockIncidentAlerts(deliveryDeps, new Date(+now + 31000));
+  assert.equal((await unblockAvailability(db!.sql, new Date(+now + 31000))).available, false);
+});
+test('account deletion removes private links but cannot erase an unresolved incident or make Unblock Available', options, async () => {
+  const { incident } = await urgentIncident();
+  await db!.store.forget(phone);
+  const [row] = await db!.sql`select attempt_id,alert_id from unblock_incidents where id=${incident.id}`;
+  assert.equal(row!['attempt_id'], null); assert.equal(row!['alert_id'], null);
+  assert.equal((await unblockAvailability(db!.sql, now)).available, false);
+  await assert.rejects(() => setUnblockAvailability(db!.sql, true, now), /incident/);
+});
+test('missing operator contact blocks immediately; a tier-two concern still holds the caller without inventing an urgent incident', options, async () => {
+  delete process.env['UNBLOCK_OPERATOR_PHONE'];
+  const { incident } = await urgentIncident(); assert.equal(incident.alert_id, null);
+  await reconcileUnblockIncidents(db!.sql, now);
+  assert.equal((await db!.sql`select failure from unblock_incidents`)[0]!['failure'], 'alert_missing');
+  await db!.sql`delete from unblock_incidents`; await db!.sql`update callers set held_for_review=false`;
+  const [s] = await db!.sql`select id from unblock_sessions`;
+  await say(s!['id'], 'I feel hopeless', {});
+  assert.equal((await db!.sql`select count(*)::int as n from unblock_incidents`)[0]!['n'], 0);
+  assert.equal((await db!.sql`select held_for_review from callers`)[0]!['held_for_review'], true);
 });
 function fakeReady(): void {
   for (const key of ['UNBLOCK_ENABLED', 'UNBLOCK_LIVE_CALLS', 'UNBLOCK_SAFETY_APPROVED', 'UNBLOCK_SCRIPTS_APPROVED', 'UNBLOCK_AGENTS_VERIFIED', 'UNBLOCK_PRICE_VERIFIED']) process.env[key] = 'true';
