@@ -6,6 +6,34 @@ import { enqueue, dispatchMessage } from '../messages/outbox.ts';
 import { unblockConfig } from './config.ts';
 
 export const ACK_WINDOW_MS = 5 * 60_000;
+export const INCIDENT_RETENTION_MS = 30 * 86400_000;
+export type DisclosureBasis = 'consent' | 'reviewed_emergency_basis';
+export type HandoffBasis = 'caller_confirmed' | 'human_confirmed';
+export type IncidentResolution = 'handoff_confirmed' | 'no_handoff_needed';
+export type IncidentAction = { type: 'escalated' }
+  | { type: 'disclosed'; basis: DisclosureBasis; reviewed: true }
+  | { type: 'handoff'; basis: HandoffBasis; reviewed: true };
+
+/** Human attestations only: records an action already taken; never contacts or discloses to anyone. */
+export async function recordUnblockIncidentAction(sql: Database, id: string, action: IncidentAction, now = new Date()): Promise<void> {
+  if (!action || !['escalated', 'disclosed', 'handoff'].includes(action.type)
+    || action.type === 'disclosed' && (action.reviewed !== true || !['consent', 'reviewed_emergency_basis'].includes(action.basis))
+    || action.type === 'handoff' && (action.reviewed !== true || !['caller_confirmed', 'human_confirmed'].includes(action.basis)))
+    throw Error('Use a reviewed fixed action and confirmation basis; no free-text incident notes.');
+  await transaction(sql, async tx => {
+    await tx`select id from unblock_availability where id='sole-operator' for update`;
+    const [row] = await tx`select * from unblock_incidents where id=${id} and resolved_at is null for update`;
+    if (!row) throw Error('No open incident with that ID.');
+    if (action.type === 'escalated') await tx`update unblock_incidents set escalated_at=coalesce(escalated_at,${now}) where id=${id}`;
+    else if (action.type === 'disclosed') {
+      if (row['disclosure_basis'] && row['disclosure_basis'] !== action.basis) throw Error('An existing attestation cannot be rewritten.');
+      await tx`update unblock_incidents set disclosed_at=coalesce(disclosed_at,${now}),disclosure_basis=${action.basis} where id=${id}`;
+    } else {
+      if (row['handoff_basis'] && row['handoff_basis'] !== action.basis) throw Error('An existing attestation cannot be rewritten.');
+      await tx`update unblock_incidents set handoff_at=coalesce(handoff_at,${now}),handoff_basis=${action.basis} where id=${id}`;
+    }
+  });
+}
 /** Called in the safety transaction. One incident/alert per call, including a repeated completion. */
 export async function openUnblockIncident(sql: Database, session: { id: string; phone_hash: string }, now: Date): Promise<void> {
   const id = randomUUID();
@@ -42,7 +70,7 @@ export async function reconcileUnblockIncidents(sql: Database, now = new Date())
           or (m.status='sending' and m.started_at<=${new Date(+now - 90_000)})
           or (i.acknowledged_at is null and i.ack_due_at<=${now})) returning i.id`;
     if (blocked.length) await tx`update unblock_availability set checked_in_at=null,expires_at=null,updated_at=${now} where id='sole-operator'`;
-    await tx`delete from unblock_incidents where resolved_at<${new Date(+now - 30 * 86400_000)}`;
+    await tx`delete from unblock_incidents where resolved_at<${new Date(+now - INCIDENT_RETENTION_MS)}`;
     return blocked.length;
   });
 }
@@ -59,12 +87,15 @@ export async function acknowledgeUnblockIncident(sql: Database, id: string, now?
 }
 
 /** Explicit human attestation of completed private review; neither calls nor availability are resumed. */
-export async function resolveUnblockIncident(sql: Database, id: string, now = new Date()): Promise<void> {
+export async function resolveUnblockIncident(sql: Database, id: string, now = new Date(), outcome?: IncidentResolution): Promise<void> {
+  if (outcome !== 'handoff_confirmed' && outcome !== 'no_handoff_needed') throw Error('Record an explicit reviewed outcome; unresolved help cannot be marked as a handoff.');
   await reconcileUnblockIncidents(sql, now);
   await transaction(sql, async tx => {
     await tx`select id from unblock_availability where id='sole-operator' for update`;
-    const [row] = await tx`update unblock_incidents set resolved_at=${now} where id=${id} and acknowledged_at is not null and resolved_at is null returning alert_id`;
-    if (!row) throw Error('Acknowledge an open incident and complete its private review first.');
+    const [row] = await tx`select alert_id,acknowledged_at,handoff_at,handoff_basis from unblock_incidents where id=${id} and resolved_at is null for update`;
+    if (!row || !row['acknowledged_at']) throw Error('Acknowledge an open incident and complete its private review first.');
+    if (outcome === 'handoff_confirmed' && (!row['handoff_at'] || !row['handoff_basis'])) throw Error('A confirmed handoff needs a reviewed caller or human confirmation; an alert or acknowledgement is not a handoff.');
+    await tx`update unblock_incidents set resolved_at=${now},resolution=${outcome} where id=${id}`;
     if (row['alert_id']) await tx`update message_outbox set status='suppressed',reason='incident_review_completed',payload_enc=null,recipient_enc=null where id=${row['alert_id']} and status='pending'`;
   });
 }

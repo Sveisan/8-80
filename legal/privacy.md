@@ -309,3 +309,12 @@ to correct a note or request removal. Whole-account deletion removes Unblock
 alongside weekly and Beliefs records and revokes their access credentials.
 Financial records held by the payment provider and provider/backup retention are
 handled as described above.
+
+
+For an urgent Unblock incident, private operational records contain identifiers,
+timestamps, fixed action/confirmation categories and a review outcome. They do
+not copy transcript or programme notes. Operator acknowledgement and a confirmed
+handoff are separate records. Resolved incident metadata is deleted after
+30 days; unresolved incidents stay held for human review. Your verified Unblock
+account download includes incident records still linked to your calls. Account
+erasure removes those links while an unresolved operational block is retained.

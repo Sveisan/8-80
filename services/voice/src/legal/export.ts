@@ -132,6 +132,7 @@ export async function composeExport(
   const beliefSessions = includeBeliefs ? await store.raw`select * from belief_sessions where phone_hash = ${hash} order by created_at` : [];
   const unblockEnrollments = includeUnblock ? await store.raw`select * from unblock_enrollments where phone_hash = ${hash}` : [];
   const unblockSessions = includeUnblock ? await store.raw`select * from unblock_sessions where phone_hash = ${hash} order by created_at` : [];
+  const unblockIncidents = includeUnblock ? await store.raw`select i.* from unblock_incidents i join call_attempts a on a.id=i.attempt_id where a.phone_hash=${hash} order by i.created_at` : [];
   const [privateUnblock] = includeUnblock ? [] : await store.raw`select phone_hash from unblock_enrollments where phone_hash = ${hash}`;
   if (privateUnblock) parts.push({role:'body',text:'Your private Unblock programme is available through fresh phone verification at /unblock/access. Its account download includes your complete 8&80 record.'});
   const [privateProgramme] = includeBeliefs ? [] : await store.raw`select phone_hash from belief_enrollments where phone_hash = ${hash}`;
@@ -158,7 +159,7 @@ export async function composeExport(
     catch { return {...metadata,body}; }
   };
   const unseal = (row: Record<string, unknown>): Record<string, unknown> => Object.fromEntries(Object.entries(row).map(([key, value]) => [key.endsWith('_enc') ? key.slice(0, -4) : key, key.endsWith('_enc') && typeof value === 'string' ? decrypt(value) : value]));
-  parts.push({ role: 'body', text: JSON.stringify({ profile: unseal(profile), callAttempts: attempts, qualityReviews: qualityReviews.map(unseal), beliefs: beliefEnrollments.map(unseal), beliefSessions: beliefSessions.map(unseal), beliefRefundRequests:beliefRefunds, unblock: unblockEnrollments.map(unseal), unblockSessions: unblockSessions.map(unseal), feedback: feedbackRows.map(unseal), retainedCallDeliveries: deliveries.map(safeDelivery), accessExpiry: credentials, pendingSignup: pendingSignup.map(unseal), recovery, journey, messages, messageAttempts,
+  parts.push({ role: 'body', text: JSON.stringify({ profile: unseal(profile), callAttempts: attempts, qualityReviews: qualityReviews.map(unseal), beliefs: beliefEnrollments.map(unseal), beliefSessions: beliefSessions.map(unseal), beliefRefundRequests:beliefRefunds, unblock: unblockEnrollments.map(unseal), unblockSessions: unblockSessions.map(unseal), unblockIncidents, feedback: feedbackRows.map(unseal), retainedCallDeliveries: deliveries.map(safeDelivery), accessExpiry: credentials, pendingSignup: pendingSignup.map(unseal), recovery, journey, messages, messageAttempts,
     calendarInvitations:calendarInvitations.map(unseal),
     productFeedback:productFeedbackRows.map(unseal), encouragementPreferences:encouragementPreferences.map(unseal), encouragementDeliveries:encouragementDeliveries.map(unseal),
     reminders:reminders.map(unseal), reminderDrafts:reminderDrafts.map(unseal), tipAssignments, tipOffers:tipOffers.map(unseal), weeklyToolRequests:toolRequests.map(unseal) }, null, 2) });

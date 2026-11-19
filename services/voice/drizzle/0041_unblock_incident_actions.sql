@@ -1,0 +1,9 @@
+ALTER TABLE "unblock_incidents" ADD COLUMN "escalated_at" timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "unblock_incidents" ADD COLUMN "disclosed_at" timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "unblock_incidents" ADD COLUMN "disclosure_basis" text;--> statement-breakpoint
+ALTER TABLE "unblock_incidents" ADD COLUMN "handoff_at" timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "unblock_incidents" ADD COLUMN "handoff_basis" text;--> statement-breakpoint
+ALTER TABLE "unblock_incidents" ADD COLUMN "resolution" text;--> statement-breakpoint
+ALTER TABLE "unblock_incidents" ADD CONSTRAINT "unblock_incidents_disclosure_check" CHECK (("unblock_incidents"."disclosed_at" is null and "unblock_incidents"."disclosure_basis" is null) or ("unblock_incidents"."disclosed_at" is not null and "unblock_incidents"."disclosure_basis" is not null and "unblock_incidents"."disclosure_basis" in ('consent','reviewed_emergency_basis')));--> statement-breakpoint
+ALTER TABLE "unblock_incidents" ADD CONSTRAINT "unblock_incidents_handoff_check" CHECK (("unblock_incidents"."handoff_at" is null and "unblock_incidents"."handoff_basis" is null) or ("unblock_incidents"."handoff_at" is not null and "unblock_incidents"."handoff_basis" is not null and "unblock_incidents"."handoff_basis" in ('caller_confirmed','human_confirmed')));--> statement-breakpoint
+ALTER TABLE "unblock_incidents" ADD CONSTRAINT "unblock_incidents_resolution_check" CHECK ("unblock_incidents"."resolution" is null or ("unblock_incidents"."resolved_at" is not null and ("unblock_incidents"."resolution"='no_handoff_needed' or ("unblock_incidents"."resolution"='handoff_confirmed' and "unblock_incidents"."handoff_at" is not null))));

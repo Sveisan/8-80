@@ -19,7 +19,7 @@ import { chapterComplete, emptyProgramme, finishCall, type Programme } from '../
 import { sessionToken as beliefToken } from '../src/beliefs/protocol.ts';
 import { sessionToken } from '../src/unblock/protocol.ts';
 import { setUnblockAvailability, unblockAvailability, lockUnblockAvailability } from '../src/unblock/availability.ts';
-import { acknowledgeUnblockIncident, blockingUnblockIncident, dispatchUnblockIncidentAlerts, reconcileUnblockIncidents, resolveUnblockIncident } from '../src/unblock/incidents.ts';
+import { acknowledgeUnblockIncident, blockingUnblockIncident, dispatchUnblockIncidentAlerts, reconcileUnblockIncidents, recordUnblockIncidentAction, resolveUnblockIncident } from '../src/unblock/incidents.ts';
 import { SendFailure } from '../src/messages/types.ts';
 import { UNBLOCK_SAFETY_RESPONSE } from '../src/unblock/safety-response.ts';
 
@@ -582,17 +582,17 @@ test('timely acknowledgement is durable and idempotent; resolving never resumes 
   assert.equal(await reconcileUnblockIncidents(db!.sql, new Date(+now + 600000)), 0);
   await setUnblockAvailability(db!.sql, false, now);
   await db!.sql`update callers set all_calls_stopped=true`;
-  await resolveUnblockIncident(db!.sql, incident.id, at);
+  await resolveUnblockIncident(db!.sql, incident.id, at, 'no_handoff_needed');
   assert.equal((await unblockAvailability(db!.sql, at)).available, false);
   const [caller] = await db!.sql`select held_for_review,all_calls_stopped from callers`;
   assert.equal(caller!['held_for_review'], true); assert.equal(caller!['all_calls_stopped'], true);
 });
 test('late acknowledgement retains Away until an explicit completed review and a new check-in', options, async () => {
   const { incident } = await urgentIncident(); const late = new Date(+now + 301000);
-  await assert.rejects(() => resolveUnblockIncident(db!.sql, incident.id, now), /Acknowledge/);
+  await assert.rejects(() => resolveUnblockIncident(db!.sql, incident.id, now, 'no_handoff_needed'), /Acknowledge/);
   await acknowledgeUnblockIncident(db!.sql, incident.id, late);
   await assert.rejects(() => setUnblockAvailability(db!.sql, true, late), /incident/);
-  await resolveUnblockIncident(db!.sql, incident.id, late);
+  await resolveUnblockIncident(db!.sql, incident.id, late, 'no_handoff_needed');
   assert.equal((await unblockAvailability(db!.sql, late)).available, false);
   assert.equal((await setUnblockAvailability(db!.sql, true, late)).available, true);
 });
@@ -639,3 +639,63 @@ function fakeReady(): void {
   Object.assign(process.env, { UNBLOCK_PRICE_LABEL: 'Synthetic price', UNBLOCK_CHECKOUT_URL: 'https://buy.stripe.com/synthetic', UNBLOCK_PRODUCT_ID: 'prod_synthetic', UNBLOCK_SUPPORT_HOURS: 'Synthetic staffed test window', SUPPORT_EMAIL: 'support@example.com',
     UNBLOCK_OPENING_AGENT_ID: 'synthetic-opening', UNBLOCK_WEEKLY_AGENT_ID: 'synthetic-weekly', UNBLOCK_LIGHT_AGENT_ID: 'synthetic-light', TWILIO_ACCOUNT_SID: 'synthetic', TWILIO_AUTH_TOKEN: 'synthetic', SMS_FROM_NUMBER: '+4791000000', SPEECHIFY_API_KEY: 'synthetic', SPEECHIFY_WEBHOOK_SECRET: 'synthetic', BILLING_PROVIDER: 'stripe', STRIPE_SECRET_KEY: 'synthetic', STRIPE_WEBHOOK_SECRET: 'synthetic' });
 }
+
+
+test('human action records cannot fabricate a handoff from a delivered alert or acknowledgement', options, async () => {
+  const { incident } = await urgentIncident(); const at = new Date(+now + 60000);
+  await db!.sql`update message_outbox set status='delivered' where id=${incident.alert_id}`;
+  await acknowledgeUnblockIncident(db!.sql, incident.id, at);
+  await assert.rejects(() => resolveUnblockIncident(db!.sql, incident.id, at), /explicit reviewed outcome/);
+  await assert.rejects(() => resolveUnblockIncident(db!.sql, incident.id, at, 'handoff_confirmed'), /confirmed handoff/);
+  assert.equal((await db!.sql`select resolved_at from unblock_incidents`)[0]!['resolved_at'], null);
+  await recordUnblockIncidentAction(db!.sql, incident.id, { type: 'escalated' }, at);
+  await recordUnblockIncidentAction(db!.sql, incident.id, { type: 'disclosed', basis: 'consent', reviewed: true }, at);
+  await recordUnblockIncidentAction(db!.sql, incident.id, { type: 'handoff', basis: 'caller_confirmed', reviewed: true }, at);
+  await recordUnblockIncidentAction(db!.sql, incident.id, { type: 'handoff', basis: 'caller_confirmed', reviewed: true }, new Date(+at + 1000));
+  const [row] = await db!.sql`select * from unblock_incidents where id=${incident.id}`;
+  assert.equal(+row!['handoff_at'], +at); assert.equal(row!['handoff_basis'], 'caller_confirmed'); assert.equal(row!['disclosure_basis'], 'consent');
+  await assert.rejects(() => recordUnblockIncidentAction(db!.sql, incident.id, { type: 'handoff', basis: 'human_confirmed', reviewed: true }, at), /rewritten/);
+  await resolveUnblockIncident(db!.sql, incident.id, at, 'handoff_confirmed');
+  assert.equal((await db!.sql`select resolution from unblock_incidents`)[0]!['resolution'], 'handoff_confirmed');
+  assert.equal((await db!.sql`select held_for_review from callers`)[0]!['held_for_review'], true);
+  assert.equal((await db!.sql`select count(*)::int as n from message_outbox`)[0]!['n'], 1, 'recording actions sends no extra messages');
+});
+test('private records reject arbitrary notes and unreviewed confirmation, support the reviewed emergency basis, and expire only after resolution', options, async () => {
+  const { incident } = await urgentIncident(); const at = new Date(+now + 60000);
+  await assert.rejects(() => recordUnblockIncidentAction(db!.sql, incident.id, { type: 'disclosed', basis: 'arbitrary note', reviewed: true } as never, at), /fixed action/);
+  await assert.rejects(() => recordUnblockIncidentAction(db!.sql, incident.id, { type: 'handoff', basis: 'human_confirmed', reviewed: false } as never, at), /fixed action/);
+  await assert.rejects(() => db!.sql`update unblock_incidents set disclosed_at=${at},disclosure_basis='arbitrary note' where id=${incident.id}`);
+  await assert.rejects(() => db!.sql`update unblock_incidents set handoff_at=${at},handoff_basis=null where id=${incident.id}`);
+  // No ACK prerequisite for recording action already taken: immediate action must not wait for the internal target.
+  await recordUnblockIncidentAction(db!.sql, incident.id, { type: 'escalated' }, at);
+  await recordUnblockIncidentAction(db!.sql, incident.id, { type: 'disclosed', basis: 'reviewed_emergency_basis', reviewed: true }, at);
+  await recordUnblockIncidentAction(db!.sql, incident.id, { type: 'handoff', basis: 'human_confirmed', reviewed: true }, at);
+  await reconcileUnblockIncidents(db!.sql, day(31));
+  assert.equal((await db!.sql`select count(*)::int as n from unblock_incidents`)[0]!['n'], 1, 'an unresolved incident is not pruned');
+  await acknowledgeUnblockIncident(db!.sql, incident.id, day(31));
+  await resolveUnblockIncident(db!.sql, incident.id, day(31), 'handoff_confirmed');
+  await reconcileUnblockIncidents(db!.sql, day(61));
+  assert.equal((await db!.sql`select count(*)::int as n from unblock_incidents`)[0]!['n'], 1);
+  await reconcileUnblockIncidents(db!.sql, new Date(+day(61) + 1));
+  assert.equal((await db!.sql`select count(*)::int as n from unblock_incidents`)[0]!['n'], 0);
+});
+test('held-call timeout emits no participant recovery text and retains the unresolved incident', options, async () => {
+  const { session, incident } = await urgentIncident();
+  await closeUnblockSession(deps(), session.id, new Date(+now + 46 * 60000));
+  assert.equal((await db!.sql`select count(*)::int as n from message_outbox where reference=${session.id} and kind='unblock'`)[0]!['n'], 0);
+  assert.equal((await db!.sql`select resolved_at from unblock_incidents where id=${incident.id}`)[0]!['resolved_at'], null);
+  assert.equal((await db!.sql`select held_for_review from callers`)[0]!['held_for_review'], true);
+  const [s] = await db!.sql`select snapshot_enc from unblock_sessions where id=${session.id}`;
+  assert.ok(!decrypt(s!['snapshot_enc']).includes('routing'));
+});
+test('incident action metadata is exported only through verified Unblock access and loses its caller link on erasure', options, async () => {
+  const { incident } = await urgentIncident();
+  await recordUnblockIncidentAction(db!.sql, incident.id, { type: 'handoff', basis: 'human_confirmed', reviewed: true }, now);
+  const weekly = await composeExport(db!.store, phone, loadScript());
+  assert.ok(!weekly!.body.includes('human_confirmed'));
+  const own = await composeExport(db!.store, phone, loadScript(), { includeUnblock: true });
+  assert.ok(own!.body.includes('human_confirmed')); assert.ok(own!.body.includes('unblockIncidents'));
+  await db!.store.forget(phone);
+  const [row] = await db!.sql`select attempt_id,alert_id,handoff_basis from unblock_incidents where id=${incident.id}`;
+  assert.equal(row!['attempt_id'], null); assert.equal(row!['alert_id'], null); assert.equal(row!['handoff_basis'], 'human_confirmed');
+});
