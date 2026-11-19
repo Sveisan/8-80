@@ -15,6 +15,7 @@ import { csrfFor as beliefsCsrf } from '../src/beliefs/http.ts';
 import { UnblockRepository } from '../src/unblock/repository.ts';
 import { unblockReadiness } from '../src/unblock/readiness.ts';
 import { applyCommand, emptyProgramme, finishCall, type Command, type Programme } from '../src/unblock/model.ts';
+import { Pending } from '../src/signup/pending.ts';
 import { NORWAY_SCOPE_VERSION } from '../src/unblock/scope.ts';
 
 const opened = await openTestDb('unblock_routes'); const db = typeof opened === 'string' ? undefined : opened;
@@ -63,6 +64,17 @@ test('a Norwegian phone or Oslo timezone cannot replace the explicit Norway decl
   const denied = await request('/unblock/join', { form: new URLSearchParams({ phone, consent: 'yes', timezone: 'Europe/Oslo' }) });
   assert.equal(denied!.status, 400); assert.match(denied!.body, /currently in Norway/); assert.equal(texts.length, 0);
   assert.equal((await db!.sql`select count(*)::int as n from signups`)[0]!['n'], 0);
+});
+test('old pending signup codes cannot bypass the new country declaration through verify or resend', options, async () => {
+  const old = await new Pending(db!.sql).begin({ phone, email: '', name: '', weekday: 0, minute: 480, timezone: 'Europe/Oslo' }, now, undefined, 'unblock');
+  const form = { phone, challenge: old.id, code: old.code };
+  assert.equal((await request('/unblock/verify', { form: new URLSearchParams(form) }))!.status, 400);
+  assert.equal((await request('/unblock/resend', { form: new URLSearchParams(form) }))!.status, 400);
+  assert.equal(texts.length, 0); assert.equal((await db!.sql`select count(*)::int as n from unblock_enrollments`)[0]!['n'], 0);
+});
+test('an international phone number does not exclude a caller who explicitly declares being in Norway', options, async () => {
+  const joined = await request('/unblock/join', { form: new URLSearchParams({ phone: '+442079460123', consent: 'yes', scope_norway: 'yes' }) });
+  assert.equal(joined!.status, 200); assert.equal(texts.length, 1);
 });
 test('checkout requires an authenticated current-country declaration and keeps customer holds intact', options, async () => {
   const token = await enroll({ standing: 'awaiting_payment' });

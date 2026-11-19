@@ -472,7 +472,7 @@ async function urgentIncident() {
   const [incident] = await db!.sql<{ id: string; alert_id: string; ack_due_at: Date }[]>`select id,alert_id,ack_due_at from unblock_incidents`;
   return { incident: incident!, session: s!, hold };
 }
-test('Norway eligibility is not inferred for legacy enrolments, and no call is claimed without its consent version', options, async () => {
+test('Norway eligibility is not inferred for legacy enrolments, and no call is claimed without its scope declaration', options, async () => {
   await enroll({ due: 'opening' });
   await db!.sql`update unblock_enrollments set norway_scope_version=null,norway_scope_at=null where phone_hash=${hash}`;
   assert.equal((await claimUnblock(deps(), now)).length, 0);
