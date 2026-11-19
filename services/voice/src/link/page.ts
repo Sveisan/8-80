@@ -63,7 +63,6 @@ export interface PageView {
   /** A `page.goals.*` key, when the last attempt to add said something. */
   goalsNote?: string;
   scheduleNote?: string;
-  scheduleMessage?: string;
   skipUndoReceipt?: string;
   preferenceNote?: string;
   moveDraft?: MoveDraft;
@@ -134,7 +133,7 @@ function appointmentTime(at: Date, timezone: string, script: ScriptLines, langua
     <span class="appointment-date">${esc(date)}</span>
     <span class="appointment-time"><span class="appointment-clock">${esc(clock)}</span> <small class="appointment-zone">${esc(zone)}</small></span>
   </time>
-  <p class="hint booking-clock" hidden>${say('page.account.booking_clock')} · ${esc(date)} · ${esc(clock)} · ${esc(zone)}</p>`;
+  <p class="hint booking-clock" hidden>${say('page.account.booking_clock')} · <span class="booking-date" data-date="${esc(date)}">${esc(date)} · </span>${esc(clock)} · ${esc(zone)}</p>`;
 }
 
 const LOCAL_APPOINTMENT_CLOCKS = `<script>
@@ -155,15 +154,32 @@ const LOCAL_APPOINTMENT_CLOCKS = `<script>
       appointment.querySelector('.appointment-zone').textContent = label;
       appointment.setAttribute('aria-label', date + ' ' + time + ' ' + label);
       var booking = appointment.nextElementSibling;
-      if (booking) booking.hidden = false;
+      if (booking) {
+        var bookingDate = booking.querySelector('.booking-date');
+        bookingDate.hidden = date === bookingDate.getAttribute('data-date');
+        booking.hidden = false;
+      }
     });
+    var shared = document.querySelector('.review-date');
+    if (shared) {
+      var dates = document.querySelectorAll('.review-slot .appointment-date');
+      if (dates.length === 2 && dates[0].textContent === dates[1].textContent) {
+        shared.textContent = dates[0].textContent;
+        shared.hidden = false;
+        dates.forEach(function (date) { date.hidden = true; });
+      }
+    }
   } catch (e) {}
 </script>`;
 
 export function reviewMovePage(draft: MoveDraft, at: Date, current: Date | undefined, slot: Slot,
   version: string, script: ScriptLines, language = 'en'): string {
   const say = (id: string) => esc(script.get(id) ?? '');
-  return shell(`<h1>${say('page.move.review')}</h1>
+  return shell(`<header class="review-header">
+      <h1>${say('page.move.review')}</h1>
+      <a href="?" class="account-link">${say('page.move.cancel')}</a>
+    </header>
+    <p class="review-date" hidden></p>
     <div class="review-schedule">
       <section class="review-slot" aria-labelledby="review-current">
         <h2 id="review-current">${say('page.move.current')}</h2>
@@ -183,7 +199,6 @@ export function reviewMovePage(draft: MoveDraft, at: Date, current: Date | undef
       <input type="hidden" name="proposed_at" value="${esc(at.toISOString())}" />
       <button name="action" value="move-save" class="primary">${busyLabel(say('page.move'))}</button>
       <button name="action" value="move-edit">${say('page.move.edit')}</button>
-      <a href="?" class="account-link">${say('page.move.cancel')}</a>
     </form>${LOCAL_APPOINTMENT_CLOCKS}`, language, 'weekly-account');
 }
 
@@ -226,6 +241,7 @@ export function reschedulePage(
 
   const appointment = arranging ? first ?? view.next : undefined;
   const appointmentZone = zoneLine(slot.timezone, script);
+  const noAppointment = state?.cancelAtPeriodEnd ? 'page.no_next.paid' : state?.trialEnds ? 'page.no_next.trial' : 'page.no_next';
 
   const title = state?.onHold ? 'page.held' : state && !state.canCall ? 'page.ended'
     : state?.paused ? 'page.account.paused' : first && view.fresh ? 'page.booked' : 'page.title';
@@ -279,14 +295,14 @@ export function reschedulePage(
     <h2 id="plan-heading">${say('page.account.plan')}</h2>
     ${billing}
     ${renewal}
-    ${state?.paused && state.subscribed && !state.cancelAtPeriodEnd && ['active', 'past_due'].includes(state.billing)
+    ${state?.paused && billingContinues(state)
       ? `<p class="hint">${say('page.account.paused.billing')}</p>` : ''}
     ${billingControls}
-    ${active ? `<form method="post" action="?"><button name="action" value="stop">${say('page.account.pause')}</button></form>` : ''}
     <a class="account-link" href="${supportHref}">${say('page.support')}</a>
   </section>` : '';
   const planFirst = !arranging || state?.cancelAtPeriodEnd || state?.billing === 'past_due';
-  const status = view.scheduleMessage ?? (view.scheduleNote ? script.get(view.scheduleNote) : undefined);
+  const pauseControl = active ? `<form method="post" action="?"><button name="action" value="stop">${say('page.account.pause')}</button></form>` : '';
+  const status = view.scheduleNote ? script.get(view.scheduleNote) : undefined;
   const preferenceState = (enabled: boolean | undefined) => say(enabled ? 'page.account.on' : 'page.account.off');
   const preferencesOpen = note || view.preferenceNote || view.encouragement?.note;
 
@@ -297,31 +313,39 @@ export function reschedulePage(
       <a href="${supportHref}">${say('page.account.help')}</a>
     </header>
     <h1>${say(title)}</h1>
-    ${status ? `<div class="account-notice">
+    ${status && (!view.skipUndoReceipt || view.scheduleNote !== 'page.skip.saved') ? `<div class="account-notice">
       <p role="status">${esc(status)}</p>
-      ${view.skipUndoReceipt ? `<form method="post" action="?" class="undo-skip">
+    </div>` : ''}
+    ${view.skipUndoReceipt ? `<div class="account-notice skip-notice">
+      <p role="status">${say('page.skip.saved')}</p>
+      <form method="post" action="?" class="undo-skip">
         <input type="hidden" name="receipt" value="${esc(view.skipUndoReceipt)}" />
         <button name="action" value="undo-skip">${say('page.skip.undo')}</button>
-      </form>` : ''}
+      </form>
     </div>` : ''}
     ${state?.onHold ? `<p class="account-intro">${say('page.held.detail')}</p>`
       : state && !state.canCall ? `<p class="account-intro">${say('page.ended.detail')}</p>`
       : state?.stoppedByText ? `<p class="account-intro">${say('page.account.stopped_by_text')}</p>`
       : state?.paused ? `<p class="account-intro">${say('page.account.resume.detail')}</p>
         <form method="post" action="?" class="resume"><button name="action" value="start" class="primary">${say('page.account.resume')}</button></form>` : ''}
+    ${!arranging ? pauseControl : ''}
+    <div class="account-layout">
     ${arranging ? `<section class="account-section call-overview" aria-labelledby="call-heading">
       <h2 id="call-heading">${say(booking ? 'page.first' : 'page.section.call')}</h2>
       ${appointment ? appointmentTime(appointment, slot.timezone, script, language)
-        : `<p class="account-intro">${say(state?.trialEnds ? 'page.no_next.trial' : 'page.no_next')}</p>`}
+        : `<p class="account-intro">${say(noAppointment)}</p>`}
       ${booking && appointment ? `<div class="first-call">
         <p class="hint" id="contact-help">${say('page.account.incoming')}${contact ? ` ${say('page.contact.first')}` : ''}</p>
         ${contact}
       </div>` : ''}
       ${moveEditor(booking ? 'first' : 'once', slot, script, language, view, appointment)}
-      ${booking || !view.next ? '' : `<form method="post" action="?" class="skip">
-        <input type="hidden" name="skip_at" value="${esc(view.next.toISOString())}" />
-        <button name="action" value="skip">${say('page.skip')}</button>
-      </form>`}
+      <div class="call-controls">
+        ${booking || !view.next ? '' : `<form method="post" action="?">
+          <input type="hidden" name="skip_at" value="${esc(view.next.toISOString())}" />
+          <button name="action" value="skip">${say('page.skip')}</button>
+        </form>`}
+        ${pauseControl}
+      </div>
       <div class="weekly-time">
         <h3>${say('page.account.weekly')}</h3>
         <p class="hint usual-time">${esc(when)} · ${esc(appointmentZone)}</p>
@@ -329,6 +353,7 @@ export function reschedulePage(
       </div>
     </section>` : ''}
 
+    <div class="account-sidebar">
     ${planFirst ? plan : ''}
     ${view.goals ? `<section class="account-section notes-section" aria-labelledby="notes-heading">
       <h2 id="notes-heading">${say('page.section.notes')}</h2>
@@ -390,10 +415,12 @@ export function reschedulePage(
       <div class="settings-content">${rest}<a class="account-link" href="/privacy">${say('access.privacy')}</a></div>
     </details>
     ${beliefConfig().enabled ? '<footer class="account-footer"><a class="account-link" href="/beliefs">Explore Belief practice</a></footer>' : ''}
+    </div>
+    </div>
     ${LOCAL_APPOINTMENT_CLOCKS}
   `,
     language,
-    'weekly-account',
+    arranging ? 'weekly-account account-dashboard' : 'weekly-account',
   );
 }
 
@@ -438,18 +465,23 @@ export function unknownBrowserPage(script: ScriptLines, language = 'en'): string
  * courtesy; three of them, a survey and a "we're sorry to see you go" are a
  * product arguing with somebody who has already decided.
  */
-export function confirmStopPage(script: ScriptLines, language = 'en'): string {
+function billingContinues(state?: AccountState): boolean {
+  return !!state?.subscribed && !state.cancelAtPeriodEnd && ['active', 'past_due'].includes(state.billing);
+}
+
+export function confirmStopPage(script: ScriptLines, language = 'en', state?: AccountState): string {
   const say = (id: string): string => esc(script.get(id) ?? '');
   return shell(
     `<h1>${say('page.account.pause.confirm')}</h1>
-     <p class="now">${say('page.stop.detail')}</p>
+     <p class="hint">${say('page.account.pause.detail')}</p>
+     ${billingContinues(state) ? `<p class="hint">${say('page.account.paused.billing')}</p>` : ''}
      <form method="post">
        <button name="action" value="stop-confirm" class="primary">${busyLabel(say('page.account.pause'))}</button>
      </form>
      <form method="post">
        <button name="action" value="stop-cancel">${busyLabel(say('page.account.pause.keep'))}</button>
      </form>`,
-    language,
+    language, 'weekly-account',
   );
 }
 
@@ -527,7 +559,7 @@ export function gonePage(script: ScriptLines, language = 'en'): string {
   );
 }
 
-export function shell(body: string, language = 'en', bodyClass?: 'weekly-account'): string {
+export function shell(body: string, language = 'en', bodyClass?: 'weekly-account' | 'weekly-account account-dashboard'): string {
   return `<!doctype html>
 <html lang="${esc(language)}">
 <head>${BRAND_HEAD}

@@ -31,6 +31,11 @@ export interface SkipUndo {
   revision: string;
 }
 
+export type StoredSkipUndo = Omit<SkipUndo, 'skippedAt' | 'replacementAt'> & {
+  skippedAt: string;
+  replacementAt: string;
+};
+
 export type SkipResult =
   | { kind: 'skipped'; next?: Date; paidAccessEnded?: boolean; undo?: SkipUndo }
   | { kind: 'unchanged'; next: Date }
@@ -299,12 +304,14 @@ export class Scheduler {
         after = new Date(weekEnd.getTime() - 1);
       }
       const next = nextSlotAfter(after, slot);
-      const [changed] = await tx<{ revision: string }[]>`
-        update callers set next_call_at = ${next}, next_call_cycle = null, updated_at = clock_timestamp()
-        where phone_hash = ${phoneKey(phone)} returning updated_at::text as revision
+      const undo = expectedAt && current > now
+        ? { skippedAt: current, replacementAt: next, cycle: row.next_call_cycle, revision: randomUUID() } : undefined;
+      const stored = undo && { ...undo, skippedAt: current.toISOString(), replacementAt: next.toISOString() };
+      await tx`
+        update callers set next_call_at = ${next}, next_call_cycle = null,
+          web_skip_undo = ${stored ? tx.json(stored) : null}, updated_at = clock_timestamp()
+        where phone_hash = ${phoneKey(phone)}
       `;
-      const undo = expectedAt && current > now && changed
-        ? { skippedAt: current, replacementAt: next, cycle: row.next_call_cycle, revision: changed.revision } : undefined;
       return { kind: 'skipped' as const, ...(undo ? { undo } : {}),
         ...(row.trial_until && next >= row.trial_until ? { paidAccessEnded: row.cancel_at_period_end } : { next }) };
     });
@@ -312,11 +319,15 @@ export class Scheduler {
 
   /** Restore the skipped occurrence only while this exact skip is still reversible. */
   async undoSkip(phone: string, undo: SkipUndo, now?: Date): Promise<boolean> {
-    // Keep the revision as text until PostgreSQL compares it at full precision.
+    // A receipt from before web skips were saved can still match its original row timestamp.
+    const revision = /^[0-9a-f-]{36}$/.test(undo.revision)
+      ? this.sql`web_skip_undo->>'revision' = ${undo.revision}`
+      : this.sql`web_skip_undo is null and updated_at = (${undo.revision}::text)::timestamptz`;
     const rows = await this.sql<{ phone_hash: string }[]>`
-      update callers set next_call_at = ${undo.skippedAt}, next_call_cycle = ${undo.cycle}, updated_at = clock_timestamp()
+      update callers set next_call_at = ${undo.skippedAt}, next_call_cycle = ${undo.cycle},
+        web_skip_undo = null, updated_at = clock_timestamp()
       where phone_hash = ${phoneKey(phone)} and paused = false and all_calls_stopped = false and held_for_review = false
-        and next_call_at = ${undo.replacementAt} and updated_at = (${undo.revision}::text)::timestamptz
+        and next_call_at = ${undo.replacementAt} and ${revision}
         and ${undo.skippedAt}::timestamptz > coalesce(${now ?? null}::timestamptz, clock_timestamp())
         and (not cancel_at_period_end or paid_until > ${undo.skippedAt})
         and (billing_status in ('comped', 'active', 'past_due')

@@ -576,6 +576,7 @@ async function yourPage(
     return {
       via,
       account,
+      ...(account?.skipUndo && !before ? { skipUndoReceipt: skipReceipt(phoneHash, account.skipUndo) } : {}),
       ...(encouragementAvailable(phoneHash) ? { encouragement: {
         preferences: await loadPreferences(deps.store.raw, phoneHash, slot.timezone),
         history: await recentEncouragement(deps.store.raw, phoneHash), note: encouragementNote,
@@ -723,7 +724,7 @@ async function yourPage(
     await measured(true);
     return await page(undefined, undefined, { preferenceNote: 'page.feedback.saved' });
   }
-  if (action === 'stop') return html(res, 200, confirmStopPage(deps.script, language));
+  if (action === 'stop') return html(res, 200, confirmStopPage(deps.script, language, state));
 
   // The two that hand over or destroy everything. Only from a link that
   // arrived on their phone; a browser that remembers them is not enough.
@@ -821,8 +822,11 @@ async function yourPage(
     return await page(undefined, undefined, { scheduleNote: out.action === 'moved_always' ? 'page.move.saved.weekly' : 'page.move.saved.once' });
   }
   if (out.action === 'unchanged' && action === 'move') return await page(undefined, undefined, { scheduleNote: 'page.move.unavailable' });
-  if (action === 'skip' || action === 'start') return await page(undefined, undefined, {
-    scheduleMessage: out.said, ...(out.undo ? { skipUndoReceipt: skipReceipt(phoneHash, out.undo) } : {}),
+  if (action === 'skip') return await page(undefined, undefined, {
+    scheduleNote: out.action === 'skipped' ? 'page.skip.saved' : 'page.skip.unchanged',
+  });
+  if (action === 'start') return await page(undefined, undefined, {
+    scheduleNote: out.action === 'started' ? 'page.account.resume.saved' : 'page.account.resume.unavailable',
   });
   return html(res, 200, donePage(out.said, deps.script, language, back));
 }

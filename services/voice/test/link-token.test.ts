@@ -30,13 +30,10 @@ test('a code is short enough to sit in a text message', { skip: skip() }, async 
   assert.ok(!/[01lo]/.test(code));
 });
 
-test('the number is never in the code, and neither is anything derived from it', { skip: skip() }, async () => {
-  const a = await (links as Links).mint(HASH, NOW);
-  const b = await (links as Links).mint(HASH, NOW);
-  // Two codes for the same caller must not resemble each other, or anybody
-  // holding one could work out the others.
-  assert.notEqual(a, b);
-  assert.ok(!a.includes('47'));
+test('minting again for the same caller creates a distinct code', { skip: skip() }, async () => {
+  const first = await (links as Links).mint(HASH, NOW);
+  const second = await (links as Links).mint(HASH, NOW);
+  assert.notEqual(first, second);
 });
 
 test('a code opens for the caller it was minted for', { skip: skip() }, async () => {

@@ -1,5 +1,6 @@
-import { boolean, index, integer, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
+import { boolean, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
+import type { StoredSkipUndo } from '../schedule/scheduler.ts';
 
 /** Private product reports. GitHub receives an opaque ticket, never the payload. */
 export const productFeedback = pgTable('product_feedback', {
@@ -107,6 +108,8 @@ export const callers = pgTable(
     nextCallAt: timestamp('next_call_at', { withTimezone: true }),
     /** A callback continues this weekly conversation instead of creating a new one. */
     nextCallCycle: text('next_call_cycle'),
+    /** The last reversible web skip, cleared when the schedule changes. */
+    webSkipUndo: jsonb('web_skip_undo').$type<StoredSkipUndo>(),
     /** Their choice to stop, which is not the same as having no slot. */
     paused: boolean('paused').notNull().default(false),
     /** STOP/delete applies to every product; pausing a weekly slot does not. */
