@@ -8,6 +8,7 @@ import { appointmentInput } from '../beliefs/repository.ts';
 import { withinCallWindow } from './coverage.ts';
 import { applyCommand, callsOf, chapterComplete, DEFAULT_CALLS, DEFAULT_LIGHT_DAYS, DEFAULT_LIGHT_MINUTE, emptyProgramme, FIRST_WEEK_GAP_DAYS, lightEnabled, monthOf, nextLight, parseCalls, parseDays, rollChapter, slotKind, startChapter, type Command, type Programme, type Schedule } from './model.ts';
 import { chapterPos } from './chapters.ts';
+import { NORWAY_SCOPE_VERSION, norwayScopeConfirmed } from './scope.ts';
 import { nextOccurrence, periodEnd, periodStart, planNext, tooClose, weekdaysFor, type Cadence } from './cadence.ts';
 
 export interface Enrollment {
@@ -18,13 +19,14 @@ export interface Enrollment {
   customer_id: string | null; paid_at: Date | null; amount_minor: number | null; currency: string | null; completed_at: Date | null;
   subscription_id: string | null; cancel_at_period_end: boolean; paid_until: Date | null; calls_per_month: number; pending_calls_per_month: number | null;
   chapter: number; year: number; chapter_started_at: Date | null; anchor_at: Date | null;
+  consent_version: string; consent_at: Date; norway_scope_version: string | null; norway_scope_at: Date | null;
 }
 /**
  * Calls are placed only while the subscription allows them. Mirrors the weekly product: active and past_due both continue
  * (the provider's own dunning decides when it ends); a cancellation runs to the end of the paid period.
  */
-export const callsAllowed = (e: Pick<Enrollment, 'standing' | 'cancel_at_period_end' | 'paid_until'>, now: Date): boolean =>
-  (e.standing === 'active' || e.standing === 'past_due') && !(e.cancel_at_period_end && !!e.paid_until && e.paid_until <= now);
+export const callsAllowed = (e: Pick<Enrollment, 'standing' | 'cancel_at_period_end' | 'paid_until'> & { norway_scope_version?: string | null }, now: Date): boolean =>
+  norwayScopeConfirmed(e.norway_scope_version ?? undefined) && (e.standing === 'active' || e.standing === 'past_due') && !(e.cancel_at_period_end && !!e.paid_until && e.paid_until <= now);
 
 const cadenceOf = (e: Pick<Enrollment, 'timezone' | 'weekly_weekday' | 'weekly_minute'>, calls: number): Cadence | null =>
   e.weekly_weekday === null || e.weekly_minute === null ? null : { timezone: e.timezone, weekdays: weekdaysFor(e.weekly_weekday, calls), minute: e.weekly_minute };
@@ -106,13 +108,22 @@ export class UnblockRepository {
     const [enrollment] = await this.sql<Enrollment[]>`select * from unblock_enrollments where phone_hash = ${hash} and (${this.programmeId ?? null}::text is not null and id=${this.programmeId ?? null} or ${this.programmeId ?? null}::text is null and is_current)`;
     return enrollment ? { enrollment, programme: JSON.parse(decrypt(enrollment.programme_enc)) as Programme } : undefined;
   }
-  async enroll(hash: string, now = new Date(), contact?: { name: string; email: string }): Promise<string> {
+  async enroll(hash: string, now = new Date(), contact?: { name: string; email: string }, norwayConfirmed = false): Promise<string> {
     const programme = emptyProgramme();
     if (contact && (contact.name.trim() || contact.email.trim())) programme.contact = { name: contact.name.trim().slice(0, 80), email: contact.email.trim().slice(0, 254) };
     const id = randomUUID();
-    await this.sql`insert into unblock_enrollments (id,checkout_reference,phone_hash,programme_enc,consent_version,consent_at)
-      values (${id},${'unblock_' + id},${hash},${encrypt(JSON.stringify(programme))},'unblock-v1',${now}) on conflict do nothing`;
+    await this.sql`insert into unblock_enrollments (id,checkout_reference,phone_hash,programme_enc,consent_version,consent_at,norway_scope_version,norway_scope_at)
+      values (${id},${'unblock_' + id},${hash},${encrypt(JSON.stringify(programme))},'unblock-v1',${now},${norwayConfirmed ? NORWAY_SCOPE_VERSION : null},${norwayConfirmed ? now : null}) on conflict do nothing`;
     return id;
+  }
+  /** Explicit authenticated declaration; never inferred from contact details or applied to older accounts automatically. */
+  async confirmNorway(hash: string, now = new Date()): Promise<void> {
+    await transaction(this.sql, async tx => {
+      const e = await this.lock(tx, hash);
+      await tx`update unblock_enrollments set norway_scope_version=${NORWAY_SCOPE_VERSION},norway_scope_at=${now},updated_at=${now} where id=${e.id}`;
+      const updated = { ...e, norway_scope_version: NORWAY_SCOPE_VERSION, norway_scope_at: now };
+      await UnblockRepository.replan(tx, updated, JSON.parse(decrypt(e.programme_enc)) as Programme, now);
+    });
   }
   /** Private-account actions (pause/resume) with the page's revision guard; voice uses `confirm` after a signed completion. */
   async command(hash: string, command: Command, eventId: string, expected?: number, now = new Date()): Promise<Programme> {

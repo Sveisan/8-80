@@ -15,6 +15,7 @@ import { csrfFor as beliefsCsrf } from '../src/beliefs/http.ts';
 import { UnblockRepository } from '../src/unblock/repository.ts';
 import { unblockReadiness } from '../src/unblock/readiness.ts';
 import { applyCommand, emptyProgramme, finishCall, type Command, type Programme } from '../src/unblock/model.ts';
+import { NORWAY_SCOPE_VERSION } from '../src/unblock/scope.ts';
 
 const opened = await openTestDb('unblock_routes'); const db = typeof opened === 'string' ? undefined : opened;
 const options = { skip: typeof opened === 'string' ? opened : false };
@@ -37,7 +38,7 @@ const csrfForm = (token: string, fields: Record<string, string>) => new URLSearc
 
 async function enroll(opts: { programme?: Programme; standing?: string } = {}) {
   await db!.store.upsertProfile(phone, { name: 'Synthetic tester', email: 'synthetic@example.com' });
-  await repo().enroll(hash, now);
+  await repo().enroll(hash, now, undefined, true);
   const programme = opts.programme ?? finishCall(emptyProgramme(), 'opening', 0);
   await db!.sql`update unblock_enrollments set programme_enc=${encrypt(JSON.stringify(programme))}, revision=${programme.revision}, standing=${opts.standing ?? 'active'},
     timezone='Europe/Oslo', weekly_weekday=2, weekly_minute=1080, light_weekdays='{1,3,5}', light_minute=1140,
@@ -58,10 +59,38 @@ beforeEach(async () => {
 });
 after(async () => db?.close());
 
+test('a Norwegian phone or Oslo timezone cannot replace the explicit Norway declaration before signup SMS', options, async () => {
+  const denied = await request('/unblock/join', { form: new URLSearchParams({ phone, consent: 'yes', timezone: 'Europe/Oslo' }) });
+  assert.equal(denied!.status, 400); assert.match(denied!.body, /currently in Norway/); assert.equal(texts.length, 0);
+  assert.equal((await db!.sql`select count(*)::int as n from signups`)[0]!['n'], 0);
+});
+test('checkout requires an authenticated current-country declaration and keeps customer holds intact', options, async () => {
+  const token = await enroll({ standing: 'awaiting_payment' });
+  await db!.sql`update unblock_enrollments set norway_scope_version=null,norway_scope_at=null where phone_hash=${hash}`;
+  const consentBefore = (await row()).enrollment;
+  await db!.sql`update callers set all_calls_stopped=true,held_for_review=true where phone_hash=${hash}`;
+  const denied = await priv(token, '/unblock/action', csrfForm(token, { action: 'checkout' }));
+  assert.equal(denied!.status, 409); assert.equal(denied!.headers?.['location'], undefined);
+  assert.equal((await row()).enrollment.norway_scope_version, null);
+  const accepted = await priv(token, '/unblock/action', csrfForm(token, { action: 'checkout', scope_norway: 'yes' }));
+  assert.equal(accepted!.status, 303); assert.equal(new URL(String(accepted!.headers!['location'])).hostname, 'buy.stripe.com');
+  const after = (await row()).enrollment;
+  assert.equal(after.norway_scope_version, NORWAY_SCOPE_VERSION);
+  assert.equal(after.consent_version, consentBefore.consent_version); assert.deepEqual(after.consent_at, consentBefore.consent_at);
+  const [caller] = await db!.sql`select all_calls_stopped,held_for_review from callers where phone_hash=${hash}`;
+  assert.equal(caller!['all_calls_stopped'], true); assert.equal(caller!['held_for_review'], true);
+});
+test('country restrictions do not lock an existing account out of recovery or cancellation controls', options, async () => {
+  const token = await enroll(); await db!.sql`update unblock_enrollments set norway_scope_version=null,norway_scope_at=null where phone_hash=${hash}`;
+  const page = await priv(token, '/unblock/account'); assert.equal(page!.status, 200); assert.match(page!.body, /Confirm Norway eligibility/);
+  assert.ok(!page!.body.includes('Ready for your first conversation'));
+  assert.equal((await request('/unblock/access', { form: new URLSearchParams({ phone }) }))!.status, 200);
+});
+
 test('the test configuration is fully ready, and the join gate closes when it is not', options, async () => {
   assert.deepEqual(unblockReadiness(), []);
   process.env['UNBLOCK_SAFETY_APPROVED'] = 'false';
-  const closed = await request('/unblock/join', { form: new URLSearchParams({ phone, consent: 'yes' }) });
+  const closed = await request('/unblock/join', { form: new URLSearchParams({ phone, consent: 'yes', scope_norway: 'yes' }) });
   assert.equal(closed!.status, 503); assert.ok(closed!.body.includes('not open yet')); assert.equal(texts.length, 0);
   assert.equal((await db!.sql`select * from signups`).length, 0);
 });
@@ -69,7 +98,7 @@ test('the test configuration is fully ready, and the join gate closes when it is
 test('join: consent and phone proof come first, a code is texted, and verification creates the account with a scoped one-hour cookie', options, async () => {
   const noConsent = await request('/unblock/join', { form: new URLSearchParams({ phone, name: 'Synthetic' }) }); assert.equal(noConsent!.status, 400);
   assert.equal((await db!.sql`select * from callers`).length, 0, 'nothing exists before the number is proven');
-  const joined = await request('/unblock/join', { form: new URLSearchParams({ phone, name: 'Synthetic', email: 'support-only@example.com', consent: 'yes' }) });
+  const joined = await request('/unblock/join', { form: new URLSearchParams({ phone, name: 'Synthetic', email: 'support-only@example.com', consent: 'yes', scope_norway: 'yes' }) });
   assert.equal(joined!.status, 200); assert.equal(texts.length, 1); assert.match(texts[0]!, /^Your 8&80 Unblock code is \d{6}\./);
   assert.ok(!/Synthetic|support-only|wish/.test(texts[0]!), 'no personal content in the message');
   assert.equal((await db!.sql`select * from callers`).length, 0, 'still nothing before verification');
@@ -115,7 +144,7 @@ test('schedule validation retains editable values and focuses a described invali
 });
 
 test('join errors preserve contact and consent; resending retains the draft, invalidates the previous code and is throttled', options, async () => {
-  const form = new URLSearchParams({ phone, name: 'Alex <example>', email: 'alex@invalid', consent: 'yes' });
+  const form = new URLSearchParams({ phone, name: 'Alex <example>', email: 'alex@invalid', consent: 'yes', scope_norway: 'yes' });
   const invalid = await request('/unblock/join', { form });
   assert.equal(invalid!.status, 400); assert.match(invalid!.body, /value="Alex &lt;example&gt;"/);
   assert.match(invalid!.body, /name="email"[^>]*value="alex@invalid"[^>]*aria-invalid="true"/);
@@ -156,7 +185,7 @@ test('private pages need an Unblock credential: base, Beliefs and expired ones a
 test('an enrolled caller sees only their own words; another account\'s credential shows nothing of theirs', options, async () => {
   const p = run(finishCall(emptyProgramme(), 'opening', 0), { type: 'wish', text: 'My private wish', why: '' });
   const token = await enroll({ programme: p });
-  await db!.store.upsertProfile('+4791000041', { name: 'Other' }); const other = phoneKey('+4791000041'); await repo().enroll(other, now);
+  await db!.store.upsertProfile('+4791000041', { name: 'Other' }); const other = phoneKey('+4791000041'); await repo().enroll(other, now, undefined, true);
   const otherToken = await new Links(db!.sql).mint(other, now, 'unblock');
   assert.ok((await priv(token, '/unblock/account'))!.body.includes('My private wish'));
   assert.ok(!(await priv(otherToken, '/unblock/account'))!.body.includes('My private wish'));
@@ -166,7 +195,10 @@ test('payment: before authoritative payment calls stay off, nothing in the route
   const token = await enroll({ standing: 'awaiting_payment' });
   const page = await priv(token, '/unblock/account');
   assert.ok(page!.body.includes('Start Unblock')); assert.ok(!page!.body.includes('Your next call'));
-  const link = page!.body.match(/href="(https:\/\/buy\.stripe\.com[^"]+)"/)![1]!.replaceAll('&amp;', '&');
+  assert.ok(!page!.body.includes('buy.stripe.com'));
+  const checkout = await priv(token, '/unblock/action', csrfForm(token, { action: 'checkout', scope_norway: 'yes' }));
+  assert.equal(checkout!.status, 303);
+  const link = String(checkout!.headers!['location']);
   assert.equal(new URL(link).searchParams.get('client_reference_id'), (await row()).enrollment.checkout_reference, 'the checkout carries the enrolment reference');
   assert.match(new URL(link).searchParams.get('client_reference_id') ?? '', /^[A-Za-z0-9_-]{1,200}$/, 'Stripe silently drops any other client_reference_id');
   assert.ok(!page!.body.includes('data-preview-controls')); assert.ok(page!.body.includes('data-seam="subscription"'));

@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 
 /** Only editable, non-secret fields are echoed after a failed submission. */
-const EDITABLE = new Set(['name', 'email', 'phone', 'consent', 'timezone', 'opening_local', 'calls', 'weekday', 'weekly', 'light_choice', 'light_day', 'light']);
+const EDITABLE = new Set(['name', 'email', 'phone', 'consent', 'scope_norway', 'timezone', 'opening_local', 'calls', 'weekday', 'weekly', 'light_choice', 'light_day', 'light']);
 export function formValues(form: URLSearchParams): URLSearchParams {
   return new URLSearchParams([...form].filter(([key]) => EDITABLE.has(key)));
 }

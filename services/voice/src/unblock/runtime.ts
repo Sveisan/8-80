@@ -15,6 +15,7 @@ import { withinCallWindow } from './coverage.ts';
 import { lockUnblockAvailability, unblockAvailability } from './availability.ts';
 import { blockingUnblockIncident, openUnblockIncident, reconcileUnblockIncidents } from './incidents.ts';
 import { unblockSafetyHold } from './safety-response.ts';
+import { advanceRouting } from './routing.ts';
 import { UnblockRepository, callsAllowed, chapterWindow, lightGuard, planWeekly, scheduleOf, signOffCall } from './repository.ts';
 import { callWeek, callsOf, chapterComplete, closeAt, finishCall, lightEnabled, monthOf, nextLight, rollChapter, slotKind, voiceProgramme, FIRST_WEEK_GAP_DAYS, type CallKind, type Programme } from './model.ts';
 import { chapterPos } from './chapters.ts';
@@ -46,10 +47,16 @@ export async function unblockTool(deps: LoopDeps, input: unknown, now = new Date
     if (!callerText.trim() || callerText.length > 16000) throw new PracticeError('wording_required');
     const flagged = await safety(tx, session, callerText, now);
     if (caller['all_calls_stopped'] || caller['sms_opt_out']) return { held: true, instruction: 'Respect the stop request and end this call. No further changes are accepted.' };
-    if (flagged || attempt?.['safety_tier'] != null) return unblockSafetyHold();
-    if (caller['held_for_review']) return { held: true, instruction: 'Stop this call. No further changes are accepted.' };
-    const loaded = await new UnblockRepository(tx, session.programme_id).load(session.phone_hash);
+    const safetyHeld = flagged || attempt?.['safety_tier'] != null;
+    if (!safetyHeld && caller['held_for_review']) return { held: true, instruction: 'Stop this call. No further changes are accepted.' };
     const snapshot = JSON.parse(decrypt(session.snapshot_enc)) as Snapshot;
+    const routing = advanceRouting(snapshot.routing, callerText, safetyHeld, str(v?.['event_id']));
+    if (routing && JSON.stringify(routing) !== JSON.stringify(snapshot.routing)) {
+      snapshot.routing = routing;
+      await tx`update unblock_sessions set snapshot_enc=${encrypt(JSON.stringify(snapshot))} where id=${id}`;
+    }
+    if (safetyHeld) return unblockSafetyHold(routing);
+    const loaded = await new UnblockRepository(tx, session.programme_id).load(session.phone_hash);
     if (!loaded || !callsAllowed(loaded.enrollment, now) || loaded.programme.state !== 'active' || loaded.programme.revision !== snapshot.revision) throw new PracticeError('page_changed');
     if (v?.['command'] === undefined || v['command'] === '') return { held: false }; // Caller-utterance safety check.
     const week = session.week ?? 0;

@@ -75,7 +75,9 @@ test('payment: no checkout link unless the subscription product is configured; a
   assert.equal(unblockCheckout('unblock_synthetic'), '', 'not configured');
   const html = unblockPage('account', { programme: emptyProgramme(), paid: false, scheduled: true });
   assert.ok(html.includes('Checkout is not available here yet')); assert.ok(!html.includes('data-seam="subscription"'), 'no subscription controls before there is a subscription');
-  assert.ok(unblockPage('account', { programme: emptyProgramme(), scheduled: true, checkout: 'https://buy.stripe.com/synthetic' }).includes('href="https://buy.stripe.com/synthetic"'));
+  const checkout = unblockPage('account', { programme: emptyProgramme(), scheduled: true, checkout: 'https://buy.stripe.com/synthetic' });
+  assert.ok(checkout.includes('name="scope_norway"') && checkout.includes('Continue to payment'));
+  assert.ok(!checkout.includes('buy.stripe.com'), 'the provider URL is exposed only after the authenticated declaration POST');
 });
 
 const sub = (over: Partial<NonNullable<Parameters<typeof unblockPage>[1]>['sub']> = {}) => ({ standing: 'active', cancelling: false, callsPerMonth: 4, pendingCalls: null, manageable: true, ...over });

@@ -228,8 +228,8 @@ test('uncertain email acceptance retries the same invitation content and provide
 test('explicit additional programme calls get separate invitations; cadence is never expanded', options, async () => {
   process.env['UNBLOCK_LIVE_CALLS'] = 'true';
   const id = randomUUID();
-  await db!.sql`insert into unblock_enrollments (id,checkout_reference,phone_hash,programme_enc,consent_version,consent_at,standing,timezone,next_weekly_at,next_light_at,weekly_weekday,weekly_minute,light_weekdays,light_minute)
-    values (${id},${id},${hash},${encrypt(JSON.stringify({ schema: 1, revision: 0, state: 'active', openingHeld: true, weeksHeld: 0, chapterCalls: 4 }))},'test',${now},'active','Europe/Oslo',${new Date('2026-11-18T08:00:00Z')},${new Date('2026-11-19T08:00:00Z')},3,540,${[4]}::integer[],540)`;
+  await db!.sql`insert into unblock_enrollments (id,checkout_reference,phone_hash,programme_enc,consent_version,consent_at,norway_scope_version,norway_scope_at,standing,timezone,next_weekly_at,next_light_at,weekly_weekday,weekly_minute,light_weekdays,light_minute)
+    values (${id},${id},${hash},${encrypt(JSON.stringify({ schema: 1, revision: 0, state: 'active', openingHeld: true, weeksHeld: 0, chapterCalls: 4 }))},'test',${now},'norway-v1',${now},'active','Europe/Oslo',${new Date('2026-11-18T08:00:00Z')},${new Date('2026-11-19T08:00:00Z')},3,540,${[4]}::integer[],540)`;
   await setCalendarInvitations(db!.sql, hash, true, script, now);
   assert.equal((await db!.sql`select * from calendar_invitations where state = 'active'`).length, 3);
   await dispatchMessages(deps(), now);

@@ -1,13 +1,14 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { obj, str } from '../billing/types.ts';
 import { PracticeError, wording } from '../beliefs/model.ts';
+import type { RoutingState } from './routing.ts';
 import { themeOfCall } from './chapters.ts';
 import { containsWords, explicitAgreement, hasAgreement, normalise } from '../beliefs/protocol.ts';
 import { applyCommand, callHeld, callsOf, chapterOfMonthOf, currentWish, isCloseWeek, localDay, parseBlockKind, parseDays, parseOutcome, parseTime, VOICE_COMMANDS, type CallKind, type Command, type Programme } from './model.ts';
 
 export type Kind = CallKind;
 export interface Receipt { id: string; callerText: string; command: Command; }
-export interface Snapshot { revision: number; initial: Programme; programme: Programme; receipts: Receipt[]; coverage: Record<string, 'done'>; }
+export interface Snapshot { revision: number; initial: Programme; programme: Programme; receipts: Receipt[]; coverage: Record<string, 'done'>; routing?: RoutingState; }
 
 export const UNBLOCK_TOOL_NAME = 'capture_unblock';
 export const UNBLOCK_TOOL_PATH = '/unblock/tool';

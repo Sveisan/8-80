@@ -28,6 +28,7 @@ import { cancelUnblock, refreshUnblock, unblockPortal } from './billing.ts';
 import { formValues, invalidField } from './journey.ts';
 import { contactNumber } from '../link/vcard.ts';
 import { BillingUnavailable } from '../billing/gateway.ts';
+import { NORWAY_SCOPE_VERSION, NORWAY_SIGNUP_PRODUCT, norwayScopeConfirmed } from './scope.ts';
 
 const resendDelay = new Limiter(1, 60_000);
 const sends = new Limiter(8, 3600_000); const verifies = new Limiter(30, 600_000);
@@ -36,6 +37,7 @@ const SAVED: Record<string, string> = {
   calls: 'Saved. Your chosen calls per month apply from your next chapter.', calls_now: 'Saved. Your calls per month are updated.',
   cancel: 'Your subscription will end at the end of the period you have paid for. Your calls continue until then.',
   pause: 'Your calls are paused. Billing continues while calls are paused.', resume: 'Your calls are resumed. Shared STOP or safety holds still apply.',
+  scope: 'Your Norway-only launch declaration is recorded. Payment, STOP and review holds still apply.',
 };
 
 /** The next conversation and next light evening, as the account shows them. Pure: no claim is made here. */
@@ -77,9 +79,9 @@ export async function unblockRoutes(req: IncomingMessage, url: URL, deps: LoopDe
     if (resending) {
       if (!resendDelay.take(phoneKey(phone), +now)) return fail(429, 'Allow a minute before requesting another code. No new code was sent.');
       if (!access) {
-        const saved = await new Pending(deps.store.raw).draft(originalChallenge, now, 'unblock');
+        const saved = await new Pending(deps.store.raw).draft(originalChallenge, now, NORWAY_SIGNUP_PRODUCT);
         if (!saved || saved.phone !== phone) return fail(400, 'This signup has expired. Choose Change number to start again.');
-        form = new URLSearchParams({ phone: saved.phone, name: saved.name, email: saved.email, consent: 'yes' });
+        form = new URLSearchParams({ phone: saved.phone, name: saved.name, email: saved.email, consent: 'yes', scope_norway: 'yes' });
       }
     }
     const hash = phoneKey(phone); let messageId: string | undefined;
@@ -91,6 +93,7 @@ export async function unblockRoutes(req: IncomingMessage, url: URL, deps: LoopDe
         if (caller) messageId = await enqueue(tx, { eventKey: `unblock:access:${id}`, phoneHash: hash, channel: 'sms', kind: 'access', reference: id, to: phone, body: `Your 8&80 Unblock code is ${code}. It expires in ${TTL_MS / 60000} minutes. Manage your calls: ${config.link.publicUrl().replace(/\/$/, '')}/unblock/account` }, now);
       });
     } else {
+      if (form.get('scope_norway') !== 'yes') return fail(400, 'The initial launch is for adults currently in Norway. Confirm that this applies to you.', 'scope_norway');
       if (form.get('consent') !== 'yes') return fail(400, 'Read the service information and confirm your choice.', 'consent');
       const email = (form.get('email') ?? '').trim();
       if (email && (email.length > 254 || !EMAIL.test(email))) return fail(400, 'Check your email address.', 'email');
@@ -98,7 +101,7 @@ export async function unblockRoutes(req: IncomingMessage, url: URL, deps: LoopDe
       if (Number(recent?.['count']) >= 3) return fail(429, 'Please wait before requesting another code.');
       challenge = await new Pending(deps.store.raw).begin({ phone, email, name: (form.get('name') ?? '').trim().slice(0, 80), weekday: 0, minute: 480, timezone: 'Europe/Oslo' }, now, async (tx, id, code) => {
         messageId = await enqueue(tx, { eventKey: `unblock:signup:${id}`, phoneHash: hash, channel: 'sms', kind: 'signup', reference: id, to: phone, body: `Your 8&80 Unblock code is ${code}. It expires in ${TTL_MS / 60000} minutes. Manage your calls: ${config.link.publicUrl().replace(/\/$/, '')}/unblock/account` }, now);
-      }, 'unblock');
+      }, NORWAY_SIGNUP_PRODUCT);
     }
     if (!challenge) return fail(429, 'Please wait before requesting another code.');
     if (messageId && await dispatchMessage(deps, messageId, now) !== 'accepted') return page('verify', 503, 'Your code has not been confirmed as sent. It may still arrive; wait before requesting another.', { challenge: challenge.id, phone, access, error: true });
@@ -119,9 +122,9 @@ export async function unblockRoutes(req: IncomingMessage, url: URL, deps: LoopDe
       await new Pending(deps.store.raw).verify(phone, code, now, id, async (tx, signup) => {
         const hash = phoneKey(signup.phone);
         await tx`insert into callers(phone_hash,phone_enc,name,email_enc,language) values(${hash},${encrypt(signup.phone)},${signup.name},${signup.email ? encrypt(signup.email) : null},'en') on conflict do nothing`;
-        await new UnblockRepository(tx).enroll(hash, now, { name: signup.name, email: signup.email });
+        await new UnblockRepository(tx).enroll(hash, now, { name: signup.name, email: signup.email }, true);
         token = await new Links(tx).mint(hash, now, 'unblock');
-      }, 'unblock');
+      }, NORWAY_SIGNUP_PRODUCT);
     }
     if (!token) return page('verify', 400, 'The code is incorrect or expired.', { challenge: id, phone, access: returning, invalid: 'code', error: true });
     return redirect(returning ? '/unblock/account' : '/unblock/schedule', unblockCookie(token));
@@ -142,7 +145,8 @@ export async function unblockRoutes(req: IncomingMessage, url: URL, deps: LoopDe
   const scheduled = e.weekly_weekday !== null && e.weekly_minute !== null;
   const live = e.standing === 'active' || e.standing === 'past_due';
   const privateOptions: PageOptions = { ...options, contact: !!contactNumber(), programme: p, csrf: csrfFor(token!), paid: live, paymentHold: e.standing === 'payment_hold', held,
-    checkout: live || e.subscription_id && e.standing !== 'ended' ? '' : unblockCheckout(e.checkout_reference), timezone: e.timezone, scheduled, calls: e.pending_calls_per_month ?? e.calls_per_month,
+    scopeConfirmed: norwayScopeConfirmed(e.norway_scope_version ?? undefined),
+    checkout: live || e.subscription_id && e.standing !== 'ended' ? '' : unblockCheckout(e.checkout_reference, NORWAY_SCOPE_VERSION), timezone: e.timezone, scheduled, calls: e.pending_calls_per_month ?? e.calls_per_month,
     sub: { standing: e.standing, cancelling: e.cancel_at_period_end, paidUntil: e.paid_until?.toISOString(), callsPerMonth: e.calls_per_month, pendingCalls: e.pending_calls_per_month, manageable: !!e.subscription_id && e.standing !== 'ended', timezone: e.timezone },
     weekly: e.weekly_minute !== null ? clock(e.weekly_minute) : undefined, weekday: e.weekly_weekday ?? undefined,
     lightDays: scheduled ? e.light_weekdays ?? [] : undefined, lightTime: e.light_minute !== null ? clock(e.light_minute) : undefined,
@@ -161,6 +165,18 @@ export async function unblockRoutes(req: IncomingMessage, url: URL, deps: LoopDe
     if (url.pathname !== '/unblock/action') return page('account', 404, 'Page not found.', privateOptions);
     try {
       const action = form.get('action');
+      if (action === 'checkout') {
+        if (!ready || live || e.subscription_id && e.standing !== 'ended') throw new BillingUnavailable();
+        if (form.get('scope_norway') !== 'yes') throw new PracticeError('norway_required');
+        const checkout = unblockCheckout(e.checkout_reference, NORWAY_SCOPE_VERSION);
+        if (!checkout) throw new BillingUnavailable();
+        await repo.confirmNorway(hash, now);
+        return redirect(checkout);
+      }
+      if (action === 'scope') {
+        if (form.get('scope_norway') !== 'yes') throw new PracticeError('norway_required');
+        await repo.confirmNorway(hash, now); return redirect('/unblock/account?saved=scope');
+      }
       if (action === 'signout') { await deps.store.raw`delete from links where code=${token!} and purpose='unblock'`; return redirect('/unblock', unblockCookie('')); }
       if (action === 'export') {
         const phone = await deps.store.phoneFor(hash);
