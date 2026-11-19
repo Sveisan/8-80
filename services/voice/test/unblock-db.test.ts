@@ -36,7 +36,7 @@ let events = 0;
 
 async function enroll(options: { opened?: boolean; programme?: Programme; due?: 'opening' | 'weekly' | 'light' | null } = {}) {
   await db!.store.upsertProfile(phone, { name: 'Synthetic tester', email: 'synthetic@example.com' });
-  await repo().enroll(hash, now);
+  await repo().enroll(hash, now, undefined, true);
   const programme = options.programme ?? (options.opened ? finishCall(emptyProgramme(), 'opening', 0) : emptyProgramme());
   const due = options.due === undefined ? 'weekly' : options.due;
   await db!.sql`update unblock_enrollments set programme_enc=${encrypt(JSON.stringify(programme))}, revision=${programme.revision}, standing='active',
@@ -70,7 +70,7 @@ test('standalone enrollment leaves the base slot, memories, trial and call count
   assert.equal((await programme()).programme.state, 'active'); assert.equal((await programme()).enrollment.standing, 'active');
   assert.deepEqual(await db!.store.load(phone), before); assert.equal(await new Scheduler(db!.sql).slotFor(phone), undefined);
   const [fresh] = await db!.sql`select standing from unblock_enrollments`; assert.equal(fresh!['standing'], 'active');
-  await db!.sql`delete from unblock_enrollments`; await repo().enroll(hash, now);
+  await db!.sql`delete from unblock_enrollments`; await repo().enroll(hash, now, undefined, true);
   assert.equal((await programme()).enrollment.standing, 'awaiting_payment', 'entitlement is set only by the (separate) purchase flow');
   assert.equal((await claimUnblock(deps(), now)).length, 0);
 });
@@ -336,7 +336,7 @@ test('export decodes the encrypted programme for the complete owner download onl
   assert.equal((await db!.sql`select * from unblock_enrollments`).length, 0); assert.equal((await db!.sql`select * from unblock_sessions`).length, 0);
 });
 test('schedule(): Oslo fallback, three default evenings, first-call date, base-slot collisions and completed rejection', options, async () => {
-  await db!.store.upsertProfile(phone, { name: 'Synthetic tester', email: '' }); await repo().enroll(hash, now);
+  await db!.store.upsertProfile(phone, { name: 'Synthetic tester', email: '' }); await repo().enroll(hash, now, undefined, true);
   await db!.sql`update unblock_enrollments set standing='active'`;
   await repo().schedule(hash, new URLSearchParams({ weekday: 'tue', weekly: '18:00', opening_local: '2026-11-12T17:00' }), now);
   let e = (await programme()).enrollment;
@@ -472,6 +472,27 @@ async function urgentIncident() {
   const [incident] = await db!.sql<{ id: string; alert_id: string; ack_due_at: Date }[]>`select id,alert_id,ack_due_at from unblock_incidents`;
   return { incident: incident!, session: s!, hold };
 }
+test('Norway eligibility is not inferred for legacy enrolments, and no call is claimed without its scope declaration', options, async () => {
+  await enroll({ due: 'opening' });
+  await db!.sql`update unblock_enrollments set norway_scope_version=null,norway_scope_at=null where phone_hash=${hash}`;
+  assert.equal((await claimUnblock(deps(), now)).length, 0);
+  await repo().confirmNorway(hash, now);
+  assert.equal((await programme()).enrollment.norway_scope_version, 'norway-v1');
+});
+test('current-call routing requires a country answer and cannot use the enrolled Norway scope as physical location', options, async () => {
+  const { session, hold } = await urgentIncident();
+  assert.equal((hold['routing'] as { country: string }).country, 'unknown');
+  const follow = await say(session.id, 'My brother could help', {});
+  assert.equal((follow['routing'] as { country_question: string }).country_question, 'Which country are you in right now?');
+  const country = await say(session.id, 'Norway', {});
+  const routing = country['routing'] as { medical_emergency: { number: string }; urgent_medical_help: { number: string } };
+  assert.equal(routing.medical_emergency.number, '113'); assert.equal(routing.urgent_medical_help.number, '116 117');
+  const elsewhere = await say(session.id, "I'm abroad", {});
+  assert.equal((elsewhere['routing'] as Record<string, unknown>)['medical_emergency'], undefined);
+  await settleUnblock(payload('synthetic-urgent', ['I want to kill myself', 'My brother could help', 'Norway', "I'm abroad"]), deps(), undefined, now);
+  const [closed] = await db!.sql`select snapshot_enc from unblock_sessions where id=${session.id}`;
+  assert.ok(!decrypt(closed!['snapshot_enc']).includes('routing'));
+});
 test('a safety hold returns the approved core and accepts an answer without returning to programme questions or saves', options, async () => {
   const { session, hold } = await urgentIncident();
   assert.equal(hold['safety_response'], UNBLOCK_SAFETY_RESPONSE);
@@ -482,7 +503,7 @@ test('a safety hold returns the approved core and accepts an answer without retu
   assert.match(String(answer['instruction']), /never repeat the paragraph or its question/);
   assert.match(String(answer['instruction']), /no programme saves/);
   assert.equal((await programme()).programme.wishes.length, 0);
-  assert.equal((await db!.sql`select snapshot_enc from unblock_sessions where id=${session.id}`)[0]!['snapshot_enc'], before!['snapshot_enc']);
+  assert.deepEqual(JSON.parse(decrypt((await db!.sql`select snapshot_enc from unblock_sessions where id=${session.id}`)[0]!['snapshot_enc'])).programme, JSON.parse(decrypt(before!['snapshot_enc'])).programme);
   const retry = await say(session.id, 'I want to kill myself', {});
   assert.equal(retry['safety_response'], UNBLOCK_SAFETY_RESPONSE, 'a retry retains the text without assuming it was spoken');
   assert.equal((await db!.sql`select count(*)::int as n from unblock_incidents`)[0]!['n'], 1);

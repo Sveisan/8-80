@@ -3,6 +3,7 @@ import { providerUrl } from '../billing/gateway.ts';
 import { payments } from '../billing/notice.ts';
 import { unblockConfig } from './config.ts';
 import { unblockReadiness } from './readiness.ts';
+import { norwayScopeConfirmed } from './scope.ts';
 
 /**
  * Hosted subscription checkout for Unblock. The enrolment's `checkout_reference` rides along (Stripe `client_reference_id`,
@@ -11,9 +12,9 @@ import { unblockReadiness } from './readiness.ts';
  * only an authoritative provider read in ./billing.ts moves `standing` from `awaiting_payment` to `active`.
  * The price is whatever the provider's product is (UNBLOCK_CHECKOUT_URL, UNBLOCK_PRODUCT_ID); no amount is in code.
  */
-export function unblockCheckout(reference: string): string {
+export function unblockCheckout(reference: string, consentVersion?: string): string {
   const c = unblockConfig();
-  if (unblockReadiness().length) return '';
+  if (!norwayScopeConfirmed(consentVersion) || unblockReadiness().length) return '';
   try { return payments().checkout(providerUrl(c.checkout, config.billing.provider()), reference); }
   catch { return ''; }
 }

@@ -1,3 +1,4 @@
+import { NORWAY_SCOPE_VERSION } from '../src/unblock/scope.ts';
 import { test, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
@@ -47,7 +48,7 @@ const subEvent = (id = 'sub_ub') => ({ id: 'evt_2', type: 'customer.subscription
 
 async function enroll(opts: { programme?: Programme; standing?: string; calls?: number; lightMinute?: number } = {}) {
   await db!.store.upsertProfile(phone, { name: 'Synthetic tester', email: 'synthetic@example.com' });
-  const id = await repo().enroll(hash, now);
+  const id = await repo().enroll(hash, now, undefined, true);
   const programme = opts.programme ?? finishCall(emptyProgramme(), 'opening', 0);
   await db!.sql`update unblock_enrollments set programme_enc=${encrypt(JSON.stringify(programme))}, revision=${programme.revision}, standing=${opts.standing ?? 'awaiting_payment'}, calls_per_month=${opts.calls ?? 4},
     timezone='Europe/Oslo', weekly_weekday=2, weekly_minute=1080, light_weekdays='{1,3,5}', light_minute=${opts.lightMinute ?? 1140} where phone_hash=${hash}`;
@@ -184,9 +185,11 @@ test('cancel, billing portal, refresh and account deletion all go through the pr
 
 test('checkout carries the enrolment reference and exists only when the product is configured', options, async () => {
   await enroll(); const ref = (await load()).enrollment.checkout_reference;
-  assert.equal(new URL(unblockCheckout(ref)).searchParams.get('client_reference_id'), ref); assert.equal(new URL(unblockCheckout(ref)).hostname, 'buy.stripe.com');
-  process.env['UNBLOCK_CHECKOUT_URL'] = 'https://evil.example/pay'; assert.equal(unblockCheckout(ref), '', 'only provider-owned HTTPS hosts');
-  process.env['UNBLOCK_CHECKOUT_URL'] = 'https://buy.stripe.com/synthetic'; delete process.env['STRIPE_SECRET_KEY']; assert.equal(unblockCheckout(ref), '', 'no provider key, no checkout');
+  assert.equal(unblockCheckout(ref), '', 'scope cannot be assumed');
+  assert.equal(unblockCheckout(ref, 'other'), '', 'unknown scope cannot unlock payment');
+  assert.equal(new URL(unblockCheckout(ref, NORWAY_SCOPE_VERSION)).searchParams.get('client_reference_id'), ref); assert.equal(new URL(unblockCheckout(ref, NORWAY_SCOPE_VERSION)).hostname, 'buy.stripe.com');
+  process.env['UNBLOCK_CHECKOUT_URL'] = 'https://evil.example/pay'; assert.equal(unblockCheckout(ref, NORWAY_SCOPE_VERSION), '', 'only provider-owned HTTPS hosts');
+  process.env['UNBLOCK_CHECKOUT_URL'] = 'https://buy.stripe.com/synthetic'; delete process.env['STRIPE_SECRET_KEY']; assert.equal(unblockCheckout(ref, NORWAY_SCOPE_VERSION), '', 'no provider key, no checkout');
 });
 
 /** One call through the real path: claim at its planned time, place, stage the saves, signed completion. */

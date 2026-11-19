@@ -19,7 +19,8 @@ test('Unblock: contact and schedule errors preserve work; verified payment, firs
   await page.getByLabel('What shall we call you? (optional)', { exact: true }).fill('Alex');
   await page.getByLabel('Contact email (optional)', { exact: true }).fill('alex@invalid');
   await page.getByLabel('Phone number', { exact: true }).fill(phone);
-  await page.getByRole('checkbox').check();
+  await page.getByRole('checkbox', { name: /I am currently in Norway/ }).check();
+  await page.getByRole('checkbox', { name: /I’m 18 or older/ }).check();
   await page.getByRole('button', { name: 'Send my verification code', exact: true }).click();
   await expect(page.getByLabel('Contact email (optional)', { exact: true })).toHaveAttribute('aria-invalid', 'true');
   await expect(page.getByLabel('Contact email (optional)', { exact: true })).toBeFocused();
@@ -56,7 +57,11 @@ test('Unblock: contact and schedule errors preserve work; verified payment, firs
   await page.getByRole('button', { name: 'Save my times', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Your chosen times', exact: true })).toBeVisible();
   await expect(page.locator('.appointment')).toHaveCount(0);
-  await expect(page.getByRole('link', { name: 'Continue to payment', exact: true })).toHaveAttribute('href', /^https:\/\/buy\.stripe\.com\//);
+  await page.getByRole('checkbox', { name: /I am currently in Norway/ }).check();
+  await page.route('https://buy.stripe.com/**', route => route.fulfill({ contentType: 'text/html', body: '<p>Synthetic checkout</p>' }));
+  await page.getByRole('button', { name: 'Continue to payment', exact: true }).click();
+  await expect(page).toHaveURL(/^https:\/\/buy\.stripe\.com\//);
+  await page.goto(`${base}/unblock/account`);
   const { enrollment } = await fixture('unblock-state', { phone });
   expect(enrollment.standing).toBe('awaiting_payment');
   const payload = JSON.stringify({ id: 'evt_unblock_browser', type: 'checkout.session.completed', data: { object: {

@@ -612,6 +612,7 @@ export const unblockEnrollments = pgTable('unblock_enrollments', {
   chapter: integer('chapter').notNull().default(1), year: integer('year').notNull().default(1),
   chapterStartedAt: timestamp('chapter_started_at', { withTimezone: true }), anchorAt: timestamp('anchor_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(), updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  norwayScopeVersion: text('norway_scope_version'), norwayScopeAt: timestamp('norway_scope_at', { withTimezone: true }),
 }, t=>[uniqueIndex('unblock_enrollments_current_idx').on(t.phoneHash).where(sql`${t.isCurrent} = true`), index('unblock_enrollments_owner_idx').on(t.phoneHash)]);
 
 /** Shares the call-attempt/safety review infrastructure without advancing the base call cycle. */

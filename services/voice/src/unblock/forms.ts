@@ -23,6 +23,7 @@ export function normaliseSchedule(form: URLSearchParams): URLSearchParams {
 }
 
 export const messages: Record<string, string> = {
+  norway_required: 'Confirm that you are currently in Norway for this initial launch. Calls and payment stay unavailable until you confirm.',
   page_changed: 'Your account changed in another tab. Look at the current page before saving again.',
   event_conflict: 'That request has already been used with different content. Open the page again before saving.',
   programme_complete: 'Your calls have ended. Everything stays here, and no more calls will be placed.',
