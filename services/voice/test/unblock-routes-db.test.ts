@@ -66,8 +66,9 @@ test('a Norwegian phone or Oslo timezone cannot replace the explicit Norway decl
   assert.equal((await db!.sql`select count(*)::int as n from signups`)[0]!['n'], 0);
 });
 test('old pending signup codes cannot bypass the new country declaration through verify or resend', options, async () => {
-  const old = await new Pending(db!.sql).begin({ phone, email: '', name: '', weekday: 0, minute: 480, timezone: 'Europe/Oslo' }, now, undefined, 'unblock');
-  const form = { phone, challenge: old.id, code: old.code };
+  const legacyPhone = '+4791000083';
+  const old = await new Pending(db!.sql).begin({ phone: legacyPhone, email: '', name: '', weekday: 0, minute: 480, timezone: 'Europe/Oslo' }, now, undefined, 'unblock');
+  const form = { phone: legacyPhone, challenge: old.id, code: old.code };
   assert.equal((await request('/unblock/verify', { form: new URLSearchParams(form) }))!.status, 400);
   assert.equal((await request('/unblock/resend', { form: new URLSearchParams(form) }))!.status, 400);
   assert.equal(texts.length, 0); assert.equal((await db!.sql`select count(*)::int as n from unblock_enrollments`)[0]!['n'], 0);
