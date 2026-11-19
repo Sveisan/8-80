@@ -471,6 +471,31 @@ async function urgentIncident() {
   const [incident] = await db!.sql<{ id: string; alert_id: string; ack_due_at: Date }[]>`select id,alert_id,ack_due_at from unblock_incidents`;
   return { incident: incident!, session: s! };
 }
+test('the held HTTP response reaches the caller before a slow operator-alert transport finishes', options, async () => {
+  const at = new Date(); await enroll({ due: 'opening' });
+  await db!.sql`update unblock_enrollments set next_weekly_at=${at}`;
+  const [session] = await claimUnblock(deps(), at); assert.ok(session);
+  await place(session.id, 'synthetic-http-urgent');
+  let release!: () => void; const waiting = new Promise<void>(r => { release = r; });
+  let started = false;
+  const server = controlPlane({ ...deps(), sms: { send: async () => { started = true; await waiting; return { id: 'synthetic-held-alert' }; } } });
+  await new Promise<void>(r => server.listen(0, '127.0.0.1', r));
+  const address = server.address() as { port: number };
+  try {
+    const response = await fetch(`http://127.0.0.1:${address.port}/unblock/tool`, { method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ session_id: session.id, session_token: token(session.id), caller_text: 'I want to kill myself' }), signal: AbortSignal.timeout(1500) });
+    assert.equal(response.status, 200); assert.equal((await response.json() as { held: boolean }).held, true);
+    release();
+    const until = Date.now() + 2000;
+    while (Date.now() < until) {
+      const [m] = await db!.sql`select status from message_outbox where event_key like 'unblock:safety:%'`;
+      if (m?.['status'] === 'accepted') break;
+      await new Promise(r => setTimeout(r, 10));
+    }
+    assert.equal(started, true);
+    assert.equal((await db!.sql`select status from message_outbox where event_key like 'unblock:safety:%'`)[0]!['status'], 'accepted');
+  } finally { release(); await new Promise<void>(r => server.close(() => r())); }
+});
 test('urgent capture atomically holds the caller and creates one content-free incident/alert with a five-minute deadline', options, async () => {
   const { incident, session } = await urgentIncident();
   assert.equal(+incident.ack_due_at - +now, 5 * 60_000);
