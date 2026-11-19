@@ -45,7 +45,8 @@
     "quality:jev": "node --import tsx src/quality/jev-cli.ts",
     "quality:jev:worker": "node --import tsx src/quality/worker-cli.ts",
     "unblock:availability": "node --import tsx src/unblock/availability-cli.ts",
-    "unblock:incidents": "node --import tsx src/unblock/incidents-cli.ts"
+    "unblock:incidents": "node --import tsx src/unblock/incidents-cli.ts",
+    "weekly:release": "node --import tsx src/weekly/release-cli.ts"
   },
   "dependencies": {
     "dotenv": "^16.4.5",

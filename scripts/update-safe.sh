@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run as root after merging the release. Sync weekly prompts before a call test.
+# Run the merged release's copy as root. Published weekly flows are verified, never rewritten.
 # Only fixed status lines reach stdout. Diagnostics and backups stay private.
 set +x
 set -Eeuo pipefail
@@ -16,6 +16,13 @@ fi
 REPO=/opt/8-80
 BRANCH=claude/8-80-prompt-v3-f9tk4m
 STEP=initialization
+WAS_ACTIVE=0
+WEB_WAS_ACTIVE=0
+TIMER_PAUSED=0
+WEB_STOPPED=0
+MUTATED=0
+WEB_STARTED=0
+HEALTH_CONFIRMED=0
 exec 3>&1
 install -d -m 700 /var/backups/8and80
 RUN_DIR=$(mktemp -d /var/backups/8and80/update.XXXXXXXX)
@@ -25,14 +32,57 @@ status_report() {
   if systemctl is-active --quiet 8and80-control.service 3>&-; then report 'Web: ACTIVE'; else report 'Web: NOT ACTIVE'; fi
   if systemctl is-active --quiet 8and80-tick.timer 3>&-; then report 'Scheduled calls: ACTIVE'; else report 'Scheduled calls: PAUSED'; fi
 }
-trap 'rc=$?; report "FAILED: $STEP (exit $rc). Share only this report; diagnostics remain private on the server."; status_report; exit "$rc"' ERR
-
 # Root's private backup umask must not become the source/dependency umask.
 # Git metadata and checkout files belong to the service user; .env and private
 # runtime files keep their existing modes. Never chmod the whole repository.
 source_run() {
   sudo -u eightandeighty env LC_ALL=C LANG=C GIT_TERMINAL_PROMPT=0 \
     bash -c 'umask 022; exec "$@"' source-command "$@" 3>&-
+}
+
+failed() {
+  local rc=$? recovered=1
+  trap - ERR
+  set +e
+  report "FAILED: $STEP (exit $rc). Share only this report; diagnostics remain private on the server."
+  if [[ $MUTATED == 0 ]]; then
+    if [[ $WEB_STOPPED == 1 && $WEB_WAS_ACTIVE == 1 ]]; then
+      systemctl start 8and80-control.service 3>&- && systemctl is-active --quiet 8and80-control.service 3>&- || recovered=0
+    fi
+    if [[ $TIMER_PAUSED == 1 && $WAS_ACTIVE == 1 && $recovered == 1 ]]; then systemctl start 8and80-tick.timer 3>&-; fi
+    report 'No release mutation was started; original service state was restored where possible.'
+  else
+    systemctl stop 8and80-tick.timer 3>&-
+    if [[ $WEB_STARTED == 1 && $HEALTH_CONFIRMED == 0 ]]; then systemctl stop 8and80-control.service 3>&-; fi
+    report 'Release needs review. Scheduled calls remain paused; routing flags and provider configuration were not changed by the updater.'
+  fi
+  status_report
+  report '=== END REPORT ==='
+  exit "$rc"
+}
+trap failed ERR
+
+# A running tick or an uncertain/stale call is a refusal, never a reason to kill it.
+no_active_calls() {
+  local tick_state
+  tick_state=$(systemctl is-active 8and80-tick.service 3>&- || true)
+  [[ $tick_state == inactive || $tick_state == failed ]] || return 1
+  source_run node --import tsx --input-type=module - <<'CHECK_CALLS'
+console.log = console.warn = console.error = () => {};
+let sql;
+try {
+  const [{config}, {default:postgres}] = await Promise.all([import('./services/voice/src/config.ts'), import('postgres')]);
+  if (!config.database.url) throw new Error();
+  sql = postgres(config.database.url, {max:1, connect_timeout:5});
+  const empty = await sql.begin(async tx => {
+    await tx`set transaction read only`;
+    const [row] = await tx`select count(*)::int as n from call_attempts where status in ('claimed','placed','active','settling')`;
+    return row?.n === 0;
+  });
+  if (!empty) process.exitCode = 1;
+} catch { process.exitCode = 1; }
+finally { await sql?.end({timeout:5}); }
+CHECK_CALLS
 }
 
 report '=== 8AND80 UPDATE REPORT ==='
@@ -50,11 +100,20 @@ source_run git merge-base --is-ancestor "$TARGET_COMMIT" "origin/$BRANCH"
 source_run git merge-base --is-ancestor HEAD "$TARGET_COMMIT"
 report 'OK: merged release is available; checkout is clean'
 
-WAS_ACTIVE=0
 if systemctl is-active --quiet 8and80-tick.timer 3>&-; then WAS_ACTIVE=1; fi
-STEP='pausing services'
-systemctl stop 8and80-tick.timer 8and80-tick.service 8and80-control.service 3>&-
-report 'OK: services paused for update'
+if systemctl is-active --quiet 8and80-control.service 3>&-; then WEB_WAS_ACTIVE=1; fi
+STEP='pausing scheduling and checking the call drain'
+TIMER_PAUSED=1
+systemctl stop 8and80-tick.timer 3>&-
+source_run bash -c 'set -e; umask 077; mkdir -p runs; test ! -L runs/release.lock; : >>runs/release.lock'
+exec 8>>runs/release.lock
+flock -x -n 8 3>&-
+no_active_calls
+STEP='stopping web and rechecking the call drain'
+WEB_STOPPED=1
+systemctl stop 8and80-control.service 3>&-
+no_active_calls
+report 'OK: no active calls; services paused under the release lock'
 
 STEP='backing up database and configuration'
 sudo -u postgres pg_dump --format=custom eight80 > "$RUN_DIR/database.dump" 3>&-
@@ -63,6 +122,7 @@ source_run git rev-parse HEAD > "$RUN_DIR/previous-commit"
 report 'OK: database and configuration backed up privately'
 
 STEP='updating code'
+MUTATED=1
 source_run git merge --ff-only "$TARGET_COMMIT"
 source_run test -r services/voice/src/server.ts
 report 'OK: code updated'
@@ -75,7 +135,12 @@ report 'OK: database migrations applied'
 STEP='checking configuration'
 source_run npm run preflight
 report 'OK: configuration checks passed'
+STEP='verifying current weekly conversation flows'
+source_run node --import tsx services/voice/src/weekly/release-cli.ts --if-enabled
+cmp -s .env "$RUN_DIR/env"
+report 'OK: weekly release check passed; flags and published flows preserved'
 STEP='starting web service'
+WEB_STARTED=1
 systemctl start 8and80-control.service 3>&-
 systemctl is-active --quiet 8and80-control.service 3>&-
 STEP='checking web health'
@@ -83,6 +148,7 @@ curl --fail --silent --show-error --retry 5 --retry-delay 2 --retry-connrefused 
   --output "$RUN_DIR/health.json" https://api.8and80.me/health 3>&-
 node -e 'const fs = require("node:fs"); if (JSON.parse(fs.readFileSync(process.argv[1], "utf8")).ok !== true) process.exit(1)' "$RUN_DIR/health.json" 3>&-
 report 'OK: web health check passed'
+HEALTH_CONFIRMED=1
 
 STEP='restoring scheduler state'
 if [[ $RESUME == --resume ]]; then
