@@ -64,6 +64,7 @@ export interface PageView {
   goalsNote?: string;
   scheduleNote?: string;
   scheduleMessage?: string;
+  skipUndoReceipt?: string;
   preferenceNote?: string;
   moveDraft?: MoveDraft;
   now?: Date;
@@ -118,15 +119,61 @@ function moveEditor(
       </details>`;
 }
 
-export function reviewMovePage(draft: MoveDraft, at: Date, slot: Slot, version: string, script: ScriptLines, language = 'en'): string {
+function appointmentTime(at: Date, timezone: string, script: ScriptLines, language: string): string {
   const say = (id: string) => esc(script.get(id) ?? '');
-  const when = new Intl.DateTimeFormat(language === 'en' ? 'en-GB' : language, {
-    timeZone: slot.timezone, weekday: 'long', day: 'numeric', month: 'long',
-    hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  const locale = language === 'en' ? 'en-GB' : language;
+  const date = new Intl.DateTimeFormat(locale, {
+    weekday: 'long', day: 'numeric', month: 'long', timeZone: timezone,
   }).format(at);
+  const clock = new Intl.DateTimeFormat(locale, {
+    hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: timezone,
+  }).format(at);
+  const zone = zoneLine(timezone, script);
+  return `<time class="appointment" datetime="${esc(at.toISOString())}" aria-label="${esc(describeAppointment(at, timezone, language))}"
+    data-timezone="${esc(timezone)}" data-locale="${esc(locale)}" data-home="${say('time.zone.home')}" data-other="${say('time.zone.other')}">
+    <span class="appointment-date">${esc(date)}</span>
+    <span class="appointment-time"><span class="appointment-clock">${esc(clock)}</span> <small class="appointment-zone">${esc(zone)}</small></span>
+  </time>
+  <p class="hint booking-clock" hidden>${say('page.account.booking_clock')} · ${esc(date)} · ${esc(clock)} · ${esc(zone)}</p>`;
+}
+
+const LOCAL_APPOINTMENT_CLOCKS = `<script>
+  // The same booked instant can be shown on the viewer's clock. The
+  // explicitly labelled booking time is available even without JavaScript.
+  try {
+    document.querySelectorAll('time.appointment').forEach(function (appointment) {
+      var at = new Date(appointment.getAttribute('datetime'));
+      var locale = appointment.getAttribute('data-locale');
+      var bookingZone = appointment.getAttribute('data-timezone');
+      var zone = Intl.DateTimeFormat().resolvedOptions().timeZone || bookingZone;
+      if (zone === bookingZone) return;
+      var date = new Intl.DateTimeFormat(locale, { weekday: 'long', day: 'numeric', month: 'long', timeZone: zone }).format(at);
+      var time = new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: zone }).format(at);
+      var label = zone === 'Europe/Oslo' ? appointment.getAttribute('data-home') : appointment.getAttribute('data-other').replace('{{zone}}', zone.split('/').pop().replace(/_/g, ' '));
+      appointment.querySelector('.appointment-date').textContent = date;
+      appointment.querySelector('.appointment-clock').textContent = time;
+      appointment.querySelector('.appointment-zone').textContent = label;
+      appointment.setAttribute('aria-label', date + ' ' + time + ' ' + label);
+      var booking = appointment.nextElementSibling;
+      if (booking) booking.hidden = false;
+    });
+  } catch (e) {}
+</script>`;
+
+export function reviewMovePage(draft: MoveDraft, at: Date, current: Date | undefined, slot: Slot,
+  version: string, script: ScriptLines, language = 'en'): string {
+  const say = (id: string) => esc(script.get(id) ?? '');
   return shell(`<h1>${say('page.move.review')}</h1>
-    <p class="review-appointment"><time datetime="${esc(at.toISOString())}">${esc(when)}</time></p>
-    <p class="zone">${esc(zoneLine(slot.timezone, script))}</p>
+    <div class="review-schedule">
+      <section class="review-slot" aria-labelledby="review-current">
+        <h2 id="review-current">${say('page.move.current')}</h2>
+        ${current ? appointmentTime(current, slot.timezone, script, language) : `<p class="hint">${say('page.move.empty')}</p>`}
+      </section>
+      <section class="review-slot proposed" aria-labelledby="review-proposed">
+        <h2 id="review-proposed">${say('page.move.proposed')}</h2>
+        ${appointmentTime(at, slot.timezone, script, language)}
+      </section>
+    </div>
     <p class="hint">${say(`page.move.scope.${draft.scope}`)}</p>
     <form method="post" action="?" class="review-actions">
       <input type="hidden" name="scope" value="${draft.scope}" />
@@ -136,7 +183,8 @@ export function reviewMovePage(draft: MoveDraft, at: Date, slot: Slot, version: 
       <input type="hidden" name="proposed_at" value="${esc(at.toISOString())}" />
       <button name="action" value="move-save" class="primary">${busyLabel(say('page.move'))}</button>
       <button name="action" value="move-edit">${say('page.move.edit')}</button>
-    </form>`, language);
+      <a href="?" class="account-link">${say('page.move.cancel')}</a>
+    </form>${LOCAL_APPOINTMENT_CLOCKS}`, language, 'weekly-account');
 }
 
 /**
@@ -177,13 +225,6 @@ export function reschedulePage(
   const when = `${days[slot.weekday]} ${clock(slot.minute)}`;
 
   const appointment = arranging ? first ?? view.next : undefined;
-  const locale = language === 'en' ? 'en-GB' : language;
-  const appointmentDate = appointment ? new Intl.DateTimeFormat(locale, {
-    weekday: 'long', day: 'numeric', month: 'long', timeZone: slot.timezone,
-  }).format(appointment) : '';
-  const appointmentClock = appointment ? new Intl.DateTimeFormat(locale, {
-    hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: slot.timezone,
-  }).format(appointment) : '';
   const appointmentZone = zoneLine(slot.timezone, script);
 
   const title = state?.onHold ? 'page.held' : state && !state.canCall ? 'page.ended'
@@ -256,7 +297,13 @@ export function reschedulePage(
       <a href="${supportHref}">${say('page.account.help')}</a>
     </header>
     <h1>${say(title)}</h1>
-    ${status ? `<p class="account-notice" role="status">${esc(status)}</p>` : ''}
+    ${status ? `<div class="account-notice">
+      <p role="status">${esc(status)}</p>
+      ${view.skipUndoReceipt ? `<form method="post" action="?" class="undo-skip">
+        <input type="hidden" name="receipt" value="${esc(view.skipUndoReceipt)}" />
+        <button name="action" value="undo-skip">${say('page.skip.undo')}</button>
+      </form>` : ''}
+    </div>` : ''}
     ${state?.onHold ? `<p class="account-intro">${say('page.held.detail')}</p>`
       : state && !state.canCall ? `<p class="account-intro">${say('page.ended.detail')}</p>`
       : state?.stoppedByText ? `<p class="account-intro">${say('page.account.stopped_by_text')}</p>`
@@ -264,12 +311,7 @@ export function reschedulePage(
         <form method="post" action="?" class="resume"><button name="action" value="start" class="primary">${say('page.account.resume')}</button></form>` : ''}
     ${arranging ? `<section class="account-section call-overview" aria-labelledby="call-heading">
       <h2 id="call-heading">${say(booking ? 'page.first' : 'page.section.call')}</h2>
-      ${appointment ? `<time class="appointment" datetime="${esc(appointment.toISOString())}" aria-label="${esc(describeAppointment(appointment, slot.timezone, language))}"
-        data-timezone="${esc(slot.timezone)}" data-locale="${esc(locale)}" data-home="${say('time.zone.home')}" data-other="${say('time.zone.other')}">
-        <span class="appointment-date">${esc(appointmentDate)}</span>
-        <span class="appointment-time"><span class="appointment-clock">${esc(appointmentClock)}</span> <small class="appointment-zone">${esc(appointmentZone)}</small></span>
-      </time>
-      <p class="hint booking-clock" hidden>${say('page.account.booking_clock')} · ${esc(appointmentDate)} · ${esc(appointmentClock)} · ${esc(appointmentZone)}</p>`
+      ${appointment ? appointmentTime(appointment, slot.timezone, script, language)
         : `<p class="account-intro">${say(state?.trialEnds ? 'page.no_next.trial' : 'page.no_next')}</p>`}
       ${booking && appointment ? `<div class="first-call">
         <p class="hint" id="contact-help">${say('page.account.incoming')}${contact ? ` ${say('page.contact.first')}` : ''}</p>
@@ -348,29 +390,7 @@ export function reschedulePage(
       <div class="settings-content">${rest}<a class="account-link" href="/privacy">${say('access.privacy')}</a></div>
     </details>
     ${beliefConfig().enabled ? '<footer class="account-footer"><a class="account-link" href="/beliefs">Explore Belief practice</a></footer>' : ''}
-    <script>
-      // Display the booked instant on the viewer's clock. The stored weekly
-      // slot and its picker keep their explicitly labelled booking timezone.
-      // Without JavaScript or a usable local zone, the server-rendered booking
-      // timezone remains readable (Oslo is the booking default).
-      try {
-        var appointment = document.querySelector('time.appointment');
-        if (appointment) {
-          var at = new Date(appointment.getAttribute('datetime'));
-          var locale = appointment.getAttribute('data-locale');
-          var zone = Intl.DateTimeFormat().resolvedOptions().timeZone || appointment.getAttribute('data-timezone') || 'Europe/Oslo';
-          var date = new Intl.DateTimeFormat(locale, { weekday: 'long', day: 'numeric', month: 'long', timeZone: zone }).format(at);
-          var time = new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: zone }).format(at);
-          var label = zone === 'Europe/Oslo' ? appointment.getAttribute('data-home') : appointment.getAttribute('data-other').replace('{{zone}}', zone.split('/').pop().replace(/_/g, ' '));
-          appointment.querySelector('.appointment-date').textContent = date;
-          appointment.querySelector('.appointment-clock').textContent = time;
-          appointment.querySelector('.appointment-zone').textContent = label;
-          appointment.setAttribute('aria-label', date + ' ' + time + ' ' + label);
-          var original = document.querySelector('.booking-clock');
-          if (original) original.hidden = zone === appointment.getAttribute('data-timezone');
-        }
-      } catch (e) {}
-    </script>
+    ${LOCAL_APPOINTMENT_CLOCKS}
   `,
     language,
     'weekly-account',

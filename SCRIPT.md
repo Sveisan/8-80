@@ -1621,6 +1621,15 @@ and no way to send START, so the way back cannot live only in a message._
 `page.skip`
 > "Skip this call"
 
+`page.skip.undo`
+> "Undo skip"
+
+`page.skip.restored`
+> "Your skipped call is back on the schedule."
+
+`page.skip.undo_unavailable`
+> "That skip can no longer be undone. Check the next call shown below."
+
 `page.close`
 > "That's it. You can close this."
 
@@ -2919,6 +2928,18 @@ _Explicit opt-in. Generic messages only: no private call details on a lock scree
 `page.move.edit`
 > "Edit my choice"
 
+`page.move.current`
+> "Current"
+
+`page.move.proposed`
+> "Proposed"
+
+`page.move.empty`
+> "No call scheduled"
+
+`page.move.cancel`
+> "Cancel change"
+
 `page.move.scope.first`
 > "This changes your first call and sets your usual weekly time."
 
@@ -2968,7 +2989,7 @@ _Explicit opt-in. Generic messages only: no private call details on a lock scree
 > "Resume calls"
 
 `page.account.resume.detail`
-> "Resume when you’re ready and we’ll schedule your next call."
+> "Resume when you’re ready. We’ll keep your next call if it’s still available."
 
 `page.account.paused.billing`
 > "Billing continues while calls are paused."

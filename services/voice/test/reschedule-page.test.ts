@@ -171,6 +171,37 @@ test('a reviewed move cannot overwrite a newer booking or silently change its pr
   });
 });
 
+test('undo skip is account-bound and an old receipt cannot undo a newer skip to the same date', { skip: skip() }, async () => {
+  const phone = '+4790000073';
+  const token = await enrolled(phone);
+  await store!.record(phone, { at: new Date().toISOString(), durationMs: 300_000, onboardingComplete: true });
+  const original = await sched!.setSlot(phone, OSLO);
+  const otherToken = await enrolled('+4790000074');
+  const skip = { action: 'skip', skip_at: original.toISOString() };
+  await serving(async (base) => {
+    const first = await (await post(base, token, skip)).text();
+    const receipt = /name="receipt" value="([^"]+)"/.exec(first)?.[1];
+    assert.ok(receipt);
+    const undo = { action: 'undo-skip', receipt };
+    const rejected = await post(base, otherToken, undo);
+    assert.match(await rejected.text(), /can no longer be undone/);
+    const restored = await post(base, token, undo);
+    assert.match(await restored.text(), /back on the schedule/);
+    assert.deepEqual(await sched!.nextCallFor(phone), original);
+
+    const second = await (await post(base, token, skip)).text();
+    const newerReceipt = /name="receipt" value="([^"]+)"/.exec(second)?.[1];
+    assert.ok(newerReceipt);
+    const newerSkip = await sched!.nextCallFor(phone);
+    assert.deepEqual(newerSkip, nextSlotAfter(original, OSLO));
+    const stale = await post(base, token, undo);
+    assert.match(await stale.text(), /can no longer be undone/);
+    assert.deepEqual(await sched!.nextCallFor(phone), newerSkip);
+    await post(base, token, { ...undo, receipt: newerReceipt });
+    assert.deepEqual(await sched!.nextCallFor(phone), original);
+  });
+});
+
 test('legacy later and untargeted skip forms cannot change a returning caller schedule', { skip: skip() }, async () => {
   const phone = '+4790000068';
   const token = await enrolled(phone);

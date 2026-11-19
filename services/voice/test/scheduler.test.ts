@@ -4,7 +4,7 @@ import postgres from 'postgres';
 import { PostgresStore, phoneKey } from '../src/store/postgres.ts';
 import { openTestDb } from './helpers/db.ts';
 import { beat, heartbeats, Scheduler, UnknownCaller } from '../src/schedule/scheduler.ts';
-import type { Slot } from '../src/schedule/time.ts';
+import { nextSlotAfter, type Slot } from '../src/schedule/time.ts';
 
 
 const KEY = Buffer.alloc(32, 7).toString('base64');
@@ -78,6 +78,46 @@ test('a paused caller is never due, and resuming does not re-enter the slot', { 
   await (sched as Scheduler).setPaused('+4790000014', false);
   const back = await (sched as Scheduler).claimDue(new Date('2026-09-08T06:00:00Z'));
   assert.equal(back.length, 1, 'the slot they chose is still theirs when they come back');
+});
+
+test('resume retains future skips and one-off continuations, then advances a time that passed during pause', { skip: skip() }, async () => {
+  const phone = '+4790000070';
+  const now = new Date('2026-09-07T10:00:00Z');
+  await caller(phone, OSLO, now);
+  const original = (await sched!.nextCallFor(phone))!;
+  const skipped = await sched!.skipCall(phone, now, original);
+  assert.ok(skipped.kind === 'skipped' && skipped.undo && skipped.next);
+  await sched!.setPaused(phone, true);
+  assert.deepEqual(await sched!.resumeIfEligible(phone, now), skipped.next);
+  const oneOff = new Date(+original + 3 * 3600_000);
+  assert.equal(await sched!.moveIfActive(phone, oneOff, undefined, 'synthetic-continuation'), true);
+  await sched!.setPaused(phone, true);
+  assert.deepEqual(await sched!.resumeIfEligible(phone, now), oneOff);
+  const [saved] = await sql!`select next_call_cycle from callers where phone_hash = ${phoneKey(phone)}`;
+  assert.equal(saved?.['next_call_cycle'], 'synthetic-continuation');
+
+  await sched!.setPaused(phone, true);
+  const after = new Date(+oneOff + 1000);
+  assert.deepEqual(await sched!.resumeIfEligible(phone, after), nextSlotAfter(after, OSLO));
+  const [advanced] = await sql!`select next_call_cycle from callers where phone_hash = ${phoneKey(phone)}`;
+  assert.equal(advanced?.['next_call_cycle'], null);
+});
+
+test('undo restores the exact skipped continuation only while its original time is available', { skip: skip() }, async () => {
+  const phone = '+4790000072';
+  const now = new Date('2026-09-07T10:00:00Z');
+  await caller(phone, OSLO, now);
+  const oneOff = new Date('2026-09-08T09:00:00Z');
+  await sched!.moveIfActive(phone, oneOff, undefined, 'synthetic-continuation');
+  const outcome = await sched!.skipCall(phone, now, oneOff);
+  assert.ok(outcome.kind === 'skipped' && outcome.undo);
+  assert.equal(await sched!.undoSkip(phone, outcome.undo, oneOff), false);
+  assert.deepEqual(await sched!.nextCallFor(phone), outcome.next);
+  assert.equal(await sched!.undoSkip(phone, outcome.undo, now), true);
+  assert.deepEqual(await sched!.nextCallFor(phone), oneOff);
+  const [restored] = await sql!`select next_call_cycle from callers where phone_hash = ${phoneKey(phone)}`;
+  assert.equal(restored?.['next_call_cycle'], 'synthetic-continuation');
+  assert.equal(await sched!.undoSkip(phone, outcome.undo, now), false);
 });
 
 test('a caller with no slot is not due, however long they sit there', { skip: skip() }, async () => {
