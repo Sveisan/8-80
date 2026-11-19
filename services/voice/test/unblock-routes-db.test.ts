@@ -80,6 +80,7 @@ test('an international phone number does not exclude a caller who explicitly dec
 test('checkout requires an authenticated current-country declaration and keeps customer holds intact', options, async () => {
   const token = await enroll({ standing: 'awaiting_payment' });
   await db!.sql`update unblock_enrollments set norway_scope_version=null,norway_scope_at=null where phone_hash=${hash}`;
+  await db!.sql`update unblock_enrollments set next_weekly_at=${new Date(+now + 2 * 3600000)} where phone_hash=${hash}`;
   const consentBefore = (await row()).enrollment;
   await db!.sql`update callers set all_calls_stopped=true,held_for_review=true where phone_hash=${hash}`;
   const denied = await priv(token, '/unblock/action', csrfForm(token, { action: 'checkout' }));
@@ -90,6 +91,7 @@ test('checkout requires an authenticated current-country declaration and keeps c
   const after = (await row()).enrollment;
   assert.equal(after.norway_scope_version, NORWAY_SCOPE_VERSION);
   assert.equal(after.consent_version, consentBefore.consent_version); assert.deepEqual(after.consent_at, consentBefore.consent_at);
+  assert.deepEqual([after.opening_at, after.next_weekly_at, after.next_light_at], [consentBefore.opening_at, consentBefore.next_weekly_at, consentBefore.next_light_at], 'a declaration must not replan chosen appointments');
   const [caller] = await db!.sql`select all_calls_stopped,held_for_review from callers where phone_hash=${hash}`;
   assert.equal(caller!['all_calls_stopped'], true); assert.equal(caller!['held_for_review'], true);
 });

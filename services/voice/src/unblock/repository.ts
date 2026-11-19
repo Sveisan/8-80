@@ -121,8 +121,6 @@ export class UnblockRepository {
     await transaction(this.sql, async tx => {
       const e = await this.lock(tx, hash);
       await tx`update unblock_enrollments set norway_scope_version=${NORWAY_SCOPE_VERSION},norway_scope_at=${now},updated_at=${now} where id=${e.id}`;
-      const updated = { ...e, norway_scope_version: NORWAY_SCOPE_VERSION, norway_scope_at: now };
-      await UnblockRepository.replan(tx, updated, JSON.parse(decrypt(e.programme_enc)) as Programme, now);
     });
   }
   /** Private-account actions (pause/resume) with the page's revision guard; voice uses `confirm` after a signed completion. */
