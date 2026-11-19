@@ -146,7 +146,7 @@ test('expired paid access is described as ended even before the provider sends i
   await serve(async base => {
     const html = await (await fetch(`${base}/r/${token}`)).text();
     assert.match(html, /Your paid access has ended/);
-    assert.doesNotMatch(html, /Your paid subscription is active|value="start"|value="move"/);
+    assert.doesNotMatch(html, /Your paid subscription is active|value="start"|value="move-review"/);
   });
 });
 

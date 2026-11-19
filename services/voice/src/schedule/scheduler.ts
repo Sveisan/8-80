@@ -208,7 +208,13 @@ export class Scheduler {
   }
 
   /** A move cannot undo a concurrent pause or book beyond eligible access. */
-  async moveIfActive(phone: string, at: Date, weekly?: Slot, continuation?: string): Promise<boolean> {
+  async moveIfActive(phone: string, at: Date, weekly?: Slot, continuation?: string,
+    expected?: { slot: Slot; scheduledAt?: Date }): Promise<boolean> {
+    const reviewed = expected ? this.sql`
+      and ${at}::timestamptz > now()
+      and next_call_at is not distinct from ${expected.scheduledAt ?? null}::timestamptz
+      and slot_weekday = ${expected.slot.weekday} and slot_minute = ${expected.slot.minute} and timezone = ${expected.slot.timezone}
+    ` : this.sql``;
     const changed = await this.sql<{ phone_hash: string }[]>`
       update callers set next_call_at = ${at},
         next_call_cycle = case when ${!!weekly} then null else coalesce(${continuation ?? null}, next_call_cycle) end,
@@ -219,6 +225,7 @@ export class Scheduler {
         and (not cancel_at_period_end or paid_until > ${at})
         and (billing_status in ('comped', 'active', 'past_due')
           or (billing_status = 'trialing' and (trial_ends_at is null or trial_ends_at > ${at})))
+        ${reviewed}
       returning phone_hash
     `;
     return changed.length > 0;
@@ -229,10 +236,10 @@ export class Scheduler {
     return await transaction(this.sql, async tx => {
       const [row] = await tx<{
         slot_weekday: number | null; slot_minute: number | null; timezone: string | null;
-        billing_status: string; trial_ends_at: Date | null; cancel_at_period_end: boolean; paid_until: Date | null; held_for_review: boolean;
-      }[]>`select slot_weekday, slot_minute, timezone, billing_status, trial_ends_at, cancel_at_period_end, paid_until, held_for_review
+        billing_status: string; trial_ends_at: Date | null; cancel_at_period_end: boolean; paid_until: Date | null; held_for_review: boolean; all_calls_stopped: boolean;
+      }[]>`select slot_weekday, slot_minute, timezone, billing_status, trial_ends_at, cancel_at_period_end, paid_until, held_for_review, all_calls_stopped
         from callers where phone_hash = ${phoneKey(phone)} for update`;
-      if (!row || row.held_for_review || row.slot_weekday === null || row.slot_minute === null || !row.timezone) return undefined;
+      if (!row || row.held_for_review || row.all_calls_stopped || row.slot_weekday === null || row.slot_minute === null || !row.timezone) return undefined;
       const next = nextSlotAfter(now, { weekday: row.slot_weekday, minute: row.slot_minute, timezone: row.timezone });
       const eligible = ['comped', 'active', 'past_due'].includes(row.billing_status)
         || (row.billing_status === 'trialing' && (!row.trial_ends_at || row.trial_ends_at > next));

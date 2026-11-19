@@ -123,7 +123,7 @@ requesting a refund are separate actions.
 You can stop the calls at any time, immediately, without asking anybody:
 
 - reply STOP to any text from us,
-- press "Stop calling me" on the page linked in every text we send,
+- press "Pause calls" under Plan and billing on the page linked in every text we send,
 - or email {{support_email}}.
 
 Stopping ends the calls. It does not by itself cancel a subscription or delete

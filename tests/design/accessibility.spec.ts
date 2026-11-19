@@ -19,6 +19,13 @@ test('normal and enlarged text preserve reflow and unbroken weekday labels on na
     await page.setViewportSize({ width, height: 800 });
     for (const path of ['/start', '/access', '/me', '/memory', '/feedback', '/beliefs', '/beliefs/account', '/privacy', '/unblock', '/unblock/account', '/unblock/schedule']) {
       await page.goto(`${preview}${path}`);
+      if (path === '/me') {
+        const skip = await page.getByRole('button', { name: 'Skip this call' }).boundingBox();
+        expect(skip && skip.y + skip.height).toBeLessThanOrEqual(667);
+        await page.locator('#move-call summary').click();
+        await page.locator('#move-weekly summary').click();
+        await page.locator('#preferences > summary').click();
+      }
       for (const scale of [100, 200]) {
         await page.addStyleTag({ content: `html { font-size: ${scale}% !important; }` });
         const size = await page.evaluate(() => ({ viewport: document.documentElement.clientWidth, content: document.documentElement.scrollWidth }));

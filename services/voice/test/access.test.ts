@@ -86,7 +86,7 @@ test('new-device recovery preserves the entire caller and pending signup while s
     assert.match(cookie, /HttpOnly; SameSite=Lax; Secure/);
     const page = await fetch(`${base}${verified.headers.get('location')}`);
     const content = await page.text();
-    assert.ok(content.includes(esc(script.get('page.stopped')!)));
+    assert.ok(content.includes(esc(script.get('page.account.paused')!)));
     assert.ok(content.includes('value="export"'), 'fresh phone proof opens full controls');
     const home = await fetch(`${base}/me`, { headers: { cookie: cookie.split(';')[0]! } });
     assert.ok(!(await home.text()).includes('value="export"'), 'remembered browser stays limited');
@@ -240,9 +240,9 @@ test('paused first-call and returning pages stay paused on reopen and reject sta
     for (const callNumber of [1, 3]) {
       await db!.sql`update callers set call_number = ${callNumber}`;
       const html = await (await fetch(`${base}/r/${token}`)).text();
-      assert.ok(html.includes(esc(script.get('page.stopped')!)));
+      assert.ok(html.includes(esc(script.get('page.account.paused')!)));
       assert.ok(html.includes('value="start"'));
-      assert.ok(!html.includes('value="move"') && !html.includes('value="skip"'));
+      assert.ok(!html.includes('value="move-review"') && !html.includes('value="skip"'));
       const [before] = await db!.sql`select * from callers`;
       await fetch(`${base}/r/${token}`, form({ action: 'move', weekday: '4', time: '09:00', always: '1' }));
       assert.deepEqual((await db!.sql`select * from callers`)[0], before);
@@ -270,20 +270,38 @@ test('trial boundaries, paid and overdue states match scheduler eligibility, ind
     }
     await db!.sql`update callers set billing_status = 'trialing', trial_ends_at = now() - interval '1 second', paused = true`;
     const html = await (await fetch(`${base}/r/${token}`)).text();
-    assert.ok(!html.includes('value="start"') && !html.includes('value="move"'));
+    assert.ok(!html.includes('value="start"') && !html.includes('value="move-review"'));
     for (const action of ['start', 'move']) await fetch(`${base}/r/${token}`, form({ action, weekday: '4', time: '09:00', always: '1' }));
     assert.equal((await accountState(db!.sql, hash))!.paused, true);
   });
 });
 
-test('completion pages lead back to the same authorised controls', options, async () => {
+test('the account respects a global text STOP on a remembered booking', options, async () => {
+  await enrol();
+  await db!.sql`update callers set all_calls_stopped = true where phone_hash = ${hash}`;
+  const token = await new Links(db!.sql).mint(hash);
+  await serve(async base => {
+    const html = await (await fetch(`${base}/r/${token}`)).text();
+    assert.match(html, /Reply START in your 8&amp;80 text thread/);
+    assert.doesNotMatch(html, /class="appointment"|value="start"/);
+    const res = await fetch(`${base}/r/${token}`, form({ action: 'start' }));
+    assert.match(await res.text(), /Reply START/);
+    assert.equal((await accountState(db!.sql, hash))?.next, undefined);
+    assert.equal(await new Scheduler(db!.sql).resumeIfEligible(phone), undefined);
+    const [row] = await db!.sql`select all_calls_stopped from callers where phone_hash = ${hash}`;
+    assert.equal(row?.['all_calls_stopped'], true);
+  });
+});
+
+test('a legacy move returns the updated authorised controls without SMS instructions', options, async () => {
   await enrol();
   const token = await new Links(db!.sql).mint(hash);
   await serve(async base => {
     const res = await fetch(`${base}/r/${token}`, form({ action: 'move', weekday: '4', time: '09:00' }));
     const html = await res.text();
-    assert.ok(html.includes(`href="/r/${token}"`));
-    assert.ok(html.includes(script.get('page.back')!));
+    assert.match(html, /class="appointment"/);
+    assert.ok(html.includes(script.get('page.move.saved.once')!));
+    assert.doesNotMatch(html, /send the day and time with ALWAYS/);
     const originAttack = await fetch(`${base}/r/${token}`, form({ action: 'stop-confirm' }, { origin: 'https://another.example' }));
     assert.equal(originAttack.status, 403);
   });

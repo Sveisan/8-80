@@ -84,7 +84,7 @@ test('the renderer cannot be made to emit a tag', () => {
 
 test('both pages say how to stop and how to complain', () => {
   // The two sentences somebody actually goes looking for.
-  assert.ok(/STOP/.test(terms) && /Stop calling me/.test(terms));
+  assert.ok(/STOP/.test(terms) && /Pause calls/.test(terms));
   assert.ok(/Datatilsynet/.test(privacy));
   assert.ok(/Forbrukertilsynet/.test(terms));
   assert.ok(/116 123/.test(terms), 'and where to go if the call is not the right help');

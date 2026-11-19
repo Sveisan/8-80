@@ -145,7 +145,7 @@ test('a verified booking offers the contact card and sends one existing confirma
     assert.equal(verified.status, 303);
     const cookie = verified.headers.get('set-cookie')!.split(';')[0]!;
     const page = await (await fetch(`${base}/me`, { headers: { cookie } })).text();
-    assert.ok(page.includes('class="contact-link save"'));
+    assert.ok(page.includes('class="save" href="/contact.vcf"'));
     assert.ok(page.includes('href="/contact.vcf"'));
     assert.ok(page.indexOf('class="appointment"') < page.indexOf('href="/contact.vcf"'));
     assert.equal(texts.length, 1);

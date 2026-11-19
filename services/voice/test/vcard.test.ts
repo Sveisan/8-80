@@ -79,14 +79,14 @@ test('the page offers the card before and after the first call, only when a numb
   const first = new Date('2026-10-06T06:00:00Z');
   const offered = reschedulePage(OSLO, script, 'en', undefined, undefined, { first, contact: true });
   assert.ok(offered.includes('href="/contact.vcf"'));
-  assert.ok(offered.includes('class="contact-link save"'));
+  assert.ok(offered.includes('class="save" href="/contact.vcf"'));
   assert.ok(offered.includes('aria-describedby="contact-help"'));
-  assert.ok(offered.indexOf('href="/contact.vcf"') < offered.indexOf('name="weekday"'), 'above the time, not under it');
+  assert.ok(offered.indexOf('href="/contact.vcf"') < offered.indexOf('id="move-call"'), 'before the first-call rescheduling editor');
   const returning = reschedulePage(OSLO, script, 'en', undefined, undefined, { next: first, beforeFirst: false, contact: true });
   assert.ok(returning.includes('href="/contact.vcf"'));
   assert.ok(returning.includes('download="8and80.vcf"'));
-  assert.ok(returning.includes('Add 8&amp;80 to contacts'));
-  assert.ok(!returning.includes('class="contact-link save"'), 'later visits keep a quiet optional link');
+  assert.ok(returning.includes('Save our number'));
+  assert.ok(returning.indexOf('id="preferences"') < returning.indexOf('href="/contact.vcf"'), 'returning visits keep the link in Preferences');
   const without = reschedulePage(OSLO, script, 'en', undefined, undefined, { first });
   assert.ok(!without.includes('/contact.vcf'));
 });

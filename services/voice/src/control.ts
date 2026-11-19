@@ -41,6 +41,7 @@ import {
   forgottenPage,
   gonePage,
   reschedulePage,
+  reviewMovePage,
   unknownBrowserPage,
   GOALS_MAX,
   type PageView,
@@ -48,6 +49,7 @@ import {
 import { femaleVoiceReady, sameMessageNumber } from './agent/voices.ts';
 import { setNudges } from './sms/nudges.ts';
 import { accountState } from './link/account.ts';
+import { moveVersion, proposedMove, readMove } from './link/move.ts';
 import { available as encouragementAvailable, loadPreferences, parsePreferences, savePreferences } from './encouragement/preferences.ts';
 import { feedback as encouragementFeedback, recent as recentEncouragement } from './encouragement/runtime.ts';
 import { readMemory, correctMemory } from './memory/context.ts';
@@ -601,7 +603,10 @@ async function yourPage(
         catch { billingNote = 'page.billing.pending'; }
       } else billingNote = 'page.billing.pending';
     }
-    return await page(undefined, undefined, { fresh, scheduleNote: query.get('welcome') === 'unavailable' ? 'page.welcome.unavailable' : billingNote });
+    const change = query.get('schedule');
+    const scheduleNote = change === 'weekly' ? 'page.move.saved.weekly' : change === 'once' ? 'page.move.saved.once' : undefined;
+    return await page(undefined, undefined, { fresh,
+      scheduleNote: query.get('welcome') === 'unavailable' ? 'page.welcome.unavailable' : billingNote ?? scheduleNote });
   }
   if (req.method !== 'POST') return send(res, 405, { error: 'method not allowed' });
 
@@ -643,34 +648,69 @@ async function yourPage(
   // A stale page must not resume paused calls by changing their weekly slot.
   if (['start', 'move', 'skip', 'later'].includes(action ?? '') &&
       (!state.canCall || (state.paused && action !== 'start'))) return await page();
+  if (action === 'start' && state.stoppedByText) return await page();
+  if (action === 'move-review' || action === 'move-save' || action === 'move-edit') {
+    const version = moveVersion(slot, state.scheduledAt);
+    // An old form must not overwrite a newer appointment or a change to its weekly slot.
+    if (form.get('version') !== version) return await page(undefined, undefined, { scheduleNote: 'page.move.stale' });
+    if (!state.canCall || state.paused || state.onHold) return await page(undefined, undefined, { scheduleNote: 'page.move.unavailable' });
+    const draft = readMove(form, before);
+    if (!draft) return await page(undefined, undefined, { scheduleNote: 'page.move.unavailable' });
+    if (action === 'move-edit') return await page(undefined, undefined, { moveDraft: draft });
+    const proposal = proposedMove(draft, slot, new Date(), state.next);
+    if (!proposal) return await page(undefined, undefined, { moveDraft: draft, scheduleNote: 'page.move.future' });
+    const { at, weekly } = proposal;
+    const cutoff = state.cancelAtPeriodEnd ? state.paidUntil : state.trialEnds;
+    if (cutoff && at >= cutoff) return await page(undefined, undefined, { moveDraft: draft, scheduleNote: 'page.move.unavailable' });
+    if (action === 'move-review') return html(res, 200, reviewMovePage(draft, at, slot, version, deps.script, language));
+    if (at.toISOString() !== form.get('proposed_at')) {
+      return await page(undefined, undefined, { moveDraft: draft, scheduleNote: 'page.move.stale' });
+    }
+    let invitations: string[] | undefined;
+    try {
+      invitations = await deps.store.raw.begin(async tx => {
+        const moved = await new Scheduler(tx).moveIfActive(phone, at, weekly, undefined, {
+          slot, ...(state.scheduledAt ? { scheduledAt: state.scheduledAt } : {}),
+        });
+        return moved ? await syncCalendarInvitations(tx, phoneHash, deps.script) : undefined;
+      });
+    } catch {
+      log('controls.move_unconfirmed', {});
+      return await page(undefined, undefined, { moveDraft: draft, scheduleNote: 'page.move.unconfirmed' });
+    }
+    await measured(!!invitations);
+    if (!invitations) return await page(undefined, undefined, { scheduleNote: 'page.move.stale' });
+    for (const id of invitations) await dispatchMessage(deps, id);
+    return html(res, 303, '', { location: `${back}?schedule=${weekly ? 'weekly' : 'once'}` });
+  }
   // Asked, not done. The only control here that a mis-tap should not be able
   // to end the arrangement with.
   if (action === 'voice') {
     const voice = form.get('voice');
     if (voice !== 'male' && voice !== 'female') return await page();
-    if (voice === 'female' && !femaleVoiceReady()) return await page(undefined, undefined, { scheduleNote: 'page.voice.unavailable' });
+    if (voice === 'female' && !femaleVoiceReady()) return await page(undefined, undefined, { preferenceNote: 'page.voice.unavailable' });
     await deps.store.upsertProfile(phone, { voice });
     await measured(true);
-    return await page(undefined, undefined, { scheduleNote: 'page.voice.saved' });
+    return await page(undefined, undefined, { preferenceNote: 'page.voice.saved' });
   }
   if (action === 'nudges-on' || action === 'nudges-off') {
     if (action === 'nudges-on' && !sameMessageNumber()) return await page();
     await deps.store.raw.begin(tx => setNudges(tx, phoneHash, action === 'nudges-on', slot.timezone));
     await measured(true);
-    return await page(undefined, undefined, { scheduleNote: 'page.nudges.saved' });
+    return await page(undefined, undefined, { preferenceNote: 'page.nudges.saved' });
   }
   if (action === 'calendar-on' || action === 'calendar-off' || action === 'calendar-google') {
-    if (action === 'calendar-on' && !caller.email) return await page(undefined, undefined, { scheduleNote: 'calendar.preference.email' });
+    if (action === 'calendar-on' && !caller.email) return await page(undefined, undefined, { preferenceNote: 'calendar.preference.email' });
     const ids = action === 'calendar-google' ? await useGoogleCalendar(deps.store.raw,phoneHash,deps.script)
       : await setCalendarInvitations(deps.store.raw, phoneHash, action === 'calendar-on', deps.script);
     for (const id of ids) await dispatchMessage(deps, id);
     await measured(true);
-    return await page(undefined, undefined, { scheduleNote: 'calendar.preference.saved' });
+    return await page(undefined, undefined, { preferenceNote: 'calendar.preference.saved' });
   }
   if (action === 'feedback-on' || action === 'feedback-off') {
     await deps.store.raw`update callers set feedback_opt_out = ${action === 'feedback-off'} where phone_hash = ${phoneHash}`;
     await measured(true);
-    return await page(undefined, undefined, { scheduleNote: 'page.feedback.saved' });
+    return await page(undefined, undefined, { preferenceNote: 'page.feedback.saved' });
   }
   if (action === 'stop') return html(res, 200, confirmStopPage(deps.script, language));
 
@@ -761,8 +801,11 @@ async function yourPage(
   // Re-render persisted state after pause/resume, so a revisit shows the same
   // result. Recovery remains available if the credential later expires.
   if (out.action === 'stopped') return await page();
-  if (out.action === 'started') return await page();
+  if (out.action === 'moved' || out.action === 'moved_always') {
+    return await page(undefined, undefined, { scheduleNote: out.action === 'moved_always' ? 'page.move.saved.weekly' : 'page.move.saved.once' });
+  }
   if (out.action === 'unchanged' && action === 'move') return await page(undefined, undefined, { scheduleNote: 'page.move.unavailable' });
+  if (action === 'skip' || action === 'start') return await page(undefined, undefined, { scheduleMessage: out.said });
   return html(res, 200, donePage(out.said, deps.script, language, back));
 }
 

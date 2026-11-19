@@ -121,7 +121,7 @@ server.on('request', (req, res) => { void (async () => {
   }
   if (url.pathname === '/__test/state') {
     const hash = phoneKey(String(form.phone));
-    const [caller] = await db.sql`select paused, billing_status, cancel_at_period_end, slot_weekday, slot_minute, onboarding, calendar_invites_enabled from callers where phone_hash = ${hash}`;
+    const [caller] = await db.sql`select paused, billing_status, cancel_at_period_end, slot_weekday, slot_minute, onboarding, calendar_invites_enabled, next_call_at from callers where phone_hash = ${hash}`;
     const memory = await db.store.load(String(form.phone));
     reply({ caller, goals: memory.goals, commitment: memory.lastCommitment, cancellations, calendarEmails: emails.flatMap(email => email.calendar ? [email.calendar] : []) }); return;
   }

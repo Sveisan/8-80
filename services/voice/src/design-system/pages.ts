@@ -177,8 +177,6 @@ export const ACCOUNT_CSS = `
   .appointment-date { display: block; font-size: var(--text-subhead); font-weight: var(--weight-control); line-height: 1.3; letter-spacing: var(--tracking-tight); }
   .appointment-time { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-3); margin-top: var(--space-1); font-size: var(--text-appointment); font-weight: var(--weight-control); line-height: 1.2; letter-spacing: var(--tracking-tight); font-variant-numeric: tabular-nums; }
   .appointment-time small { font-size: var(--text-small); font-weight: var(--weight-body); letter-spacing: 0; }
-  .call-overview .usual-time { margin: var(--space-2) 0 var(--space-5); }
-  .contact-link { display: inline-block; font-weight: var(--weight-control); }
   .change-time { margin-bottom: var(--space-4); }
   .change-time summary { padding: var(--space-3) var(--space-4); border: 1px solid var(--line); border-radius: var(--radius-control); cursor: pointer; }
   .change-time summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -193,8 +191,6 @@ export const ACCOUNT_CSS = `
   a.save { display: flex; width: 100%; }
   a.save + .hint { margin-bottom: var(--space-6); }
   ${BUSY_CSS}
-  .always { display: flex; align-items: center; gap: var(--space-2); margin: var(--space-3) 0 var(--space-3); }
-  .always input { width: auto; }
   .move { border-top: 1px solid var(--line); padding-top: var(--space-5); margin-top: var(--space-5); }
   .skip, .stop.first { margin-top: var(--space-6); }
   /* Below the things somebody came here to do, and still plainly named. */
@@ -204,25 +200,61 @@ export const ACCOUNT_CSS = `
   .said { margin: var(--space-3) 0 0; }
   .lockup { display: flex; justify-content: center; margin: 0 0 var(--space-6); }
   .mark { width: var(--mark-size); height: auto; display: block; }
-  .page-nav { margin: 0 0 var(--space-3); }
-  .page-nav a { display: inline-flex; align-items: center; gap: var(--space-2); min-height: var(--target-min); font-size: var(--text-caption); text-decoration: none; border-radius: var(--radius-control); }
-  .page-nav a:hover { text-decoration: underline; }
-  .page-nav a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
   textarea { margin: var(--space-2) 0 0; }
   #goals::placeholder { color: var(--quiet); opacity: 1; }
   a { color: var(--link); }
   input[type=tel], input[type=text] { display: block; width: 100%; margin: var(--space-2) 0 var(--space-4); }
 
-  /*
-   * The day and the time, as the sign-up page picks them: radios under pills,
-   * so a tap is a native choice and moving a call needs no script.
-   */
   fieldset { border: 0; padding: 0; margin: 0 0 var(--space-3); min-width: 0; }
   legend { padding: 0; margin: 0 0 var(--space-1); font-size: var(--text-small); color: var(--quiet); }
   .zone { margin: 0 0 var(--space-2); font-size: var(--text-caption); color: var(--quiet); }
-  ${TIME_PICKER_CSS}
-  .days { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 2.25em), 1fr)); gap: var(--space-1); font-size: var(--text-caption); }
-  .days .pick span:first-of-type { min-width: 0; padding-inline: 0; white-space: nowrap; overflow-wrap: normal; font-size: var(--text-caption); }
+  .review-appointment { font-size: var(--text-subhead); font-weight: var(--weight-control); margin: var(--space-5) 0 var(--space-2); }
+  .review-actions { display: grid; gap: var(--space-3); margin-top: var(--space-6); }
+  .weekly-account { padding: var(--space-3) var(--space-4) var(--space-10); }
+  .weekly-account main { max-width: 35rem; }
+  .weekly-account h1 { line-height: 1.15; }
+  .weekly-account h2 { margin-bottom: var(--space-2); line-height: 1.3; }
+  .weekly-account h3 { margin: 0; font: 600 var(--text-small)/1.4 var(--font-body); }
+  .weekly-account a, .weekly-account p { overflow-wrap: anywhere; }
+  .account-header { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); align-items: center; justify-content: space-between; margin-bottom: var(--space-4); }
+  .account-header a, .account-link { display: inline-flex; align-items: center; min-height: var(--target-min); font-size: var(--text-small); }
+  .account-brand { gap: var(--space-2); color: var(--ink); font-weight: var(--weight-control); text-decoration: none; }
+  .account-brand .mark { width: var(--space-8); }
+  .account-intro { margin: var(--space-2) 0 var(--space-4); color: var(--quiet); font-size: var(--text-small); }
+  .account-notice { margin: var(--space-3) 0; padding: var(--space-3) var(--space-4); background: var(--card);
+    border-inline-start: 3px solid var(--accent); font-size: var(--text-small); }
+  .weekly-account .call-overview { padding: var(--space-4); margin: var(--space-3) 0 0; background: var(--card); }
+  .call-overview .appointment { margin-bottom: var(--space-3); }
+  .first-call { margin-bottom: var(--space-2); }
+  .first-call .hint { margin: 0 0 var(--space-2); }
+  .first-call + .reschedule > summary { background: transparent; color: var(--ink); border-color: var(--control-border); }
+  .weekly-account .change-time { margin-bottom: var(--space-2); }
+  .weekly-account summary { min-height: var(--control-height); padding: var(--space-3) var(--space-4); overflow-wrap: anywhere; }
+  .weekly-account .change-time:not(.reschedule) > summary { border-color: var(--control-border); }
+  .weekly-account .skip { margin: 0; }
+  .weekly-time { border-top: 1px solid var(--line); margin-top: var(--space-4); padding-top: var(--space-3); }
+  .weekly-time .usual-time { margin: var(--space-1) 0 var(--space-2); }
+  .weekly-time .weekly-editor { margin-bottom: 0; }
+  .move-fields { display: grid; gap: var(--space-2); grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr)); }
+  .move-fields :is(select, input), .settings-item select { margin-top: var(--space-1); }
+  .weekly-account .account-section:not(.call-overview) { margin-top: var(--space-5); padding-top: var(--space-4); }
+  .weekly-account .account-section form { margin-bottom: var(--space-2); }
+  .plan-section > a.account-link, .notes-section > a.account-link { font-weight: var(--weight-control); }
+  .weekly-account .change-time.goal-editor > summary { border-color: transparent; padding-inline: 0; }
+  .account-disclosure { border-top: 1px solid var(--line); }
+  .account-disclosure:first-of-type { margin-top: var(--space-3); }
+  .account-disclosure > summary { font-size: var(--text-subhead); font-weight: var(--weight-heading); padding-inline: 0; }
+  .settings-content { padding-bottom: var(--space-3); }
+  .settings-content .change-time form { margin-top: var(--space-3); }
+  .settings-content .stop { margin-bottom: var(--space-2); }
+  .settings-item { border-top: 1px solid var(--line); padding-top: var(--space-3); }
+  .settings-item small { color: var(--quiet); margin-inline-start: var(--space-2); font-size: var(--text-caption); }
+  .settings-item select + button { margin-top: var(--space-2); }
+  .account-footer { border-top: 1px solid var(--line); }
+  @media (min-width: ${breakpoints.medium}) {
+    .weekly-account { padding: var(--space-6) var(--space-6) var(--space-12); }
+    .weekly-account .call-overview { padding: var(--space-5); }
+  }
 `;
 
 export const READING_CSS = `
