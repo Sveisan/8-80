@@ -1,5 +1,11 @@
 # DEPLOY — the voice service on the VPS
 
+For an existing installation with weekly dialogue enabled, follow the
+[flow-preserving release procedure](docs/weekly-dialogue-release.md). Use the
+merged release's updater: it drains calls under the scheduler lock and verifies
+the current published flows without changing routing flags or provider settings.
+The unmerged PR #37 activation/disable procedure is superseded.
+
 The local first-month journey changes have additional migration, prompt, SMS-signature
 and billing release requirements. Review [the implementation plan](docs/first-month-improvement-plan.md)
 before using this runbook to release them. Paid checkout and the actual price remain

@@ -3,6 +3,7 @@ import type { LoopDeps } from '../loop/deps.ts';
 import { decrypt, encrypt } from '../store/crypto.ts';
 import { canRemind, invalidateReminder, reminderTime, reminderLocalTime, relativeReminderTime, reminderView, WeeklyToolError } from './reminders.ts';
 import { nextTip, consumeTopic } from './tips.ts';
+import { DIALOGUE_POLICY, dialoguePilotAllowed } from './dialogue-policy.ts';
 
 export function weeklyToolsReady(env: NodeJS.ProcessEnv=process.env): boolean {
   const pilot=/^[a-f0-9]{64}$/.test(env['WEEKLY_TOOLS_PILOT_HASH']??'');
@@ -17,8 +18,8 @@ export function weeklyToken(attemptId: string): string {
   return createHmac('sha256',secret).update(`8and80:weekly:${attemptId}`).digest('base64url');
 }
 export function weeklyCallContext(attemptId: string, timezone: string | undefined, now: Date, hash?: string): string {
-  const dialogue=process.env['WEEKLY_DIALOGUE_READY']==='1'||process.env['WEEKLY_DIALOGUE_PILOT']==='1'&&!!hash&&hash===process.env['WEEKLY_TOOLS_PILOT_HASH'];
-  return JSON.stringify(weeklyToolsAllowed(hash) ? {available:true,attempt_id:attemptId,session_token:weeklyToken(attemptId),timezone:timezone??null,now:now.toISOString(),...(dialogue?{dialogue_policy:'confirmed-actions-v1'}:{})} : {available:false});
+  const policy=dialoguePilotAllowed(hash)?{dialogue_policy:DIALOGUE_POLICY}:{};
+  return JSON.stringify(weeklyToolsAllowed(hash) ? {available:true,attempt_id:attemptId,session_token:weeklyToken(attemptId),timezone:timezone??null,now:now.toISOString(),...policy} : {available:false,...policy});
 }
 const string=(v:unknown)=>typeof v==='string'?v:'';
 const object=(v:unknown):Record<string,unknown>=>v&&typeof v==='object'&&!Array.isArray(v)?v as Record<string,unknown>:{};
