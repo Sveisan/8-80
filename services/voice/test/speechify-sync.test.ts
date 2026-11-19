@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { SpeechifySettingsApi, SpeechifySettingsError, syncAgents, parseState, mergeVariables, mergeAgentIds, restoreAgents, type SyncState, type Backup, type Variable, type SyncReport } from '../src/agent/speechify-sync.ts';
 import { promptPack,weeklyGreeting,WEEKLY_END_CALL_DESCRIPTION,UNBLOCK_GREETINGS, type PromptSpec } from '../src/agent/prompt-pack.ts';
+import { UNBLOCK_SAFETY_RESPONSE } from '../src/unblock/safety-response.ts';
 
 const spec: PromptSpec = { role: 'return', name: 'Weekly', prompt: 'New {{call_number}}', variables: ['call_number'] };
 const state = (): SyncState => ({ version: 1, ids: {} });
@@ -413,6 +414,10 @@ test('unblock source pack: three roles, fixed greetings, declared variables, no 
     assert.deepEqual(item.variables, ['unblock_context', 'call_kind', 'week', 'session_id', 'session_token']);
     assert.ok(item.prompt.includes('capture_unblock'));
     assert.ok(item.prompt.includes(`"${item.firstMessage}"`), 'the script states the same fixed first message');
+    assert.ok(item.prompt.includes(`"${UNBLOCK_SAFETY_RESPONSE}"`), 'all three scripts match the runtime core response');
+    assert.ok(item.prompt.includes('If they already answered the trusted-person question, do not ask it again'));
+    assert.ok(item.prompt.includes('Once a hold has been returned, clarification does not release it'));
+    assert.ok(!item.prompt.includes('this pack supplies no urgent guidance of its own'));
   }
   assert.equal(UNBLOCK_GREETINGS.light.includes('quick one'), true);
   assert.deepEqual(promptPack('all', {}).slice(5).map(s => s.role), pack.map(s => s.role));

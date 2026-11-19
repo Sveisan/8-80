@@ -1,6 +1,6 @@
 # Unblock operator procedure · review draft
 
-**Operational procedure owner-approved, 19 November 2026; spoken response still draft.** This record makes the owner decisions explicit. It does not provide clinical triage or an approved urgent spoken response. A qualified reviewer must complete and approve that part before `UNBLOCK_SAFETY_APPROVED` can be set.
+**Operational procedure owner-approved, 19 November 2026; core spoken response owner-approved; routing still draft.** This record makes the owner decisions explicit. It does not provide clinical triage or an approved urgent spoken response. A qualified reviewer must complete and approve that part before `UNBLOCK_SAFETY_APPROVED` can be set.
 
 ## Approved ownership and hours
 
@@ -39,10 +39,10 @@ Slots due before the current check-in are missed, including a short Away interva
 
 ## Urgent-response operational procedure · owner-approved 19 November 2026
 
-**Approved by Eirik:** “Yes, approve the operational procedure with the five-minute acknowledgement target. Go ahead and implement it, then let’s review the exact spoken response next.do the merge”. The operational workflow below is implemented. The five-minute target is an operator commitment, not a clinical recommendation or a promise of a callback to the caller. Exact spoken wording remains draft.
+**Approved by Eirik:** “Yes, approve the operational procedure with the five-minute acknowledgement target. Go ahead and implement it, then let’s review the exact spoken response next.do the merge”. The operational workflow below is implemented. The five-minute target is an operator commitment, not a clinical recommendation or a promise of a callback to the caller. The core wording is now owner-approved; routing and the remaining branches stay under review.
 
 1. **Pause and hold.** On a safety hold, stop programme questions and put future calls for that caller on hold. The keyword detector is a precaution, not a diagnosis or proof of immediate danger. Do not automatically resume when the operator becomes Available.
-2. **Calm spoken response.** Candidate wording, still awaiting exact-response review: “Let’s pause here. What you’ve said matters. This automated call can’t provide emergency support. If you’re in immediate danger, please contact emergency services now.” Do not promise a live transfer, a callback time or that someone is already responding. The qualified reviewer must settle any direct clarification, jurisdiction-specific wording, local resources and the safe call-ending/handoff behaviour before publication.
+2. **Calm spoken response.** Owner-approved core wording: “Let’s pause here. What you’ve said matters. This automated call can’t provide emergency support. If you’re in immediate danger, please contact emergency services now.” Do not promise a live transfer, a callback time or that someone is already responding. The qualified reviewer must settle any direct clarification, jurisdiction-specific wording, local resources and the safe call-ending/handoff behaviour before publication.
 3. **Alert the sole operator.** Send Eirik a private, content-free urgent alert; keep identity, transcript and incident notes in the private review system. Owner-approved target: acknowledge within **five minutes** during coverage and review immediately. Emergency action must not wait for this target if an immediate danger is already known.
 4. **Failed alert or missed acknowledgement.** Owner-approved rule: set global Unblock Away, block new calls, retain the individual's hold, and raise a persistent incident for Eirik. There is no independent backup. An active caller must receive the reviewer-approved emergency direction; the service must never suggest that an unattended queue is emergency support. Availability alone cannot resolve an existing incident. Delivery acceptance is not delivery or human acknowledgement.
 5. **Human decision and controlled return.** Eirik reviews privately and follows the qualified, jurisdiction-appropriate escalation procedure. Contacting emergency services and any disclosure of caller data need a reviewed basis and practical instructions. Record the minimum necessary outcome privately; no automatic texts to the participant, release, billing change or restart. Release a safety hold only after the required review, while preserving STOP and carrier opt-out. Resolve the operational incident separately before a deliberate return to Available.
@@ -89,4 +89,4 @@ Account erasure nulls the private call/message links while preserving an unresol
 
 Tier-two findings retain the caller hold and scoped daily review reminder; they are not silently converted into a clinical diagnosis or a tier-one incident. Trigger coverage and any escalation of ambiguous/non-imminent disclosures still need qualified review.
 
-Next: review [the exact spoken-response draft](urgent-response.md). No new urgent wording is published by implementing this operational workflow.
+The core spoken response is now owner-approved and implemented in the three scripts and safety-tool response. Next: review emergency routing in [the response record](urgent-response.md). Full qualified procedure approval and activation remain separate.

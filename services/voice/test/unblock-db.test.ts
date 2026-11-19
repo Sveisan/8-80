@@ -21,6 +21,7 @@ import { sessionToken } from '../src/unblock/protocol.ts';
 import { setUnblockAvailability, unblockAvailability, lockUnblockAvailability } from '../src/unblock/availability.ts';
 import { acknowledgeUnblockIncident, blockingUnblockIncident, dispatchUnblockIncidentAlerts, reconcileUnblockIncidents, resolveUnblockIncident } from '../src/unblock/incidents.ts';
 import { SendFailure } from '../src/messages/types.ts';
+import { UNBLOCK_SAFETY_RESPONSE } from '../src/unblock/safety-response.ts';
 
 const opened = await openTestDb('unblock'); const db = typeof opened === 'string' ? undefined : opened;
 const options = { skip: typeof opened === 'string' ? opened : false };
@@ -467,10 +468,40 @@ test('Unblock alerts use only its explicit sole operator, never the shared backu
 async function urgentIncident() {
   await enroll({ due: 'opening' }); await setUnblockAvailability(db!.sql, true, now);
   const [s] = await claimUnblock(deps(), now); await place(s!.id, 'synthetic-urgent');
-  await say(s!.id, 'I want to kill myself', {});
+  const hold = await say(s!.id, 'I want to kill myself', {});
   const [incident] = await db!.sql<{ id: string; alert_id: string; ack_due_at: Date }[]>`select id,alert_id,ack_due_at from unblock_incidents`;
-  return { incident: incident!, session: s! };
+  return { incident: incident!, session: s!, hold };
 }
+test('a safety hold returns the approved core and accepts an answer without returning to programme questions or saves', options, async () => {
+  const { session, hold } = await urgentIncident();
+  assert.equal(hold['safety_response'], UNBLOCK_SAFETY_RESPONSE);
+  const [before] = await db!.sql`select snapshot_enc from unblock_sessions where id=${session.id}`;
+  const answer = await say(session.id, 'My brother could be with me. Yes.', { command: 'wish', text: 'My brother could be with me' });
+  assert.equal(answer['held'], true); assert.equal(answer['safety_response'], UNBLOCK_SAFETY_RESPONSE);
+  assert.match(String(answer['instruction']), /acknowledge what the caller actually says/);
+  assert.match(String(answer['instruction']), /never repeat the paragraph or its question/);
+  assert.match(String(answer['instruction']), /no programme saves/);
+  assert.equal((await programme()).programme.wishes.length, 0);
+  assert.equal((await db!.sql`select snapshot_enc from unblock_sessions where id=${session.id}`)[0]!['snapshot_enc'], before!['snapshot_enc']);
+  const retry = await say(session.id, 'I want to kill myself', {});
+  assert.equal(retry['safety_response'], UNBLOCK_SAFETY_RESPONSE, 'a retry retains the text without assuming it was spoken');
+  assert.equal((await db!.sql`select count(*)::int as n from unblock_incidents`)[0]!['n'], 1);
+});
+test('STOP takes priority over the support question while safety detection and the hold remain effective', options, async () => {
+  const { session } = await urgentIncident();
+  await db!.sql`update callers set all_calls_stopped=true where phone_hash=${hash}`;
+  const stopped = await say(session.id, 'Please stop. I want to kill myself.', {});
+  assert.equal(stopped['held'], true); assert.equal(stopped['safety_response'], undefined);
+  assert.match(String(stopped['instruction']), /Respect the stop request and end this call/);
+  assert.equal((await db!.sql`select held_for_review from callers where phone_hash=${hash}`)[0]!['held_for_review'], true);
+});
+test('an unrelated review hold does not invent a crisis response for an ordinary caller answer', options, async () => {
+  await enroll({ due: 'opening' }); const [s] = await claimUnblock(deps(), now);
+  await db!.sql`update callers set held_for_review=true where phone_hash=${hash}`;
+  const held = await say(s!.id, 'Hello there', {});
+  assert.equal(held['held'], true); assert.equal(held['safety_response'], undefined);
+  assert.equal((await db!.sql`select count(*)::int as n from unblock_incidents`)[0]!['n'], 0);
+});
 test('the held HTTP response reaches the caller before a slow operator-alert transport finishes', options, async () => {
   const at = new Date(); await enroll({ due: 'opening' });
   await db!.sql`update unblock_enrollments set next_weekly_at=${at}`;
