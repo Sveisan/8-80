@@ -66,7 +66,9 @@ elif [[ $* == *services/voice/src/weekly/release-cli.ts* ]]; then
   printf '%s\\n' 'read-only verification' >>"$FIXTURE/weekly-checks"
   [[ \${FAIL_VERIFY:-0} != 1 ]]
 else exec "$REAL_NODE" "$@"; fi`);
-  stub('curl',`while [[ $# -gt 0 ]]; do if [[ $1 == --output ]]; then printf '{"ok":true}' >"$2"; shift; fi; shift; done
+  stub('curl',`release=$(git rev-parse HEAD)
+if [[ \${WRONG_HEALTH_RELEASE:-0} == 1 ]]; then release=wrong-release; fi
+while [[ $# -gt 0 ]]; do if [[ $1 == --output ]]; then printf '{"ok":true,"release":"%s"}' "$release" >"$2"; shift; fi; shift; done
 printf '%s\\n' "$PRIVATE_MARKER"
 [[ \${FAIL_HEALTH:-0} != 1 ]]`);
   // Exercise the real script body with fixture paths and simulated privilege
@@ -125,7 +127,7 @@ test('read-only flow verification runs as the service user; resume remains an ex
     assert.match(r.stdout,/Scheduled calls: ACTIVE/);
   }finally{f.close();}
 });
-for(const failure of ['FAIL_VERIFY','FAIL_WEB_START','FAIL_HEALTH'])test(`${failure} keeps existing dialogue flags and published flows untouched with scheduling paused`,()=>{
+for(const failure of ['FAIL_VERIFY','FAIL_WEB_START','FAIL_HEALTH','WRONG_HEALTH_RELEASE'])test(`${failure} keeps existing dialogue flags and published flows untouched with scheduling paused`,()=>{
   const f=fixture();try{
     writeFileSync(join(f.dir,'timer'),'active');
     const configured='WEEKLY_DIALOGUE_READY=1\nWEEKLY_TOOLS_READY=1\n'+secret;

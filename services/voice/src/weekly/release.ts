@@ -1,10 +1,11 @@
 import { createHash } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
-import { bindWeeklyFlow, weeklyFlow, weeklyFlowRoles, WEEKLY_FLOW_POLICY } from '../agent/weekly-flow.ts';
-import { flowGraph, privateFlowTargets, type FlowApi } from '../agent/weekly-flow-sync.ts';
+import { bindWeeklyFlow, weeklyFlow, WEEKLY_FLOW_POLICY } from '../agent/weekly-flow.ts';
+import { flowGraph, privateFlowTargets } from '../agent/weekly-flow-sync.ts';
 import { CONSOLE_VARIABLES } from '../prompt.ts';
 
 type Json = Record<string, unknown>;
+interface ReadOnlyFlowApi { request(method: 'GET', path: string): Promise<unknown>; }
 const object = (v: unknown): Json => {
   if (!v || typeof v !== 'object' || Array.isArray(v)) throw Error('Incomplete weekly release settings.');
   return v as Json;
@@ -15,7 +16,7 @@ const digest = (v: unknown) => createHash('sha256').update(JSON.stringify(canoni
 const catalogue = (values: unknown[]) => [...values].sort((a, b) => JSON.stringify(canonical(a)).localeCompare(JSON.stringify(canonical(b))));
 
 /** Verify effective, flow-owned prompts and speech. Never stage, publish, deactivate or change flags. */
-export async function verifyWeeklyRelease(api: Pick<FlowApi, 'request'>, env: NodeJS.ProcessEnv) {
+export async function verifyWeeklyRelease(api: ReadOnlyFlowApi, env: NodeJS.ProcessEnv) {
   if (env['SPEECHIFY_SEND_VARIABLES'] !== '1') throw Error('Weekly dialogue requires server variables.');
   const roles = [], fingerprints = [];
   for (const { role, id } of privateFlowTargets(env)) {
@@ -37,5 +38,3 @@ export async function verifyWeeklyRelease(api: Pick<FlowApi, 'request'>, env: No
   }
   return { verified: true, policy: WEEKLY_FLOW_POLICY, roles, providerFingerprint: digest(fingerprints), configurationChanged: false, providerWrites: 0, phoneCallsPlaced: 0, messagesSent: 0 };
 }
-
-export const weeklyReleaseRoles = weeklyFlowRoles;

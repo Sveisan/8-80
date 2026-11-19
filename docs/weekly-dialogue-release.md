@@ -30,7 +30,7 @@ After merge, invoke the **merged release's copy** of `scripts/update-safe.sh` wi
 2. Pauses future timer startup without stopping a running tick. It takes the scheduler's exclusive `runs/release.lock`, refuses an active tick and checks for claimed/placed/active/settling calls in a read-only transaction.
 3. Stops the web service only after the first drain succeeds, then checks the drain again. Busy/unknown calls cause refusal; the updater never terminates a call to proceed.
 4. Backs up the database, environment and revision privately; fast-forwards to the requested commit, installs dependencies and applies migrations.
-5. Runs configuration checks and the new read-only weekly check, verifies the environment remains byte-for-byte unchanged, starts web, checks health and restores the timer's prior state. `--resume` is an explicit request to enable a previously paused timer.
+5. Runs configuration checks and the new read-only weekly check, verifies the environment remains byte-for-byte unchanged, starts web, checks health against the exact requested release SHA and restores the timer's prior state. `--resume` is an explicit request to enable a previously paused timer.
 
 A refusal before code mutation restores the previous web/timer state where possible. A failure after code mutation leaves scheduling paused and reports the service state for operator review; an unverified web restart is stopped. It never calls the old `--disable` recovery or changes a previously working dialogue/tool flag. There is no blind code/database rollback after migrations, no provider rollback and no legacy-prompt promotion. Use the private backup and an explicitly reviewed recovery plan if a partially applied application release fails.
 

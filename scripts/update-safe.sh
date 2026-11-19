@@ -146,7 +146,7 @@ systemctl is-active --quiet 8and80-control.service 3>&-
 STEP='checking web health'
 curl --fail --silent --show-error --retry 5 --retry-delay 2 --retry-connrefused --max-time 15 \
   --output "$RUN_DIR/health.json" https://api.8and80.me/health 3>&-
-node -e 'const fs = require("node:fs"); if (JSON.parse(fs.readFileSync(process.argv[1], "utf8")).ok !== true) process.exit(1)' "$RUN_DIR/health.json" 3>&-
+node -e 'const fs = require("node:fs"), h = JSON.parse(fs.readFileSync(process.argv[1], "utf8")); if (h.ok !== true || h.release !== process.argv[2]) process.exit(1)' "$RUN_DIR/health.json" "$TARGET_COMMIT" 3>&-
 report 'OK: web health check passed'
 HEALTH_CONFIRMED=1
 
