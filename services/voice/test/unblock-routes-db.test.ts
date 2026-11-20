@@ -146,13 +146,13 @@ test('schedule validation retains editable values and focuses a described invali
   const token = await enroll({ programme: emptyProgramme(), standing: 'awaiting_payment' });
   const before = (await row()).enrollment;
   const response = await priv(token, '/unblock/action', csrfForm(token, { action: 'schedule', timezone: 'Oslo', opening_local: '2026-11-12T18:00',
-    calls: '5', weekday: '4', weekly: '16:30', light_choice: 'none', light: '19:00' }));
+    calls: '4', weekday: '4', weekly: '16:30', light_choice: 'none', light: '19:00' }));
   assert.equal(response!.status, 409);
   assert.match(response!.body, /<h1>Make room for it<\/h1>/);
   assert.match(response!.body, /name="timezone" type="text" value="Oslo"[^>]*aria-invalid="true" aria-describedby="[^"]+-timezone-error"/);
   assert.match(response!.body, /id="[^"]+-timezone-error">Choose a valid timezone/);
   assert.match(response!.body, /name="opening_local"[^>]*value="2026-11-12T18:00"/);
-  assert.match(response!.body, /<option value="5" selected>/);
+  assert.match(response!.body, /<option value="4" selected>/);
   assert.match(response!.body, /name="weekly"[^>]*value="16:30"/);
   assert.match(response!.body, /name="light_choice" value="none" checked/);
   assert.equal((await row()).enrollment.next_weekly_at!.toISOString(), before.next_weekly_at!.toISOString());
@@ -308,4 +308,19 @@ test('download contains the account\'s words and nobody else\'s; deletion needs 
   const again = await new Links(db!.sql).mint(hash, now, 'unblock');
   const gone = await priv(again, '/unblock/action', csrfForm(again, { action: 'delete', confirmation: 'DELETE' })); assert.equal(gone!.status, 303);
   assert.equal((await db!.sql`select * from unblock_enrollments`).length, 0); assert.equal((await db!.sql`select * from callers`).length, 0);
+});
+
+
+test('the four-call package rejects forged fifth-to-eighth call requests on schedule and account actions without changing records', options, async () => {
+  const token = await enroll({ programme: emptyProgramme(), standing: 'awaiting_payment' });
+  const before = await row();
+  for (const calls of ['5', '6', '7', '8']) {
+    const count = await priv(token, '/unblock/action', csrfForm(token, { action: 'calls', calls }));
+    assert.equal(count!.status, 409); assert.match(count!.body, /between 1 and 4/);
+    const schedule = await priv(token, '/unblock/action', csrfForm(token, { action: 'schedule', timezone: 'Europe/Oslo', weekday: '2', weekly: '15:00', light_choice: 'none', calls }));
+    assert.equal(schedule!.status, 409); assert.match(schedule!.body, /between 1 and 4/);
+  }
+  const after = await row();
+  assert.deepEqual(after.enrollment, before.enrollment); assert.deepEqual(after.programme, before.programme);
+  assert.equal((await db!.sql`select count(*)::int as n from message_outbox`)[0]!['n'], 0);
 });

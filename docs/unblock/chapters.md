@@ -106,7 +106,7 @@ Chapter 1 is pinned to the weekly script: if you rewrite a theme or close questi
 
 | Decision | Status |
 | --- | --- |
-| Pricing | Settled: monthly subscription, flat price, 1–8 calls. The next chapter is offered only in the private account, never in a call |
+| Pricing | Settled: monthly subscription, flat price, 1–4 calls. The next chapter is offered only in the private account, never in a call |
 | Continue by default? | Yes: the subscription renews until the caller cancels; each close says what comes next, nothing about buying |
 | Pause between chapters | Pause is calls-only and any length; billing continues. The next chapter continues from the caller's current wish and ledger |
 | Order | Fixed 1–12, then 2–12 again with a year counter. Letting callers pick a chapter later is possible because each one stands alone |

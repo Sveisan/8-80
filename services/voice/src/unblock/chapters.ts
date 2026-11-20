@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 /**
  * Unblock chapters: one per month of the subscription. A chapter has a picture
  * (an analogy), a milestone (what the caller leaves the month with, in their own
- * words), up to three ordered themes and a close. The caller chooses 1-8 calls
+ * words), up to three ordered themes and a close. The launch offer allows 1-4 calls; historical chapters may contain up to eight calls
  * per month; the last call of every month is always the close. Chapter 1 is the
  * original arc in weekly-script.md.
  *
@@ -244,6 +244,7 @@ export const CHAPTERS: readonly Chapter[] = [
 /** The default number of calls in a month. */
 export const CHAPTER_WEEKS = 4;
 export const MIN_CALLS = 1;
+/** Historical rendering bound. The current customer offer is limited separately in offer.ts. */
 export const MAX_CALLS = 8;
 
 export function chapterFor(number: number): Chapter | undefined {

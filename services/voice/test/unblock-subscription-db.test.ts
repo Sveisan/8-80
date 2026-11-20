@@ -206,7 +206,7 @@ const noLight = () => db!.sql`update unblock_enrollments set light_weekdays='{}'
 
 test('a month of three calls: spread across the billing month, the third is the close with a personal sign-off context for the real next chapter and call', options, async () => {
   await enroll({ calls: 3 }); await db!.sql`update unblock_enrollments set weekly_minute=900`; await activate(); await noLight();
-  assert.deepEqual(await repo().setCalls(hash, 6, now), { applied: 'next_chapter' });
+  assert.deepEqual(await repo().setCalls(hash, 4, now), { applied: 'next_chapter' });
   const stamp = async () => (await load()).enrollment.next_weekly_at!.toISOString().slice(0, 16);
   assert.equal(await stamp(), '2026-11-10T14:00', 'spread over the month: first call on the first slot');
   const one = await held(new Date('2026-11-10T14:00:00Z'), [stepFor(2)]);
@@ -220,26 +220,26 @@ test('a month of three calls: spread across the billing month, the third is the 
   await tickUnblock(deps(), new Date('2026-12-08T14:00:00Z'), fetcher);
   const context = JSON.parse(sent!.dynamic_variables['unblock_context']!);
   assert.equal(context.is_close, true); assert.equal(context.chapter.calls_this_month, 3); assert.equal(context.chapter.number, 1); assert.equal(context.sign_off.mode, 'continue');
-  assert.equal(context.sign_off.next_chapter_title, 'The First Mile'); assert.match(context.sign_off.next_call_local, /Friday 11 December/, 'the real first call of the next month (six calls use Tuesday and Friday)');
+  assert.equal(context.sign_off.next_chapter_title, 'The First Mile'); assert.match(context.sign_off.next_call_local, /Tuesday 15 December/, 'the real first call of the next month (four calls use Tuesday only)');
   assert.equal(context.call_context.preferred_name, 'Synthetic tester'); assert.ok(context.chapter_theme.includes('closing call')); assert.ok(context.month_words.steps.length >= 1);
   assert.deepEqual(Object.keys(sent!.dynamic_variables).sort(), ['call_kind', 'session_id', 'session_token', 'unblock_context', 'week'], 'the declared variables are unchanged');
 });
 
 test('the close: staged and verified, it completes the chapter; nothing is placed until the billing month ends; the new chapter uses the pending calls', options, async () => {
   await enroll({ calls: 2 }); await activate(); await noLight();
-  await repo().setCalls(hash, 5, now);
+  await repo().setCalls(hash, 4, now);
   assert.equal((await load()).enrollment.next_weekly_at!.toISOString(), '2026-11-17T17:00:00.000Z', 'two calls: the first in the middle of the month');
   await held(new Date('2026-11-17T17:00:00Z'), [stepFor(2)]);
   const closeAt = (await load()).enrollment.next_weekly_at!; assert.equal(closeAt.toISOString(), '2026-12-08T17:00:00.000Z');
   const close = await held(closeAt, [['Home is here. Keep the mornings. Yes.', { command: 'closing', text: 'Home is here', carry_text: 'Keep the mornings' }]]);
   assert.equal(close.s.week, 2); assert.equal(close.result!.status, 'completed');
   const done = await load(); assert.equal(chapterComplete(done.programme), true); assert.equal(done.programme.state, 'active');
-  assert.equal(done.enrollment.next_weekly_at!.toISOString(), '2026-12-11T17:00:00.000Z', 'the next chapter starts with the next billing month; five calls use a second day (Friday)');
-  assert.equal(done.enrollment.calls_per_month, 2); assert.equal(done.enrollment.pending_calls_per_month, 5);
+  assert.equal(done.enrollment.next_weekly_at!.toISOString(), '2026-12-15T17:00:00.000Z', 'the next chapter starts with the next billing month on the chosen Tuesday');
+  assert.equal(done.enrollment.calls_per_month, 2); assert.equal(done.enrollment.pending_calls_per_month, 4);
   assert.equal((await claimUnblock(deps(), new Date('2026-12-09T17:00:00Z'))).length, 0);
   const next = await held(done.enrollment.next_weekly_at!, [stepFor(2)]);
   assert.equal(next.s.week, 1); const rolled = await load();
-  assert.equal(rolled.programme.month, 2); assert.equal(rolled.programme.chapterCalls, 5); assert.equal(rolled.programme.weeksHeld, 1); assert.deepEqual([rolled.enrollment.chapter, rolled.enrollment.year, rolled.enrollment.calls_per_month, rolled.enrollment.pending_calls_per_month], [2, 1, 5, null]);
+  assert.equal(rolled.programme.month, 2); assert.equal(rolled.programme.chapterCalls, 4); assert.equal(rolled.programme.weeksHeld, 1); assert.deepEqual([rolled.enrollment.chapter, rolled.enrollment.year, rolled.enrollment.calls_per_month, rolled.enrollment.pending_calls_per_month], [2, 1, 4, null]);
   assert.equal(rolled.programme.closings!.length, 1); assert.equal(rolled.programme.closing, null); assert.equal(rolled.programme.steps.filter(s => s.month === 2).length, 1);
   assert.equal(rolled.enrollment.chapter_started_at!.toISOString(), '2026-12-10T10:00:00.000Z');
   assert.equal(rolled.programme.startedAt, now.toISOString(), 'a new chapter preserves the first programme start');
@@ -257,10 +257,10 @@ test('a missed close is offered at the next slot, even in the next month, before
   assert.equal((await load()).enrollment.next_weekly_at!.toISOString(), '2026-12-22T17:00:00.000Z', 'if it is missed too, the next regular slot offers it again');
 });
 
-test('the voice path and the account share one set of scheduling rules, including the second day of five or more calls a month', options, async () => {
+test('the voice path and the account share the four-call limit and light-call scheduling rules', options, async () => {
   await enroll({ calls: 4, lightMinute: 1100 }); await activate();
   await db!.sql`update callers set slot_weekday=4, slot_minute=1080, timezone='Europe/Oslo' where phone_hash=${hash}`;
-  await assert.rejects(() => repo().setCalls(hash, 6, now), /calls_too_close/); // Friday 18:00 second day vs Friday 18:20 light call
+  await assert.rejects(() => repo().setCalls(hash, 6, now), /calls_invalid/); // An over-limit request cannot add a second regular day
   await db!.sql`update unblock_enrollments set light_minute=1140`;
   await db!.sql`update unblock_enrollments set next_weekly_at=${now}`;
   const [s] = await claimUnblock(deps(), now); assert.ok(s);
@@ -271,9 +271,6 @@ test('the voice path and the account share one set of scheduling rules, includin
   await assert.rejects(() => say('Monday at nine at night. Yes.', { command: 'light_schedule', days: 'mon', time: '21:00' }), /outside_coverage/);
   process.env['UNBLOCK_COVERAGE_START'] = '00:00'; process.env['UNBLOCK_COVERAGE_END'] = '24:00';
   const fine = await say('Monday at eight in the evening. Yes.', { command: 'light_schedule', days: 'mon', time: '20:00' }); assert.equal(fine['provisional'], true);
-  // With a pending change to six calls a month the voice path also respects the Friday call.
-  await db!.sql`update unblock_enrollments set pending_calls_per_month=6, light_weekdays='{1}', light_minute=1200 where phone_hash=${hash}`;
-  await assert.rejects(() => say('Friday at ten past six. Yes.', { command: 'light_schedule', days: 'fri', time: '18:10' }), /calls_too_close/);
   // A stale or tampered write (a change that became invalid before the signed completion) is refused rather than committed.
   await assert.rejects(() => repo().command(hash, { type: 'light_schedule', days: [2], minute: 1090 }, 'sneaky'), /calls_too_close/);
 });
@@ -286,4 +283,35 @@ test('the opening call is extra: chapter one still has all of its calls, and the
   assert.equal(after.programme.openingHeld, true); assert.equal(after.programme.weeksHeld, 0); assert.equal(after.programme.chapterCalls, 4);
   assert.ok(+after.enrollment.next_weekly_at! - +now >= 5 * 86400_000);
   assert.ok(after.enrollment.next_weekly_at! < new Date('2026-12-10T10:00:00Z'));
+});
+
+
+test('payment activation does not rewrite or promise calls for an older out-of-package draft', options, async () => {
+  await enroll({ calls: 8, programme: { ...emptyProgramme(), chapterCalls: 8 } });
+  const before = await load();
+  await activate();
+  const after = await load();
+  assert.equal(after.enrollment.standing, 'active', 'the authoritative provider status remains accurate');
+  assert.equal(after.enrollment.calls_per_month, 8); assert.equal(after.enrollment.anchor_at, null);
+  assert.deepEqual(after.programme, before.programme);
+  assert.equal(callsAllowed(after.enrollment, now, after.programme), false);
+  assert.equal((await claimUnblock(deps(), day(8))).length, 0);
+  assert.equal((await db!.sql`select count(*)::int as n from message_outbox`)[0]!['n'], 0, 'do not promise an ineligible call after payment');
+});
+
+
+test('a carried closing call counts toward four regular calls in a five-weekday billing month; opening and light calls remain extra', options, async () => {
+  await enroll({ calls: 4 }); const anchor = new Date('2026-11-01T10:00:00Z'); await activate(anchor); await noLight();
+  const current = await load(); const p = { ...current.programme, openingHeld: true, weeksHeld: 3, chapterCalls: 4 };
+  const lateClose = new Date('2026-12-01T17:00:00Z');
+  await db!.sql`update unblock_enrollments set programme_enc=${encrypt(JSON.stringify(p))},revision=${p.revision},next_weekly_at=${lateClose} where phone_hash=${hash}`;
+  const closing = [['Keep the mornings. Yes.', { command: 'closing', text: 'Keep the mornings', carry_text: '' }]] as [string, Record<string, unknown>][];
+  const carried = await held(lateClose, closing); assert.equal(carried.result!.status, 'completed');
+  await held(new Date('2026-12-08T17:00:00Z'), [stepFor(2)]);
+  await held(new Date('2026-12-15T17:00:00Z'), [stepFor(3)]);
+  const fourth = await held(new Date('2026-12-22T17:00:00Z'), closing); assert.equal(fourth.result!.status, 'completed');
+  const done = await load(); assert.equal(chapterComplete(done.programme), true);
+  assert.equal((await claimUnblock(deps(), new Date('2026-12-29T17:00:00Z'))).length, 0, 'a fifth Tuesday cannot create a fifth regular conversation');
+  const [count] = await db!.sql`select count(*)::int as n from unblock_sessions s join call_attempts a on a.id=s.id where s.kind='weekly' and a.status='completed' and a.scheduled_for>=${lateClose} and a.scheduled_for<${new Date('2027-01-01T10:00:00Z')}`;
+  assert.equal(count!['n'], 4); assert.ok(done.enrollment.next_weekly_at! >= new Date('2027-01-01T10:00:00Z'));
 });

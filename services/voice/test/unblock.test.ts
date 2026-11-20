@@ -38,9 +38,9 @@ test('arc derives only from verified calls: opening, the calls of a month, then 
   const ended = { ...next, state: 'completed' as const };
   assert.deepEqual(arc(ended), { stage: 'complete' }); assert.equal(slotKind(ended), undefined); assert.equal(lightEnabled(ended, { lightWeekdays: [1], lightMinute: 600 }), false);
 });
-test('calls per month: 1 to 8, and call n is the close wherever n falls', () => {
-  assert.equal(parseCalls('1'), 1); assert.equal(parseCalls(8), 8);
-  for (const bad of ['0', '9', '', 'x', '2.5', null, undefined]) assert.throws(() => parseCalls(bad), /calls_invalid/);
+test('new choices are 1 to 4; historical chapter closes remain readable up to eight calls', () => {
+  assert.equal(parseCalls('1'), 1); assert.equal(parseCalls(4), 4);
+  for (const bad of ['0', '5', '6', '7', '8', '9', '', 'x', '2.5', null, undefined]) assert.throws(() => parseCalls(bad), /calls_invalid/);
   for (const n of [1, 2, 6, 8]) {
     let p = finishCall(emptyProgramme(), 'opening', 0); p = { ...p, chapterCalls: n };
     for (let w = 1; w <= n; w++) {

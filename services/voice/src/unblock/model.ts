@@ -1,14 +1,16 @@
+import { OFFER_MAX_REGULAR_CALLS } from './offer.ts';
 import { randomUUID, createHash } from 'node:crypto';
 import { PracticeError, wording } from '../beliefs/model.ts';
 import { describeAppointment, localDate, nextSlotAfter, parseLocalTime, parseWeekday, zonedTimeToUtc } from '../schedule/time.ts';
-import { CHAPTER_WEEKS, MAX_CALLS, MIN_CALLS, chapterOfMonth, chapterPos, chapterTheme, type Chapter } from './chapters.ts';
+import { CHAPTER_WEEKS, MAX_CALLS as HISTORICAL_MAX_CALLS, MIN_CALLS, chapterOfMonth, chapterPos, chapterTheme, type Chapter } from './chapters.ts';
 
 /**
  * The programme follows a monthly subscription, one chapter per month. Inside a chapter the calls are numbered 1..n
- * (n = calls per month, 1-8, default 4) and call n is always the chapter close. Month 1 also has an opening call that is not counted.
+ * (n = calls per month, 1-4, default 4) and call n is always the chapter close. Month 1 also has an opening call that is not counted.
  */
 export const DEFAULT_CALLS = CHAPTER_WEEKS;
-export { MAX_CALLS, MIN_CALLS };
+export const MAX_CALLS = OFFER_MAX_REGULAR_CALLS;
+export { MIN_CALLS };
 export const LEDGER_READBACK_MAX = 5;
 /** First weekly call is never sooner than this after a verified opening call. */
 export const FIRST_WEEK_GAP_DAYS = 5;
@@ -193,7 +195,7 @@ function reflectionEntries<T extends { month?: number }>(p: Programme, entries: 
 }
 /** What the close reads back: since starting, capped at thirty local dates, or the current programme year at its year close. */
 export function closeReadback(p: Programme, chapter: Chapter, now = new Date(), timezone = 'Europe/Oslo'): LedgerEntry[] {
-  if (chapter.readback === 'chapter') return selectLedgerReadback(reflectionEntries(p, p.ledger, chapter, now, timezone, e => e.occurredOn), LEDGER_READBACK_MAX, e => (e.month ?? 1) * MAX_CALLS + e.week);
+  if (chapter.readback === 'chapter') return selectLedgerReadback(reflectionEntries(p, p.ledger, chapter, now, timezone, e => e.occurredOn), LEDGER_READBACK_MAX, e => (e.month ?? 1) * HISTORICAL_MAX_CALLS + e.week);
   const year = chapterPos(monthOf(p)).year;
   return selectLedgerReadback(p.ledger.filter(e => chapterPos(e.month ?? 1).year === year), LEDGER_READBACK_MAX, e => e.month ?? 1);
 }
@@ -250,7 +252,7 @@ export function voiceProgramme(p: Programme, ctx: { kind: CallKind; week: number
     // The legacy month_words key contains only caller words from the stated reflection period.
     ...(close ? { reflection_period: reflectionPeriod(p, chapter, now, tz),
       month_words: { steps: summarySteps.map(s => ({ text: s.text, outcome: s.outcome, outcome_text: s.outcomeText })),
-        moments: selectLedgerReadback(summaryMoments, 10, e => (e.month ?? 1) * MAX_CALLS + e.week).map(e => ({ occurred_on: e.occurredOn, text: e.text })),
+        moments: selectLedgerReadback(summaryMoments, 10, e => (e.month ?? 1) * HISTORICAL_MAX_CALLS + e.week).map(e => ({ occurred_on: e.occurredOn, text: e.text })),
         blocks: summaryBlocks.map(b => ({ text: b.text, kind: b.kind })) } } : {}),
     call_context: { preferred_name: ctx.preferredName, call_kind: ctx.kind, week: ctx.week, ...(slot ? { weekly_slot: slot } : {}) },
   };

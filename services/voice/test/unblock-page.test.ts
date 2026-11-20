@@ -87,10 +87,10 @@ test('subscription card: status line, calls per month with the next-chapter note
   const active = card(unblockPage('account', { programme, paid: true, sub: sub({ paidUntil: '2026-12-10T10:00:00Z' }), csrf: 'c' }));
   for (const text of ['Active. Renews around 10 December 2026', 'name="calls"', 'Save calls per month', 'Pause my calls', 'does not pause billing', 'Cancel at the end of this period', 'Manage billing', 'applies from your next chapter'])
     assert.ok(active.includes(text), text);
-  assert.equal((active.match(/<option /g) ?? []).length, 8, 'one to eight');
+  assert.equal((active.match(/<option /g) ?? []).length, 4, 'one to four');
   assert.ok(active.includes('<option value="4" selected>'));
-  const pending = card(unblockPage('account', { programme, paid: true, sub: sub({ pendingCalls: 6 }), csrf: 'c' }));
-  assert.ok(pending.includes('This chapter keeps 4. From your next chapter: 6.') && pending.includes('<option value="6" selected>'));
+  const pending = card(unblockPage('account', { programme, paid: true, sub: sub({ pendingCalls: 3 }), csrf: 'c' }));
+  assert.ok(pending.includes('This chapter keeps 4. From your next chapter: 3.') && pending.includes('<option value="3" selected>'));
   const cancelling = card(unblockPage('account', { programme, paid: true, sub: sub({ cancelling: true, paidUntil: '2026-12-10T10:00:00Z' }), csrf: 'c' }));
   assert.ok(cancelling.includes('Cancelling on 10 December 2026. Your calls continue until then.')); assert.ok(!cancelling.includes('Cancel at the end of this period'));
   const paused = card(unblockPage('account', { programme: { ...programme, state: 'paused' }, paid: true, sub: sub(), csrf: 'c' }));
@@ -109,19 +109,20 @@ test('the account offers no pause or resume before the subscription is active, a
   const done = unblockPage('account', { programme: { ...filled(), chapterCalls: 4, weeksHeld: 4 }, paid: true, sub: sub(), csrf: 'c' });
   assert.doesNotMatch(done, /all held|\b\d+ of \d+\b/); assert.ok(done.includes('This chapter is set to 4'));
 });
-test('the schedule step asks for calls per month, one to eight, default four', () => {
+test('the schedule step asks for calls per month, one to four, default four', () => {
   const html = unblockPage('schedule', {});
   const reviewLabel = html.match(/aria-labelledby="([^"]+schedule-review-title)"/)?.[1];
   assert.ok(reviewLabel && html.includes(`id="${reviewLabel}"`), 'the schedule review retains its accessible heading after form IDs are scoped');
-  assert.ok(html.includes('Calls per month') && html.includes('<option value="4" selected>')); assert.equal((html.match(/<select id="[^"]*calls"[\s\S]*?<\/select>/)![0].match(/<option /g) ?? []).length, 8);
-  assert.ok(unblockPage('schedule', { calls: 7 }).includes('<option value="7" selected>'));
+  assert.ok(html.includes('Calls per month') && html.includes('<option value="4" selected>')); assert.equal((html.match(/<select id="[^"]*calls"[\s\S]*?<\/select>/)![0].match(/<option /g) ?? []).length, 4);
+  assert.ok(!unblockPage('schedule', { calls: 7 }).includes('<option value="7"'));
+  assert.match(html, /opening conversation and optional light calls are included/);
   assert.equal(scheduleInput(normaliseSchedule(new URLSearchParams([['weekly', '17:00'], ['weekday', '0'], ['calls', '2']])), now).calls, 2);
   assert.equal(scheduleInput(normaliseSchedule(new URLSearchParams([['weekly', '17:00'], ['weekday', '0']])), now).calls, undefined);
-  for (const bad of ['0', '9', 'x']) assert.throws(() => scheduleInput(normaliseSchedule(new URLSearchParams([['weekly', '17:00'], ['weekday', '0'], ['calls', bad]])), now), /calls_invalid/);
-  // Five or more calls a month add a second day, three days later: a light call near it is refused.
+  for (const bad of ['0', '5', '6', '7', '8', '9', 'x']) assert.throws(() => scheduleInput(normaliseSchedule(new URLSearchParams([['weekly', '17:00'], ['weekday', '0'], ['calls', bad]])), now), /calls_invalid/);
+  // A forged over-limit value is rejected before any cadence can be planned.
   const base: [string, string][] = [['weekly', '17:00'], ['weekday', '0'], ['light_choice', 'evenings'], ['light_day', '3'], ['light', '17:20']];
   assert.doesNotThrow(() => scheduleInput(normaliseSchedule(new URLSearchParams([...base, ['calls', '4']])), now));
-  assert.throws(() => scheduleInput(normaliseSchedule(new URLSearchParams([...base, ['calls', '5']])), now), /calls_too_close/);
+  assert.throws(() => scheduleInput(normaliseSchedule(new URLSearchParams([...base, ['calls', '5']])), now), /calls_invalid/);
 });
 test('schedule: optional light calls start off, with three suggested evenings when enabled; invalid choices are refused', () => {
   const html = unblockPage('schedule', {});

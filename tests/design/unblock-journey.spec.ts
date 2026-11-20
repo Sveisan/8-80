@@ -14,6 +14,8 @@ test('Unblock: contact and schedule errors preserve work; verified payment, firs
   await fixture('reset');
   await page.goto(`${base}/unblock`);
   await expect(page.getByRole('link', { name: 'Begin Unblock', exact: true }).first()).toBeVisible();
+  await expect(page.locator('.hero-offer')).toContainText('up to four regular calls');
+  await expect(page.locator('.hero-offer')).toContainText('opening conversation and optional light calls are included');
   await expect(page.getByRole('link', { name: 'Contact us', exact: true })).toHaveAttribute('href', 'mailto:support@example.com');
   await page.getByRole('link', { name: 'Begin Unblock', exact: true }).first().click();
   await page.getByLabel('What shall we call you? (optional)', { exact: true }).fill('Alex');
@@ -41,10 +43,12 @@ test('Unblock: contact and schedule errors preserve work; verified payment, firs
   await expect(page.locator('[data-light-settings]')).toBeHidden();
   const opening = await page.getByLabel('First conversation', { exact: true }).inputValue();
   await page.getByLabel('First conversation', { exact: true }).fill(opening);
-  await page.getByLabel('Calls per month', { exact: true }).selectOption('5');
+  await expect(page.getByLabel('Calls per month', { exact: true }).locator('option')).toHaveCount(4);
+  await page.getByLabel('Calls per month', { exact: true }).selectOption('4');
   await page.getByLabel('Regular call · day', { exact: true }).selectOption('2');
   await page.getByLabel('Regular call · time', { exact: true }).fill('15:00');
-  await expect(page.locator('[data-schedule-summary]')).toContainText('Tuesday and Friday');
+  await expect(page.locator('[data-schedule-summary]')).toContainText('Tuesday');
+  await expect(page.locator('[data-schedule-summary]')).not.toContainText('Friday');
   await page.getByText('Change timezone', { exact: true }).click();
   await page.getByLabel('Your timezone', { exact: true }).fill('Oslo');
   await page.getByRole('button', { name: 'Save my times', exact: true }).click();
@@ -52,7 +56,7 @@ test('Unblock: contact and schedule errors preserve work; verified payment, firs
   await expect(page.getByLabel('Your timezone', { exact: true })).toHaveValue('Oslo');
   await expect(page.getByLabel('Your timezone', { exact: true })).toBeFocused();
   await expect(page.getByLabel('First conversation', { exact: true })).toHaveValue(opening);
-  await expect(page.getByLabel('Calls per month', { exact: true })).toHaveValue('5');
+  await expect(page.getByLabel('Calls per month', { exact: true })).toHaveValue('4');
   await page.getByLabel('Your timezone', { exact: true }).fill('Europe/Oslo');
   await page.getByRole('button', { name: 'Save my times', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Your chosen times', exact: true })).toBeVisible();

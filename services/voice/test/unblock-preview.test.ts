@@ -64,10 +64,10 @@ test('preview: subscription controls with simulated standing: calls per month ap
     await w.post('/unblock/action', [...schedule, ['calls', '2']]); assert.ok(w.html().includes('Preview payment confirmation'));
     await w.post('/unblock/action', { action: 'pay' });
     assert.ok(w.html().includes('data-seam="subscription"') && w.html().includes('Active')); assert.ok(w.html().includes('2 a month'));
-    await w.post('/unblock/action', { action: 'calls', calls: '6' }); assert.ok(w.html().includes('6 a month') || w.html().includes('<option value="6" selected>'), 'before the first call a change applies at once');
+    await w.post('/unblock/action', { action: 'calls', calls: '4' }); assert.ok(w.html().includes('4 a month') || w.html().includes('<option value="4" selected>'), 'before the first call a change applies at once');
     assert.ok(!w.html().includes('From your next chapter'));
     await w.post('/unblock/action', { action: 'sim_call' }); // opening held
-    await w.post('/unblock/action', { action: 'calls', calls: '3' }); assert.ok(w.html().includes('This chapter keeps 6. From your next chapter: 3.'));
+    await w.post('/unblock/action', { action: 'calls', calls: '3' }); assert.ok(w.html().includes('This chapter keeps 4. From your next chapter: 3.'));
     assert.equal((await w.post('/unblock/action', { action: 'calls', calls: '9' })).status, 400);
     for (let i = 0; i < 6; i++) await w.post('/unblock/action', { action: 'sim_call' });
     assert.ok(w.html().includes('Where you landed')); await w.post('/unblock/action', { action: 'sim_month' });
