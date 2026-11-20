@@ -117,7 +117,7 @@ Same invariants as Beliefs: CSRF tokens separated by product, same-site checks, 
 | Decision | Status |
 | --- | --- |
 | Pricing | Monthly subscription, flat price whatever the calls per month; the amount is the provider product's. Month 1 = chapter 1. The earlier one-time purchase is dropped |
-| Calls per month | 1–4, default 4, caller's choice at signup and in the account; applies from the next chapter. Owner-approved 20 November: NOK 249/month, opening conversation and optional light calls included. Tax presentation remains the next review. |
+| Calls per month | 1–4, default 4, caller's choice at signup and in the account; applies from the next chapter. Owner-approved 20 November: NOK 249/month, opening conversation and optional light calls included. The owner also approved the total price including applicable VAT, itemised on the receipt. Merchant identity and the service's tax treatment must be confirmed before final checkout/receipt verification. |
 | Light call default | Optional; suggested Mon/Wed/Fri at 16:00 Europe/Oslo. Callers can choose other supported slots or none |
 | Language | English-only initial launch is owner-approved. Other language packs need their own review |
 | Bridge to Beliefs | Account page only, never in a call |

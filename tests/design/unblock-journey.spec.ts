@@ -15,6 +15,7 @@ test('Unblock: contact and schedule errors preserve work; verified payment, firs
   await page.goto(`${base}/unblock`);
   await expect(page.getByRole('link', { name: 'Begin Unblock', exact: true }).first()).toBeVisible();
   await expect(page.locator('.hero-offer')).toContainText('up to four regular calls');
+  await expect(page.locator('.hero-offer')).toContainText('including applicable VAT');
   await expect(page.locator('.hero-offer')).toContainText('opening conversation and optional light calls are included');
   await expect(page.getByRole('link', { name: 'Contact us', exact: true })).toHaveAttribute('href', 'mailto:support@example.com');
   await page.getByRole('link', { name: 'Begin Unblock', exact: true }).first().click();
@@ -60,6 +61,7 @@ test('Unblock: contact and schedule errors preserve work; verified payment, firs
   await page.getByLabel('Your timezone', { exact: true }).fill('Europe/Oslo');
   await page.getByRole('button', { name: 'Save my times', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Your chosen times', exact: true })).toBeVisible();
+  await expect(page.locator('.schedule-review')).toContainText('Applicable VAT is included and itemised on your receipt');
   await expect(page.locator('.appointment')).toHaveCount(0);
   await page.getByRole('checkbox', { name: /I am currently in Norway/ }).check();
   await page.route('https://buy.stripe.com/**', route => route.fulfill({ contentType: 'text/html', body: '<p>Synthetic checkout</p>' }));
@@ -101,6 +103,7 @@ test('Unblock: contact and schedule errors preserve work; verified payment, firs
   expect((await fixture('unblock-state', { phone })).programme.state).toBe('paused');
   await page.getByRole('button', { name: 'Resume my calls', exact: true }).click();
   await page.getByRole('button', { name: 'Cancel at the end of this period', exact: true }).click();
+  await expect(page).toHaveURL(`${base}/unblock/account?saved=cancel`);
   await page.reload();
   const ended = await fixture('unblock-state', { phone });
   expect(ended.enrollment.cancel_at_period_end).toBe(true); expect(ended.cancellations).toBe(1);
