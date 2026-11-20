@@ -6,10 +6,10 @@
 
 - Legal seller and data controller: **Nerd Valley AS**.
 - Norwegian organisation number: **927 065 223**.
-- Business address: **Kongens Gate 6, 0153 Oslo, Norway**.
+- Proposed business address: **Vargveien 1F, 0139 Oslo, Norway**, as currently listed in the official register.
 - Customer support: **hei@8and80.me**.
 
-These are the identity details currently published in the public terms. A read-only Brønnøysund check found that the configured company name matches and is VAT-registered. This does not prove that the Stripe account belongs to the same seller.
+The public terms currently use the same company, organisation number and support address, but a different business address: **Kongens Gate 6, 0153 Oslo**. A fresh read-only [Brønnøysund check](https://data.brreg.no/enhetsregisteret/api/enheter/927065223) on 20 November confirms the company name/organisation number and VAT registration and lists Vargveien 1F as its registered business address. Ask the owner to confirm the proposed registered address or identify the correct operating address; do not silently change it. Neither the public terms nor the register proves that the Stripe account belongs to this seller.
 
 ## One owner decision
 
