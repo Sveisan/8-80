@@ -57,7 +57,7 @@ name one wish, consider what keeps it waiting, choose a small step, and notice
 moments in your ordinary life. Calls are with an AI. It is a self-reflection
 service, not therapy, and it does not promise a particular result.
 
-The opening conversation is about 15–20 minutes. Choose 1–8 regular calls per
+The opening conversation is about 15–20 minutes and is included in your subscription. Choose 1–4 regular calls per
 month at the same price; regular calls are about 10–15 minutes. Calls are spread
 across each billing month using your chosen day and time. Five or more use a
 second day, three days later. An opening conversation is separate from those

@@ -1,3 +1,4 @@
+import { offerCountsValid, offeredCallCount } from './offer.ts';
 import type { IncomingMessage } from 'node:http';
 import { config, smsConfigured } from '../config.ts';
 import type { LoopDeps } from '../loop/deps.ts';
@@ -139,14 +140,14 @@ export async function unblockRoutes(req: IncomingMessage, url: URL, deps: LoopDe
   if (!loaded) return page('landing', 200, 'No Unblock enrolment is attached to this account.');
   const { enrollment: e, programme: p } = loaded;
   const [identity] = await deps.store.raw`select held_for_review,all_calls_stopped from callers where phone_hash=${hash}`;
-  const held = !!(identity?.['held_for_review'] || identity?.['all_calls_stopped']);
+  const held = !!(identity?.['held_for_review'] || identity?.['all_calls_stopped']) || !offerCountsValid(e) || !offeredCallCount(callsOf(p));
   const next = upcoming(e, p, now);
-  const callsRunning = callsAllowed(e, now) && !held && p.state === 'active';
+  const callsRunning = callsAllowed(e, now, p) && !held && p.state === 'active';
   const scheduled = e.weekly_weekday !== null && e.weekly_minute !== null;
   const live = e.standing === 'active' || e.standing === 'past_due';
   const privateOptions: PageOptions = { ...options, contact: !!contactNumber(), programme: p, csrf: csrfFor(token!), paid: live, paymentHold: e.standing === 'payment_hold', held,
     scopeConfirmed: norwayScopeConfirmed(e.norway_scope_version ?? undefined),
-    checkout: live || e.subscription_id && e.standing !== 'ended' ? '' : unblockCheckout(e.checkout_reference, NORWAY_SCOPE_VERSION), timezone: e.timezone, scheduled, calls: e.pending_calls_per_month ?? e.calls_per_month,
+    checkout: !offerCountsValid(e) || !offeredCallCount(callsOf(p)) || live || e.subscription_id && e.standing !== 'ended' ? '' : unblockCheckout(e.checkout_reference, NORWAY_SCOPE_VERSION), timezone: e.timezone, scheduled, calls: e.pending_calls_per_month ?? e.calls_per_month,
     sub: { standing: e.standing, cancelling: e.cancel_at_period_end, paidUntil: e.paid_until?.toISOString(), callsPerMonth: e.calls_per_month, pendingCalls: e.pending_calls_per_month, manageable: !!e.subscription_id && e.standing !== 'ended', timezone: e.timezone },
     weekly: e.weekly_minute !== null ? clock(e.weekly_minute) : undefined, weekday: e.weekly_weekday ?? undefined,
     lightDays: scheduled ? e.light_weekdays ?? [] : undefined, lightTime: e.light_minute !== null ? clock(e.light_minute) : undefined,
@@ -166,7 +167,7 @@ export async function unblockRoutes(req: IncomingMessage, url: URL, deps: LoopDe
     try {
       const action = form.get('action');
       if (action === 'checkout') {
-        if (!ready || live || e.subscription_id && e.standing !== 'ended') throw new BillingUnavailable();
+        if (!ready || !offerCountsValid(e) || !offeredCallCount(callsOf(p)) || live || e.subscription_id && e.standing !== 'ended') throw new BillingUnavailable();
         if (form.get('scope_norway') !== 'yes') throw new PracticeError('norway_required');
         const checkout = unblockCheckout(e.checkout_reference, NORWAY_SCOPE_VERSION);
         if (!checkout) throw new BillingUnavailable();

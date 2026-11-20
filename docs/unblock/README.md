@@ -22,7 +22,7 @@ The 8-year-old supplies the wish and the aliveness. The 80-year-old supplies the
 | | Weekly 8&80 | Beliefs | **Unblock** |
 | --- | --- | --- | --- |
 | Question | What did you commit to, what happened, what's next? | Which assumption is in the way, and what do you decide instead? | What do you actually want, what is already lit, and what is the next step? |
-| Shape | Open-ended weekly call | Daily 60–90 s practice + weekly review until retired | Monthly chapters: one opening call in month 1, then 1–8 calls a month, the last always the close |
+| Shape | Open-ended weekly call | Daily 60–90 s practice + weekly review until retired | Monthly chapters: one opening call in month 1, then 1–4 calls a month, the last always the close |
 | Durable record | One commitment per week | Beliefs, decisions, evidence, scores | One wish, named blocks, weekly steps, a light ledger, a closing reflection |
 | End | None — "for as long as it takes" | When every belief is retired or removed | When the subscription ends (cancel at period end) |
 
@@ -99,7 +99,7 @@ The verification codes (join and return) are the only other messages the web pag
 | `/unblock` | Landing: promise, the opening call, regular calls, light calls, AI disclosure, price label (`UNBLOCK_PRICE_LABEL`, never invented) |
 | `/unblock/join` | Preferred name, optional support email, editable +47 phone, adult/AI/service consent; sends a code, creates nothing until it is verified |
 | `/unblock/access`, `/unblock/verify` | Returning owner, fresh phone verification; unknown numbers get the identical response and no message. Verification sets a scoped, HttpOnly, one-hour `unblock` cookie |
-| `/unblock/schedule` | IANA zone (Oslo fallback), first conversation, **calls per month (1–8)**, regular day/time, light-call days (default Mon/Wed/Fri 16:00, or "No light calls"). All inputs live in one component, `scheduleInputs()` |
+| `/unblock/schedule` | IANA zone (Oslo fallback), first conversation, **calls per month (1–4)**, regular day/time, light-call days (default Mon/Wed/Fri 16:00, or "No light calls"). All inputs live in one component, `scheduleInputs()` |
 | `/unblock/account` | The wish and earlier versions, named blocks, steps by week with outcomes, the light ledger, the closing reflection when it exists, this month's chapter, closings per chapter, next call with move/skip (a light call can only be skipped), the **subscription card** (status line, calls per month, pause/resume, cancel at period end, manage billing), full download, whole-account deletion (which also cancels the Unblock subscription), sign out. A quiet footer line may mention the sibling programme; nowhere else does |
 
 Same invariants as Beliefs: CSRF tokens separated by product, same-site checks, `no-store`/`no-referrer`, escaped caller words, one hashed inline script, rate limits, no personal text in SMS, email or URLs. A regular call can only be moved later, before the following planned call, because the claim plans the following call from the clock.
@@ -117,7 +117,7 @@ Same invariants as Beliefs: CSRF tokens separated by product, same-site checks, 
 | Decision | Status |
 | --- | --- |
 | Pricing | Monthly subscription, flat price whatever the calls per month; the amount is the provider product's. Month 1 = chapter 1. The earlier one-time purchase is dropped |
-| Calls per month | 1–8, default 4, caller's choice at signup and in the account; applies from the next chapter. Open: the exact price and whether the label should say "from" |
+| Calls per month | 1–4, default 4, caller's choice at signup and in the account; applies from the next chapter. Owner-approved 20 November: NOK 249/month, opening conversation and optional light calls included. Tax presentation remains the next review. |
 | Light call default | Optional; suggested Mon/Wed/Fri at 16:00 Europe/Oslo. Callers can choose other supported slots or none |
 | Language | English-only initial launch is owner-approved. Other language packs need their own review |
 | Bridge to Beliefs | Account page only, never in a call |

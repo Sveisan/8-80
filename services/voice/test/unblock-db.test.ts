@@ -356,7 +356,7 @@ test('daytime booking and rescheduling enforce the approved cutoff and all recur
   await repo().schedule(hash, new URLSearchParams(fields), now);
   let e = (await programme()).enrollment;
   assert.equal(e.weekly_minute, 990); assert.equal(e.light_minute, 960);
-  const changes: Record<string, string>[] = [{ weekly: '16:31' }, { weekday: 'sat' }, { weekday: 'wed', weekly: '15:00', calls: '5' }, { light: '16:31' }];
+  const changes: Record<string, string>[] = [{ weekly: '16:31' }, { weekday: 'sat' }, { light: '16:31' }];
   for (const change of changes) {
     await assert.rejects(() => repo().schedule(hash, new URLSearchParams({ ...fields, ...change }), now), /outside_coverage/);
   }
@@ -698,4 +698,19 @@ test('incident action metadata is exported only through verified Unblock access 
   await db!.store.forget(phone);
   const [row] = await db!.sql`select attempt_id,alert_id,handoff_basis from unblock_incidents where id=${incident.id}`;
   assert.equal(row!['attempt_id'], null); assert.equal(row!['alert_id'], null); assert.equal(row!['handoff_basis'], 'human_confirmed');
+});
+
+
+test('legacy over-limit counts are held without rewriting chapter words, schedule, consent or billing', options, async () => {
+  await enroll({ opened: true, due: 'weekly' });
+  const original = await programme();
+  for (const variant of ['current', 'pending', 'frozen']) {
+    const p = { ...original.programme, ...(variant === 'frozen' ? { chapterCalls: 8 } : {}) };
+    await db!.sql`update unblock_enrollments set calls_per_month=${variant === 'current' ? 8 : 4},pending_calls_per_month=${variant === 'pending' ? 8 : null},programme_enc=${encrypt(JSON.stringify(p))} where phone_hash=${hash}`;
+    const before = await programme();
+    assert.equal((await claimUnblock(deps(), now)).length, 0, variant);
+    assert.deepEqual(await programme(), before, 'a package guard must not silently alter a legacy record');
+  }
+  assert.equal((await db!.sql`select count(*)::int as n from call_attempts`)[0]!['n'], 0);
+  assert.equal((await db!.sql`select count(*)::int as n from message_outbox`)[0]!['n'], 0);
 });

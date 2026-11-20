@@ -1,3 +1,4 @@
+import { OFFER_MAX_REGULAR_CALLS } from './offer.ts';
 import { randomUUID } from 'node:crypto';
 import { config } from '../config.ts';
 import { encrypt, decrypt } from '../store/crypto.ts';
@@ -19,7 +20,7 @@ import { advanceRouting } from './routing.ts';
 import { UnblockRepository, callsAllowed, chapterWindow, lightGuard, planWeekly, scheduleOf, signOffCall } from './repository.ts';
 import { callWeek, callsOf, chapterComplete, closeAt, finishCall, lightEnabled, monthOf, nextLight, rollChapter, slotKind, voiceProgramme, FIRST_WEEK_GAP_DAYS, type CallKind, type Programme } from './model.ts';
 import { chapterPos } from './chapters.ts';
-import { lastSlot, nextOccurrence, periodStart, weekdaysFor } from './cadence.ts';
+import { lastSlot, nextOccurrence, periodStart, periodEnd, weekdaysFor } from './cadence.ts';
 import { sessionToken, verifySessionToken, capture, verifiedProgramme, heldCall, closedSnapshot, type Snapshot } from './protocol.ts';
 
 export interface Session { programme_id: string; id: string; phone_hash: string; kind: CallKind; week: number | null; snapshot_enc: string; complete: boolean; created_at: Date; }
@@ -57,7 +58,7 @@ export async function unblockTool(deps: LoopDeps, input: unknown, now = new Date
     }
     if (safetyHeld) return unblockSafetyHold(routing);
     const loaded = await new UnblockRepository(tx, session.programme_id).load(session.phone_hash);
-    if (!loaded || !callsAllowed(loaded.enrollment, now) || loaded.programme.state !== 'active' || loaded.programme.revision !== snapshot.revision) throw new PracticeError('page_changed');
+    if (!loaded || !callsAllowed(loaded.enrollment, now, loaded.programme) || loaded.programme.state !== 'active' || loaded.programme.revision !== snapshot.revision) throw new PracticeError('page_changed');
     if (v?.['command'] === undefined || v['command'] === '') return { held: false }; // Caller-utterance safety check.
     const week = session.week ?? 0;
     const base = caller['slot_weekday'] !== null && caller['slot_minute'] !== null ? { weekday: Number(caller['slot_weekday']), minute: Number(caller['slot_minute']), timezone: String(caller['timezone']) } : null;
@@ -73,14 +74,24 @@ export function voiceContext(e: Parameters<typeof scheduleOf>[0], p: Programme, 
   return { kind, week, preferredName, now, schedule: scheduleOf(e), cancelling: e.cancel_at_period_end, ended: e.standing === 'ended', nextCallAt: signOffCall(e, p, kind, week, now) };
 }
 
+/** Completed regular calls consume the billing-period allowance; opening/light and missed attempts do not. */
+async function regularBudget(sql: postgres.TransactionSql, e: { id: string; anchor_at: Date | null }, now: Date): Promise<{ remaining: number; end: Date } | undefined> {
+  if (!e.anchor_at) return undefined;
+  const start = periodStart(e.anchor_at, now); const end = periodEnd(e.anchor_at, now);
+  const [row] = await sql`select count(*)::int as n from unblock_sessions s join call_attempts a on a.id=s.id where s.programme_id=${e.id} and s.kind='weekly' and a.status='completed'
+    and coalesce(a.started_at,a.scheduled_for)>=${start} and coalesce(a.started_at,a.scheduled_for)<${end}`;
+  return { remaining: OFFER_MAX_REGULAR_CALLS - Number(row!['n']), end };
+}
+
 export async function claimUnblock(deps: LoopDeps, now = new Date(), availableSince?: Date): Promise<Session[]> {
   const candidates = await deps.store.raw<{ id: string; phone_hash: string }[]>`select id,phone_hash from unblock_enrollments where is_current and standing in ('active','past_due') and
     (opening_at<=${now} or next_weekly_at<=${now} or next_light_at<=${now}) order by updated_at limit 50`;
   const claimed: Session[] = [];
   for (const candidate of candidates) await deps.store.raw.begin(async tx => {
     const [caller] = await tx`select held_for_review,all_calls_stopped,sms_opt_out,next_call_at from callers where phone_hash=${candidate.phone_hash} for update skip locked`; if (!caller) return;
-    const loaded = await new UnblockRepository(tx, candidate.id).load(candidate.phone_hash); if (!loaded || !callsAllowed(loaded.enrollment, now)) return;
+    const loaded = await new UnblockRepository(tx, candidate.id).load(candidate.phone_hash); if (!loaded || !callsAllowed(loaded.enrollment, now, loaded.programme)) return;
     let { enrollment: e, programme: p } = loaded;
+    const budget = await regularBudget(tx, e, now);
     const save = async (next: Programme, extra: { calls?: number } = {}): Promise<void> => {
       const pos = chapterPos(monthOf(next));
       await tx`update unblock_enrollments set programme_enc=${encrypt(JSON.stringify(next))}, revision=${next.revision}, chapter=${pos.number}, year=${pos.year},
@@ -100,13 +111,13 @@ export async function claimUnblock(deps: LoopDeps, now = new Date(), availableSi
     // Waiting for the next billing month with the close already held: nothing to place, just plan the next chapter's first call.
     const waiting = kind === 'weekly' && chapterComplete(p);
     // The call being claimed is the close when its billing month is ending or no later slot is left; a missed close is offered at the next slot, even in the next month.
-    if (kind === 'weekly' && weeklyDue && !waiting) {
+    if (kind === 'weekly' && weeklyDue && !waiting && (!budget || budget.remaining > 0)) {
       const win = chapterWindow(e, p); const week = p.weeksHeld + 1;
-      if (win && week < callsOf(p) && (e.next_weekly_at! >= win.end || now >= win.end || lastSlot({ timezone: e.timezone, weekdays: weekdaysFor(e.weekly_weekday!, callsOf(p)), minute: e.weekly_minute! }, e.next_weekly_at!, win.end))) await save(closeAt(p, week));
+      if (win && week < callsOf(p) && ((budget?.remaining ?? OFFER_MAX_REGULAR_CALLS) <= 1 || e.next_weekly_at! >= win.end || now >= win.end || lastSlot({ timezone: e.timezone, weekdays: weekdaysFor(e.weekly_weekday!, callsOf(p)), minute: e.weekly_minute! }, e.next_weekly_at!, win.end))) await save(closeAt(p, week));
     }
     const due: { kind: CallKind; at: Date }[] = [];
     if (kind === 'opening' && (openingDue || weeklyDue)) due.push({ kind, at: (openingDue ? e.opening_at : e.next_weekly_at)! });
-    else if (kind === 'weekly' && weeklyDue && !waiting) due.push({ kind, at: e.next_weekly_at! });
+    else if (kind === 'weekly' && weeklyDue && !waiting && (!budget || budget.remaining > 0)) due.push({ kind, at: e.next_weekly_at! });
     if (lightDue && lightEnabled(p, schedule)) due.push({ kind: 'light', at: e.next_light_at! });
     // Advance every due pointer first, under the caller lock: no backlog of ringing after an outage, hold or pause.
     const finished = p.state === 'completed' || kind === undefined;
@@ -114,7 +125,7 @@ export async function claimUnblock(deps: LoopDeps, now = new Date(), availableSi
     // An opening call (whether from its own date or the weekly slot) starts the gap before the first regular call: an unfinished opening is offered again at the next usual slot, not hours later.
     // A regular call plans the next one assuming it is held; if it is not, the next claim plans again from what was actually held.
     const cad = e.weekly_weekday !== null && e.weekly_minute !== null ? { timezone: e.timezone, weekdays: weekdaysFor(e.weekly_weekday, callsOf(p)), minute: e.weekly_minute } : null;
-    const nextWeekly = openingClaim ? planWeekly(e, p, new Date(+now + FIRST_WEEK_GAP_DAYS * 86400_000))
+    const nextWeekly = kind === 'weekly' && weeklyDue && budget && budget.remaining <= 0 && cad ? nextOccurrence(cad, new Date(+budget.end - 1)) : openingClaim ? planWeekly(e, p, new Date(+now + FIRST_WEEK_GAP_DAYS * 86400_000))
       : weekly ? (p.weeksHeld + 1 >= callsOf(p) ? (cad ? nextOccurrence(cad, now) : null) : planWeekly(e, p, now, callsOf(p) - p.weeksHeld - 1))
         : weeklyDue && waiting ? planWeekly(e, p, now) : e.next_weekly_at;
     const followingLight = !finished && lightEnabled(p, schedule) ? nextLight(now, schedule.lightWeekdays, schedule.lightMinute!, e.timezone) : null;
@@ -168,13 +179,14 @@ export async function tickUnblock(deps: LoopDeps, now = new Date(), fetcher: typ
         if (!available.available || !withinCallWindow(dispatchAt) || !attempt || attempt['scheduled_for'] < available.checkedInAt!) throw new PracticeError('dispatch_stopped');
         const [caller] = await tx`select name,held_for_review,all_calls_stopped,sms_opt_out from callers where phone_hash=${s.phone_hash} for update`;
         const loaded = await new UnblockRepository(tx, s.programme_id).load(s.phone_hash);
-        if (!caller || caller['held_for_review'] || caller['all_calls_stopped'] || caller['sms_opt_out'] || !loaded || !callsAllowed(loaded.enrollment, now) || loaded.programme.state !== 'active') throw new PracticeError('dispatch_stopped');
+        if (!caller || caller['held_for_review'] || caller['all_calls_stopped'] || caller['sms_opt_out'] || !loaded || !callsAllowed(loaded.enrollment, now, loaded.programme) || loaded.programme.state !== 'active') throw new PracticeError('dispatch_stopped');
         const phone = await deps.store.in(tx).phoneFor(s.phone_hash); if (!phone) throw new PracticeError('dispatch_stopped');
         const c = unblockConfig(); const week = s.week ?? 0;
         const context = voiceProgramme(loaded.programme, voiceContext(loaded.enrollment, loaded.programme, s.kind, week, loaded.programme.contact?.name || caller['name'] || '', now));
         // A database lock/load can cross the cutoff. Check the clock again at the actual placement boundary.
         const placementAt = new Date(+now + Math.floor(performance.now() - started));
         if (!withinCallWindow(placementAt) || !available.expiresAt || available.expiresAt <= placementAt || await blockingUnblockIncident(tx, placementAt)) throw new PracticeError('dispatch_stopped');
+        if (s.kind === 'weekly' && ((await regularBudget(tx, loaded.enrollment, placementAt))?.remaining ?? 1) <= 0) throw new PracticeError('dispatch_stopped');
         const response = await fetcher('https://api.speechify.ai/v1/agents/outbound-calls', { method: 'POST', redirect: 'error', signal: AbortSignal.timeout(20000),
           headers: { authorization: `Bearer ${process.env['SPEECHIFY_API_KEY']}`, 'content-type': 'application/json', 'Idempotency-Key': `unblock:${s.id}` },
           body: JSON.stringify({ agent_id: c.agentIds[s.kind], to: phone, ...(config.speechify.callerIdNumber ? { caller_id_number: config.speechify.callerIdNumber } : {}),
@@ -207,7 +219,7 @@ export async function settleUnblock(payload: unknown, deps: LoopDeps, event?: st
     const flagged = await safety(tx, s, said, now); const snapshot = JSON.parse(decrypt(s.snapshot_enc)) as Snapshot; const week = s.week ?? 0;
     const repo = new UnblockRepository(tx, s.programme_id); const loaded = await repo.load(s.phone_hash);
     let status = 'interrupted'; let canonicalVerified = false;
-    if (!flagged && !caller['held_for_review'] && !caller['all_calls_stopped'] && !caller['sms_opt_out'] && loaded && callsAllowed(loaded.enrollment, now) && loaded.programme.state === 'active'
+    if (!flagged && !caller['held_for_review'] && !caller['all_calls_stopped'] && !caller['sms_opt_out'] && loaded && callsAllowed(loaded.enrollment, now, loaded.programme) && loaded.programme.state === 'active'
       && loaded.programme.revision === snapshot.revision && said.trim() && eventOf(payload, event) === 'conversation.completed') {
       try {
         const verified = verifiedProgramme(snapshot, callerTurns);

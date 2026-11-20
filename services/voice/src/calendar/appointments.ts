@@ -33,10 +33,10 @@ export async function bookedAppointments(sql: Database, hash: string, now: Date)
   }
   if (unblockConfig().live) {
     const loaded = await new UnblockRepository(sql).load(hash);
-    if (loaded?.programme.state === 'active' && callsAllowed(loaded.enrollment, now)) {
+    if (loaded?.programme.state === 'active' && callsAllowed(loaded.enrollment, now, loaded.programme)) {
       const { enrollment: e, programme: p } = loaded;
       const put = (kind: string, date: Date | null): void => {
-        if (date && callsAllowed(e, date)) add(`unblock:${e.id}:${kind}`, date, e.timezone);
+        if (date && callsAllowed(e, date, loaded.programme)) add(`unblock:${e.id}:${kind}`, date, e.timezone);
       };
       const kind = slotKind(p);
       if (kind === 'opening') put('opening', e.opening_at ?? e.next_weekly_at);

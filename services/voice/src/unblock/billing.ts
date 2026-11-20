@@ -8,7 +8,7 @@ import type { Change } from '../billing/types.ts';
 import type { LoopDeps } from '../loop/deps.ts';
 import { dispatchMessage, enqueue } from '../messages/outbox.ts';
 import { unblockConfig } from './config.ts';
-import { UnblockRepository, type Enrollment } from './repository.ts';
+import { UnblockRepository, callsAllowed, type Enrollment } from './repository.ts';
 import type { Programme } from './model.ts';
 import { decrypt } from '../store/crypto.ts';
 import { describeAppointment } from '../schedule/time.ts';
@@ -70,7 +70,7 @@ export async function applySubscription(deps: LoopDeps, enrollmentId: string, ch
     const [current] = await tx<Enrollment[]>`select * from unblock_enrollments where id = ${row.id}`;
     if (standing === 'active' && (row.standing === 'awaiting_payment' || row.standing === 'ended')) {
       await UnblockRepository.activate(tx, current!, programme, now);
-      noticeId = await confirmation(tx, deps, current!.phone_hash, provider, sub.subscriptionId, now);
+      if (callsAllowed(current!, now, programme)) noticeId = await confirmation(tx, deps, current!.phone_hash, provider, sub.subscriptionId, now);
     } else if (standing === 'ended' && row.standing !== 'ended') await UnblockRepository.end(tx, current!, programme, now);
     else if ((standing === 'active' || standing === 'past_due') && (row.cancel_at_period_end !== sub.cancelAtPeriodEnd || +(row.paid_until ?? 0) !== +(paidUntil ?? 0))) await UnblockRepository.replan(tx, current!, programme, now);
   });
