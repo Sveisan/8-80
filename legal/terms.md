@@ -59,14 +59,15 @@ service, not therapy, and it does not promise a particular result.
 
 The opening conversation is about 15–20 minutes and is included in your subscription. Choose 1–4 regular calls per
 month at the same price; regular calls are about 10–15 minutes. Calls are spread
-across each billing month using your chosen day and time. Five or more use a
-second day, three days later. An opening conversation is separate from those
-regular calls. Optional light calls last about a minute, on evenings you choose.
+across each billing month using your chosen day and time. The opening conversation
+does not count against your regular-call allowance. Optional light calls are also
+included and last about a minute, on weekdays you choose within our calling hours.
 A missed conversation is offered at the next usual time; missed or skipped calls
 are not added as extra appointments. You may pass on a question or end a call.
 
 Unblock has its own subscription and does not start a weekly 8&80 subscription.
-The actual price, currency, taxes, and renewal terms are shown before payment.
+The price is NOK 249/month, including applicable VAT. VAT is itemised on your
+receipt. The full price and renewal terms are shown before payment.
 Calls start only after the provider confirms payment and your times are saved.
 Each billing month is a chapter. Frequency changes after your first conversation
 apply from the next chapter; your account explains the current and pending choice.
