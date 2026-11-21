@@ -52,6 +52,9 @@ for the selected provider and service before paid enrollment opens.
 
 ## Separate Unblock subscription
 
+Your Unblock seller is {{company}}{{orgnr_clause}}, at {{address}}.
+Contact {{support_email}} for support.
+
 Unblock is a separate monthly programme for adults. Phone conversations help you
 name one wish, consider what keeps it waiting, choose a small step, and notice
 moments in your ordinary life. Calls are with an AI. It is a self-reflection
