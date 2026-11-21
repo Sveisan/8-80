@@ -1,6 +1,6 @@
-# Consumer notice drafts · final send approval pending
+# Consumer notices · owner-approved
 
-Version: unblock-consumer-2026-11-21. **Not approved; not sent.** The exact-version consumer-notice gate remains off. No attachment is used: the full information is in the contract email body and is also downloadable in the private account. Dates/reference below are examples, not a real booking or recipient.
+Version: unblock-consumer-2026-11-21. **Owner-approved 21 November 2026**, including both templates, all listed variants and the limited automatic sending rule. No email was sent to test or implement this approval. Set the exact-version consumer-notice gate to this version; enrolment/live-call and price-readiness gates remain off. No attachment is used: the full information is in the contract email body and is also downloadable in the private account. Dates/reference below are examples, not a real booking or recipient.
 
 ## Envelope and bounded sending rule
 
@@ -9,7 +9,7 @@ Version: unblock-consumer-2026-11-21. **Not approved; not sent.** The exact-vers
 - Recipient rule: only the contract email explicitly entered and confirmed twice by the phone-verified buyer during their own pre-payment review. It is stored separately from the weekly-call email. Example recipient: subscriber@example.com. No CC/BCC, operator copy, marketing or reflection content.
 - Contract trigger: the app has recorded canonical provider subscription/invoice evidence for this reviewed contract. One deterministic outbox intent per contract; retries keep the same transport identity. Queue/acceptance is not delivery. Calls remain held until information delivery and the early-start/deadline condition are met.
 - Withdrawal trigger: that authenticated customer submits withdrawal, or a human records a clear customer notice. One acknowledgement per request; a retry does not move the deadline. This says receipt, not completed cancellation/refund. A late contract email explicitly states when withdrawal has already been requested.
-- Approval requested is for these exact versioned templates **and this automatic customer-initiated delivery rule**, as a bounded exception to per-message final approval in the root AGENTS.md. It authorises no other email/SMS or activation. Keep the gate off until this approval is explicit.
+- The owner explicitly approved these exact versioned templates **and this automatic customer-initiated delivery rule**: “Yes, approve both email templates, their listed variants and the limited automatic sending rule. Go ahead and implement it, then let’s review the Stripe merchant, VAT and receipt setup.” This is a bounded exception to per-message final approval in the personal AGENTS.md. It authorises no other email/SMS or activation. Any content, variant or recipient-rule change requires a new version and approval.
 
 ## 1. Contract confirmation
 
