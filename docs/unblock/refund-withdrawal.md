@@ -1,0 +1,28 @@
+# Refund and withdrawal terms · next owner review
+
+21 November 2026. **Proposal only; not approved or applied.** Merchant/controller identity, the four-call package and VAT-inclusive price presentation are approved. Enrolment stays closed. Existing cancellation and call-pause behaviour is preserved.
+
+## One proposed launch policy
+
+1. **Initial withdrawal / full refund:** a consumer may withdraw within 14 days after entering the Unblock subscription contract, without giving a reason. For launch, voluntarily refund the whole initial NOK 249 payment even if opening, regular or light calls have taken place; no call deduction, administration fee or compulsory credit. This company policy must not shorten any statutory period extended by missing information or otherwise reduce statutory rights. It does not create a fresh statutory withdrawal period on every ordinary renewal.
+2. **Early calls:** an optional, unticked request asks explicitly to start calls before the withdrawal period ends. If declined, do not start until it ends. Do not describe that request, a payment, a booked appointment or the first call as a withdrawal waiver. Because this is an ongoing subscription, do not represent one call as full performance of the contract. The voluntary full-refund rule above still applies.
+3. **Renewal / pause:** cancellation stops future renewals once confirmed by the payment provider; ordinary cancellation keeps access until the paid period ends. Pausing calls continues billing, as already approved. Outside withdrawal, ordinary unused time or a missed call does not automatically create a pro-rata refund, without limiting rights for faulty or missing service.
+4. **Our service failure:** where Unblock cannot provide paid service through its own fault, offer a proportionate monetary refund for the affected service; if the paid month cannot be provided, refund that month in full. Do not force an account credit. Review duplicate/incorrect charges and other complaints individually without imposing a refund-request deadline that cuts off statutory claims.
+5. **Easy request and repayment:** provide a distinct “Withdraw and request a refund” account action, alongside the existing renewal-cancellation control, and accept a clear email to hei@8and80.me; the standard withdrawal form is available but never compulsory. A withdrawal request promptly stops new Unblock calls and initiates stopping renewal, independently of the refund-provider response. Confirm receipt separately from completed cancellation/refund. Return a withdrawal payment without undue delay and no later than 14 days after receiving the notice, to the original payment method unless the consumer expressly agrees otherwise. A provider failure remains an unresolved operator task; never label a mere request as money refunded.
+
+## Required implementation if approved
+
+- Before payment, show the contract start, total NOK 249 monthly price, recurring terms, cancellation/withdrawal distinction, withdrawal information and standard form. Do not describe payment date or first call as a later statutory start date if the contract was formed earlier.
+- Store the contract/information version, agreement timestamp, initial withdrawal deadline and explicit early-start choice separately from service/scope consent. Keep the authoritative contract-acceptance timestamp and provider payment timestamp distinct; webhook arrival time must not invent or shorten either date. Respect extended statutory deadlines where information was not properly supplied.
+- Send the contract/withdrawal information and early-start request confirmation on a durable medium, and acknowledge an online withdrawal on a durable medium. Prepare exact templates for owner approval before activating customer sends, following AGENTS.md. No email/SMS is authorised by this draft.
+- Keep withdrawal separate from cancelling renewal and from deleting account history. A request must remain available during a review hold or paused calls. Repeated requests must not create duplicate refunds. Correct operator verification and provider status transitions must be implemented before promising the new action publicly.
+- Provide a minimal private operator workflow for refunds and service-failure review, separate from urgent safety incidents. It does not alter weekly 8&80 or Beliefs refund rules.
+- Publish these Unblock-specific terms, the form, early-start control and request action only after owner approval and implementation/verification. This policy is an owner/business decision, not qualified Norwegian consumer/privacy legal sign-off.
+
+## Primary sources checked 21 November 2026
+
+- [Angrerettloven, chapter 6, §§ 20–26](https://lovdata.no/nav/lov/2014-06-20-27/kap6): withdrawal notice, time limit, repayment and payment for early service.
+- [Angrerettloven, chapter 5](https://lovdata.no/dokument/NL/lov/2014-06-20-27/KAPITTEL_5): pre-contract and durable confirmation requirements, and an explicit early-service request.
+- [Government withdrawal guidance](https://www.regjeringen.no/contentassets/6d6b5195d1ee4133977bf5339d1623d9/veileder-angrerett-2017.pdf): subscription services and calculation of the statutory period. This guide is dated 2017; the current statute controls later amendments, including electronic withdrawal requirements.
+
+The proposed full initial refund even after calls is a voluntary business policy, not a claim that every used service is legally refundable in full. It preserves more favourable mandatory rights and requires qualified review of Unblock's exact service classification and checkout materials before launch.
