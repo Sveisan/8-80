@@ -304,6 +304,67 @@ test.describe('while travelling', () => {
   });
 });
 
+test('account appearance follows the browser preference through scheduling and stays scoped to /me', async ({ page, request }, testInfo) => {
+  const phone = testInfo.project.name === 'chromium' ? '+4792190101' : '+4792190201';
+  const { link } = await fixture(request, 'seed', { phone, paid: true });
+  await page.emulateMedia({ colorScheme: 'light' });
+  if (testInfo.project.name === 'mobile-safari') await page.setViewportSize({ width: 320, height: 667 });
+  const root = page.locator('html');
+  const appearance = async (theme: 'dark' | 'light') => {
+    await expect(root).toHaveAttribute('data-theme', theme);
+    await expect(page.getByRole('button', { name: theme === 'dark' ? 'Light mode' : 'Dark mode', exact: true })).toBeVisible();
+    expect(await root.evaluate(el => getComputedStyle(el).colorScheme)).toBe(theme);
+    expect(await root.evaluate(el => el.scrollWidth)).toBeLessThanOrEqual((await page.evaluate(() => document.documentElement.clientWidth)) + 1);
+  };
+  await page.goto('/me');
+  await appearance('dark');
+  await signIn(page, request, phone);
+  await page.goto('/me');
+  const original = await page.locator('.appointment').getAttribute('datetime');
+  for (const theme of ['dark', 'light'] as const) {
+    if (theme === 'light') await page.getByRole('button', { name: 'Light mode', exact: true }).click();
+    await page.reload();
+    await appearance(theme);
+    await page.screenshot({ path: testInfo.outputPath(`account-${theme}.png`) });
+    await page.locator('#move-call summary').click();
+    await page.locator('#once-time').fill('18:00');
+    await page.getByRole('button', { name: 'Review new time', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Review new time' })).toBeVisible();
+    await appearance(theme);
+    const cancel = page.getByRole('link', { name: 'Cancel change', exact: true });
+    await expect(cancel).toBeInViewport({ ratio: 1 });
+    await page.screenshot({ path: testInfo.outputPath(`review-${theme}.png`) });
+    await cancel.click();
+    await expect(page.locator('.appointment')).toHaveAttribute('datetime', original!);
+    await page.getByRole('button', { name: 'Pause calls', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Pause your calls?' })).toBeVisible();
+    await appearance(theme);
+    await page.locator('button[value="stop-confirm"]').click();
+    await expect(page.getByRole('heading', { name: 'Calls paused' })).toBeVisible();
+    await appearance(theme);
+    await page.getByRole('button', { name: 'Resume calls', exact: true }).click();
+    await expect(page.locator('.appointment')).toHaveAttribute('datetime', original!);
+    await page.getByRole('button', { name: 'Skip this call', exact: true }).click();
+    await page.goto('/me');
+    await appearance(theme);
+    await page.getByRole('button', { name: 'Undo skip', exact: true }).click();
+    await expect(page.locator('.appointment')).toHaveAttribute('datetime', original!);
+  }
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await page.goto('/me');
+  await appearance('light');
+  await page.getByRole('button', { name: 'Dark mode', exact: true }).click();
+  await page.reload();
+  await appearance('dark');
+  await page.emulateMedia({ colorScheme: 'light' });
+  for (const independent of ['/start', String(link)]) {
+    await page.goto(independent);
+    await expect(root).not.toHaveAttribute('data-theme', 'dark');
+    await expect(page.locator('.account-theme')).toHaveCount(0);
+    expect(await root.evaluate(el => getComputedStyle(el).colorScheme)).toBe('light');
+  }
+});
+
 test('a stale private form does not overwrite newer saved goals', async ({ page, request }, testInfo) => {
   const phone = testInfo.project.name === 'chromium' ? '+4792140101' : '+4792140201';
   await fixture(request, 'seed', { phone });

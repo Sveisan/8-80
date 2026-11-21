@@ -46,9 +46,9 @@ if (process.argv.includes('--build')) {
     '/start/code': () => codePage('+47 900 00 000', script),
     '/access': () => accessPage(script),
     '/access/code': () => accessCodePage(script, 'synthetic', '+47 900 00 000'),
-    '/me': () => reschedulePage(slot, script, 'en', 'alex@example.com', undefined, { now, next, contact: true, goals: true, account: { billing: 'active', canCall: true, paused: false } }),
-    '/me/paused': () => reschedulePage(slot, script, 'en', undefined, undefined, { account: { billing: 'active', canCall: true, paused: true, subscribed: true } }),
-    '/me/stop': () => confirmStopPage(script),
+    '/me': () => reschedulePage(slot, script, 'en', 'alex@example.com', undefined, { now, next, via: 'browser', contact: true, goals: true, account: { billing: 'active', canCall: true, paused: false } }),
+    '/me/paused': () => reschedulePage(slot, script, 'en', undefined, undefined, { via: 'browser', account: { billing: 'active', canCall: true, paused: true, subscribed: true } }),
+    '/me/stop': () => confirmStopPage(script, 'en', undefined, 'browser'),
     '/me/stopped': () => stoppedPage(script),
     '/me/expired': () => gonePage(script),
     '/memory': () => memoryPage({ revision: 'synthetic', commitment: 'Make room for one evening without plans.', goals: 'Spend more time outside.\nStay in touch with old friends.' }, script),
@@ -86,7 +86,7 @@ if (process.argv.includes('--build')) {
       : pages[url.pathname]?.();
     const theme = url.searchParams.get('theme');
     if (page && (theme === 'light' || theme === 'dark')) {
-      page = page.replace(/<html([^>]*)>/, (_, attributes: string) => `<html${attributes.replace(/ data-theme="[^"]*"/, '')} data-theme="${theme}">`);
+      page = page.replace(/<html([^>]*)>/, (_, attributes: string) => `<html${attributes.replace(/ data-theme="[^"]*"/, '')} data-theme="${theme}" data-preview-theme>`);
     }
     res.writeHead(page ? 200 : 404, url.pathname.startsWith('/unblock') ? unblockHeaders : isBelief ? pageHeaders : { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
     res.end(req.method === 'HEAD' ? undefined : page ?? '<p>Preview not found. <a href="/">Open the handbook</a></p>');
