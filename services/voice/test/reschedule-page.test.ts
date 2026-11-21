@@ -137,7 +137,7 @@ test('a skip form targets the displayed appointment and cannot skip twice', { sk
 
     const form = { action: 'skip', skip_at: skipAt as string };
     const first = await post(base, token, form);
-    assert.match(await first.text(), /Skipped/);
+    assert.match(await first.text(), /You skipped this call\. Undo is available until its original time\./);
     const second = await post(base, token, form);
     assert.match(await second.text(), /No call changed/);
 

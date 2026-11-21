@@ -42,7 +42,8 @@ test('booking explains the call and free month; wrong codes and early resend pre
   await serve(async base => {
     const landing = await (await fetch(`${base}/start`)).text();
     assert.match(landing, /A weekly phone call with your eight- and eighty-year-old selves\./);
-    assert.match(landing, /30 days free, no card required/);
+    assert.match(landing, /30 days free\. No card required\./);
+    assert.match(landing, /NOK 249\/month only if you choose to continue/);
     assert.match(landing, /name="name"[\s\S]*?autocomplete="given-name"/);
     const request = await fetch(`${base}/start`, post({ ...booking, weekday: '4', time: '16:30', minute: '990' }));
     assert.equal(request.status, 200);

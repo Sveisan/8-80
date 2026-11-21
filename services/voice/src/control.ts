@@ -42,7 +42,6 @@ import {
   gonePage,
   reschedulePage,
   reviewMovePage,
-  unknownBrowserPage,
   GOALS_MAX,
   type PageView,
 } from './link/page.ts';
@@ -56,6 +55,7 @@ import { feedback as encouragementFeedback, recent as recentEncouragement } from
 import { readMemory, correctMemory } from './memory/context.ts';
 import { memoryPage } from './memory/page.ts';
 import { accessRoutes } from './access/routes.ts';
+import { accessPage } from './access/page.ts';
 import { beliefRoutes } from './beliefs/routes.ts';
 import { beliefTool } from './beliefs/runtime.ts';
 import { syncBeliefPurchase } from './beliefs/billing.ts';
@@ -530,7 +530,7 @@ export function controlPlane(deps: LoopDeps, secret: string | readonly string[] 
           if (opened) log('browser.refused', { why: opened.why });
           // Forgotten on our side, so forgotten on theirs: a dead cookie left
           // in place is a dead cookie sent with every request for a week.
-          return html(res, 200, unknownBrowserPage(deps.script), code ? { 'set-cookie': clearBrowser() } : {});
+          return html(res, 200, accessPage(deps.script, { account: code ? 'expired' : 'signed-out' }), code ? { 'set-cookie': clearBrowser() } : {});
         }
         if (req.method === 'POST' && crossSite(req)) return send(res, 403, { error: 'forbidden' });
         const fresh = Date.now() - opened.claims.issuedAt.getTime() < FRESH_MS;
@@ -561,7 +561,7 @@ async function yourPage(
 ): Promise<void> {
   const phone = await deps.store.phoneFor(phoneHash);
   const slot = phone ? await deps.scheduler.slotFor(phone) : undefined;
-  if (!phone || !slot) return html(res, 410, via === 'link' ? gonePage(deps.script) : unknownBrowserPage(deps.script));
+  if (!phone || !slot) return html(res, 410, via === 'link' ? gonePage(deps.script) : accessPage(deps.script, { account: 'expired' }), via === 'browser' ? { 'set-cookie': clearBrowser() } : {});
   const caller = await deps.store.load(phone);
   const language = caller.language;
   const back = new URL(req.url ?? '/me', 'http://local').pathname;
@@ -576,7 +576,10 @@ async function yourPage(
     return {
       via,
       account,
-      ...(account?.skipUndo && !before ? { skipUndoReceipt: skipReceipt(phoneHash, account.skipUndo) } : {}),
+      ...(account?.skipUndo && !before ? { skipUndo: {
+        receipt: skipReceipt(phoneHash, account.skipUndo),
+        skippedAt: new Date(account.skipUndo.skippedAt),
+      } } : {}),
       ...(encouragementAvailable(phoneHash) ? { encouragement: {
         preferences: await loadPreferences(deps.store.raw, phoneHash, slot.timezone),
         history: await recentEncouragement(deps.store.raw, phoneHash), note: encouragementNote,

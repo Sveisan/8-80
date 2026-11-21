@@ -1624,6 +1624,9 @@ and no way to send START, so the way back cannot live only in a message._
 `page.skip.saved`
 > "Skipped one call."
 
+`page.skip.deadline`
+> "You skipped this call. Undo is available until its original time."
+
 `page.skip.unchanged`
 > "No call changed. Check the schedule below."
 
@@ -1679,11 +1682,14 @@ about tone._
 > week's call asks how it went."
 
 `signup.free`
-> "Nothing for the first month, and we don't ask for a card. After that, you decide whether
-> it's earned its fifteen minutes."
+> "Your first 30 days are free, with no card required. Calls stop after the trial unless
+> you choose to continue for NOK 249 per month."
 
-_Said once, near the button, and never again. A free trial repeated three times on one
-page is a page that does not believe its own offer._
+`signup.offer.trial`
+> "30 days free. No card required."
+
+`signup.offer.paid`
+> "NOK 249/month only if you choose to continue."
 
 `signup.honest`
 > "An AI. It keeps a written note so the next call can pick up where you left off. You can stop at any time. Our Privacy page explains storage and service providers."
@@ -2141,11 +2147,8 @@ _Where the export and delete buttons would be, for a browser that is only rememb
 where they are rather than hiding that they exist — privacy.md promises both from the link
 in every text, and that is still true._
 
-`page.browser.gone`
-> "This browser doesn't remember you"
-
 `page.browser.gone.detail`
-> "Sessions last a week. Verify your phone number to open your calls on this browser."
+> "Your session ended. Verify your phone number to open your calls again."
 
 _An expired session offers phone verification without changing their booking._
 
@@ -2445,10 +2448,7 @@ ask another confirmation question just to read these facts out._
 > "One wish you have kept for someday? Unblock is a separate monthly programme to work through it."
 
 `signup.verify.detail`
-> "First, we’ll text you a code. After you confirm it, we’ll call at the time you choose."
-
-`signup.terms.summary`
-> "30 days free, no card required. Calls stop when the free month ends unless you choose to continue. Any paid plan and its price are shown before you pay."
+> "Confirm the code we text you to book your first call."
 
 `signup.code.pending`
 > "Enter the latest code for {{phone}}, or use the options below."
@@ -2644,12 +2644,6 @@ ask another confirmation question just to read these facts out._
 `signup.appointment.check`
 > "Check first call date"
 
-`signup.appointment.check.detail`
-> "Check the date for your chosen day and time. If you change either, check again before booking."
-
-`signup.appointment.detail`
-> "Your weekly call uses this time. Confirm your number before the appointment to keep this first date."
-
 `page.section.call`
 > "Your next call"
 
@@ -2709,11 +2703,8 @@ _Explicit opt-in. Generic messages only: no private call details on a lock scree
 `signup.eyebrow`
 > "A weekly call. A little perspective."
 
-`signup.booking.step`
-> "Your first conversation"
-
 `signup.booking.title`
-> "Make a little room for yourself"
+> "Book your first call"
 
 `signup.visual.today`
 > "You, today"
@@ -3022,7 +3013,7 @@ _Explicit opt-in. Generic messages only: no private call details on a lock scree
 > "Keep my calls"
 
 `page.account.notes`
-> "Open my commitment and goals"
+> "View my notes"
 
 `page.account.preferences`
 > "Preferences"

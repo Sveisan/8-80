@@ -19,7 +19,7 @@ export async function accessRoutes(req: IncomingMessage, url: URL, deps: LoopDep
   const { script } = deps;
   let quality = url.searchParams.get('for') === 'call-quality';
   let memory = url.searchParams.get('for') === 'memory';
-  const page = (status: number, note?: string, phone?: string): Answer => ({ status, body: accessPage(script, phone, note, memory, quality) });
+  const page = (status: number, note?: string, phone?: string): Answer => ({ status, body: accessPage(script, { ...(phone !== undefined ? { phone } : {}), note, memory, quality }) });
   if (req.method === 'GET') return page(200);
   if (req.method !== 'POST') return page(405);
   if (crossSite(req)) return page(403, 'access.tryagain');

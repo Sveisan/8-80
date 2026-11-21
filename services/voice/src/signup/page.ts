@@ -149,6 +149,8 @@ export function signupPage(
              ${describedBy ? `aria-describedby="${describedBy}"` : ''} ${extra} />
       ${note(name)}`;
   };
+  const offer = `<p class="booking-offer"><strong>${say('signup.offer.trial')}</strong> <span>${say('signup.offer.paid')}</span></p>`;
+  const manualDateCheck = `<button type="submit" class="date-check" formaction="/start/preview" formnovalidate>${say('signup.appointment.check')}</button>`;
 
   return shell(
     `
@@ -160,7 +162,12 @@ export function signupPage(
     <h1 id="intro-heading">${say(headline)}${second}</h1>
     ${inFaq('signup.honest') ? '' : `<p class="honest">${say('signup.honest')}</p>`}
 
-    <p class="honest intro-summary">${say('signup.summary')}</p><p class="honest intro-summary">${say('signup.summary.detail')} ${say('signup.honest.short')}</p>
+    <p class="honest intro-summary">${say('signup.summary')} ${say('signup.honest.short')}</p>
+    <div class="intro-booking">
+      ${offer}
+      <a class="button primary" href="#book">${say('signup.submit')}</a>
+    </div>
+    <p class="honest intro-summary">${say('signup.summary.detail')}</p>
     <figure class="perspectives">
       <svg viewBox="0 0 440 170" aria-hidden="true" focusable="false">
         <path d="M80 100 C140 25 300 25 360 100" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".35"/>
@@ -175,9 +182,9 @@ export function signupPage(
     </figure>
 
     </section>
-    <section class="booking-panel" aria-labelledby="booking-heading">
-    <p class="eyebrow">${say('signup.booking.step')}</p>
+    <section class="booking-panel" id="book" tabindex="-1" aria-labelledby="booking-heading">
     <h2 id="booking-heading">${say('signup.booking.title')}</h2>
+    ${offer}
     ${state.note ? `<p class="wrong" role="alert">${say(state.note)}</p>` : ''}
     ${note('timezone')}
 
@@ -212,12 +219,9 @@ export function signupPage(
          data-unavailable="${say('signup.appointment.unavailable')}">${esc(appointmentLine)}</p>
       <noscript><style>#first-appointment { display: none; }</style>
         ${state.appointmentChecked && appointment ? `<p class="quiet small">${esc(appointmentLine)}</p>` : ''}
+        ${manualDateCheck}
       </noscript>
-      <div id="appointment-check">
-        <p class="quiet small">${say('signup.appointment.check.detail')}</p>
-        <button type="submit" formaction="/start/preview" formnovalidate>${say('signup.appointment.check')}</button>
-      </div>
-      <p class="quiet small">${say('signup.appointment.detail')}</p>
+      <div id="appointment-check" hidden>${manualDateCheck}</div>
       <details class="booking-options"${wrong.has('voice') || wrong.has('nudges') ? ' open' : ''}>
         <summary>${say('signup.options')}</summary>
       ${femaleVoiceReady() ? `<fieldset class="voice-choice"><legend>${say('signup.voice')}</legend><div class="voice-options">
@@ -230,8 +234,6 @@ export function signupPage(
       </details>
       <p class="quiet small" id="signup-verify">${say('signup.verify.detail')}</p>
       <button class="primary" aria-describedby="signup-verify">${busyLabel(say('signup.submit'))}</button>
-      ${inFaq('signup.free') ? '' : `<p class="quiet small centre">${say('signup.free')}</p>`}
-      <p class="quiet small centre">${say('signup.terms.summary')}</p>
     </form>
     </section>
     </div>
@@ -291,7 +293,9 @@ export function signupPage(
             timezone: document.getElementById('tz').value
           });
           preview.textContent = preview.getAttribute('data-pending');
-          fetch('/start/appointment?' + query.toString(), { cache: 'no-store' })
+          var controller = new AbortController();
+          var timeout = setTimeout(function () { controller.abort(); }, 8000);
+          fetch('/start/appointment?' + query.toString(), { cache: 'no-store', signal: controller.signal })
             .then(function (response) { if (!response.ok) throw new Error('date unavailable'); return response.json(); })
             .then(function (answer) {
               if (request !== version) return;
@@ -302,13 +306,14 @@ export function signupPage(
               if (request !== version) return;
               preview.textContent = preview.getAttribute('data-unavailable');
               check.hidden = false;
-            });
+            })
+            .finally(function () { clearTimeout(timeout); });
         };
         document.getElementById('when').addEventListener('change', updateAppointment);
         updateAppointment();
         setInterval(function () { if (!document.hidden) updateAppointment(); }, 60000);
         document.addEventListener('visibilitychange', function () { if (!document.hidden) updateAppointment(); });
-      } catch (e) {}
+      } catch (e) { document.getElementById('appointment-check').hidden = false; }
       ${TIME_PICKER_SCRIPT}
     </script>
   `,
@@ -404,6 +409,6 @@ function shell(body: string, language = 'en', wide = false): string {
 ${FOUNDATION_CSS}${CONTROL_CSS}${SIGNUP_CSS}
 </style>
 </head>
-<body><!--email_off--><main${wide ? ' class="signup-wide"' : ''}>${wide ? '' : themeToolbar}${body}</main>${themeControl}${BUSY}${MOTION}${feedbackWidget()}<!--/email_off--></body>
+<body${wide ? ' class="signup-page"' : ''}><!--email_off--><main${wide ? ' class="signup-wide"' : ''}>${wide ? '' : themeToolbar}${body}</main>${themeControl}${BUSY}${MOTION}${feedbackWidget()}<!--/email_off--></body>
 </html>`;
 }

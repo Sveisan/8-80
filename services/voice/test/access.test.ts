@@ -171,7 +171,9 @@ test('expired links and expired browsers both offer recovery', options, async ()
     assert.equal(expired.status, 410);
     assert.ok((await expired.text()).includes('href="/access"'));
     const browser = await fetch(`${base}/me`, { headers: { cookie: `browser=${cookie}` } });
-    assert.ok((await browser.text()).includes('href="/access"'));
+    const recovery = await browser.text();
+    assert.match(recovery, /Your session ended/);
+    assert.match(recovery, /<form method="post" action="\/access">/);
     assert.match(browser.headers.get('set-cookie') ?? '', /Max-Age=0/);
   });
 });

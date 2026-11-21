@@ -88,13 +88,13 @@ test('changing reduced motion stops the SVG immediately and retains the resting 
 });
 
 test('native forms remain usable without JavaScript', async ({ browser }) => {
-  const context = await browser.newContext({ javaScriptEnabled: false, baseURL: preview, viewport: { width: 375, height: 812 } });
+  const context = await browser.newContext({ javaScriptEnabled: false, hasTouch: !!test.info().project.use.hasTouch, baseURL: preview, viewport: { width: 375, height: 812 } });
   const page = await context.newPage();
   await page.goto('/start');
   await page.getByLabel('Your number', { exact: true }).fill('+4790000001');
-  await page.locator('input[name="weekday"][value="3"]').check();
+  await activate(page.locator('label.pick:has(input[name="weekday"][value="3"])'));
   await expect(page.locator('input[name="weekday"][value="3"]')).toBeChecked();
   await expect(page.locator('button.primary')).toBeEnabled();
-  await expect(page.locator('#appointment-check button')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Check first call date', exact: true })).toBeVisible();
   await context.close();
 });

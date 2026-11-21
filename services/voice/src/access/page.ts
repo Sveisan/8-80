@@ -1,10 +1,18 @@
 import type { ScriptLines } from '../script.ts';
 import { esc, shell } from '../link/page.ts';
 
-export function accessPage(script: ScriptLines, phone = '+47 ', note?: string, memory = false, quality = false): string {
+interface AccessPageOptions {
+  phone?: string;
+  note?: string | undefined;
+  memory?: boolean;
+  quality?: boolean;
+  account?: 'signed-out' | 'expired';
+}
+
+export function accessPage(script: ScriptLines, { phone = '+47 ', note, memory, quality, account }: AccessPageOptions = {}): string {
   const say = (key: string): string => esc(script.get(key) ?? '');
   const intent = memory ? 'memory' : quality ? 'call-quality' : '';
-  return shell(`<h1>${quality ? 'Sign in to Call quality' : say(memory ? 'memory.title' : 'access.title')}</h1><p class="now">${quality ? 'Use the phone number registered for owner access.' : say(memory ? 'access.memory.detail' : 'access.detail')}</p>
+  return shell(`<h1>${quality ? 'Sign in to Call quality' : say(memory ? 'memory.title' : 'access.title')}</h1><p class="now">${quality ? 'Use the phone number registered for owner access.' : say(memory ? 'access.memory.detail' : account === 'expired' ? 'page.browser.gone.detail' : 'access.detail')}</p>
     ${note ? `<p role="alert" id="access-error">${say(note)}</p>` : ''}
     <form method="post" action="/access">
       ${intent ? `<input type="hidden" name="intent" value="${intent}" />` : ''}
@@ -12,7 +20,7 @@ export function accessPage(script: ScriptLines, phone = '+47 ', note?: string, m
       <input id="phone" type="tel" name="phone" autocomplete="tel" inputmode="tel" required maxlength="32" value="${esc(phone)}"${note ? ' aria-describedby="access-error"' : ''}${note === 'signup.error.number' ? ' aria-invalid="true"' : ''} />
       <button class="primary">${say('access.send')}</button>
     </form><p class="hint">${say('access.help')} <a href="/privacy">${say('access.privacy')}</a></p>
-    <a href="/">${say('access.home')}</a>`);
+    <a href="/">${say('access.home')}</a>`, 'en', account ? 'weekly-account' : undefined, account ? script : undefined);
 }
 
 export function accessCodePage(script: ScriptLines, id: string, phone: string, note?: string, memory = false, quality = false): string {

@@ -80,7 +80,9 @@ test('the sign-up page says it is an AI, first among its questions', () => {
   const first = /<section class="faq">[\s\S]*?<summary[^>]*>([\s\S]*?)<\/summary>/.exec(page)?.[1] ?? '';
   assert.ok(first, 'no questions on the page — this test is checking nothing');
   assert.match(first, /Who&#39;s on the other end\?/, `the first question is "${first.trim()}"`);
-  assert.ok(page.includes("ask for a card"), "the free month is stated near the button");
+  const booking = page.slice(page.indexOf('id="book"'), page.indexOf('name="phone"'));
+  assert.match(booking, /30 days free\. No card required\./);
+  assert.match(booking, /NOK 249\/month only if you choose to continue/);
 });
 
 test('nothing on the sign-up page asks for a password', () => {

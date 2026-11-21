@@ -33,7 +33,7 @@ function display(at: string, browserZone?: string, bookingZone = 'Europe/Oslo') 
   assert.ok(inline);
   runInNewContext(inline, {
     document: {
-      querySelectorAll: (selector: string) => selector === 'time.appointment' ? [appointment] : [],
+      querySelectorAll: (selector: string) => selector === 'time[data-timezone]' ? [appointment] : [],
       getElementById: () => undefined,
     },
     Intl: {

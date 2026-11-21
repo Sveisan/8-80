@@ -3,6 +3,43 @@ import { test, expect, activate, fixture, signIn } from './fixtures.ts';
 
 test.beforeEach(async ({ request }) => { await fixture(request, 'reset'); });
 
+test('booking exposes the offer and keeps the submit button steady while checking the date', async ({ page }, info) => {
+  const mobile = info.project.name === 'mobile-safari';
+  if (mobile) await page.setViewportSize({ width: 320, height: 667 });
+  let release!: () => void;
+  const pending = new Promise<void>(resolve => { release = resolve; });
+  await page.route('**/start/appointment?*', async route => { await pending; await route.continue(); });
+  await page.goto('/start', { waitUntil: 'domcontentloaded' });
+  const submit = page.getByRole('button', { name: 'Book my first call', exact: true });
+  let before: number | undefined;
+  try {
+    await page.evaluate(() => document.fonts.ready);
+    await expect(page.locator('#first-appointment')).toContainText('Checking your first call date');
+    await expect(page.getByRole('button', { name: 'Check first call date', exact: true })).toBeHidden();
+    const offer = page.getByText('NOK 249/month only if you choose to continue.', { exact: true });
+    if (mobile) {
+      await expect(offer.first()).toBeInViewport({ ratio: 1 });
+      await expect(page.getByRole('link', { name: 'Book my first call', exact: true })).toBeInViewport({ ratio: 1 });
+    } else {
+      await expect(offer.last()).toBeInViewport({ ratio: 1 });
+      await expect(submit).toBeInViewport({ ratio: 1 });
+    }
+    before = (await submit.boundingBox())?.y;
+  } finally {
+    release();
+  }
+  await expect(page.locator('#first-appointment')).toContainText('First call:');
+  expect((await submit.boundingBox())?.y).toBe(before);
+  if (mobile) {
+    await activate(page.getByRole('link', { name: 'Book my first call', exact: true }));
+    await expect(page).toHaveURL(/#book$/);
+    await expect(page.getByLabel('Your number', { exact: true })).toBeInViewport({ ratio: 1 });
+  }
+  await page.route('**/start/appointment?*', route => route.fulfill({ status: 503 }));
+  await activate(page.locator('label.pick:has(input[name="weekday"]:not(:checked))').first());
+  await expect(page.getByRole('button', { name: 'Check first call date', exact: true })).toBeVisible();
+});
+
 test('booking verifies the SMS code before creating a caller and preserves field errors', async ({ page, request }, testInfo) => {
   const phone = testInfo.project.name === 'chromium' ? '+4792110101' : '+4792110201';
   await page.goto('/start');
@@ -61,7 +98,8 @@ test('SMS delivery failure gives a usable way forward', async ({ page, request }
 test('an expired verification code and an expired link lead back to recovery', async ({ page, request }, testInfo) => {
   const phone = testInfo.project.name === 'chromium' ? '+4792160101' : '+4792160201';
   await fixture(request, 'seed', { phone });
-  await page.goto('/access');
+  await page.goto('/me');
+  await expect(page.getByRole('heading', { name: 'Open your calls', exact: true })).toBeVisible();
   await page.getByLabel('Your number', { exact: true }).fill(phone);
   await activate(page.getByRole('button', { name: 'Text me a code', exact: true }));
   await expect(page.locator('#code')).toBeVisible();
@@ -121,12 +159,16 @@ test('weekly account moves, skips, private corrections and pause survive reload'
   const notes = page.getByRole('region', { name: 'Your commitment and goals' });
   await expect(calls.getByRole('button', { name: 'Pause calls', exact: true })).toBeInViewport();
   await expect(page.getByRole('region', { name: 'Plan and billing' }).getByRole('button', { name: 'Pause calls' })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Get help', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Contact us about your account', exact: true })).toHaveCount(0);
+  await expect(notes.getByRole('link', { name: 'View my notes', exact: true })).toBeHidden();
   const callBounds = (await calls.boundingBox())!;
   const notesBounds = (await notes.boundingBox())!;
   if (testInfo.project.name === 'chromium') expect(callBounds.x + callBounds.width).toBeLessThan(notesBounds.x);
   else expect(callBounds.y + callBounds.height).toBeLessThan(notesBounds.y);
   await page.screenshot({ path: testInfo.outputPath('weekly-returning.png'), fullPage: true });
   await activate(page.locator('#move-call summary'));
+  expect((await page.locator('#once-day').boundingBox())!.height).toBeGreaterThanOrEqual(44);
   const originalDay = await page.locator('#once-day').inputValue();
   const initialAt = await page.locator('.appointment').getAttribute('datetime');
   const pauseAndResume = async (expectedAt: string) => {
@@ -161,12 +203,13 @@ test('weekly account moves, skips, private corrections and pause survive reload'
   await expect(page.locator('#weekly-time')).toHaveValue('17:30');
   await pauseAndResume(onceAt!);
   await activate(page.getByRole('button', { name: 'Skip this call' }));
-  await expect(page.getByRole('status')).toContainText('Skipped');
+  await expect(page.getByRole('status')).toContainText('You skipped this call.');
   await expect(page.locator('.appointment')).not.toHaveAttribute('datetime', onceAt!);
   await expect(page.locator('.usual-time')).toContainText('17:30');
   const skippedTo = await page.locator('.appointment').getAttribute('datetime');
   await page.goto(String(link));
   await expect(page.locator('.appointment')).toHaveAttribute('datetime', skippedTo!);
+  await expect(page.locator('.skip-appointment')).toHaveAttribute('datetime', onceAt!);
   await expect(page.getByRole('button', { name: 'Undo skip' })).toBeInViewport();
   await page.screenshot({ path: testInfo.outputPath('weekly-undo-skip.png'), fullPage: true });
   await activate(page.getByRole('button', { name: 'Undo skip' }));
@@ -178,7 +221,8 @@ test('weekly account moves, skips, private corrections and pause survive reload'
   await expect(page.locator('.appointment')).toHaveAttribute('datetime', skippedTo!);
   await pauseAndResume(skippedTo!);
 
-  await activate(page.getByRole('link', { name: 'Open my commitment and goals' }));
+  await activate(notes.locator('.notes-entry > summary'));
+  await activate(notes.getByRole('link', { name: 'View my notes' }));
   await expect(page).toHaveURL(/\/access\?for=memory$/);
   await expect(page.getByText(/Confirm your phone number again/)).toBeVisible();
   await page.getByLabel('Your number', { exact: true }).fill(phone);
@@ -218,7 +262,7 @@ test('weekly account moves, skips, private corrections and pause survive reload'
   expect(weeklyState.caller).toMatchObject({ slot_weekday: 2, slot_minute: 1140, next_call_at: weeklyAt, calendar_invites_enabled: true });
   expect(weeklyState.calendarEmails).toEqual(expect.arrayContaining([expect.objectContaining({ at: weeklyAt, method: 'REQUEST' })]));
   await activate(page.getByRole('button', { name: 'Skip this call' }));
-  await expect(page.getByRole('status')).toContainText('Skipped');
+  await expect(page.locator('.skip-appointment')).toHaveAttribute('datetime', weeklyAt!);
   const laterAt = await page.locator('.appointment').getAttribute('datetime');
   expect(laterAt).not.toBe(weeklyAt);
   await activate(page.getByRole('button', { name: 'Undo skip' }));
@@ -297,9 +341,11 @@ test.describe('while travelling', () => {
     await expect(proposal.locator('.appointment-date')).toBeVisible();
     await activate(cancel);
     await activate(page.getByRole('button', { name: 'Skip this call' }));
-    await expect(page.getByRole('status')).toHaveText('Skipped one call.');
-    await expect(page.locator('.appointment-zone')).toHaveText('Los Angeles time');
-    await expect(page.locator('.booking-clock')).toContainText('17:30 · Norwegian time');
+    const skip = page.getByRole('status');
+    await expect(skip).toContainText('Undo is available until its original time');
+    await expect(skip.locator('time')).toHaveAttribute('datetime', booked!);
+    await expect(skip.locator('.appointment-zone')).toHaveText('Los Angeles time');
+    await expect(skip.locator('.booking-clock')).toContainText('17:30 · Norwegian time');
     await page.goto(String(link));
     await activate(page.getByRole('button', { name: 'Undo skip' }));
     await expect(page.locator('.appointment')).toHaveAttribute('datetime', booked!);
