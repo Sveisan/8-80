@@ -1,3 +1,4 @@
+import { stripePilotCheckout } from './billing/pilot-checkout.ts';
 import { dispatchUnblockIncidentAlerts } from './unblock/incidents.ts';
 import { qualityRoutes } from './quality/routes.ts';
 import { serveDesignAsset } from './design-system/assets.ts';
@@ -737,7 +738,10 @@ async function yourPage(
   }
   if (action === 'checkout') {
     if (state.subscribed && state.billing !== 'ended') return await page();
-    const link = checkoutLink(phoneHash, caller.email);
+    if (state.weeklyOffer === 'friend') return await page();
+    const link = state.weeklyOffer === 'pilot' && !state.subscribed
+      ? await stripePilotCheckout(deps.store.raw, phoneHash).catch(() => undefined)
+      : checkoutLink(phoneHash, caller.email);
     return link ? html(res, 303, '', { location: link }) : await page(undefined, undefined, { scheduleNote: 'page.billing.unavailable' });
   }
   if (action === 'billing-portal') {

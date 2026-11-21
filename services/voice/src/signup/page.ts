@@ -1,3 +1,4 @@
+import type { WeeklyOffer } from '../weekly/intro-pilot.ts';
 import { themeInit, themeControl, themeSwitch, themeToolbar } from '../design-system/theme.ts';
 import { BRAND_HEAD } from '../design-system/head.ts';
 import { SIGNUP_CSS } from '../design-system/pages.ts';
@@ -94,6 +95,7 @@ export interface SignupFormState {
   errors?: Invalid[];
   note?: string;
   appointmentChecked?: boolean;
+  invite?: { token: string; offer: WeeklyOffer };
   values?: Partial<Record<'name' | 'phone' | 'email' | 'weekday' | 'time' | 'timezone' | 'voice' | 'nudges' | 'calendar', string>>;
 }
 
@@ -133,7 +135,8 @@ export function signupPage(
   const selection = readBookingSlot(new URLSearchParams({ weekday, time, timezone: v.timezone || HOME }), now);
   const appointment = selection.ok ? describeAppointment(nextSlotAfter(now, selection.slot), selection.slot.timezone, language) : '';
   const appointmentLine = (script.get('signup.appointment') ?? '').replace('{{when}}', appointment);
-  const faq = FAQ.filter(([q, a]) => script.get(q) && script.get(a));
+  const offer = state.invite?.offer;
+  const faq = FAQ.filter(([q, a]) => script.get(q) && script.get(a) && (!offer || a !== 'signup.free'));
   const inFaq = (answer: string): boolean => faq.some(([, a]) => a === answer);
   const headline = script.get('signup.headline') ? 'signup.headline' : 'signup.title';
   // The claim, then its correction, set at different weights. Optional: without
@@ -187,8 +190,10 @@ export function signupPage(
     ${offer}
     ${state.note ? `<p class="wrong" role="alert">${say(state.note)}</p>` : ''}
     ${note('timezone')}
+    ${offer ? `<p class="honest" id="pilot-offer">${say('signup.invite.' + offer)}</p>` : ''}
 
     <form method="post" action="/start" novalidate>
+      ${state.invite ? `<input type="hidden" name="invite" value="${esc(state.invite.token)}" />` : ''}
       <div class="fields">
         ${field('name', say('signup.name.optional'), 'text', 'autocomplete="given-name" autocapitalize="words" maxlength="80" enterkeyhint="next"')}
         ${field('phone', say('signup.phone'), 'tel', 'autocomplete="tel" inputmode="tel" enterkeyhint="next" required')}
@@ -411,4 +416,13 @@ ${FOUNDATION_CSS}${CONTROL_CSS}${SIGNUP_CSS}
 </head>
 <body${wide ? ' class="signup-page"' : ''}><!--email_off--><main${wide ? ' class="signup-wide"' : ''}>${wide ? '' : themeToolbar}${body}</main>${themeControl}${BUSY}${MOTION}${feedbackWidget()}<!--/email_off--></body>
 </html>`;
+}
+
+export function invitationClosedPage(script: ScriptLines): string {
+  return shell(`
+    <header class="lockup">${mascot('nudge')}</header>
+    <h1>${esc(script.get('signup.invite.closed') ?? '')}</h1>
+    <p>${esc(script.get('signup.invite.closed.detail') ?? '')}</p>
+    <a href="/access">${esc(script.get('access.title') ?? '')}</a>
+  `);
 }

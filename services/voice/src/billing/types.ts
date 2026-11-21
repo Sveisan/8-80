@@ -5,6 +5,7 @@ export interface Change {
   event: string;
   provider?: 'stripe' | 'lemonsqueezy';
   eventId?: string;
+  checkout?: { id: string; currency?: string; amount?: number; mode?: string };
   cancelAtPeriodEnd?: boolean;
   /** The vendor's subscription id, as a string. */
   subscriptionId?: string;

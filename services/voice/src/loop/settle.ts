@@ -1,3 +1,4 @@
+import { consumeFreeCall } from '../weekly/intro-pilot.ts';
 import { queueQualityReview } from '../quality/queue.ts';
 import { milestone } from '../journey/measure.ts';
 import { syncCalendarInvitations } from '../calendar/invitations.ts';
@@ -163,6 +164,7 @@ async function settleInside(
       delete remembered.onboardingComplete;
     }
     await deps.store.record(phone, remembered);
+    const finishedFreeOffer = outcome.callAgain ? undefined : await consumeFreeCall(deps.store.raw, attempt.phoneHash, attempt.id);
     if (remembered.onboardingComplete) await milestone(deps.store.raw, attempt.phoneHash, 'onboarding_complete', attempt.phoneHash, now);
     if (remembered.commitment) await milestone(deps.store.raw, attempt.phoneHash, 'action_read_back', attempt.id, now);
     const caller = await deps.store.load(phone);
@@ -176,12 +178,12 @@ async function settleInside(
     const contactUrl = caller.callNumber === 2 ? contactCardUrl(publicUrl) : undefined;
     const account = await accountState(deps.store.raw, attempt.phoneHash, now);
     const recap = composeRecap(outcome.outcome, deps.script, {
-      ...(account?.billing === 'trialing' && account.trialEnds && slot ? { trialEnds: describeAppointment(account.trialEnds, slot.timezone, caller.language) } : {}),
+      ...(account?.billing === 'trialing' && !account.weeklyOffer && account.trialEnds && slot ? { trialEnds: describeAppointment(account.trialEnds, slot.timezone, caller.language) } : {}),
       ...(publicUrl ? { controlUrl: `${publicUrl}/me` } : {}),
       ...(contactUrl ? { contactUrl } : {}),
       // The next CALL, not the day the commitment lands on. Those are different
       // days, and this line is the one the caller would act on.
-      ...(nextSaid ? { nextSlot: nextSaid } : {}),
+      ...(!finishedFreeOffer && nextSaid ? { nextSlot: nextSaid } : {}),
       // The letterhead's date. In the caller's zone, because a call taken at
       // half past eight in Oslo is the previous day in UTC often enough to
       // matter, and a letter dated the day before the call reads as a mistake.

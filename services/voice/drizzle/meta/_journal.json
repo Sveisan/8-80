@@ -302,6 +302,13 @@
       "when": 1795257802176,
       "tag": "0042_unblock_consumer_rights",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1795264561304,
+      "tag": "0043_weekly_intro_pilot",
+      "breakpoints": true
     }
   ]
 }

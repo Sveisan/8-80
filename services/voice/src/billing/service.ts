@@ -1,3 +1,4 @@
+import { weeklyPilotFirstAmount } from './pilot-checkout.ts';
 import { milestone } from '../journey/measure.ts';
 import { randomUUID } from 'node:crypto';
 import { enqueue, dispatchMessage } from '../messages/outbox.ts';
@@ -10,7 +11,7 @@ import { billingGateway, providerFor, BillingUnavailable, type Subscription } fr
 import type { Change } from './types.ts';
 import { config } from '../config.ts';
 
-type Row = { phone_hash: string; ls_subscription_id: string | null; ls_customer_id: string | null; billing_provider: string | null; billing_status: string; cancel_at_period_end: boolean; paid_until: Date | null; paused: boolean; next_call_at: Date | null; slot_weekday: number | null; slot_minute: number | null; timezone: string | null };
+type Row = { weekly_offer: 'pilot' | 'friend' | null; weekly_free_calls_used: number; weekly_pilot_checkout: string | null; phone_hash: string; ls_subscription_id: string | null; ls_customer_id: string | null; billing_provider: string | null; billing_status: string; cancel_at_period_end: boolean; paid_until: Date | null; paused: boolean; next_call_at: Date | null; slot_weekday: number | null; slot_minute: number | null; timezone: string | null };
 export const gatewayFor = (deps: LoopDeps) => deps.billing ?? billingGateway();
 
 async function write(tx: postgres.TransactionSql, row: Row, sub: Subscription, now = new Date()): Promise<void> {
@@ -33,13 +34,21 @@ export async function syncBilling(deps: LoopDeps, change: Change): Promise<{ mat
     const [row] = await tx<Row[]>`select * from callers where
       (${change.phoneHash ?? null}::text is not null and phone_hash = ${change.phoneHash ?? null}) or
       (${change.phoneHash ?? null}::text is null and ls_subscription_id = ${change.subscriptionId!}) for update`;
-    if (!row) return { matched: false };
+    if (!row || row.weekly_offer === 'friend') return { matched: false };
+    const pilotFirstPayment = row.weekly_offer === 'pilot' && !row.ls_subscription_id;
+    if (pilotFirstPayment && (
+      change.provider !== 'stripe' || row.weekly_free_calls_used !== 1 || !row.weekly_pilot_checkout ||
+      !['checkout.session.completed', 'checkout.session.async_payment_succeeded'].includes(change.event) ||
+      change.checkout?.id !== row.weekly_pilot_checkout || change.checkout.mode !== 'subscription' ||
+      change.status !== 'paid' || change.checkout.currency !== 'nok' || change.checkout.amount !== weeklyPilotFirstAmount
+    )) return { matched: false };
     const provider = change.provider ?? config.billing.provider();
     if (row.billing_provider && row.billing_provider !== provider) throw new BillingUnavailable();
     // A different purchase must be reconciled, never silently replace a live subscription.
     if (row.ls_subscription_id && row.ls_subscription_id !== change.subscriptionId && row.billing_status !== 'ended') throw new BillingUnavailable();
     const sub = await gatewayFor(deps).subscription(provider, change.subscriptionId!);
     if (sub.subscriptionId !== change.subscriptionId || (change.customerId && sub.customerId !== change.customerId)) throw new BillingUnavailable();
+    if (pilotFirstPayment && sub.standing !== 'active') throw new BillingUnavailable();
     const changed = row.billing_status !== sub.standing || row.cancel_at_period_end !== sub.cancelAtPeriodEnd || row.ls_subscription_id !== sub.subscriptionId;
     await write(tx, row, sub);
     if (sub.standing === 'active') await milestone(tx, row.phone_hash, 'paid', `${sub.provider}:${sub.subscriptionId}`);

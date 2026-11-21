@@ -132,6 +132,9 @@ export const callers = pgTable(
      */
     /** When the free month runs out. Null means it never does. */
     trialEndsAt: timestamp('trial_ends_at', { withTimezone: true }),
+    weeklyOffer: text('weekly_offer').$type<'pilot' | 'friend'>(),
+    weeklyFreeCallsUsed: integer('weekly_free_calls_used').notNull().default(0),
+    weeklyPilotCheckout: text('weekly_pilot_checkout'),
     /** 'trialing' | 'active' | 'past_due' | 'cancelled' | 'comped'. */
     billingStatus: text('billing_status').notNull().default('comped'),
     /**
@@ -217,11 +220,17 @@ export const googleCalendarDeletes = pgTable('google_calendar_deletes', {
  * it once is the behaviour this product exists to be the opposite of.
  */
 
+export const weeklyInviteRedemptions = pgTable('weekly_invite_redemptions', {
+  invitation: text('invitation').primaryKey(),
+  used: integer('used').notNull(),
+});
+
 export const signups = pgTable(
   'signups',
   {
     id: text('id').primaryKey(),
     product: text('product').notNull().default('weekly'),
+    weeklyInviteEnc: text('weekly_invite_enc'),
     voice: text('voice'),
     nudges: boolean('nudges').notNull().default(false),
     calendarInvites: boolean('calendar_invites').notNull().default(false),

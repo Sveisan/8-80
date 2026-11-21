@@ -1,3 +1,4 @@
+import type { WeeklyOffer } from '../weekly/intro-pilot.ts';
 import type postgres from 'postgres';
 import type { StoredSkipUndo } from '../schedule/scheduler.ts';
 
@@ -10,6 +11,8 @@ export interface AccountState {
   googleCalendarInvites?: boolean;
   onHold?: boolean;
   billing: string;
+  weeklyOffer?: WeeklyOffer;
+  weeklyFreeCallsUsed?: number;
   canCall: boolean;
   trialEnds?: Date;
   next?: Date;
@@ -24,8 +27,8 @@ export interface AccountState {
 
 /** One snapshot of the conditions the scheduler uses, including the trial boundary. */
 export async function accountState(sql: postgres.Sql, hash: string, now = new Date()): Promise<AccountState | undefined> {
-  const [row] = await sql<{ paused: boolean; all_calls_stopped: boolean; billing_status: string; trial_ends_at: Date | null; next_call_at: Date | null; web_skip_undo: StoredSkipUndo | null; ls_subscription_id: string | null; cancel_at_period_end: boolean; paid_until: Date | null; feedback_opt_out: boolean; held_for_review: boolean; voice: string | null; nudges_enabled: boolean; calendar_invites_enabled: boolean; google_calendar:boolean }[]>`
-    select paused, all_calls_stopped, billing_status, trial_ends_at, next_call_at, web_skip_undo, ls_subscription_id, cancel_at_period_end, paid_until, feedback_opt_out, held_for_review, voice, nudges_enabled, calendar_invites_enabled,
+  const [row] = await sql<{ paused: boolean; all_calls_stopped: boolean; weekly_offer: WeeklyOffer | null; weekly_free_calls_used: number; billing_status: string; trial_ends_at: Date | null; next_call_at: Date | null; web_skip_undo: StoredSkipUndo | null; ls_subscription_id: string | null; cancel_at_period_end: boolean; paid_until: Date | null; feedback_opt_out: boolean; held_for_review: boolean; voice: string | null; nudges_enabled: boolean; calendar_invites_enabled: boolean; google_calendar:boolean }[]>`
+    select paused, all_calls_stopped, weekly_offer, weekly_free_calls_used, billing_status, trial_ends_at, next_call_at, web_skip_undo, ls_subscription_id, cancel_at_period_end, paid_until, feedback_opt_out, held_for_review, voice, nudges_enabled, calendar_invites_enabled,
       exists(select 1 from calendar_invitations i where i.phone_hash=callers.phone_hash and i.provider='google' and i.state='active') as google_calendar
       from callers where phone_hash = ${hash}
   `;
@@ -47,6 +50,7 @@ export async function accountState(sql: postgres.Sql, hash: string, now = new Da
     feedbackOptOut: row.feedback_opt_out, subscribed: !!row.ls_subscription_id, cancelAtPeriodEnd: row.cancel_at_period_end, ...(row.paid_until ? { paidUntil: row.paid_until } : {}),
     onHold: row.held_for_review, paused, stoppedByText: row.all_calls_stopped,
     billing: endedTrial ? 'trial_ended' : row.billing_status, canCall,
+    ...(row.weekly_offer ? { weeklyOffer: row.weekly_offer, weeklyFreeCallsUsed: row.weekly_free_calls_used } : {}),
     ...(next ? { scheduledAt: next } : {}),
     ...((trial || endedTrial) && row.trial_ends_at ? { trialEnds: row.trial_ends_at } : {}),
     ...(next && available(next) ? { next } : {}),

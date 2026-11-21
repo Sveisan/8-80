@@ -11,6 +11,7 @@ export interface Signup {
   voice?: 'female' | 'male';
   nudges?: boolean;
   calendarInvites?: boolean;
+  weeklyInvite?: string;
 }
 
 export type Invalid = { field: keyof Signup; why: string };

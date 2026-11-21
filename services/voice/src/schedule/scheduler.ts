@@ -96,6 +96,11 @@ export class Scheduler {
           and (not cancel_at_period_end or paid_until > ${now})
           and next_call_at is not null
           and next_call_at <= ${now}
+          and (weekly_offer is null or billing_status <> 'trialing' or not exists (
+            select 1 from call_attempts pending
+            where pending.phone_hash = callers.phone_hash
+              and pending.status in ('claimed', 'placed', 'active', 'settling')
+          ))
           and (calendar_invites_enabled=false or not exists (
             select 1 from calendar_invitations i where i.phone_hash=callers.phone_hash and i.provider='google' and i.scheduled_at=callers.next_call_at
               and (not i.google_valid or not exists (select 1 from google_calendar_sync g where g.calendar_id=i.google_calendar_id
