@@ -31,9 +31,9 @@ test('Unblock: contact and schedule errors preserve work; verified payment, firs
   await expect(page.getByLabel('Phone number', { exact: true })).toHaveValue(phone);
   await page.getByLabel('Contact email (optional)', { exact: true }).fill('alex@example.com');
   await activate(page.getByRole('button', { name: 'Send my verification code', exact: true }));
+  await expect(page.getByRole('button', { name: 'Send a new code', exact: true })).toBeVisible();
   const { code } = await fixture('code', { phone });
   expect(code).toMatch(/^\d{6}$/);
-  await expect(page.getByRole('button', { name: 'Send a new code', exact: true })).toBeVisible();
   await page.getByLabel('Verification code', { exact: true }).fill(code === '123456' ? '654321' : '123456');
   await activate(page.getByRole('button', { name: 'Choose my times', exact: true }));
   await expect(page.getByLabel('Verification code', { exact: true })).toHaveAttribute('aria-invalid', 'true');
@@ -112,7 +112,11 @@ test('Unblock: contact and schedule errors preserve work; verified payment, firs
   await activate(page.getByRole('link', { name: 'Open your account', exact: true }));
   await page.getByLabel('Phone number', { exact: true }).fill(phone);
   await activate(page.getByRole('button', { name: 'Send my verification code', exact: true }));
-  await page.getByLabel('Verification code', { exact: true }).fill((await fixture('code', { phone })).code);
+  const verificationCode = page.getByLabel('Verification code', { exact: true });
+  await expect(verificationCode).toBeVisible();
+  const { code: recoveryCode } = await fixture('code', { phone });
+  expect(recoveryCode).toMatch(/^\d{6}$/);
+  await verificationCode.fill(recoveryCode);
   await activate(page.getByRole('button', { name: 'Open my account', exact: true }));
   await expect(page.locator('.current-step')).toContainText('Ask a neighbour about a sailing course');
   await expect(page.locator('[data-seam=subscription]')).toContainText('Cancelling on');

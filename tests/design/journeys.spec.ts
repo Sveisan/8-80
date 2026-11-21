@@ -64,7 +64,9 @@ test('an expired verification code and an expired link lead back to recovery', a
   await page.goto('/access');
   await page.getByLabel('Your number', { exact: true }).fill(phone);
   await activate(page.getByRole('button', { name: 'Text me a code', exact: true }));
+  await expect(page.locator('#code')).toBeVisible();
   const { code } = await fixture(request, 'code', { phone });
+  expect(code).toMatch(/^\d{6}$/);
   await fixture(request, 'expire', { phone });
   await page.locator('#code').fill(String(code));
   await activate(page.locator('form[action="/access/verify"] button'));
@@ -345,6 +347,7 @@ test('site appearance follows the browser preference through scheduling and navi
     await activate(page.getByRole('button', { name: 'Resume calls', exact: true }));
     await expect(page.locator('.appointment')).toHaveAttribute('datetime', original!);
     await activate(page.getByRole('button', { name: 'Skip this call', exact: true }));
+    await expect(page.getByRole('button', { name: 'Undo skip', exact: true })).toBeVisible();
     await page.goto('/me');
     await appearance(theme);
     await activate(page.getByRole('button', { name: 'Undo skip', exact: true }));
