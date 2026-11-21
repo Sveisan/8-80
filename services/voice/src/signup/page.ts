@@ -135,8 +135,8 @@ export function signupPage(
   const selection = readBookingSlot(new URLSearchParams({ weekday, time, timezone: v.timezone || HOME }), now);
   const appointment = selection.ok ? describeAppointment(nextSlotAfter(now, selection.slot), selection.slot.timezone, language) : '';
   const appointmentLine = (script.get('signup.appointment') ?? '').replace('{{when}}', appointment);
-  const offer = state.invite?.offer;
-  const faq = FAQ.filter(([q, a]) => script.get(q) && script.get(a) && (!offer || a !== 'signup.free'));
+  const inviteOffer = state.invite?.offer;
+  const faq = FAQ.filter(([q, a]) => script.get(q) && script.get(a) && (!inviteOffer || a !== 'signup.free'));
   const inFaq = (answer: string): boolean => faq.some(([, a]) => a === answer);
   const headline = script.get('signup.headline') ? 'signup.headline' : 'signup.title';
   // The claim, then its correction, set at different weights. Optional: without
@@ -152,7 +152,9 @@ export function signupPage(
              ${describedBy ? `aria-describedby="${describedBy}"` : ''} ${extra} />
       ${note(name)}`;
   };
-  const offer = `<p class="booking-offer"><strong>${say('signup.offer.trial')}</strong> <span>${say('signup.offer.paid')}</span></p>`;
+  const offer = inviteOffer
+    ? `<p class="booking-offer"><strong>${say('signup.invite.' + inviteOffer)}</strong></p>`
+    : `<p class="booking-offer"><strong>${say('signup.offer.trial')}</strong> <span>${say('signup.offer.paid')}</span></p>`;
   const manualDateCheck = `<button type="submit" class="date-check" formaction="/start/preview" formnovalidate>${say('signup.appointment.check')}</button>`;
 
   return shell(
@@ -190,7 +192,6 @@ export function signupPage(
     ${offer}
     ${state.note ? `<p class="wrong" role="alert">${say(state.note)}</p>` : ''}
     ${note('timezone')}
-    ${offer ? `<p class="honest" id="pilot-offer">${say('signup.invite.' + offer)}</p>` : ''}
 
     <form method="post" action="/start" novalidate>
       ${state.invite ? `<input type="hidden" name="invite" value="${esc(state.invite.token)}" />` : ''}
