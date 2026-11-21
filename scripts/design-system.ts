@@ -48,7 +48,7 @@ if (process.argv.includes('--build')) {
     '/access/code': () => accessCodePage(script, 'synthetic', '+47 900 00 000'),
     '/me': () => reschedulePage(slot, script, 'en', 'alex@example.com', undefined, { now, next, via: 'browser', contact: true, goals: true, account: { billing: 'active', canCall: true, paused: false } }),
     '/me/paused': () => reschedulePage(slot, script, 'en', undefined, undefined, { via: 'browser', account: { billing: 'active', canCall: true, paused: true, subscribed: true } }),
-    '/me/stop': () => confirmStopPage(script, 'en', undefined, 'browser'),
+    '/me/stop': () => confirmStopPage(script),
     '/me/stopped': () => stoppedPage(script),
     '/me/expired': () => gonePage(script),
     '/memory': () => memoryPage({ revision: 'synthetic', commitment: 'Make room for one evening without plans.', goals: 'Spend more time outside.\nStay in touch with old friends.' }, script),

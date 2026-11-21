@@ -1,3 +1,4 @@
+import { themeCsp } from '../design-system/theme.ts';
 import { feedbackScriptHash } from '../product-feedback/widget.ts';
 import { createHash } from 'node:crypto';
 import { config } from '../config.ts';
@@ -15,5 +16,5 @@ export function unblockCookie(token: string, preview = false): string {
 export const pageHeaders = {
   'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'referrer-policy': 'no-referrer',
   'x-content-type-options': 'nosniff',
-  'content-security-policy': `default-src 'none'; style-src 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; connect-src 'self'; manifest-src 'self'; script-src 'sha256-${displayHash}' 'sha256-${journeyHash}' 'sha256-${feedbackScriptHash}'; form-action 'self' https://buy.stripe.com https://checkout.stripe.com https://billing.stripe.com https://*.lemonsqueezy.com; base-uri 'none'; frame-ancestors 'none'`,
+  'content-security-policy': `default-src 'none'; style-src 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; connect-src 'self'; manifest-src 'self'; script-src 'sha256-${displayHash}' 'sha256-${journeyHash}' 'sha256-${feedbackScriptHash}' ${themeCsp}; form-action 'self' https://buy.stripe.com https://checkout.stripe.com https://billing.stripe.com https://*.lemonsqueezy.com; base-uri 'none'; frame-ancestors 'none'`,
 };

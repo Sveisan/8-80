@@ -2979,12 +2979,6 @@ _Explicit opt-in. Generic messages only: no private call details on a lock scree
 `page.account.help`
 > "Get help"
 
-`page.account.theme.light`
-> "Light mode"
-
-`page.account.theme.dark`
-> "Dark mode"
-
 `page.account.incoming`
 > "We’ll call you."
 

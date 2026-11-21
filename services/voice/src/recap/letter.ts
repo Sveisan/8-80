@@ -186,11 +186,11 @@ export function letterHtml(recap: Recap, options: LetterOptions = {}): string {
 <style>
   :root { color-scheme: light dark; supported-color-schemes: light dark; }
   @media (prefers-color-scheme: dark) {
-    .ground { background: ${themes.dark.bg} !important; }
+    .ground { background: ${palette.night} !important; }
     .wordmark { color: ${palette.gold} !important; }
-    .rule { border-color: ${themes.dark.line} !important; }
-    .lead, .body { color: ${themes.dark.ink} !important; }
-    .quiet, .signoff { color: ${themes.dark.quiet} !important; }
+    .rule { border-color: #4A574D !important; }
+    .lead, .body { color: ${palette.chalk} !important; }
+    .quiet, .signoff { color: #B2BAAE !important; }
     .tick { background: ${palette.gold} !important; }
   }
 </style>

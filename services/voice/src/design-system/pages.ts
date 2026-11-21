@@ -153,6 +153,17 @@ export const SIGNUP_CSS = `
   .nudge-choice input { flex: 0 0 var(--checkbox-size); width: var(--checkbox-size); min-height: var(--checkbox-size); margin: var(--space-1) 0; accent-color: var(--accent); }
   .nudge-choice strong { display: block; color: var(--ink); font-weight: var(--weight-display); }
   .nudge-choice small { display: block; margin-top: var(--space-2); line-height: 1.6; }
+  [data-theme="dark"] .signup-intro h1 span { color: var(--link); }
+  [data-theme="dark"] .booking-panel {
+    background: linear-gradient(145deg, #27392e, #1c2a22 68%);
+    border-color: #607465;
+    box-shadow: 0 2rem 4rem -3rem #000;
+  }
+  [data-theme="dark"] .booking-panel .fields { background: #172019; border-color: #465b4c; }
+  [data-theme="dark"] .perspectives { color: #bfcabb; }
+  [data-theme="dark"] .perspectives svg circle:nth-of-type(1) { fill: var(--accent); }
+  [data-theme="dark"] .perspectives svg circle:nth-of-type(2) { fill: #bdcbbc; }
+  [data-theme="dark"] .perspectives figcaption { color: var(--quiet); }
   .signup-wide > .faq { max-width: var(--measure-reading); margin: var(--space-12) auto 0; }
   @media (min-width: ${breakpoints.split}) {
     .signup-layout { grid-template-columns: minmax(0, 1fr) minmax(0, var(--measure-form)); gap: var(--space-16); align-items: start; }
@@ -323,7 +334,7 @@ export const PRACTICE_CSS = `
 .shell{max-width:var(--measure-wide);margin: auto;padding: var(--space-8) var(--space-5) var(--space-16)}
 .brand{display:block;width:max-content;margin: 0 auto var(--space-6);text-decoration:none;color:var(--ink)}
 .brand .lockup{margin: 0}.brand .mark{display:block;width:var(--mark-brand-size);height:auto}
-.top{display:flex;flex-wrap:wrap;gap: var(--space-4);justify-content:space-between;border-top:1px solid var(--line);padding-top: var(--space-5);font-size: var(--text-caption)}
+.top{display:flex;flex-wrap:wrap;align-items:center;gap: var(--space-2) var(--space-3);justify-content:space-between;border-top:1px solid var(--line);padding-top: var(--space-5);font-size: var(--text-caption)}
 .eyebrow{color:var(--quiet);font-size: var(--text-caption);font-weight: var(--weight-control);letter-spacing:var(--tracking-wide)}
 .hero{text-align:center;padding: var(--space-16) 0 var(--space-8)}
 .hero h1{font:500 var(--text-display)/var(--leading-display) var(--font-display);letter-spacing: var(--tracking-tight);max-width:54rem;margin: 0 auto var(--space-6)}

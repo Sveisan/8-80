@@ -1,17 +1,7 @@
-/** The approved dark design is scoped to the remembered-browser account. */
+/** The approved dark design is shared by the weekly account screens. */
 export const ACCOUNT_APPEARANCE_CSS = `
   .account-header-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 0 var(--space-3); }
   .account-header-tools a { font-size: .9375rem; }
-  .account-header-tools .account-theme { width: auto; min-height: var(--target-min); padding: var(--space-2); font-size: var(--text-caption); }
-  :root[data-theme="dark"] {
-    --bg: #141b17; --ink: #f5eee2; --card: #1e2b23; --quiet: #b9c2b6;
-    --line: #435549; --control-border: #738778; --accent: #edc578; --on-accent: #231b13; --link: #e9d0a3;
-    --radius-control: .625rem; --radius-panel: 1.25rem; --bad-bg: #422c27;
-  }
-  [data-theme="dark"] body {
-    min-height: 100vh; min-height: 100svh;
-    background: radial-gradient(ellipse 48rem 34rem at 12% -8rem, #293b2f 0%, transparent 78%) no-repeat, var(--bg);
-  }
   [data-theme="dark"] .account-header { margin-bottom: 1.25rem; }
   [data-theme="dark"] .account-dashboard main > h1 { font-size: clamp(2.15rem, 4vw, 3rem); }
   [data-theme="dark"] .weekly-account .call-overview {
@@ -50,40 +40,3 @@ export const ACCOUNT_APPEARANCE_CSS = `
     [data-theme="dark"] .account-dashboard .account-sidebar { padding-inline-start: 1.875rem; }
   }
 `;
-
-const KEY = '8and80-me-theme';
-
-/** Apply the remembered choice before styles are painted. */
-export const ACCOUNT_APPEARANCE_INIT = `<script>
-  try {
-    var savedAccountTheme = localStorage.getItem('${KEY}');
-    if (!document.documentElement.hasAttribute('data-preview-theme') &&
-        (savedAccountTheme === 'light' || savedAccountTheme === 'dark')) {
-      document.documentElement.dataset.theme = savedAccountTheme;
-    }
-  } catch (e) {}
-</script>`;
-
-export const ACCOUNT_APPEARANCE_CONTROL = `<script>
-  (function () {
-    var root = document.documentElement;
-    var button = document.querySelector('.account-theme');
-    function label() {
-      button.textContent = root.dataset.theme === 'dark' ? button.dataset.light : button.dataset.dark;
-    }
-    button.addEventListener('click', function () {
-      root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
-      try { localStorage.setItem('${KEY}', root.dataset.theme); } catch (e) {}
-      label();
-    });
-    window.addEventListener('pageshow', function () {
-      try {
-        var saved = localStorage.getItem('${KEY}');
-        if (!root.hasAttribute('data-preview-theme') && (saved === 'light' || saved === 'dark')) root.dataset.theme = saved;
-      } catch (e) {}
-      label();
-    });
-    label();
-    button.hidden = false;
-  })();
-</script>`;

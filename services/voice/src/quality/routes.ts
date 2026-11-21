@@ -1,3 +1,4 @@
+import { themeCsp } from '../design-system/theme.ts';
 import type { IncomingMessage } from 'node:http';
 import type { LoopDeps } from '../loop/deps.ts';
 import type { Answer } from '../signup/routes.ts';
@@ -14,7 +15,7 @@ export const qualityOwner = (): string | undefined => {
 const headers = {
   'cache-control': 'private, no-store', 'referrer-policy': 'no-referrer',
   'x-robots-tag': 'noindex, nofollow, noarchive', 'x-content-type-options': 'nosniff',
-  'content-security-policy': "default-src 'none'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'",
+  'content-security-policy': `default-src 'none'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self'; manifest-src 'self'; script-src ${themeCsp}; form-action 'self'; frame-ancestors 'none'; base-uri 'none'`,
 };
 export async function qualityRoutes(req: IncomingMessage, url: URL, deps: LoopDeps, now = new Date()): Promise<Answer | undefined> {
   if (url.pathname !== '/call-quality' && url.pathname !== '/call-quality/signout') return undefined;

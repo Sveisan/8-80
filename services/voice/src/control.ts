@@ -674,7 +674,7 @@ async function yourPage(
     const { at, weekly } = proposal;
     const cutoff = state.cancelAtPeriodEnd ? state.paidUntil : state.trialEnds;
     if (cutoff && at >= cutoff) return await page(undefined, undefined, { moveDraft: draft, scheduleNote: 'page.move.unavailable' });
-    if (action === 'move-review') return html(res, 200, reviewMovePage(draft, at, state.next, slot, version, deps.script, language, via));
+    if (action === 'move-review') return html(res, 200, reviewMovePage(draft, at, state.next, slot, version, deps.script, language));
     if (at.toISOString() !== form.get('proposed_at')) {
       return await page(undefined, undefined, { moveDraft: draft, scheduleNote: 'page.move.stale' });
     }
@@ -724,7 +724,7 @@ async function yourPage(
     await measured(true);
     return await page(undefined, undefined, { preferenceNote: 'page.feedback.saved' });
   }
-  if (action === 'stop') return html(res, 200, confirmStopPage(deps.script, language, state, via));
+  if (action === 'stop') return html(res, 200, confirmStopPage(deps.script, language, state));
 
   // The two that hand over or destroy everything. Only from a link that
   // arrived on their phone; a browser that remembers them is not enough.

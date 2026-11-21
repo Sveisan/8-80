@@ -1,5 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
-import { test, expect } from './fixtures.ts';
+import { test, expect, activate } from './fixtures.ts';
 
 const preview = 'http://127.0.0.1:8790';
 for (const theme of ['light', 'dark']) {
@@ -22,9 +22,9 @@ test('normal and enlarged text preserve reflow and unbroken weekday labels on na
       if (path === '/me') {
         const skip = await page.getByRole('button', { name: 'Skip this call' }).boundingBox();
         expect(skip && skip.y + skip.height).toBeLessThanOrEqual(667);
-        await page.locator('#move-call summary').click();
-        await page.locator('#move-weekly summary').click();
-        await page.locator('#preferences > summary').click();
+        await activate(page.locator('#move-call summary'));
+        await activate(page.locator('#move-weekly summary'));
+        await activate(page.locator('#preferences > summary'));
       }
       for (const scale of [100, 200]) {
         await page.addStyleTag({ content: `html { font-size: ${scale}% !important; }` });
@@ -63,7 +63,7 @@ test('Unblock keeps native light-call choices visible, labelled and usable', asy
 
 test('keyboard choices, error focus and visible focus survive theme changes', async ({ page }) => {
   await page.goto(preview);
-  await page.getByRole('button', { name: 'Papir', exact: true }).click();
+  await activate(page.getByRole('button', { name: 'Papir', exact: true }));
   await page.getByRole('radio', { name: 'Thu', exact: true }).press('ArrowRight');
   await expect(page.getByRole('radio', { name: 'Fri', exact: true })).toBeChecked();
   const outline = await page.getByRole('radio', { name: 'Fri', exact: true }).evaluate(input => getComputedStyle(input.nextElementSibling!).outlineStyle);

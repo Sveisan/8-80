@@ -1,3 +1,4 @@
+import { themeInit, themeControl, themeToolbar } from '../design-system/theme.ts';
 import { BRAND_HEAD } from '../design-system/head.ts';
 import { READING_CSS } from '../design-system/pages.ts';
 import { FOUNDATION_CSS, CONTROL_CSS } from '../design-system/styles.ts';
@@ -109,8 +110,8 @@ const inline = (text: string): string =>
 /** BRAND.md §6, the same tokens as everything else. */
 function shell(title: string, body: string): string {
   return `<!doctype html>
-<html lang="en">
-<head>${BRAND_HEAD}
+<html lang="en" data-theme="dark">
+<head>${BRAND_HEAD}${themeInit}
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>${esc(title)} — 8&amp;80</title>
@@ -118,6 +119,6 @@ function shell(title: string, body: string): string {
 ${FOUNDATION_CSS}${CONTROL_CSS}${READING_CSS}
 </style>
 </head>
-<body><main>${body}</main></body>
+<body><main>${themeToolbar}${body}</main>${themeControl}</body>
 </html>`;
 }

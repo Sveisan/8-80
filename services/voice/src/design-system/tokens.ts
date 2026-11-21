@@ -15,11 +15,11 @@ export const themes = {
     'button-mark-gold': palette.gold, 'button-mark-dot': palette.gold,
   },
   dark: {
-    bg: palette.night, ink: palette.chalk, card: '#203328',
-    quiet: '#B2BAAE', line: '#4A574D', 'control-border': '#7F8E80',
-    accent: palette.gold, 'on-accent': palette.night, link: palette.gold,
-    bad: '#E6A08F', 'bad-bg': '#3B2F29',
-    'mark-ink': palette.night, 'mark-gold': palette.gold, 'mark-dot': palette.gold,
+    bg: '#141B17', ink: '#F5EEE2', card: '#1E2B23',
+    quiet: '#B9C2B6', line: '#435549', 'control-border': '#738778',
+    accent: '#EDC578', 'on-accent': '#231B13', link: '#E9D0A3',
+    bad: '#E6A08F', 'bad-bg': '#422C27',
+    'mark-ink': '#BBC8BA', 'mark-gold': palette.gold, 'mark-dot': palette.gold,
     'button-mark-gold': palette.paper, 'button-mark-dot': palette.paper,
   },
 } as const;

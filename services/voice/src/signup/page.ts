@@ -1,3 +1,4 @@
+import { themeInit, themeControl, themeSwitch, themeToolbar } from '../design-system/theme.ts';
 import { BRAND_HEAD } from '../design-system/head.ts';
 import { SIGNUP_CSS } from '../design-system/pages.ts';
 import { FOUNDATION_CSS, CONTROL_CSS } from '../design-system/styles.ts';
@@ -151,7 +152,7 @@ export function signupPage(
 
   return shell(
     `
-    <nav class="product-nav" aria-label="Products"><span aria-current="page">${say('signup.nav.weekly')}</span><a href="/unblock">Unblock</a><a href="/access">${say('page.title')}</a></nav>
+    <nav class="product-nav" aria-label="Products"><span aria-current="page">${say('signup.nav.weekly')}</span><a href="/unblock">Unblock</a><a href="/access">${say('page.title')}</a>${themeSwitch}</nav>
     <div class="signup-layout">
     <section class="signup-intro" aria-labelledby="intro-heading">
     ${LOCKUP}
@@ -394,8 +395,8 @@ export { clock };
  */
 function shell(body: string, language = 'en', wide = false): string {
   return `<!doctype html>
-<html lang="${esc(language)}">
-<head>${BRAND_HEAD}
+<html lang="${esc(language)}" data-theme="dark">
+<head>${BRAND_HEAD}${themeInit}
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>8&amp;80</title>
@@ -403,6 +404,6 @@ function shell(body: string, language = 'en', wide = false): string {
 ${FOUNDATION_CSS}${CONTROL_CSS}${SIGNUP_CSS}
 </style>
 </head>
-<body><!--email_off--><main${wide ? ' class="signup-wide"' : ''}>${body}</main>${BUSY}${MOTION}${feedbackWidget()}<!--/email_off--></body>
+<body><!--email_off--><main${wide ? ' class="signup-wide"' : ''}>${wide ? '' : themeToolbar}${body}</main>${themeControl}${BUSY}${MOTION}${feedbackWidget()}<!--/email_off--></body>
 </html>`;
 }
