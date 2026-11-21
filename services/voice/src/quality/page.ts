@@ -1,3 +1,4 @@
+import { themeInit, themeControl, themeSwitch } from '../design-system/theme.ts';
 import { BRAND_HEAD } from '../design-system/head.ts';
 import { FOUNDATION_CSS, CONTROL_CSS } from '../design-system/styles.ts';
 import { CALL_QUALITY_CSS } from '../design-system/pages.ts';
@@ -5,7 +6,7 @@ import { esc } from '../link/page.ts';
 import { FILTERS, matches, type CallReview, type Check, type Filter } from './dashboard.ts';
 
 const labels: Record<Filter, string> = { all: 'All calls', flagged: 'Flagged', uncertain: 'Uncertain', unavailable: 'Unavailable', clear: 'Clear', pending: 'Pending' };
-const shell = (body: string): string => `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Call quality · 8&amp;80</title>${BRAND_HEAD}<style>${FOUNDATION_CSS}${CONTROL_CSS}${CALL_QUALITY_CSS}</style></head><body><main class="quality"><header class="quality-header"><a href="/call-quality" class="quality-brand">8&amp;80</a><span class="eyebrow">Private · Owner access</span></header>${body}</main></body></html>`;
+const shell = (body: string): string => `<!doctype html><html lang="en" data-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Call quality · 8&amp;80</title>${BRAND_HEAD}${themeInit}<style>${FOUNDATION_CSS}${CONTROL_CSS}${CALL_QUALITY_CSS}</style></head><body><main class="quality"><header class="quality-header"><a href="/call-quality" class="quality-brand">8&amp;80</a><span class="eyebrow">Private · Owner access</span>${themeSwitch}</header>${body}</main>${themeControl}</body></html>`;
 export function qualityGate(kind: 'signin' | 'forbidden' | 'unavailable' | 'error'): string {
   const content = {
     signin: '<h1>Call quality</h1><p>Sign in with the owner’s phone number to see private call reviews.</p><a class="button primary" href="/access?for=call-quality">Sign in with a text code</a>',

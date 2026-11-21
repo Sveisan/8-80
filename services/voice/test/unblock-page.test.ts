@@ -27,7 +27,9 @@ test('every caller word is escaped, in every private section', () => {
   p = run(p, { type: 'light', text: evil, occurredOn: '2026-11-09', source: 'light_call', week: 1 }); p = run(p, { type: 'closing', text: evil, carryText: evil });
   const html = unblockPage('account', { programme: p, paid: true, preview: true });
   assert.ok(!html.includes(evil)); assert.ok(html.includes('&lt;script&gt;alert(1)&lt;/script&gt;'));
-  assert.equal((html.match(/<script>/g) ?? []).length, 2, 'only the two hashed first-party scripts exist');
+  assert.equal((html.match(/<script>/g) ?? []).length, 2, 'the two existing first-party scripts are rendered');
+  assert.equal((html.match(/<script data-site-theme>/g) ?? []).length, 2, 'the two shared theme scripts are rendered');
+  assert.equal((html.match(/<script\b/g) ?? []).length, 4, 'no other scripts are rendered');
 });
 
 test('page headers keep the display script hashed, forbid framing and referrers, and cannot reuse another product CSRF', () => {

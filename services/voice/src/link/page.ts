@@ -13,6 +13,8 @@ import { BUSY, MOTION, busyLabel } from '../signup/mascot.ts';
 import { bookingDay, bookingDays, dayValue, moveVersion, type MoveDraft } from './move.ts';
 import { feedbackWidget } from '../product-feedback/widget.ts';
 import { googleCalendarConfig, googleCalendarReady } from '../calendar/google-config.ts';
+import { themeInit, themeControl, themeSwitch, themeToolbar } from '../design-system/theme.ts';
+import { ACCOUNT_APPEARANCE_CSS } from './appearance.ts';
 
 /** Weekday names come from the locale, not from a list in this file. */
 const dayNames = (language: string): string[] => {
@@ -199,7 +201,7 @@ export function reviewMovePage(draft: MoveDraft, at: Date, current: Date | undef
       <input type="hidden" name="proposed_at" value="${esc(at.toISOString())}" />
       <button name="action" value="move-save" class="primary">${busyLabel(say('page.move'))}</button>
       <button name="action" value="move-edit">${say('page.move.edit')}</button>
-    </form>${LOCAL_APPOINTMENT_CLOCKS}`, language, 'weekly-account');
+    </form>${LOCAL_APPOINTMENT_CLOCKS}`, language, 'weekly-account', script);
 }
 
 /**
@@ -308,10 +310,6 @@ export function reschedulePage(
 
   return shell(
     `
-    <header class="account-header">
-      <a class="account-brand" href="/start">${MARK_ICON}<span>8&amp;80</span></a>
-      <a href="${supportHref}">${say('page.account.help')}</a>
-    </header>
     <h1>${say(title)}</h1>
     ${status && (!view.skipUndoReceipt || view.scheduleNote !== 'page.skip.saved') ? `<div class="account-notice">
       <p role="status">${esc(status)}</p>
@@ -421,6 +419,7 @@ export function reschedulePage(
   `,
     language,
     arranging ? 'weekly-account account-dashboard' : 'weekly-account',
+    script,
   );
 }
 
@@ -443,6 +442,15 @@ export const GOALS_MAX = 400;
 const MARK_ICON = `<svg class="mark" viewBox="12 31 96 58" aria-hidden="true" focusable="false"><path d="M51 60C46 50 37 46 31 46C23 46 17 52 17 60C17 68 23 74 31 74C37 74 46 70 51 60C57 46 69 36 81 36C95 36 103 47 103 60C103 73 95 84 81 84C69 84 57 74 51 60Z" fill="none" stroke="currentColor" stroke-width="7" stroke-linejoin="round"/><circle cx="31" cy="60" r="5" fill="#E2B653"/></svg>`;
 export const MARK = `<header class="lockup"><span class="sr">8&amp;80</span>${MARK_ICON}</header>`;
 
+function accountHeader(script: ScriptLines): string {
+  const say = (id: string) => esc(script.get(id) ?? '');
+  const help = `<a href="mailto:${esc(config.company.supportEmail() || 'hei@8and80.me')}">${say('page.account.help')}</a>`;
+  return `<header class="account-header">
+    <a class="account-brand" href="/start">${MARK_ICON}<span>8&amp;80</span></a>
+    <div class="account-header-tools">${themeSwitch}${help}</div>
+  </header>`;
+}
+
 /**
  * Where a browser that does not know anybody lands.
  *
@@ -451,7 +459,7 @@ export const MARK = `<header class="lockup"><span class="sr">8&amp;80</span>${MA
  */
 export function unknownBrowserPage(script: ScriptLines, language = 'en'): string {
   const say = (id: string): string => esc(script.get(id) ?? '');
-  return shell(`${MARK}<h1>${say('page.browser.gone')}</h1><p class="now">${say('page.browser.gone.detail')}</p><a class="save" href="/access">${say('access.title')}</a>`, language);
+  return shell(`<h1>${say('page.browser.gone')}</h1><p class="now">${say('page.browser.gone.detail')}</p><a class="save" href="/access">${say('access.title')}</a>`, language, 'weekly-account', script);
 }
 
 /**
@@ -481,7 +489,7 @@ export function confirmStopPage(script: ScriptLines, language = 'en', state?: Ac
      <form method="post">
        <button name="action" value="stop-cancel">${busyLabel(say('page.account.pause.keep'))}</button>
      </form>`,
-    language, 'weekly-account',
+    language, 'weekly-account', script,
   );
 }
 
@@ -543,7 +551,8 @@ export function forgottenPage(script: ScriptLines, language = 'en'): string {
 }
 
 export function donePage(message: string, script: ScriptLines, language = 'en', back = '/me'): string {
-  return shell(`<h1>${esc(message)}</h1><p class="now">${esc(script.get('page.close') ?? '')}</p><a class="save" href="${esc(back)}">${esc(script.get('page.back') ?? '')}</a>`, language);
+  return shell(`<h1>${esc(message)}</h1><p class="now">${esc(script.get('page.close') ?? '')}</p><a class="save" href="${esc(back)}">${esc(script.get('page.back') ?? '')}</a>`,
+    language, back === '/me' ? 'weekly-account' : undefined, back === '/me' ? script : undefined);
 }
 
 export function exportFailedPage(script: ScriptLines, language = 'en', back = '/me'): string {
@@ -559,26 +568,19 @@ export function gonePage(script: ScriptLines, language = 'en'): string {
   );
 }
 
-export function shell(body: string, language = 'en', bodyClass?: 'weekly-account' | 'weekly-account account-dashboard'): string {
+export function shell(body: string, language = 'en', bodyClass?: 'weekly-account' | 'weekly-account account-dashboard', accountScript?: ScriptLines): string {
   return `<!doctype html>
-<html lang="${esc(language)}">
+<html lang="${esc(language)}" data-theme="dark">
 <head>${BRAND_HEAD}
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="robots" content="noindex, nofollow" />
 <title>8&amp;80</title>
-<style>
-  /*
-   * BRAND.md §6. Light is the default here and only here: this page is opened in
-   * daylight, one-thumbed, usually within a minute of the text arriving, whereas
-   * the call itself is an evening thing. Gold fails on Paper at 1.6:1, so the
-   * filled button is Pine on light and Gold on dark — the one place the two
-   * accents swap jobs.
-   */
-${FOUNDATION_CSS}${CONTROL_CSS}${ACCOUNT_CSS}
+${themeInit}
+<style>${FOUNDATION_CSS}${CONTROL_CSS}${ACCOUNT_CSS}${ACCOUNT_APPEARANCE_CSS}
 </style>
 </head>
-<body${bodyClass ? ` class="${bodyClass}"` : ''}><!--email_off--><main>${body}</main>${BUSY}${MOTION}${feedbackWidget()}<!--/email_off--></body>
+<body${bodyClass ? ` class="${bodyClass}"` : ''}><!--email_off--><main>${accountScript ? accountHeader(accountScript) : themeToolbar}${body}</main>${themeControl}${BUSY}${MOTION}${feedbackWidget()}<!--/email_off--></body>
 </html>`;
 }
 

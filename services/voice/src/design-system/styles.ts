@@ -28,6 +28,11 @@ export const FOUNDATION_CSS = `
   *, *::before, *::after { box-sizing: border-box; }
   html { -webkit-text-size-adjust: 100%; scroll-padding-top: var(--space-8); }
   body { margin: 0; background: var(--bg); color: var(--ink); font: 400 var(--text-body)/var(--leading-body) var(--font-body); font-optical-sizing: auto; }
+  html[data-theme="dark"] {
+    min-height: 100vh;
+    background: radial-gradient(ellipse 54rem 40rem at 14% -14rem, #32463A 0%, transparent 88%) no-repeat, var(--bg);
+  }
+  html[data-theme="dark"] body { background: transparent; }
   h1 { font: 500 var(--text-heading)/var(--leading-heading) var(--font-display); letter-spacing: -.025em; text-wrap: balance; }
   h2, h3 { font-family: var(--font-body); line-height: var(--leading-heading); text-wrap: balance; }
   h2 { font-size: var(--text-subhead); font-weight: 700; }
@@ -70,6 +75,11 @@ export const CONTROL_CSS = `
     text-align: center; text-decoration: none; cursor: pointer;
     transition: background-color var(--motion-fast) var(--ease), border-color var(--motion-fast) var(--ease);
   }
+  [data-theme] .site-theme-toggle {
+    width: auto; min-height: var(--target-min); padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--control-border); background: transparent; color: var(--ink); font-size: var(--text-caption);
+  }
+  .site-theme-toolbar { display: flex; justify-content: flex-end; margin-bottom: var(--space-4); }
   button.primary, .button.primary, a.save {
     background: var(--accent); border-color: var(--accent); color: var(--on-accent);
     --mark-ink: var(--color-night); --mark-gold: var(--button-mark-gold); --mark-dot: var(--button-mark-dot);

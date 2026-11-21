@@ -40,7 +40,8 @@ test('dashboard escapes identifiers, paginates filters and has explicit empty st
   const calls = Array.from({ length: 61 }, () => projectReview(row()));
   const html = qualityPage(calls, 'uncertain', 1, now, true);
   assert.ok(html.includes('&lt;script&gt;private&lt;/script&gt;'));
-  assert.ok(!html.includes('<script>'));
+  assert.equal((html.match(/<script\b/g) ?? []).length, 2);
+  assert.equal((html.match(/<script data-site-theme>/g) ?? []).length, 2);
   assert.equal((html.match(/<article /g) ?? []).length, 50);
   assert.ok(html.includes('Page 1 of 2')); assert.ok(html.includes('90.0%')); assert.ok(html.includes('50.0%'));
   assert.equal((qualityPage(calls, 'uncertain', 2, now, true).match(/<article /g) ?? []).length, 11);

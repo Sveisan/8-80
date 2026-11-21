@@ -1,7 +1,6 @@
 <!doctype html>
 <html lang="nb" data-theme="dark"><head>
-<meta name="theme-color" content="#F4EDE1" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#1A2920" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#141B17">
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
 <link rel="alternate icon" href="assets/favicon.ico">
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
@@ -95,18 +94,18 @@
     color-scheme: light;
   }
   @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) { --bg: #1A2920;
---ink: #F4F1E8;
---card: #203328;
---quiet: #B2BAAE;
---line: #4A574D;
---control-border: #7F8E80;
---accent: #E2B653;
---on-accent: #1A2920;
---link: #E2B653;
+    :root:not([data-theme="light"]) { --bg: #141B17;
+--ink: #F5EEE2;
+--card: #1E2B23;
+--quiet: #B9C2B6;
+--line: #435549;
+--control-border: #738778;
+--accent: #EDC578;
+--on-accent: #231B13;
+--link: #E9D0A3;
 --bad: #E6A08F;
---bad-bg: #3B2F29;
---mark-ink: #1A2920;
+--bad-bg: #422C27;
+--mark-ink: #BBC8BA;
 --mark-gold: #E2B653;
 --mark-dot: #E2B653;
 --button-mark-gold: #F4EDE1;
@@ -128,18 +127,18 @@
 --mark-dot: #E2B653;
 --button-mark-gold: #E2B653;
 --button-mark-dot: #E2B653; color-scheme: light; }
-  [data-theme="dark"] { --bg: #1A2920;
---ink: #F4F1E8;
---card: #203328;
---quiet: #B2BAAE;
---line: #4A574D;
---control-border: #7F8E80;
---accent: #E2B653;
---on-accent: #1A2920;
---link: #E2B653;
+  [data-theme="dark"] { --bg: #141B17;
+--ink: #F5EEE2;
+--card: #1E2B23;
+--quiet: #B9C2B6;
+--line: #435549;
+--control-border: #738778;
+--accent: #EDC578;
+--on-accent: #231B13;
+--link: #E9D0A3;
 --bad: #E6A08F;
---bad-bg: #3B2F29;
---mark-ink: #1A2920;
+--bad-bg: #422C27;
+--mark-ink: #BBC8BA;
 --mark-gold: #E2B653;
 --mark-dot: #E2B653;
 --button-mark-gold: #F4EDE1;
@@ -148,6 +147,11 @@
   *, *::before, *::after { box-sizing: border-box; }
   html { -webkit-text-size-adjust: 100%; scroll-padding-top: var(--space-8); }
   body { margin: 0; background: var(--bg); color: var(--ink); font: 400 var(--text-body)/var(--leading-body) var(--font-body); font-optical-sizing: auto; }
+  html[data-theme="dark"] {
+    min-height: 100vh;
+    background: radial-gradient(ellipse 54rem 40rem at 14% -14rem, #32463A 0%, transparent 88%) no-repeat, var(--bg);
+  }
+  html[data-theme="dark"] body { background: transparent; }
   h1 { font: 500 var(--text-heading)/var(--leading-heading) var(--font-display); letter-spacing: -.025em; text-wrap: balance; }
   h2, h3 { font-family: var(--font-body); line-height: var(--leading-heading); text-wrap: balance; }
   h2 { font-size: var(--text-subhead); font-weight: 700; }
@@ -187,6 +191,11 @@
     text-align: center; text-decoration: none; cursor: pointer;
     transition: background-color var(--motion-fast) var(--ease), border-color var(--motion-fast) var(--ease);
   }
+  [data-theme] .site-theme-toggle {
+    width: auto; min-height: var(--target-min); padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--control-border); background: transparent; color: var(--ink); font-size: var(--text-caption);
+  }
+  .site-theme-toolbar { display: flex; justify-content: flex-end; margin-bottom: var(--space-4); }
   button.primary, .button.primary, a.save {
     background: var(--accent); border-color: var(--accent); color: var(--on-accent);
     --mark-ink: var(--color-night); --mark-gold: var(--button-mark-gold); --mark-dot: var(--button-mark-dot);
@@ -376,7 +385,7 @@
   </section>
   <section class="guide-section" id="farger"><div class="section-head"><span class="section-number">02</span><div><h2>Farger med faste roller.</h2><p>Seks merkevarefarger. Komponentene bruker semantiske roller som tilpasser seg bakgrunnen.</p></div></div>
     <div class="swatches"><article class="swatch"><div class="swatch-color" style="background:#1A2920;color:#F4F1E8">Night</div><div class="swatch-info"><span>Kveldens bakgrunn</span><code>#1A2920</code></div></article><article class="swatch"><div class="swatch-color" style="background:#2F4A3A;color:#F4F1E8">Pine</div><div class="swatch-info"><span>Tekst og handling</span><code>#2F4A3A</code></div></article><article class="swatch"><div class="swatch-color" style="background:#4A6656;color:#F4F1E8">Green</div><div class="swatch-info"><span>Lenker på lyst</span><code>#4A6656</code></div></article><article class="swatch"><div class="swatch-color" style="background:#E2B653;color:#1A2920">Gold</div><div class="swatch-info"><span>Barnets nysgjerrighet</span><code>#E2B653</code></div></article><article class="swatch"><div class="swatch-color" style="background:#F4EDE1;color:#1A2920">Paper</div><div class="swatch-info"><span>Det personlige brevet</span><code>#F4EDE1</code></div></article><article class="swatch"><div class="swatch-color" style="background:#F4F1E8;color:#1A2920">Chalk</div><div class="swatch-info"><span>Tekst på mørkt</span><code>#F4F1E8</code></div></article></div>
-    <div class="table-wrap"><table><caption class="sr">Semantiske farger i lyst og mørkt tema</caption><thead><tr><th>Rolle</th><th>Papir</th><th>Kveld</th><th>Bruk</th></tr></thead><tbody><tr><td><code>--bg</code></td><td><code>#F4EDE1</code></td><td><code>#1A2920</code></td><td>Sidebakgrunn</td></tr><tr><td><code>--ink</code></td><td><code>#2F4A3A</code></td><td><code>#F4F1E8</code></td><td>Overskrifter og brødtekst</td></tr><tr><td><code>--card</code></td><td><code>#F8F3EA</code></td><td><code>#203328</code></td><td>Grupper og paneler</td></tr><tr><td><code>--quiet</code></td><td><code>#5A695E</code></td><td><code>#B2BAAE</code></td><td>Hjelpetekst og metadata</td></tr><tr><td><code>--accent</code></td><td><code>#2F4A3A</code></td><td><code>#E2B653</code></td><td>Primærhandling og valgt tilstand</td></tr><tr><td><code>--on-accent</code></td><td><code>#F4EDE1</code></td><td><code>#1A2920</code></td><td>Tekst på primærhandling</td></tr><tr><td><code>--link</code></td><td><code>#4A6656</code></td><td><code>#E2B653</code></td><td>Lenker i løpende tekst</td></tr><tr><td><code>--control-border</code></td><td><code>#7C897C</code></td><td><code>#7F8E80</code></td><td>Avgrensning av skjemafelt</td></tr><tr><td><code>--bad</code></td><td><code>#8C3A2B</code></td><td><code>#E6A08F</code></td><td>Feil og destruktive handlinger</td></tr></tbody></table></div>
+    <div class="table-wrap"><table><caption class="sr">Semantiske farger i lyst og mørkt tema</caption><thead><tr><th>Rolle</th><th>Papir</th><th>Kveld</th><th>Bruk</th></tr></thead><tbody><tr><td><code>--bg</code></td><td><code>#F4EDE1</code></td><td><code>#141B17</code></td><td>Sidebakgrunn</td></tr><tr><td><code>--ink</code></td><td><code>#2F4A3A</code></td><td><code>#F5EEE2</code></td><td>Overskrifter og brødtekst</td></tr><tr><td><code>--card</code></td><td><code>#F8F3EA</code></td><td><code>#1E2B23</code></td><td>Grupper og paneler</td></tr><tr><td><code>--quiet</code></td><td><code>#5A695E</code></td><td><code>#B9C2B6</code></td><td>Hjelpetekst og metadata</td></tr><tr><td><code>--accent</code></td><td><code>#2F4A3A</code></td><td><code>#EDC578</code></td><td>Primærhandling og valgt tilstand</td></tr><tr><td><code>--on-accent</code></td><td><code>#F4EDE1</code></td><td><code>#231B13</code></td><td>Tekst på primærhandling</td></tr><tr><td><code>--link</code></td><td><code>#4A6656</code></td><td><code>#E9D0A3</code></td><td>Lenker i løpende tekst</td></tr><tr><td><code>--control-border</code></td><td><code>#7C897C</code></td><td><code>#738778</code></td><td>Avgrensning av skjemafelt</td></tr><tr><td><code>--bad</code></td><td><code>#8C3A2B</code></td><td><code>#E6A08F</code></td><td>Feil og destruktive handlinger</td></tr></tbody></table></div>
     <p class="table-note">Gull brukes på mørk bakgrunn. På papir brukes Pine til primærhandlinger og Green til lenker. Feil har en egen funksjonsfarge og forklares alltid i tekst.</p>
   </section>
   <section class="guide-section" id="typografi"><div class="section-head"><span class="section-number">03</span><div><h2>En menneskelig stemme.</h2><p>Fraunces gir hovedbudskapet karakter. Bricolage Grotesque gjør resten lett å lese og bruke.</p></div></div>
