@@ -262,7 +262,7 @@ test('weekly account moves, skips, private corrections and pause survive reload'
   expect(weeklyState.caller).toMatchObject({ slot_weekday: 2, slot_minute: 1140, next_call_at: weeklyAt, calendar_invites_enabled: true });
   expect(weeklyState.calendarEmails).toEqual(expect.arrayContaining([expect.objectContaining({ at: weeklyAt, method: 'REQUEST' })]));
   await activate(page.getByRole('button', { name: 'Skip this call' }));
-  await expect(page.getByRole('status')).toContainText('Skipped');
+  await expect(page.locator('.skip-appointment')).toHaveAttribute('datetime', weeklyAt!);
   const laterAt = await page.locator('.appointment').getAttribute('datetime');
   expect(laterAt).not.toBe(weeklyAt);
   await activate(page.getByRole('button', { name: 'Undo skip' }));
