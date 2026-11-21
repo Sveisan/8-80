@@ -1,6 +1,6 @@
 # Privacy
 
-Draft updated 15 November 2026; operational wording requires review before release.
+Draft updated 21 November 2026; operational wording requires review before release.
 
 {{company}}{{orgnr_clause}}, at {{address}}, is the data controller. Write to
 {{support_email}} about anything on this page.
@@ -318,3 +318,23 @@ handoff are separate records. Resolved incident metadata is deleted after
 30 days; unresolved incidents stay held for human review. Your verified Unblock
 account download includes incident records still linked to your calls. Account
 erasure removes those links while an unresolved operational block is retained.
+
+## Unblock contract and repayment records
+
+Unblock separately stores the accepted terms version/time, explicit early-start
+choice, provider contract/payment references and dates, and the contract email
+and complete information snapshot encrypted. This email is used for contractual
+notices and does not replace the weekly-call email. Delivery metadata is distinct
+from queued/provider-accepted mail. These records and linked refund requests are
+included only in a fresh Unblock-verified account export, and are erased with the
+account except for the limited repayment obligation below.
+
+A withdrawal records a fixed reason, request/deadline/status, provider invoice and
+refund references and amount. It does not store reflection text. Account deletion
+removes its account link and contract/contact material; an unresolved repayment
+obligation keeps only operational/provider transaction references and amount/time/
+status so a human can finish repayment using the provider records. Unlinked
+resolved operational records are deleted after 30 days. Linked request history
+remains available with the account. Required financial records held by the payment
+provider follow the seller's bookkeeping duties and that provider's retention.
+The controller must confirm this treatment in the qualified privacy/legal review.

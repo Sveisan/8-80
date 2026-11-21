@@ -35,13 +35,13 @@ function request(path: string, init: { form?: URLSearchParams; cookie?: string; 
   return unblockRoutes(req, new URL(path, 'https://8and80.example'), deps(), 'client-' + ++clients, now);
 }
 const priv = (token: string, path: string, form?: URLSearchParams, origin?: string) => request(path, { form, cookie: 'unblock=' + token, origin });
-const csrfForm = (token: string, fields: Record<string, string>) => new URLSearchParams({ csrf: csrfFor(token), event: 'ev-' + ++events, ...fields });
+const csrfForm = (token: string, fields: Record<string, string>) => new URLSearchParams({ csrf: csrfFor(token), event: 'ev-' + ++events, ...(fields.action==='checkout'?{terms_version:'unblock-consumer-2026-11-21',accept_terms:'yes',contract_email:'synthetic@example.com',contract_email_confirm:'synthetic@example.com',early_start:'yes'}:{}),...fields });
 
 async function enroll(opts: { programme?: Programme; standing?: string } = {}) {
   await db!.store.upsertProfile(phone, { name: 'Synthetic tester', email: 'synthetic@example.com' });
   await repo().enroll(hash, now, undefined, true);
   const programme = opts.programme ?? finishCall(emptyProgramme(), 'opening', 0);
-  await db!.sql`update unblock_enrollments set programme_enc=${encrypt(JSON.stringify(programme))}, revision=${programme.revision}, standing=${opts.standing ?? 'active'},
+  await db!.sql`update unblock_enrollments set contract_subscription_id='sub_synthetic',terms_version=case when ${opts.standing==='awaiting_payment'} then null else 'unblock-consumer-2026-11-21' end,terms_accepted_at=${opts.standing==='awaiting_payment'?null:now},early_start_at=${opts.standing==='awaiting_payment'?null:now},contract_at=${opts.standing==='awaiting_payment'?null:now},information_delivered_at=${opts.standing==='awaiting_payment'?null:now},programme_enc=${encrypt(JSON.stringify(programme))}, revision=${programme.revision}, standing=${opts.standing ?? 'active'},
     timezone='Europe/Oslo', weekly_weekday=2, weekly_minute=1080, light_weekdays='{1,3,5}', light_minute=1140,
     next_weekly_at=${new Date('2026-11-10T17:00:00Z')}, next_light_at=${new Date('2026-11-11T18:00:00Z')} where phone_hash=${hash}`;
   return new Links(db!.sql).mint(hash, now, 'unblock');
@@ -49,7 +49,8 @@ async function enroll(opts: { programme?: Programme; standing?: string } = {}) {
 const row = async () => (await repo().load(hash))!;
 
 beforeEach(async () => {
-  if (db) await db.sql`truncate unblock_incidents,jev_quality_reviews,product_feedback,unblock_sessions,unblock_enrollments,belief_refund_requests,belief_sessions,belief_enrollments,callers,call_attempts,links,signups,access_codes,message_outbox,message_attempts,feedback,journey_events,journey_tracking,journey_counts,webhook_deliveries,heartbeats`;
+  process.env['UNBLOCK_CONSUMER_NOTICES_APPROVED']='unblock-consumer-2026-11-21';
+  if (db) await db.sql`truncate unblock_refund_requests,unblock_incidents,jev_quality_reviews,product_feedback,unblock_sessions,unblock_enrollments,belief_refund_requests,belief_sessions,belief_enrollments,callers,call_attempts,links,signups,access_codes,message_outbox,message_attempts,feedback,journey_events,journey_tracking,journey_counts,webhook_deliveries,heartbeats`;
   texts = []; clients = 0;
   Object.assign(process.env, { DATA_ENCRYPTION_KEY: Buffer.alloc(32, 15).toString('base64'), PUBLIC_URL: 'https://8and80.example', OPERATOR_PHONE: '+4791000000', UNBLOCK_OPERATOR_PHONE: '+4791000000', SUPPORT_EMAIL: 'support@example.com',
     UNBLOCK_ENABLED: 'true', UNBLOCK_LIVE_CALLS: 'false', UNBLOCK_SAFETY_APPROVED: 'true', UNBLOCK_SCRIPTS_APPROVED: 'true', UNBLOCK_AGENTS_VERIFIED: 'true', UNBLOCK_PRICE_VERIFIED: 'true',

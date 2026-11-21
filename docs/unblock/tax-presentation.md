@@ -21,7 +21,7 @@ If the sale is subject to the standard 25% rate, the breakdown is NOK 199.20 net
 - Checkout's effective tax settings and receipt VAT itemisation remain **unverified and unfinished**. Once the actual seller and service treatment are confirmed, an authorised Stripe administrator must set the Unblock price inclusive, configure applicable tax calculation/itemisation, and verify checkout and a receipt at a NOK 249 total. Do not apply a shared account-wide default that could alter weekly 8&80 or Beliefs. Do not treat the site wording or owner approval as provider verification.
 - `UNBLOCK_PRICE_VERIFIED` must remain false until the final checkout total and itemised receipt have been verified against the confirmed seller and tax treatment. All five Unblock launch flags also stay off. No new live test is authorised here.
 
-Merchant/controller identity and registered address were owner-approved on 21 November; see [merchant identity](merchant-identity.md). Stripe identity comparison and effective tax/receipt setup remain unverified. Next owner review: [refund and withdrawal terms](refund-withdrawal.md). Qualified review and activation remain separate.
+Merchant/controller identity and registered address were owner-approved on 21 November; see [merchant identity](merchant-identity.md). Stripe identity comparison and effective tax/receipt setup remain unverified. The [refund/withdrawal policy](refund-withdrawal.md) is now owner-approved and implemented; its consumer-notice drafts still need exact send approval. Qualified review and activation remain separate.
 
 ## Primary sources checked 20 November 2026
 

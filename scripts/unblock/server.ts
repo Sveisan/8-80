@@ -21,6 +21,7 @@ const stripeConnected = !!(process.env['STRIPE_SECRET_KEY'] && process.env['STRI
 // Synthetic readiness only, inside this separate process. No production settings are read or written.
 Object.assign(process.env, {
   UNBLOCK_ENABLED: 'true', UNBLOCK_LIVE_CALLS: 'false', UNBLOCK_SAFETY_APPROVED: 'true', UNBLOCK_SCRIPTS_APPROVED: 'true', UNBLOCK_AGENTS_VERIFIED: 'true',
+  UNBLOCK_CONSUMER_NOTICES_APPROVED:'unblock-consumer-2026-11-21',
   UNBLOCK_PRICE_VERIFIED: stripeConnected ? 'true' : 'false', UNBLOCK_PRICE_LABEL: process.env['UNBLOCK_PRICE_LABEL'] || '249 kr / month (test only)',
   UNBLOCK_TOOL_SECRET: randomBytes(32).toString('base64url'), UNBLOCK_OPENING_AGENT_ID: 'sandbox-no-calls-opening', UNBLOCK_WEEKLY_AGENT_ID: 'sandbox-no-calls-regular', UNBLOCK_LIGHT_AGENT_ID: 'sandbox-no-calls-light',
   UNBLOCK_SUPPORT_HOURS: 'Sandbox only', UNBLOCK_COVERAGE_START: '00:00', UNBLOCK_COVERAGE_END: '24:00',

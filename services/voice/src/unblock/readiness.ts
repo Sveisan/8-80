@@ -4,6 +4,8 @@ import { coverageReady } from './coverage.ts';
 /** Names of everything still missing before live Unblock calls may be placed. Empty means ready. */
 export function unblockReadiness(): string[] {
   const c = unblockConfig(); const missing: string[] = [];
+  if (!c.consumerNoticesApproved) missing.push('UNBLOCK_CONSUMER_NOTICES_APPROVED');
+  if(config.billing.provider()!=='stripe')missing.push('Unblock consumer billing requires the Stripe adapter');
   if (!c.enabled) missing.push('UNBLOCK_ENABLED');
   if (!c.safetyReady) missing.push('UNBLOCK_SAFETY_APPROVED');
   if (!c.scriptsReady) missing.push('UNBLOCK_SCRIPTS_APPROVED');

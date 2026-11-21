@@ -134,3 +134,7 @@ The approved daily Available/Away rule is implemented via the private `unblock:a
 ## Current launch approvals · 19 November 2026
 
 The four consolidated safety/privacy operating decisions are owner-approved; see [the procedure and private action commands](escalation-handoff.md). Live call/alert tests were explicitly removed from the launch checklist and remain unverified, rather than passed. The next owner review is commercial readiness. Qualified safety/privacy review and explicit activation remain separate; enrolment and live calls stay closed.
+
+## Consumer contract and withdrawal controls (21 November 2026)
+
+The owner-approved [policy](refund-withdrawal.md) is implemented with migration0042, explicit pre-payment terms/early-start choice, provider-bound contract evidence, durable-information delivery checks, a separate account withdrawal action and private refund-review CLI. Ordinary cancellation and pause keep their existing meaning. The current template approval gate remains off; exact [notice drafts and recipient rules](consumer-notices.md) need owner approval before activation. All five launch flags and price verification remain off. Canonical financial and delivery evidence is separate from consent, owner approval and provider write permission.

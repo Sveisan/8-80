@@ -1,6 +1,8 @@
+import {CONSUMER_TERMS_VERSION} from './consumer-policy.ts';
 export function unblockConfig() {
   const value = (key: string): string => (process.env[key] ?? '').trim();
   return {
+    consumerNoticesApproved: value('UNBLOCK_CONSUMER_NOTICES_APPROVED') === CONSUMER_TERMS_VERSION,
     enabled: value('UNBLOCK_ENABLED') === 'true',
     live: value('UNBLOCK_LIVE_CALLS') === 'true',
     safetyReady: value('UNBLOCK_SAFETY_APPROVED') === 'true',
