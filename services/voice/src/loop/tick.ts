@@ -1,3 +1,4 @@
+import { freeCalls, type WeeklyOffer } from '../weekly/intro-pilot.ts';
 import { randomUUID } from 'node:crypto';
 import { config } from '../config.ts';
 import { log } from '../log.ts';
@@ -137,7 +138,7 @@ export async function tick(deps: LoopDeps, now = new Date()): Promise<TickResult
         // The caller lock serialises placement with STOP, deletion and safety
         // controls. Re-enter on every retry, after backoff, with fresh memory.
         const at = new Date(+now + Math.max(0, Date.now() - started));
-        const [eligible] = await tx`select phone_hash from callers where phone_hash = ${claim.phoneHash}
+        const [eligible] = await tx<{ billing_status: string; weekly_offer: WeeklyOffer | null; weekly_free_calls_used: number }[]>`select billing_status, weekly_offer, weekly_free_calls_used from callers where phone_hash = ${claim.phoneHash}
           and paused = false and all_calls_stopped = false and held_for_review = false and sms_opt_out = false
           and (billing_status in ('comped','active','past_due') or (billing_status = 'trialing' and (trial_ends_at is null or trial_ends_at > ${at})))
           and (not cancel_at_period_end or paid_until > ${at}) and next_call_at = ${claim.nextCallAt}
@@ -152,7 +153,9 @@ export async function tick(deps: LoopDeps, now = new Date()): Promise<TickResult
 
         const caller = await scoped.store.load(phone);
         const slotSaid = await bookedSlot(scoped, phone, caller.language);
-        const next = await scoped.scheduler.nextEligibleCallFor(phone, at);
+        const lastFreeCall = eligible?.billing_status === 'trialing' && eligible.weekly_offer &&
+          eligible.weekly_free_calls_used + 1 >= freeCalls(eligible.weekly_offer);
+        const next = lastFreeCall ? undefined : await scoped.scheduler.nextEligibleCallFor(phone, at);
         const zone = (await scoped.scheduler.slotFor(phone))?.timezone;
         const nextSaid = next && zone ? describeAppointment(next, zone, caller.language) : NOTHING_RECORDED;
         const placed = await deps.agent.placeCall({

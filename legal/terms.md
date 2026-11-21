@@ -25,12 +25,20 @@ A phone number you control, an email address, and a time. You must be at least
 any call is scheduled, and entering a number that is not yours is a misuse of
 the service and of the person who owns it.
 
-## The free month
+## Free access and invitations
 
-The first 30 days are free and we do not ask for a card. Your call controls show
-the trial end. When it ends, calls stop and we send an email directing you to
-continuation options, or to support if paid checkout is not available. We do not charge you at the
-end of a trial you did not convert, because there is nothing to charge.
+If you joined under the 30-day trial offer, your call controls show its end date.
+When the trial ends, calls stop and we email you about your continuation options.
+
+The pilot invitation includes one free introductory call. The friend invitation
+includes up to four free calls in the 30 days from verified sign-up. Free access
+ends at the call limit or the date shown in your call controls, whichever comes
+first. There are no payment details required for either invitation.
+
+After the pilot call, you may choose to subscribe at NOK 189 for the first paid
+month and NOK 249 per month from the first renewal. Payment is optional and
+requires a separate checkout. The friend invitation simply ends when its access
+runs out.
 
 ## Paying
 

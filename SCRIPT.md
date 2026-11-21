@@ -3050,3 +3050,35 @@ _Explicit opt-in. Generic messages only: no private call details on a lock scree
 
 `signup.options`
 > "Optional voice, texts and calendar"
+
+## Weekly invitations
+
+`signup.invite.pilot`
+> Your first call is free. If you choose to continue, it’s NOK 189 for the first paid month and NOK 249 per month after that. No card needed to book.
+
+`signup.invite.friend`
+> You’re invited to try 8&80 for 30 days, with up to four free calls. No card needed. Calls stop when the pass ends.
+
+`signup.invite.closed`
+> 8&80 is taking bookings by invitation
+
+`signup.invite.closed.detail`
+> If your invitation is no longer available, contact the person who shared it. Already booked? Open your call settings below.
+
+`page.invite.friend`
+> Your friend pass includes up to four calls and ends on {{when}}.
+
+`page.invite.friend.ended`
+> Your friend pass has ended. Thanks for trying 8&80.
+
+`page.invite.pilot`
+> Your first call is free. You can choose to continue after the call.
+
+`page.invite.pilot.ended`
+> Your free call access has ended.
+
+`page.invite.checkout`
+> Continue for NOK 189
+
+`page.invite.price`
+> NOK 189 for the first paid month, then NOK 249 per month until you cancel.

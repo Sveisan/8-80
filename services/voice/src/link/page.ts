@@ -1,3 +1,4 @@
+import { pilotCheckoutReady } from '../billing/pilot-checkout.ts';
 import { BRAND_HEAD } from '../design-system/head.ts';
 import { ACCOUNT_CSS } from '../design-system/pages.ts';
 import { FOUNDATION_CSS, CONTROL_CSS } from '../design-system/styles.ts';
@@ -279,7 +280,9 @@ export function reschedulePage(
   const trialDate = state?.trialEnds
     ? new Intl.DateTimeFormat(language === 'en' ? 'en-GB' : language, { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: slot.timezone, timeZoneName: 'short' }).format(state.trialEnds)
     : undefined;
-  const billingKey = state?.cancelAtPeriodEnd ? state.canCall ? 'page.paid.nonrenewing' : 'page.paid.ended' : state?.billing === 'trialing'
+  const freeOffer = state?.weeklyOffer && !state.subscribed ? state.weeklyOffer : undefined;
+  const offerUsed = (state?.weeklyFreeCallsUsed ?? 0) > 0;
+  const billingKey = freeOffer ? 'page.invite.' + freeOffer + (state?.canCall ? '' : '.ended') : state?.cancelAtPeriodEnd ? state.canCall ? 'page.paid.nonrenewing' : 'page.paid.ended' : state?.billing === 'trialing'
     ? !trialDate ? 'page.trial.unknown' : state.canCall ? 'page.trial' : 'page.trial.ended'
     : state?.billing === 'trial_ended' ? 'page.trial.ended'
     : state?.billing === 'active' ? 'page.paid'
@@ -290,6 +293,9 @@ export function reschedulePage(
   const billingControls = state ? state.subscribed && state.billing !== 'ended'
     ? via === 'link' ? `<form method="post" action="?"><button name="action" value="billing-portal">${say('page.billing.manage')}</button></form>${!state.cancelAtPeriodEnd ? `<form method="post" action="?"><button name="action" value="cancel-renewal">${say('page.cancel.action')}</button></form>` : ''}`
       : `<a class="account-link" href="/access">${say('page.billing.verify')}</a>`
+    : freeOffer === 'friend' || (freeOffer === 'pilot' && (!offerUsed || state.onHold)) ? ''
+    : freeOffer === 'pilot' ? pilotCheckoutReady() ? `<form method="post"><button name="action" value="checkout" class="primary">${say('page.invite.checkout')}</button></form><p class="hint">${say('page.invite.price')}</p>`
+      : `<p class="hint">${say('page.billing.unavailable')}</p>`
     : ['trialing', 'trial_ended', 'ended'].includes(state.billing) ? checkoutLink('availability-check') ? `<form method="post"><button name="action" value="checkout"${!state.canCall ? ' class="primary"' : ''}>${say('page.billing.continue')}</button></form><p class="hint">${say('page.billing.price')}</p>` : `<p class="hint">${say('page.billing.unavailable')}</p>` : '' : '';
   const billing = state ? `<p class="hint">${esc((script.get(billingKey) ?? '').replace('{{when}}', trialDate ?? ''))}</p>` : '';
   const plan = state || active ? `<section class="account-section plan-section" aria-labelledby="plan-heading">

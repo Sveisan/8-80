@@ -93,6 +93,13 @@ export function readStripeWebhook(headers: Record<string, string | string[] | un
   const objectType = str(object['object']) ?? '';
 
   if (objectType === 'checkout.session') {
+    const sessionId = idOf(object['id']);
+    const currency = str(object['currency']);
+    const mode = str(object['mode']);
+    if (sessionId) change.checkout = {
+      id: sessionId, ...(currency ? { currency } : {}), ...(mode ? { mode } : {}),
+      ...(typeof object['amount_total'] === 'number' ? { amount: object['amount_total'] } : {}),
+    };
     // The one event that knows who this is.
     const hash = str(object['client_reference_id']);
     if (hash) change.phoneHash = hash;

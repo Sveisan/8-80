@@ -8,10 +8,11 @@ import { decrypt } from '../store/crypto.ts';
 export async function expireTrials(deps: LoopDeps, now = new Date()): Promise<number> {
   const ids: string[] = [];
   const count = await deps.store.raw.begin(async tx => {
-    const rows = await tx<{ phone_hash: string; email_enc: string | null; trial_ends_at: Date }[]>`update callers set billing_status = 'ended', updated_at = ${now}
-      where billing_status = 'trialing' and trial_ends_at <= ${now} returning phone_hash, email_enc, trial_ends_at`;
+    const rows = await tx<{ phone_hash: string; email_enc: string | null; trial_ends_at: Date; weekly_offer: string | null }[]>`update callers set billing_status = 'ended', updated_at = ${now}
+      where billing_status = 'trialing' and trial_ends_at <= ${now} returning phone_hash, email_enc, trial_ends_at, weekly_offer`;
     for (const row of rows) {
       await milestone(tx, row.phone_hash, 'trial_ended', `${row.phone_hash}:${row.trial_ends_at.toISOString()}`, now);
+      if (row.weekly_offer) continue;
       const letter = composeTrialEnded(deps.script, billingHome());
       if (!letter) throw new Error('Missing trial notice template');
       const id = await enqueue(tx, { eventKey: `trial:${row.phone_hash}:${row.trial_ends_at.toISOString()}`, phoneHash: row.phone_hash, channel: 'email', kind: 'trial',
