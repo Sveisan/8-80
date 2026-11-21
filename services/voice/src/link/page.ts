@@ -65,7 +65,7 @@ export interface PageView {
   /** A `page.goals.*` key, when the last attempt to add said something. */
   goalsNote?: string;
   scheduleNote?: string;
-  skipUndoReceipt?: string;
+  skipUndo?: { receipt: string; skippedAt: Date };
   preferenceNote?: string;
   moveDraft?: MoveDraft;
   now?: Date;
@@ -120,7 +120,7 @@ function moveEditor(
       </details>`;
 }
 
-function appointmentTime(at: Date, timezone: string, script: ScriptLines, language: string): string {
+function appointmentTime(at: Date, timezone: string, script: ScriptLines, language: string, className = 'appointment'): string {
   const say = (id: string) => esc(script.get(id) ?? '');
   const locale = language === 'en' ? 'en-GB' : language;
   const date = new Intl.DateTimeFormat(locale, {
@@ -130,7 +130,7 @@ function appointmentTime(at: Date, timezone: string, script: ScriptLines, langua
     hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: timezone,
   }).format(at);
   const zone = zoneLine(timezone, script);
-  return `<time class="appointment" datetime="${esc(at.toISOString())}" aria-label="${esc(describeAppointment(at, timezone, language))}"
+  return `<time class="${className}" datetime="${esc(at.toISOString())}" aria-label="${esc(describeAppointment(at, timezone, language))}"
     data-timezone="${esc(timezone)}" data-locale="${esc(locale)}" data-home="${say('time.zone.home')}" data-other="${say('time.zone.other')}">
     <span class="appointment-date">${esc(date)}</span>
     <span class="appointment-time"><span class="appointment-clock">${esc(clock)}</span> <small class="appointment-zone">${esc(zone)}</small></span>
@@ -142,7 +142,7 @@ const LOCAL_APPOINTMENT_CLOCKS = `<script>
   // The same booked instant can be shown on the viewer's clock. The
   // explicitly labelled booking time is available even without JavaScript.
   try {
-    document.querySelectorAll('time.appointment').forEach(function (appointment) {
+    document.querySelectorAll('time[data-timezone]').forEach(function (appointment) {
       var at = new Date(appointment.getAttribute('datetime'));
       var locale = appointment.getAttribute('data-locale');
       var bookingZone = appointment.getAttribute('data-timezone');
@@ -247,7 +247,6 @@ export function reschedulePage(
 
   const title = state?.onHold ? 'page.held' : state && !state.canCall ? 'page.ended'
     : state?.paused ? 'page.account.paused' : first && view.fresh ? 'page.booked' : 'page.title';
-  const supportHref = `mailto:${esc(config.company.supportEmail() || 'hei@8and80.me')}`;
   const priorityContact = booking && !!appointment;
   const contact = view.contact
     ? `<a class="${priorityContact ? 'save' : 'account-link'}" href="/contact.vcf" download="8and80.vcf"${priorityContact ? ' aria-describedby="contact-help"' : ''}>${say('page.contact.save')}</a>` : '';
@@ -300,7 +299,6 @@ export function reschedulePage(
     ${state?.paused && billingContinues(state)
       ? `<p class="hint">${say('page.account.paused.billing')}</p>` : ''}
     ${billingControls}
-    <a class="account-link" href="${supportHref}">${say('page.support')}</a>
   </section>` : '';
   const planFirst = !arranging || state?.cancelAtPeriodEnd || state?.billing === 'past_due';
   const pauseControl = active ? `<form method="post" action="?"><button name="action" value="stop">${say('page.account.pause')}</button></form>` : '';
@@ -311,13 +309,16 @@ export function reschedulePage(
   return shell(
     `
     <h1>${say(title)}</h1>
-    ${status && (!view.skipUndoReceipt || view.scheduleNote !== 'page.skip.saved') ? `<div class="account-notice">
+    ${status && (!view.skipUndo || view.scheduleNote !== 'page.skip.saved') ? `<div class="account-notice">
       <p role="status">${esc(status)}</p>
     </div>` : ''}
-    ${view.skipUndoReceipt ? `<div class="account-notice skip-notice">
-      <p role="status">${say('page.skip.saved')}</p>
+    ${view.skipUndo ? `<div class="account-notice skip-notice">
+      <div class="skip-deadline" role="status">
+        <p>${say('page.skip.deadline')}</p>
+        ${appointmentTime(view.skipUndo.skippedAt, slot.timezone, script, language, 'skip-appointment')}
+      </div>
       <form method="post" action="?" class="undo-skip">
-        <input type="hidden" name="receipt" value="${esc(view.skipUndoReceipt)}" />
+        <input type="hidden" name="receipt" value="${esc(view.skipUndo.receipt)}" />
         <button name="action" value="undo-skip">${say('page.skip.undo')}</button>
       </form>
     </div>` : ''}
@@ -354,10 +355,12 @@ export function reschedulePage(
     <div class="account-sidebar">
     ${planFirst ? plan : ''}
     ${view.goals ? `<section class="account-section notes-section" aria-labelledby="notes-heading">
-      <h2 id="notes-heading">${say('page.section.notes')}</h2>
-      <p class="hint">${say('page.notes.detail')}</p>
-      <a class="account-link" href="/memory">${say('page.account.notes')}</a>
-      ${goals}
+      <details class="notes-entry"${view.goalsNote ? ' open' : ''}>
+        <summary><h2 id="notes-heading">${say('page.section.notes')}</h2></summary>
+        <p class="hint">${say('page.notes.detail')}</p>
+        <a class="account-link" href="/memory">${say('page.account.notes')}</a>
+        ${goals}
+      </details>
     </section>` : ''}
     ${planFirst ? '' : plan}
 
@@ -449,17 +452,6 @@ function accountHeader(script: ScriptLines): string {
     <a class="account-brand" href="/start">${MARK_ICON}<span>8&amp;80</span></a>
     <div class="account-header-tools">${themeSwitch}${help}</div>
   </header>`;
-}
-
-/**
- * Where a browser that does not know anybody lands.
- *
- * The cookie is gone, lapsed, or was never there. Not an error, and not a
- * sign-in: the way in is the link in any text, and the page says so.
- */
-export function unknownBrowserPage(script: ScriptLines, language = 'en'): string {
-  const say = (id: string): string => esc(script.get(id) ?? '');
-  return shell(`<h1>${say('page.browser.gone')}</h1><p class="now">${say('page.browser.gone.detail')}</p><a class="save" href="/access">${say('access.title')}</a>`, language, 'weekly-account', script);
 }
 
 /**

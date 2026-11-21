@@ -142,7 +142,9 @@ test('the cookie and the link do not open each other', { skip: skip() }, async (
     // And a link's code set as a cookie is not a remembered browser.
     const link = await new Links(sql as NonNullable<typeof sql>).mint(phoneKey(phone));
     const res = await fetch(`${base}/me`, withCookie(`browser=${link}`));
-    assert.ok((await res.text()).includes(line('page.browser.gone')));
+    const body = await res.text();
+    assert.ok(body.includes(line('page.browser.gone.detail')));
+    assert.match(body, /action="\/access"/);
     assert.match(res.headers.get('set-cookie') ?? '', /Max-Age=0/, 'a dead cookie is cleared, not kept');
   });
 });
@@ -185,13 +187,14 @@ test('the bare address goes to their page; /start is still the form', { skip: sk
   }
 });
 
-test('a browser without the cookie is told where the way in is, not asked to sign in', { skip: skip() }, async () => {
+test('a browser without the cookie can verify a phone directly on the account page', { skip: skip() }, async () => {
   await serving(async (base) => {
     const res = await fetch(`${base}/me`, { redirect: 'manual' });
     assert.equal(res.status, 200);
     const body = await res.text();
-    assert.ok(body.includes(line('page.browser.gone.detail')));
-    assert.ok(!/type="password"|sign in|log in/i.test(body));
+    assert.ok(body.includes(line('access.detail')));
+    assert.match(body, /action="\/access"/);
+    assert.match(body, /type="tel"/);
   });
 });
 
@@ -302,7 +305,7 @@ test('every line the page before the first call says is in SCRIPT.md', () => {
   for (const key of [
     'page.first', 'page.first.detail', 'page.first.pick',
     'page.goals.label', 'page.goals.detail', 'page.goals.save', 'page.goals.saved', 'page.goals.full',
-    'page.browser.rest', 'page.browser.gone', 'page.browser.gone.detail',
+    'page.browser.rest', 'page.browser.gone.detail',
   ]) {
     const line = script.get(key);
     assert.ok(line, `${key} is missing`);

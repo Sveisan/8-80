@@ -135,6 +135,8 @@ export const SIGNUP_CSS = `
   .signup-intro .lockup { justify-content: flex-start; margin-bottom: var(--space-8); }
   .eyebrow { font-size: var(--text-caption); letter-spacing: var(--tracking-wide); font-weight: var(--weight-control); color: var(--quiet); margin: 0 0 var(--space-4); }
   .signup-intro h1 { font-size: var(--text-display); line-height: 1.06; margin-bottom: var(--space-6); }
+  .intro-booking { margin: 0 0 var(--space-5); }
+  .intro-booking .button { width: 100%; }
   .product-note { max-width: var(--measure-reading); margin: var(--space-8) auto 0; }
   .intro-summary { font-size: var(--text-small); line-height: 1.7; max-width: var(--measure-form); }
   .perspectives { margin: var(--space-6) 0 var(--space-4); max-width: var(--measure-form); }
@@ -144,9 +146,19 @@ export const SIGNUP_CSS = `
   .perspectives figcaption span:last-child { text-align: right; }
   .intro-note { font-size: var(--text-small); line-height: 1.7; color: var(--quiet); margin-top: var(--space-6); max-width: var(--measure-form); }
   .booking-panel { width: 100%; max-width: var(--measure-form); padding: var(--space-6) var(--space-4); border: 1px solid var(--line); background: var(--card); border-radius: var(--radius-panel); min-width: 0; }
-  .booking-panel h2 { font: var(--weight-display) var(--text-panel)/var(--leading-heading) var(--font-display); margin: 0 0 var(--space-6); letter-spacing: var(--tracking-tight); }
+  .booking-panel { scroll-margin-block-start: var(--space-4); }
+  .booking-panel h2 { font: var(--weight-display) var(--text-panel)/var(--leading-heading) var(--font-display); margin: 0 0 var(--space-2); letter-spacing: var(--tracking-tight); }
+  .booking-offer { font-size: var(--text-small); color: var(--quiet); margin: 0 0 var(--space-4); }
+  .booking-offer strong { color: var(--ink); }
+  .booking-offer span { display: block; }
   .booking-panel .fields { background: var(--bg); }
-  .booking-panel fieldset { margin-top: var(--space-8); }
+  .booking-panel .fields label { padding-top: var(--space-2); }
+  .booking-panel .fields input { padding-block: 0 var(--space-1); }
+  .booking-panel fieldset { margin-top: var(--space-4); }
+  .booking-panel .appointment { min-block-size: 3.25em; min-block-size: 2lh; margin: var(--space-2) 0; }
+  .booking-panel .date-check, .booking-panel form > .primary { margin-top: 0; }
+  .booking-panel .booking-options { margin: 0 0 var(--space-2); }
+  #signup-verify { margin-bottom: var(--space-2); }
   .voice-options { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
   .voice-choice .small { margin-top: var(--space-3); }
   .nudge-choice { display: flex; align-items: flex-start; gap: var(--space-3); margin: var(--space-6) 0; cursor: pointer; }
@@ -165,10 +177,19 @@ export const SIGNUP_CSS = `
   [data-theme="dark"] .perspectives svg circle:nth-of-type(2) { fill: #bdcbbc; }
   [data-theme="dark"] .perspectives figcaption { color: var(--quiet); }
   .signup-wide > .faq { max-width: var(--measure-reading); margin: var(--space-12) auto 0; }
+  @media (width < ${breakpoints.medium}) {
+    .product-nav { gap: var(--space-2); margin-bottom: var(--space-4); }
+    .signup-intro .lockup { margin-bottom: var(--space-4); }
+    .signup-intro h1 { font-size: clamp(var(--text-heading), 9vw, var(--text-display)); margin-bottom: var(--space-4); }
+    .signup-intro .intro-summary { margin-bottom: var(--space-4); }
+  }
   @media (min-width: ${breakpoints.split}) {
+    .signup-page { padding-top: max(var(--space-10), env(safe-area-inset-top)); }
+    .product-nav { margin-bottom: var(--space-4); }
     .signup-layout { grid-template-columns: minmax(0, 1fr) minmax(0, var(--measure-form)); gap: var(--space-16); align-items: start; }
     .signup-intro { padding-top: var(--space-6); }
-    .booking-panel { width: 100%; max-width: var(--measure-form); padding: var(--space-8); }
+    .intro-booking { display: none; }
+    .booking-panel { padding: var(--space-5) var(--space-6); }
   }
   @media (min-width: ${breakpoints.medium}) {
     body { padding-top: var(--space-16); }
@@ -242,6 +263,8 @@ export const ACCOUNT_CSS = `
     border-inline-start: 3px solid var(--accent); font-size: var(--text-small); }
   .account-notice p { margin: 0; }
   .skip-notice { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2) var(--space-4); }
+  .skip-appointment { display: block; margin-top: var(--space-1); }
+  .skip-deadline :is(.appointment-date, .appointment-time, .appointment-time small) { display: inline; font: inherit; letter-spacing: normal; }
   .account-notice .undo-skip { margin: 0; }
   .undo-skip button { width: auto; }
   .weekly-account .call-overview { padding: var(--space-4); margin: var(--space-3) 0 0; background: var(--card); }
@@ -259,9 +282,19 @@ export const ACCOUNT_CSS = `
   .weekly-time .weekly-editor { margin-bottom: 0; }
   .move-fields { display: grid; gap: var(--space-2); grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr)); }
   .move-fields :is(select, input), .settings-item select { margin-top: var(--space-1); }
+  .move-fields select {
+    appearance: none; min-height: var(--control-height); padding-inline-end: var(--space-8);
+    background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+    background-size: .3rem .3rem; background-position: right 1.3rem center, right 1rem center; background-repeat: no-repeat;
+  }
+  @media (forced-colors: active) {
+    .move-fields select { appearance: auto; background-image: none; }
+  }
   .weekly-account .account-section:not(.call-overview) { margin-top: var(--space-5); padding-top: var(--space-4); }
   .weekly-account .account-section form { margin-bottom: var(--space-2); }
-  .plan-section > a.account-link, .notes-section > a.account-link { font-weight: var(--weight-control); }
+  .plan-section > a.account-link, .notes-entry > a.account-link { font-weight: var(--weight-control); }
+  .weekly-account .notes-entry > summary { padding-inline: 0; }
+  .notes-entry h2 { display: inline; }
   .weekly-account .change-time.goal-editor > summary { border-color: transparent; padding-inline: 0; }
   .account-disclosure { border-top: 1px solid var(--line); }
   .account-disclosure:first-of-type { margin-top: var(--space-3); }
