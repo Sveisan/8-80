@@ -18,6 +18,7 @@ import type { GoogleCalendar } from '../calendar/google-client.ts';
  */
 export interface LoopDeps {
   billing?: BillingGateway;
+  unblockCommerce?: import('../unblock/commerce-gateway.ts').UnblockCommerceGateway;
   store: PostgresStore;
   scheduler: Scheduler;
   agent: SpeechifyAgent;

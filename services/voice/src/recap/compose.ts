@@ -22,6 +22,8 @@ export interface Recap {
   /** One real appointment, never a recurring calendar series. */
   calendar?: CalendarEvent;
   subject: string;
+  /** Monitored business reply address for contractual notices, never caller-provided. */
+  replyTo?: string;
   /** The whole letter as text, paragraphs joined by a blank line. */
   body: string;
   /** The same paragraphs, in order, each tagged with what it is doing. */

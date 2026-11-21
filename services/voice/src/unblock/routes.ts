@@ -1,3 +1,6 @@
+import {acceptConsumerTerms,consumerTerms,withdrawalForm,requestWithdrawal,withdrawalAcknowledgement,type RefundRequest} from './consumer.ts';
+import {CONSUMER_TERMS_VERSION,consumerDeadline,consumerCallsAllowed} from './consumer-policy.ts';
+import {decrypt} from '../store/crypto.ts';
 import { offerCountsValid, offeredCallCount } from './offer.ts';
 import type { IncomingMessage } from 'node:http';
 import { config, smsConfigured } from '../config.ts';
@@ -38,6 +41,7 @@ const SAVED: Record<string, string> = {
   calls: 'Saved. Your chosen calls per month apply from your next chapter.', calls_now: 'Saved. Your calls per month are updated.',
   cancel: 'Your subscription will end at the end of the period you have paid for. Your calls continue until then.',
   pause: 'Your calls are paused. Billing continues while calls are paused.', resume: 'Your calls are resumed. Shared STOP or safety holds still apply.',
+  withdraw:'Your withdrawal is recorded. New Unblock calls are stopped; cancellation and repayment will be confirmed separately.',
   scope: 'Your Norway-only launch declaration is recorded. Payment, STOP and review holds still apply.',
 };
 
@@ -60,6 +64,7 @@ export async function unblockRoutes(req: IncomingMessage, url: URL, deps: LoopDe
   const page = (screen: Screen, status = 200, note?: string, extra: PageOptions = {}): Answer => ({ status, body: unblockPage(screen, { ...options, ...extra, note: note ?? extra.note }), headers: pageHeaders });
   const redirect = (location: string, cookie?: string): Answer => ({ status: 303, body: '', headers: { ...pageHeaders, location, ...(cookie ? { 'set-cookie': cookie } : {}) } });
   if (req.method === 'POST' && crossSite(req)) return page('landing', 403, 'This request could not be verified.');
+  if(req.method==='GET'&&['/unblock/consumer-terms','/unblock/withdrawal-form'].includes(url.pathname))return {status:200,body:url.pathname.endsWith('withdrawal-form')?withdrawalForm():consumerTerms(),headers:{...pageHeaders,'content-type':'text/plain; charset=utf-8','content-disposition':'attachment; filename="unblock-information.txt"'}};
   if (req.method === 'GET' && url.pathname === '/unblock') return page('landing');
   if (req.method === 'GET' && url.pathname === '/unblock/about') return { status: 200, body: aboutPage(options), headers: pageHeaders };
   const accessing = url.pathname === '/unblock/access';
@@ -140,20 +145,25 @@ export async function unblockRoutes(req: IncomingMessage, url: URL, deps: LoopDe
   if (!loaded) return page('landing', 200, 'No Unblock enrolment is attached to this account.');
   const { enrollment: e, programme: p } = loaded;
   const [identity] = await deps.store.raw`select held_for_review,all_calls_stopped from callers where phone_hash=${hash}`;
-  const held = !!(identity?.['held_for_review'] || identity?.['all_calls_stopped']) || !offerCountsValid(e) || !offeredCallCount(callsOf(p));
+  const held = !!e.withdraw_requested_at || !!(identity?.['held_for_review'] || identity?.['all_calls_stopped']) || !offerCountsValid(e) || !offeredCallCount(callsOf(p));
   const next = upcoming(e, p, now);
   const callsRunning = callsAllowed(e, now, p) && !held && p.state === 'active';
   const scheduled = e.weekly_weekday !== null && e.weekly_minute !== null;
   const live = e.standing === 'active' || e.standing === 'past_due';
+  const [withdrawal]=await deps.store.raw<RefundRequest[]>`select * from unblock_refund_requests where enrollment_id=${e.id} and reason='withdrawal' order by requested_at limit 1`;
+  const deadline=consumerDeadline(e);
   const privateOptions: PageOptions = { ...options, contact: !!contactNumber(), programme: p, csrf: csrfFor(token!), paid: live, paymentHold: e.standing === 'payment_hold', held,
+    consumer:{email:e.contract_email_enc?decrypt(e.contract_email_enc):p.contact?.email??'',accepted:!!e.terms_accepted_at&&!(e.standing==='ended'&&!!e.contract_at),early:!!e.early_start_at,contractAt:e.contract_at?.toISOString(),deadline:deadline?.toISOString(),waiting:!!e.contract_at&&(!e.subscription_id||e.contract_subscription_id===e.subscription_id)&&!consumerCallsAllowed(e,now)&&!e.withdraw_requested_at,evidencePending:live&&(!e.contract_at||!!e.subscription_id&&e.contract_subscription_id!==e.subscription_id)&&!e.withdraw_requested_at,withdrawal:withdrawal?{id:withdrawal.id,status:withdrawal.status,repayBy:withdrawal.repay_by.toISOString(),cancelConfirmed:!!withdrawal.cancel_confirmed_at,guaranteed:withdrawal.guaranteed}:undefined},
     scopeConfirmed: norwayScopeConfirmed(e.norway_scope_version ?? undefined),
-    checkout: !offerCountsValid(e) || !offeredCallCount(callsOf(p)) || live || e.subscription_id && e.standing !== 'ended' ? '' : unblockCheckout(e.checkout_reference, NORWAY_SCOPE_VERSION), timezone: e.timezone, scheduled, calls: e.pending_calls_per_month ?? e.calls_per_month,
+    checkout: !!e.withdraw_requested_at || !offerCountsValid(e) || !offeredCallCount(callsOf(p)) || live || e.subscription_id && e.standing !== 'ended' ? '' : unblockCheckout(e.checkout_reference, NORWAY_SCOPE_VERSION), timezone: e.timezone, scheduled, calls: e.pending_calls_per_month ?? e.calls_per_month,
     sub: { standing: e.standing, cancelling: e.cancel_at_period_end, paidUntil: e.paid_until?.toISOString(), callsPerMonth: e.calls_per_month, pendingCalls: e.pending_calls_per_month, manageable: !!e.subscription_id && e.standing !== 'ended', timezone: e.timezone },
     weekly: e.weekly_minute !== null ? clock(e.weekly_minute) : undefined, weekday: e.weekly_weekday ?? undefined,
     lightDays: scheduled ? e.light_weekdays ?? [] : undefined, lightTime: e.light_minute !== null ? clock(e.light_minute) : undefined,
     openingAt: e.opening_at && e.opening_at > now ? e.opening_at.toISOString() : undefined,
     next: callsRunning ? next.call : undefined, nextLight: callsRunning ? next.light : undefined,
     siblingHref: beliefConfig().enabled ? '/beliefs' : undefined };
+  if(req.method==='GET'&&url.pathname==='/unblock/contract.txt'&&e.contract_document_enc)return {status:200,body:decrypt(e.contract_document_enc),headers:{...pageHeaders,'content-type':'text/plain; charset=utf-8','content-disposition':'attachment; filename="unblock-contract.txt"'}};
+  if(req.method==='GET'&&url.pathname==='/unblock/withdrawal.txt'&&withdrawal)return {status:200,body:withdrawalAcknowledgement(withdrawal),headers:{...pageHeaders,'content-type':'text/plain; charset=utf-8','content-disposition':'attachment; filename="unblock-withdrawal-received.txt"'}};
   const saved = url.searchParams.get('saved'); if (saved) privateOptions.note = SAVED[saved];
   if (req.method === 'GET' && url.searchParams.get('billing') === 'return' && e.subscription_id) {
     // Back from the provider's billing portal: re-read the subscription so a cancellation or card change shows at once.
@@ -166,11 +176,15 @@ export async function unblockRoutes(req: IncomingMessage, url: URL, deps: LoopDe
     if (url.pathname !== '/unblock/action') return page('account', 404, 'Page not found.', privateOptions);
     try {
       const action = form.get('action');
+      if(action==='withdraw'){await requestWithdrawal(deps,hash,now);return redirect('/unblock/account?saved=withdraw');}
       if (action === 'checkout') {
-        if (!ready || !offerCountsValid(e) || !offeredCallCount(callsOf(p)) || live || e.subscription_id && e.standing !== 'ended') throw new BillingUnavailable();
+        if (!ready || e.withdraw_requested_at || !offerCountsValid(e) || !offeredCallCount(callsOf(p)) || live || e.subscription_id && e.standing !== 'ended') throw new BillingUnavailable();
         if (form.get('scope_norway') !== 'yes') throw new PracticeError('norway_required');
+        const email=(form.get('contract_email')??'').trim();
+        if(form.get('accept_terms')!=='yes'||form.get('terms_version')!==CONSUMER_TERMS_VERSION||!EMAIL.test(email)||email!==(form.get('contract_email_confirm')??'').trim())return page('account',400,'Read the terms, confirm your contract email and choose whether to request early calls.',{...privateOptions,consumer:{...privateOptions.consumer!,email},values:form,error:true});
         const checkout = unblockCheckout(e.checkout_reference, NORWAY_SCOPE_VERSION);
         if (!checkout) throw new BillingUnavailable();
+        await acceptConsumerTerms(deps.store.raw,hash,email,form.get('early_start')==='yes',now);
         await repo.confirmNorway(hash, now);
         return redirect(checkout);
       }
@@ -199,6 +213,7 @@ export async function unblockRoutes(req: IncomingMessage, url: URL, deps: LoopDe
       if (action === 'cancel') { await cancelUnblock(deps, hash, now); return redirect('/unblock/account?saved=cancel'); }
       if (action === 'billing') { const portal = await unblockPortal(deps, hash); return { status: 303, body: '', headers: { ...pageHeaders, location: portal } }; }
       if (action === 'pause' || action === 'resume') {
+        if(e.withdraw_requested_at)throw new BillingUnavailable();
         await repo.command(hash, { type: action }, form.get('event') ?? '', Number(form.get('revision')), now);
         return redirect(`/unblock/account?saved=${action}`);
       }

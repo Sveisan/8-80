@@ -33,6 +33,7 @@ Object.assign(process.env, {
 });
 if (unblock) Object.assign(process.env, {
   UNBLOCK_ENABLED: 'true', UNBLOCK_LIVE_CALLS: 'false', UNBLOCK_SAFETY_APPROVED: 'true', UNBLOCK_SCRIPTS_APPROVED: 'true', UNBLOCK_AGENTS_VERIFIED: 'true',
+  UNBLOCK_CONSUMER_NOTICES_APPROVED:'unblock-consumer-2026-11-21',
   UNBLOCK_PRICE_VERIFIED: 'true', UNBLOCK_PRICE_LABEL: '249 kr / month (synthetic)', UNBLOCK_PRODUCT_ID: 'synthetic-unblock',
   UNBLOCK_CHECKOUT_URL: 'https://buy.stripe.com/synthetic', UNBLOCK_TOOL_SECRET: 'synthetic-unblock-browser-secret'.repeat(2),
   UNBLOCK_OPENING_AGENT_ID: 'synthetic-unblock-opening', UNBLOCK_WEEKLY_AGENT_ID: 'synthetic-unblock-regular', UNBLOCK_LIGHT_AGENT_ID: 'synthetic-unblock-light',
@@ -60,6 +61,7 @@ const reset = async (): Promise<void> => {
 };
 await reset();
 const deps: LoopDeps = {
+  unblockCommerce:{contract:async()=>({at:new Date(Date.now()-1000),paidAt:new Date(Date.now()-1000),invoiceId:'in_design_initial',paymentId:'pi_design_initial',amount:24900,currency:'nok'}),refund:async()=>{throw Error('No real refunds in a browser fixture');}},
   store: db.store, scheduler: new Scheduler(db.sql), script,
   agent: { placeCall: async () => { throw new Error('A design test must never place a call.'); }, conversation: async () => ({}) } as unknown as LoopDeps['agent'],
   sms: { send: async (to, body) => { if (failSms) throw new SendFailure('permanent', 'synthetic SMS failure'); texts.push({ to, body }); return { id: `synthetic-sms-${texts.length}` }; } },
@@ -125,6 +127,7 @@ server.on('request', (req, res) => { void (async () => {
     const memory = await db.store.load(String(form.phone));
     reply({ caller, goals: memory.goals, commitment: memory.lastCommitment, cancellations, calendarEmails: emails.flatMap(email => email.calendar ? [email.calendar] : []) }); return;
   }
+  if(url.pathname==='/__test/unblock-information-delivered'){await dispatchMessages(deps);await db.sql`update message_outbox set status='delivered',delivered_at=now() where kind='unblock-legal' and event_key like 'unblock:contract:%'`;const {maintainUnblockConsumer}=await import('../../services/voice/src/unblock/consumer.ts');await maintainUnblockConsumer(deps);reply({capturedSyntheticEmail:emails.some(e=>e.subject==='Your Unblock subscription and withdrawal rights'),realDelivery:false});return;}
   if (url.pathname === '/__test/unblock-state') {
     const loaded = await new UnblockRepository(db.sql).load(phoneKey(String(form.phone)));
     reply(loaded ? { enrollment: loaded.enrollment, programme: loaded.programme, cancellations } : { enrollment: null }); return;

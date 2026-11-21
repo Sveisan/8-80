@@ -124,13 +124,14 @@ export async function composeExport(
   const tipAssignments = await store.raw`select * from weekly_tip_assignments where phone_hash=${hash}`;
   const tipOffers = await store.raw`select * from weekly_tip_offers where phone_hash=${hash}`;
   const toolRequests = await store.raw`select id,attempt_id,response_enc,at from weekly_tool_requests where phone_hash=${hash}`;
-  const messageRows = await store.raw`select * from message_outbox where phone_hash = ${hash} order by created_at`;
+  const messageRows = await store.raw`select * from message_outbox where phone_hash = ${hash} and (${includeUnblock} or kind<>'unblock-legal') order by created_at`;
   const calendarInvitations = await store.raw`select * from calendar_invitations where phone_hash = ${hash} order by scheduled_at`;
-  const messageAttempts = await store.raw`select a.* from message_attempts a join message_outbox m on m.id = a.message_id where m.phone_hash = ${hash} order by a.started_at`;
+  const messageAttempts = await store.raw`select a.* from message_attempts a join message_outbox m on m.id = a.message_id where m.phone_hash = ${hash} and (${includeUnblock} or m.kind<>'unblock-legal') order by a.started_at`;
   const beliefEnrollments = includeBeliefs ? await store.raw`select * from belief_enrollments where phone_hash = ${hash}` : [];
   const beliefRefunds = includeBeliefs ? await store.raw`select r.* from belief_refund_requests r join belief_enrollments e on e.id=r.programme_id where e.phone_hash=${hash}` : [];
   const beliefSessions = includeBeliefs ? await store.raw`select * from belief_sessions where phone_hash = ${hash} order by created_at` : [];
   const unblockEnrollments = includeUnblock ? await store.raw`select * from unblock_enrollments where phone_hash = ${hash}` : [];
+  const unblockRefunds=includeUnblock?await store.raw`select r.* from unblock_refund_requests r join unblock_enrollments e on e.id=r.enrollment_id where e.phone_hash=${hash}`:[];
   const unblockSessions = includeUnblock ? await store.raw`select * from unblock_sessions where phone_hash = ${hash} order by created_at` : [];
   const unblockIncidents = includeUnblock ? await store.raw`select i.* from unblock_incidents i join call_attempts a on a.id=i.attempt_id where a.phone_hash=${hash} order by i.created_at` : [];
   const [privateUnblock] = includeUnblock ? [] : await store.raw`select phone_hash from unblock_enrollments where phone_hash = ${hash}`;
@@ -159,7 +160,7 @@ export async function composeExport(
     catch { return {...metadata,body}; }
   };
   const unseal = (row: Record<string, unknown>): Record<string, unknown> => Object.fromEntries(Object.entries(row).map(([key, value]) => [key.endsWith('_enc') ? key.slice(0, -4) : key, key.endsWith('_enc') && typeof value === 'string' ? decrypt(value) : value]));
-  parts.push({ role: 'body', text: JSON.stringify({ profile: unseal(profile), callAttempts: attempts, qualityReviews: qualityReviews.map(unseal), beliefs: beliefEnrollments.map(unseal), beliefSessions: beliefSessions.map(unseal), beliefRefundRequests:beliefRefunds, unblock: unblockEnrollments.map(unseal), unblockSessions: unblockSessions.map(unseal), unblockIncidents, feedback: feedbackRows.map(unseal), retainedCallDeliveries: deliveries.map(safeDelivery), accessExpiry: credentials, pendingSignup: pendingSignup.map(unseal), recovery, journey, messages, messageAttempts,
+  parts.push({ role: 'body', text: JSON.stringify({ profile: unseal(profile), callAttempts: attempts, qualityReviews: qualityReviews.map(unseal), beliefs: beliefEnrollments.map(unseal), beliefSessions: beliefSessions.map(unseal), beliefRefundRequests:beliefRefunds, unblock: unblockEnrollments.map(unseal), unblockSessions: unblockSessions.map(unseal), unblockIncidents,unblockRefunds, feedback: feedbackRows.map(unseal), retainedCallDeliveries: deliveries.map(safeDelivery), accessExpiry: credentials, pendingSignup: pendingSignup.map(unseal), recovery, journey, messages, messageAttempts,
     calendarInvitations:calendarInvitations.map(unseal),
     productFeedback:productFeedbackRows.map(unseal), encouragementPreferences:encouragementPreferences.map(unseal), encouragementDeliveries:encouragementDeliveries.map(unseal),
     reminders:reminders.map(unseal), reminderDrafts:reminderDrafts.map(unseal), tipAssignments, tipOffers:tipOffers.map(unseal), weeklyToolRequests:toolRequests.map(unseal) }, null, 2) });

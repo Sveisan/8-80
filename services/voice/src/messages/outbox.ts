@@ -1,3 +1,4 @@
+import {unblockConfig} from '../unblock/config.ts';
 import { sameMessageNumber } from '../agent/voices.ts';
 import { localDate, zonedTimeToUtc } from '../schedule/time.ts';
 import { randomUUID } from 'node:crypto';
@@ -13,7 +14,7 @@ import { canRemind } from '../weekly/reminders.ts';
 import { bookedAppointments, callInProgress } from '../calendar/appointments.ts';
 import { suppression as encouragementSuppression } from '../encouragement/runtime.ts';
 
-export type MessageKind = 'call' | 'welcome' | 'recap' | 'billing' | 'trial' | 'feedback' | 'access' | 'signup' | 'reply' | 'export' | 'beliefs' | 'unblock' | 'safety' | 'operator' | 'nudge' | 'reminder' | 'calendar' | 'calendar-notice' | 'encouragement';
+export type MessageKind = 'call' | 'welcome' | 'recap' | 'billing' | 'trial' | 'feedback' | 'access' | 'signup' | 'reply' | 'export' | 'beliefs' | 'unblock' | 'unblock-legal' | 'safety' | 'operator' | 'nudge' | 'reminder' | 'calendar' | 'calendar-notice' | 'encouragement';
 export interface Message {
   eventKey: string; phoneHash: string; channel: 'sms' | 'email'; kind: MessageKind;
   to: string; body: string | Recap; reference?: string; expiresAt?: Date;
@@ -85,8 +86,13 @@ async function suppression(sql: Database, row: Row, now: Date): Promise<string |
     }
   }
   if (payload && 'appointment' in payload && payload.appointment !== (caller?.['next_call_at']?.toISOString() ?? null)) return 'appointment_changed';
-  if (!['safety','operator'].includes(row.kind) && calendar?.method !== 'CANCEL' && row.channel === 'email' && row.recipient_enc && (!caller?.['email_enc'] || decrypt(row.recipient_enc) !== decrypt(caller['email_enc']))) return 'address_changed';
+  if (!['safety','operator','unblock-legal'].includes(row.kind) && calendar?.method !== 'CANCEL' && row.channel === 'email' && row.recipient_enc && (!caller?.['email_enc'] || decrypt(row.recipient_enc) !== decrypt(caller['email_enc']))) return 'address_changed';
   if (!['safety','operator'].includes(row.kind) && row.channel === 'sms' && caller?.['sms_opt_out']) return 'carrier_opt_out';
+  if(row.kind==='unblock-legal'){
+    if(!unblockConfig().consumerNoticesApproved)return 'wait_for_approval';
+    const [e]=await sql`select contract_email_enc from unblock_enrollments where id=${row.reference} and phone_hash=${row.phone_hash}`;
+    if(!e?.['contract_email_enc']||!row.recipient_enc||decrypt(e['contract_email_enc'])!==decrypt(row.recipient_enc))return 'contract_address_changed';
+  }
   if (row.kind === 'encouragement') return await encouragementSuppression(sql,row.phone_hash,row.reference,caller!,now,row.id);
   if (['call', 'welcome', 'feedback'].includes(row.kind) && caller?.['paused']) return 'calls_paused';
   if ((row.kind === 'beliefs' || row.kind === 'unblock') && caller?.['held_for_review']) return 'human_review';
@@ -144,6 +150,8 @@ async function suppression(sql: Database, row: Row, now: Date): Promise<string |
 /** Returns the durable outcome; accepted means the provider took responsibility, not delivery. */
 export async function dispatchMessage(deps: LoopDeps, id: string, now = new Date()): Promise<string> {
   const sql = deps.store.raw;
+  const [candidate]=await sql`select kind from message_outbox where id=${id}`;
+  if(candidate?.['kind']==='unblock-legal'&&!unblockConfig().consumerNoticesApproved)return 'pending';
   const attemptId = randomUUID();
   const claimed = await sql.begin(async tx => {
     const [row] = await tx<Row[]>`update message_outbox set status = 'sending', started_at = ${now},
@@ -171,7 +179,7 @@ export async function dispatchMessage(deps: LoopDeps, id: string, now = new Date
         where phone_hash=${row.phone_hash} and revision::text=${row.reference} and state='queued'`;
       return status;
     };
-    if (reason) return finish(reason === 'wait_for_spacing' ? 'pending' : 'suppressed', reason);
+    if (reason) return finish(['wait_for_spacing','wait_for_approval'].includes(reason) ? 'pending' : 'suppressed', reason);
     const transport = row.channel === 'email' ? deps.mailer : deps.sms;
     if (transport.previewOnly) return finish('failed', 'provider_unconfigured');
     if (row.attempts > 1 && transport.retryWindowMs && row.first_attempt_at && +now - +row.first_attempt_at >= transport.retryWindowMs - 60_000) return finish('uncertain', 'idempotency_window_expired');
@@ -198,7 +206,7 @@ export async function dispatchMessage(deps: LoopDeps, id: string, now = new Date
 
 export async function dispatchMessages(deps: LoopDeps, now = new Date()): Promise<void> {
   await recoverMessages(deps, now);
-  const rows = await deps.store.raw<{ id: string }[]>`select id from message_outbox where status = 'pending' and available_at <= ${now} order by created_at, id limit 50`;
+  const rows = await deps.store.raw<{ id: string }[]>`select id from message_outbox where status = 'pending' and available_at <= ${now} and (kind<>'unblock-legal' or ${unblockConfig().consumerNoticesApproved}) order by created_at, id limit 50`;
   for (const row of rows) await dispatchMessage(deps, row.id, now);
   await reconcileMessages(deps, now);
   // Clear pending secrets promptly; terminal metadata lasts 30 days for diagnosis.

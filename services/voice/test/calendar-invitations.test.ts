@@ -40,7 +40,7 @@ beforeEach(async () => {
   delete process.env['BELIEFS_LIVE_CALLS']; delete process.env['UNBLOCK_LIVE_CALLS'];
   sent = [];
   if (!db) return;
-  await db.sql`truncate unblock_incidents,jev_quality_reviews,product_feedback, belief_sessions, unblock_sessions, belief_refund_requests, belief_enrollments, unblock_enrollments, calendar_invitations, message_attempts, message_outbox, callers, call_attempts, links, signups, feedback`;
+  await db.sql`truncate unblock_refund_requests,unblock_incidents,jev_quality_reviews,product_feedback, belief_sessions, unblock_sessions, belief_refund_requests, belief_enrollments, unblock_enrollments, calendar_invitations, message_attempts, message_outbox, callers, call_attempts, links, signups, feedback`;
   await db.store.upsertProfile(phone, { email });
   await new Scheduler(db.sql).setSlot(phone, slot, now);
 });
@@ -230,6 +230,7 @@ test('explicit additional programme calls get separate invitations; cadence is n
   const id = randomUUID();
   await db!.sql`insert into unblock_enrollments (id,checkout_reference,phone_hash,programme_enc,consent_version,consent_at,norway_scope_version,norway_scope_at,standing,timezone,next_weekly_at,next_light_at,weekly_weekday,weekly_minute,light_weekdays,light_minute)
     values (${id},${id},${hash},${encrypt(JSON.stringify({ schema: 1, revision: 0, state: 'active', openingHeld: true, weeksHeld: 0, chapterCalls: 4 }))},'test',${now},'norway-v1',${now},'active','Europe/Oslo',${new Date('2026-11-18T08:00:00Z')},${new Date('2026-11-19T08:00:00Z')},3,540,${[4]}::integer[],540)`;
+  await db!.sql`update unblock_enrollments set contract_subscription_id='sub_synthetic',terms_version='unblock-consumer-2026-11-21',terms_accepted_at=${now},early_start_at=${now},contract_at=${now},information_delivered_at=${now} where id=${id}`;
   await setCalendarInvitations(db!.sql, hash, true, script, now);
   assert.equal((await db!.sql`select * from calendar_invitations where state = 'active'`).length, 3);
   await dispatchMessages(deps(), now);

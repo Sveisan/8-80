@@ -50,17 +50,19 @@ async function enroll(opts: { programme?: Programme; standing?: string; calls?: 
   await db!.store.upsertProfile(phone, { name: 'Synthetic tester', email: 'synthetic@example.com' });
   const id = await repo().enroll(hash, now, undefined, true);
   const programme = opts.programme ?? finishCall(emptyProgramme(), 'opening', 0);
-  await db!.sql`update unblock_enrollments set programme_enc=${encrypt(JSON.stringify(programme))}, revision=${programme.revision}, standing=${opts.standing ?? 'awaiting_payment'}, calls_per_month=${opts.calls ?? 4},
+  await db!.sql`update unblock_enrollments set contract_subscription_id='sub_ub',terms_version='unblock-consumer-2026-11-21',terms_accepted_at=${now},early_start_at=${now},contract_at=${now},information_delivered_at=${now},programme_enc=${encrypt(JSON.stringify(programme))}, revision=${programme.revision}, standing=${opts.standing ?? 'awaiting_payment'}, calls_per_month=${opts.calls ?? 4},
     timezone='Europe/Oslo', weekly_weekday=2, weekly_minute=1080, light_weekdays='{1,3,5}', light_minute=${opts.lightMinute ?? 1140} where phone_hash=${hash}`;
   return id;
 }
 /** Activates through the real provider path: a checkout event, re-read from the (fake) provider. */
 async function activate(at = now, over: Partial<Subscription> = {}) {
   providerSub = stripe(over); const e = (await load()).enrollment;
+  if(!e.anchor_at||e.subscription_id&&over.subscriptionId&&e.subscription_id!==over.subscriptionId)await db!.sql`update unblock_enrollments set contract_at=${at},terms_accepted_at=${at},early_start_at=${at},information_delivered_at=${at},contract_subscription_id=${over.subscriptionId??'sub_ub'} where id=${e.id}`;
   return syncUnblockSubscription(deps(), checkoutEvent(e.checkout_reference), {}, at);
 }
 beforeEach(async () => {
-  if (db) await db.sql`truncate unblock_incidents,jev_quality_reviews,product_feedback,unblock_sessions,unblock_enrollments,belief_refund_requests,belief_sessions,belief_enrollments,callers,call_attempts,links,signups,access_codes,message_outbox,message_attempts,feedback,journey_events,journey_tracking,journey_counts,webhook_deliveries,heartbeats`;
+  process.env['UNBLOCK_CONSUMER_NOTICES_APPROVED']='unblock-consumer-2026-11-21';
+  if (db) await db.sql`truncate unblock_refund_requests,unblock_incidents,jev_quality_reviews,product_feedback,unblock_sessions,unblock_enrollments,belief_refund_requests,belief_sessions,belief_enrollments,callers,call_attempts,links,signups,access_codes,message_outbox,message_attempts,feedback,journey_events,journey_tracking,journey_counts,webhook_deliveries,heartbeats`;
   process.env['DATA_ENCRYPTION_KEY'] = Buffer.alloc(32, 16).toString('base64');
   for (const key of ['UNBLOCK_ENABLED', 'UNBLOCK_LIVE_CALLS', 'UNBLOCK_SAFETY_APPROVED', 'UNBLOCK_SCRIPTS_APPROVED', 'UNBLOCK_AGENTS_VERIFIED', 'UNBLOCK_PRICE_VERIFIED']) process.env[key] = 'true';
   Object.assign(process.env, { PUBLIC_URL: 'https://8and80.example', OPERATOR_PHONE: '+4791000000', UNBLOCK_OPERATOR_PHONE: '+4791000000', SUPPORT_EMAIL: 'support@example.com', UNBLOCK_PRICE_LABEL: 'Synthetic price', UNBLOCK_PRODUCT_ID: price,
@@ -161,6 +163,8 @@ test('standing follows the provider: past_due keeps calling, a first payment tha
   assert.deepEqual([ended.enrollment.next_weekly_at, ended.enrollment.next_light_at, ended.enrollment.opening_at], [null, null, null]); assert.ok(ended.enrollment.completed_at);
   await db!.sql`update unblock_enrollments set next_weekly_at=${day(28)}, next_light_at=${day(28)}`; assert.equal((await claimUnblock(deps(), day(28))).length, 0);
   // Coming back: a new subscription starts a fresh billing month and the programme carries on.
+  // Explicit synthetic evidence of a fresh review/contract for the new subscription.
+  await db!.sql`update unblock_enrollments set contract_subscription_id='sub_new',contract_at=${day(30)},terms_accepted_at=${day(30)},early_start_at=${day(30)},information_delivered_at=${day(30)} where phone_hash=${hash}`;
   providerSub = stripe({ subscriptionId: 'sub_new' });
   await syncUnblockSubscription(deps(), { id: 'e4', type: 'checkout.session.completed', data: { object: { object: 'checkout.session', client_reference_id: (await load()).enrollment.checkout_reference, subscription: 'sub_new', customer: 'cus_ub' } } }, {}, day(30));
   const back = await load(); assert.equal(back.enrollment.standing, 'active'); assert.equal(back.programme.state, 'active'); assert.equal(back.enrollment.subscription_id, 'sub_new');

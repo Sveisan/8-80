@@ -616,6 +616,8 @@ export const unblockEnrollments = pgTable('unblock_enrollments', {
   chapterStartedAt: timestamp('chapter_started_at', { withTimezone: true }), anchorAt: timestamp('anchor_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(), updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   norwayScopeVersion: text('norway_scope_version'), norwayScopeAt: timestamp('norway_scope_at', { withTimezone: true }),
+  termsVersion:text('terms_version'),termsAcceptedAt:timestamp('terms_accepted_at',{withTimezone:true}),earlyStartAt:timestamp('early_start_at',{withTimezone:true}),contractSubscriptionId:text('contract_subscription_id'),contractAt:timestamp('contract_at',{withTimezone:true}),
+  contractEmailEnc:text('contract_email_enc'),contractDocumentEnc:text('contract_document_enc'),contractNoticeId:text('contract_notice_id'),informationDeliveredAt:timestamp('information_delivered_at',{withTimezone:true}),withdrawRequestedAt:timestamp('withdraw_requested_at',{withTimezone:true}),
 }, t=>[uniqueIndex('unblock_enrollments_current_idx').on(t.phoneHash).where(sql`${t.isCurrent} = true`), index('unblock_enrollments_owner_idx').on(t.phoneHash)]);
 
 /** Shares the call-attempt/safety review infrastructure without advancing the base call cycle. */
@@ -667,3 +669,9 @@ export const jevQualityReviews = pgTable('jev_quality_reviews', {
   finishedAt: timestamp('finished_at', { withTimezone: true }),
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
 }, t => [index('jev_quality_expiry').on(t.expiresAt), index('jev_quality_caller').on(t.phoneHash)]);
+
+/** Unblock repayment obligations survive account erasure without an account/contact link. */
+export const unblockRefundRequests=pgTable('unblock_refund_requests',{
+ id:text('id').primaryKey(),enrollmentId:text('enrollment_id').references(()=>unblockEnrollments.id,{onDelete:'set null'}),reason:text('reason').notNull(),requestedAt:timestamp('requested_at',{withTimezone:true}).notNull(),repayBy:timestamp('repay_by',{withTimezone:true}).notNull(),guaranteed:boolean('guaranteed').notNull().default(false),status:text('status').notNull().default('requested'),
+ checkoutReference:text('checkout_reference'),provider:text('provider'),subscriptionId:text('subscription_id'),invoiceId:text('invoice_id'),productId:text('product_id'),amountMinor:integer('amount_minor'),currency:text('currency'),cancelConfirmedAt:timestamp('cancel_confirmed_at',{withTimezone:true}),nextAttemptAt:timestamp('next_attempt_at',{withTimezone:true}).notNull(),refundId:text('refund_id').unique(),resolvedAt:timestamp('resolved_at',{withTimezone:true}),
+},t=>[uniqueIndex('unblock_refunds_enrollment_reason_idx').on(t.enrollmentId,t.reason).where(sql`${t.status}='requested'`),index('unblock_refunds_pending_idx').on(t.repayBy).where(sql`${t.status}='requested'`),check('unblock_refunds_reason_check',sql`${t.reason} in ('withdrawal','service_failure','billing_error')`),check('unblock_refunds_status_check',sql`${t.status} in ('requested','refunded','resolved_no_payment','reviewed')`),check('unblock_refunds_amount_check',sql`${t.amountMinor} is null or ${t.amountMinor}>=0`)]);

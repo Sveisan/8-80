@@ -39,7 +39,7 @@ async function enroll(options: { opened?: boolean; programme?: Programme; due?: 
   await repo().enroll(hash, now, undefined, true);
   const programme = options.programme ?? (options.opened ? finishCall(emptyProgramme(), 'opening', 0) : emptyProgramme());
   const due = options.due === undefined ? 'weekly' : options.due;
-  await db!.sql`update unblock_enrollments set programme_enc=${encrypt(JSON.stringify(programme))}, revision=${programme.revision}, standing='active',
+  await db!.sql`update unblock_enrollments set contract_subscription_id='sub_synthetic',terms_version='unblock-consumer-2026-11-21',terms_accepted_at=${now},early_start_at=${now},contract_at=${now},information_delivered_at=${now},programme_enc=${encrypt(JSON.stringify(programme))}, revision=${programme.revision}, standing='active',
     timezone='Europe/Oslo', weekly_weekday=2, weekly_minute=1080, light_weekdays='{1,3,5}', light_minute=1140,
     next_weekly_at=${due === 'weekly' || due === 'opening' ? now : null}, next_light_at=${due === 'light' ? now : null} where phone_hash=${hash}`;
 }
@@ -57,7 +57,8 @@ async function call(at: Date, saves: [string, Record<string, unknown>][], extraT
   return { s, result };
 }
 beforeEach(async () => {
-  if (db) await db.sql`truncate unblock_incidents,jev_quality_reviews,product_feedback,unblock_sessions,unblock_enrollments,belief_refund_requests,belief_sessions,belief_enrollments,callers,call_attempts,links,signups,access_codes,message_outbox,message_attempts,feedback,journey_events,journey_tracking,journey_counts,webhook_deliveries,heartbeats`;
+  process.env['UNBLOCK_CONSUMER_NOTICES_APPROVED']='unblock-consumer-2026-11-21';
+  if (db) await db.sql`truncate unblock_refund_requests,unblock_incidents,jev_quality_reviews,product_feedback,unblock_sessions,unblock_enrollments,belief_refund_requests,belief_sessions,belief_enrollments,callers,call_attempts,links,signups,access_codes,message_outbox,message_attempts,feedback,journey_events,journey_tracking,journey_counts,webhook_deliveries,heartbeats`;
   if (db) await setUnblockAvailability(db.sql, false, now);
   process.env['DATA_ENCRYPTION_KEY'] = Buffer.alloc(32, 14).toString('base64');
   Object.assign(process.env, { UNBLOCK_TOOL_SECRET: 'u'.repeat(40), PUBLIC_URL: 'https://8and80.example', OPERATOR_PHONE: '+4791000000', UNBLOCK_OPERATOR_PHONE: '+4791000000', UNBLOCK_COVERAGE_START: '00:00', UNBLOCK_COVERAGE_END: '24:00', UNBLOCK_COVERAGE_DAYS: '0,1,2,3,4,5,6', UNBLOCK_ENABLED: 'false', UNBLOCK_LIVE_CALLS: 'false' });

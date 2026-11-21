@@ -1,3 +1,4 @@
+import {maintainUnblockConsumer} from './unblock/consumer.ts';
 import { pruneQualityReviews } from './quality/worker.ts';
 import { queueDueNudges } from './sms/nudges.ts';
 import { queueEncouragement, pruneEncouragement } from './encouragement/runtime.ts';
@@ -36,6 +37,7 @@ const deps = openDeps();
 try {
   try { await dispatchUnblockIncidentAlerts(deps); }
   catch { log('unblock.incident_dispatch_pending', {}); }
+  try { await maintainUnblockConsumer(deps); } catch { log('unblock.consumer_review_pending',{}); }
   const result = await tick(deps);
   const beliefs = await tickBeliefs(deps);
   if (beliefs.claimed) log('beliefs.tick', beliefs);

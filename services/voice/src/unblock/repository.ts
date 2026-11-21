@@ -1,3 +1,4 @@
+import {consumerCallsAllowed,withdrawalDeadline,CONSUMER_TERMS_VERSION} from './consumer-policy.ts';
 import { offerCountsValid, offeredCallCount } from './offer.ts';
 import { randomUUID } from 'node:crypto';
 import type { Database } from '../store/transaction.ts';
@@ -20,14 +21,16 @@ export interface Enrollment {
   customer_id: string | null; paid_at: Date | null; amount_minor: number | null; currency: string | null; completed_at: Date | null;
   subscription_id: string | null; cancel_at_period_end: boolean; paid_until: Date | null; calls_per_month: number; pending_calls_per_month: number | null;
   chapter: number; year: number; chapter_started_at: Date | null; anchor_at: Date | null;
+  contract_subscription_id:string|null;terms_version:string|null;terms_accepted_at:Date|null;early_start_at:Date|null;contract_at:Date|null;
+  contract_email_enc:string|null;contract_document_enc:string|null;contract_notice_id:string|null;information_delivered_at:Date|null;withdraw_requested_at:Date|null;
   consent_version: string; consent_at: Date; norway_scope_version: string | null; norway_scope_at: Date | null;
 }
 /**
  * Calls are placed only while the subscription allows them. Mirrors the weekly product: active and past_due both continue
  * (the provider's own dunning decides when it ends); a cancellation runs to the end of the paid period.
  */
-export const callsAllowed = (e: Pick<Enrollment, 'standing' | 'cancel_at_period_end' | 'paid_until' | 'calls_per_month' | 'pending_calls_per_month'> & { norway_scope_version?: string | null }, now: Date, programme?: Pick<Programme, 'chapterCalls'>): boolean =>
-  offerCountsValid(e) && (!programme || offeredCallCount(programme.chapterCalls ?? DEFAULT_CALLS)) && norwayScopeConfirmed(e.norway_scope_version ?? undefined) && (e.standing === 'active' || e.standing === 'past_due') && !(e.cancel_at_period_end && !!e.paid_until && e.paid_until <= now);
+export const callsAllowed = (e: Pick<Enrollment, 'standing' | 'cancel_at_period_end' | 'paid_until' | 'calls_per_month' | 'pending_calls_per_month'> & import('./consumer-policy.ts').ConsumerState & { norway_scope_version?: string | null }, now: Date, programme?: Pick<Programme, 'chapterCalls'>): boolean =>
+  consumerCallsAllowed(e,now) && offerCountsValid(e) && (!programme || offeredCallCount(programme.chapterCalls ?? DEFAULT_CALLS)) && norwayScopeConfirmed(e.norway_scope_version ?? undefined) && (e.standing === 'active' || e.standing === 'past_due') && !(e.cancel_at_period_end && !!e.paid_until && e.paid_until <= now);
 
 const cadenceOf = (e: Pick<Enrollment, 'timezone' | 'weekly_weekday' | 'weekly_minute'>, calls: number): Cadence | null =>
   e.weekly_weekday === null || e.weekly_minute === null ? null : { timezone: e.timezone, weekdays: weekdaysFor(e.weekly_weekday, calls), minute: e.weekly_minute };
@@ -190,7 +193,7 @@ export class UnblockRepository {
       await tx`select phone_hash from callers where phone_hash = ${hash} for update`;
       const loaded = await new UnblockRepository(tx, this.programmeId).load(hash);
       if (!loaded) throw new PracticeError('enrollment_unknown');
-      const { enrollment: e, programme: p } = loaded; if (p.state === 'completed') throw new PracticeError('programme_complete');
+      const { enrollment: e, programme: p } = loaded; if (e.withdraw_requested_at || p.state === 'completed') throw new PracticeError('programme_complete');
       const s = scheduleInput(form, now);
       const choice = this.callsChoice(e, p, s.calls);
       const moved: Enrollment = { ...e, timezone: s.timezone, weekly_weekday: s.weekday, weekly_minute: s.weekly, light_weekdays: s.lightDays, light_minute: s.lightMinute,
@@ -202,7 +205,7 @@ export class UnblockRepository {
       const programme = choice.programme ?? p;
       const slot: Schedule = { timezone: s.timezone, weeklyWeekday: s.weekday, weeklyMinute: s.weekly, lightWeekdays: s.lightDays, lightMinute: s.lightMinute };
       const light = lightEnabled(programme, slot) ? nextLight(now, s.lightDays, s.lightMinute!, s.timezone) : null;
-      const weekly = callsAllowed(e, now, p) || e.standing === 'awaiting_payment' ? weeklyPointer(moved, programme, now) : e.next_weekly_at;
+      const weekly = ['active','past_due','awaiting_payment'].includes(e.standing) ? weeklyPointer(moved, programme, now) : e.next_weekly_at;
       await tx`update unblock_enrollments set timezone = ${s.timezone}, weekly_weekday = ${s.weekday}, weekly_minute = ${s.weekly},
         light_weekdays = ${s.lightDays}::integer[], light_minute = ${s.lightMinute},
         calls_per_month = ${choice.calls}, pending_calls_per_month = ${choice.pending},
@@ -229,12 +232,12 @@ export class UnblockRepository {
       await tx`select phone_hash from callers where phone_hash = ${hash} for update`;
       const loaded = await new UnblockRepository(tx, this.programmeId).load(hash);
       if (!loaded) throw new PracticeError('enrollment_unknown');
-      const { enrollment: e, programme: p } = loaded; if (p.state === 'completed') throw new PracticeError('programme_complete');
+      const { enrollment: e, programme: p } = loaded; if (e.withdraw_requested_at || p.state === 'completed') throw new PracticeError('programme_complete');
       const choice = this.callsChoice(e, p, calls); const programme = choice.programme ?? p;
       const moved: Enrollment = { ...e, calls_per_month: choice.calls, pending_calls_per_month: choice.pending };
       const problem = await this.problem(tx, moved, [choice.calls, choice.pending ?? choice.calls, callsOf(programme)], now);
       if (problem) throw new PracticeError(problem);
-      const weekly = choice.programme && e.weekly_weekday !== null && (callsAllowed(e, now, p) || e.standing === 'awaiting_payment') ? weeklyPointer(moved, programme, now) : e.next_weekly_at;
+      const weekly = choice.programme && e.weekly_weekday !== null && (['active','past_due','awaiting_payment'].includes(e.standing)) ? weeklyPointer(moved, programme, now) : e.next_weekly_at;
       await tx`update unblock_enrollments set calls_per_month = ${choice.calls}, pending_calls_per_month = ${choice.pending}, next_weekly_at = ${weekly},
         programme_enc = ${encrypt(JSON.stringify(programme))}, revision = ${programme.revision}, updated_at = ${now} where id = ${e.id}`;
       return { applied: choice.pending === null ? 'now' as const : 'next_chapter' as const };
@@ -245,19 +248,21 @@ export class UnblockRepository {
    * stale next-call pointers, so a first-conversation date chosen before payment that has since passed does not ring at once.
    */
   static async activate(sql: Database, row: Enrollment, current: Programme, now: Date): Promise<void> {
-    if (!offerCountsValid(row) || !offeredCallCount(callsOf(current))) return; // Preserve an older out-of-package record for private review.
+    if (row.withdraw_requested_at || !row.contract_subscription_id || row.subscription_id&&row.contract_subscription_id!==row.subscription_id || row.terms_version!==CONSUMER_TERMS_VERSION || !row.contract_at || !offerCountsValid(row) || !offeredCallCount(callsOf(current))) return; // Preserve an older out-of-package record for private review.
+    const anchor=row.contract_at;const eligible=row.early_start_at?now:new Date(Math.max(+now,+withdrawalDeadline(row.contract_at)+1));
     let p = structuredClone(current); const returning = !!row.anchor_at;
     let calls = row.calls_per_month; let pending: number | null = row.pending_calls_per_month;
-    if (!returning || !p.chapterStartedAt) p = startChapter(p, calls, now);
+    if (!returning || !p.chapterStartedAt) p = startChapter(p, calls, anchor);
     else if (chapterComplete(p)) { calls = pending ?? calls; pending = null; p = rollChapter(p, calls, now); }
     else { p.chapterStartedAt = now.toISOString(); p.revision++; }
-    if (!returning) p.startedAt ??= now.toISOString();
+    if (!returning) p.startedAt ??= anchor.toISOString();
     p.state = 'active';
-    const moved: Enrollment = { ...row, anchor_at: now, calls_per_month: calls, pending_calls_per_month: pending, opening_at: !p.openingHeld && row.opening_at && row.opening_at > now ? row.opening_at : null };
-    const weekly = weeklyPointer(moved, p, now);
+    const moved: Enrollment = { ...row, anchor_at: anchor, calls_per_month: calls, pending_calls_per_month: pending, opening_at: !p.openingHeld && row.opening_at && row.opening_at > eligible ? row.opening_at : null };
+    if(!row.early_start_at&&!p.openingHeld&&!moved.opening_at&&cadenceOf(moved,callsOf(p)))moved.opening_at=nextOccurrence(cadenceOf(moved,callsOf(p))!,eligible);
+    const weekly = weeklyPointer(moved, p, eligible);
     const light = lightEnabled(p, { lightWeekdays: row.light_weekdays ?? [], lightMinute: row.light_minute }) ? nextLight(now, row.light_weekdays, row.light_minute!, row.timezone) : null;
     const pos = chapterPos(monthOf(p));
-    await sql`update unblock_enrollments set programme_enc = ${encrypt(JSON.stringify(p))}, revision = ${p.revision}, anchor_at = ${now}, chapter_started_at = ${new Date(p.chapterStartedAt!)},
+    await sql`update unblock_enrollments set programme_enc = ${encrypt(JSON.stringify(p))}, revision = ${p.revision}, anchor_at = ${anchor}, chapter_started_at = ${new Date(p.chapterStartedAt!)},
       chapter = ${pos.number}, year = ${pos.year}, calls_per_month = ${calls}, pending_calls_per_month = ${pending}, opening_at = ${moved.opening_at}, next_weekly_at = ${weekly}, next_light_at = ${light},
       completed_at = null, updated_at = ${now} where id = ${row.id}`;
   }

@@ -1,3 +1,5 @@
+import {CONSUMER_TERMS_VERSION} from './consumer-policy.ts';
+import {contractEvidence,recordContract,trackErasedWithdrawal} from './consumer.ts';
 import { randomUUID } from 'node:crypto';
 import type postgres from 'postgres';
 import { config } from '../config.ts';
@@ -39,7 +41,7 @@ export async function syncUnblockSubscription(deps: LoopDeps, payload: unknown, 
   const matches = await deps.store.raw<Enrollment[]>`select * from unblock_enrollments where
     (${ref ?? null}::text is not null and checkout_reference = ${ref ?? null}) or (${change.subscriptionId ?? null}::text is not null and subscription_id = ${change.subscriptionId ?? null})`;
   if (new Set(matches.map(m => m.id)).size > 1) throw new BillingUnavailable();
-  if (!matches[0]) return ref ? false : undefined;
+  if (!matches[0]) return ref&&change.subscriptionId ? trackErasedWithdrawal(deps,ref,change.subscriptionId,change.provider??config.billing.provider(),now) : ref ? false : undefined;
   if (!change.subscriptionId) return false;
   return applySubscription(deps, matches[0].id, change, now);
 }
@@ -53,6 +55,10 @@ export async function applySubscription(deps: LoopDeps, enrollmentId: string, ch
   if (sub.subscriptionId !== change.subscriptionId || (change.customerId && sub.customerId !== change.customerId)) throw new BillingUnavailable();
   // Only this product's subscription may grant Unblock calls; the weekly product or any other price cannot.
   if (!sub.productIds?.includes(c.productId)) throw new BillingUnavailable();
+  const [candidate]=await deps.store.raw<Enrollment[]>`select * from unblock_enrollments where id=${enrollmentId}`;
+  if(!candidate)throw new BillingUnavailable();
+  let proof:Awaited<ReturnType<typeof contractEvidence>>;
+  if(sub.standing==='active'){try{proof=await contractEvidence(deps,candidate,sub.subscriptionId,sub.customerId,c.productId,now);}catch{/* Billing standing stays authoritative; missing consumer evidence keeps calls held. */}}
   let noticeId: string | undefined;
   await deps.store.raw.begin(async tx => {
     const [identity] = await tx`select phone_hash from callers where phone_hash = (select phone_hash from unblock_enrollments where id = ${enrollmentId}) for update`;
@@ -66,9 +72,12 @@ export async function applySubscription(deps: LoopDeps, enrollmentId: string, ch
     const paidUntil = sub.endsAt ? new Date(sub.endsAt) : null;
     const paidFlag = standing === 'active' && row.standing !== 'active';
     await tx`update unblock_enrollments set standing = ${standing}, provider = ${provider}, subscription_id = ${sub.subscriptionId}, customer_id = ${sub.customerId}, product_id = ${c.productId},
-      cancel_at_period_end = ${sub.cancelAtPeriodEnd}, paid_until = ${paidUntil}, paid_at = case when ${paidFlag} then coalesce(paid_at, ${now}) else paid_at end, updated_at = ${now} where id = ${row.id}`;
+      cancel_at_period_end = ${sub.cancelAtPeriodEnd}, paid_until = ${paidUntil}, paid_at = case when ${paidFlag} then coalesce(paid_at, ${row.terms_version===CONSUMER_TERMS_VERSION&&!row.contract_at?null:now}) else paid_at end, updated_at = ${now} where id = ${row.id}`;
+    if(proof&&!row.contract_at)await recordContract(tx,row,proof,now,sub.subscriptionId);
     const [current] = await tx<Enrollment[]>`select * from unblock_enrollments where id = ${row.id}`;
-    if (standing === 'active' && (row.standing === 'awaiting_payment' || row.standing === 'ended')) {
+    if(current?.withdraw_requested_at)await tx`update unblock_refund_requests set cancel_confirmed_at=case when subscription_id is distinct from ${sub.subscriptionId} then null else cancel_confirmed_at end,invoice_id=case when subscription_id is distinct from ${sub.subscriptionId} then ${current.purchase_id} else invoice_id end,subscription_id=${sub.subscriptionId},provider=${provider},product_id=${c.productId},next_attempt_at=${now},status=case when status='reviewed' then 'requested' else status end where enrollment_id=${row.id} and reason='withdrawal'`;
+
+    if (standing === 'active' && (row.standing === 'awaiting_payment' || row.standing === 'ended'||!!proof)) {
       await UnblockRepository.activate(tx, current!, programme, now);
       if (callsAllowed(current!, now, programme)) noticeId = await confirmation(tx, deps, current!.phone_hash, provider, sub.subscriptionId, now);
     } else if (standing === 'ended' && row.standing !== 'ended') await UnblockRepository.end(tx, current!, programme, now);

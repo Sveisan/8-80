@@ -38,6 +38,7 @@ export class ResendMailer implements Mailer {
         from: this.from,
         to: [to],
         subject: recap.subject,
+        ...(recap.replyTo ? {reply_to:recap.replyTo} : {}),
         html: letterHtml(recap, { ...(this.markUrl ? { markUrl: this.markUrl } : {}), ...(recap.date ? { date: recap.date } : {}), ...(recap.action ? { action: recap.action } : {}) }),
         text: recap.body,
         ...(recap.calendar ? { attachments: [{ filename: '8and80-call.ics', content: Buffer.from(calendarFile(recap.calendar, this.from, to)).toString('base64'), content_type: `text/calendar; charset=utf-8; method=${recap.calendar.method}` }] } : {}),

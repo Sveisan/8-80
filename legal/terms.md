@@ -1,6 +1,6 @@
 # Terms
 
-Draft updated 15 November 2026; operational wording requires review before a paid launch.
+Draft updated 21 November 2026; operational wording requires review before a paid launch.
 
 ## Who you are agreeing with
 
@@ -80,6 +80,38 @@ To stop future charges, cancel renewal there; calls remain available until the
 paid period ends unless you pause them. Contact {{support_email}} about a payment,
 refund, correction, or missing service. A request is separate from a confirmed
 refund. The consumer withdrawal information above also applies.
+
+### Unblock withdrawal and refunds
+
+You may withdraw within 14 days after entering the subscription contract, without
+giving a reason. The contract is entered into when the provider accepts your
+subscription checkout; later payment settlement or a delayed webhook does not
+postpone that date. The starting day is excluded, and statutory rules extend a
+final non-working day. Any mandatory extension for missing information is preserved.
+
+For the launch we refund the full initial NOK 249 payment within that withdrawal
+window, even after opening, regular or light calls. No deduction, administration
+fee or compulsory account credit applies. A separate, optional and unticked
+request is needed for calls to start before the withdrawal period ends. Without
+it calls wait until the period ends. Starting calls does not waive the launch
+refund policy. A first call is not full performance of an ongoing subscription.
+
+Use “Withdraw and request a refund” in your verified Unblock account or send a
+clear statement to {{support_email}}. The optional standard form is available at
+https://8and80.me/unblock/withdrawal-form . It is not compulsory. Withdrawal stops
+new Unblock calls immediately and initiates cancellation of renewal. Receipt of
+your request, provider-confirmed cancellation and completed refund are separate
+states; you can download the acknowledgement from your account.
+
+We repay valid withdrawals without undue delay, no later than 14 days after
+receiving the notice, using the original payment method unless you expressly
+agree otherwise. Ordinary cancellation outside withdrawal does not automatically
+refund unused time or missed calls; statutory rights remain unaffected. If our
+fault prevents paid service, we offer a proportionate monetary refund for the
+affected service, or the whole month if that month cannot be provided. We review
+duplicate/incorrect charges and other complaints individually without shortening
+statutory claim periods. This policy does not create a new statutory withdrawal
+period on every normal renewal.
 
 Unblock notes and weekly-call notes stay separate. Programme pause and renewal
 cancellation apply to the selected product. Replying STOP to our shared number
