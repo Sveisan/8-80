@@ -2,12 +2,13 @@ import type { WeeklyOffer } from '../weekly/intro-pilot.ts';
 import { themeInit, themeControl, themeSwitch, themeToolbar } from '../design-system/theme.ts';
 import { BRAND_HEAD } from '../design-system/head.ts';
 import { SIGNUP_CSS } from '../design-system/pages.ts';
+import { perspectiveGraphic, PERSPECTIVE_MOTION } from '../design-system/perspectives.ts';
 import { FOUNDATION_CSS, CONTROL_CSS } from '../design-system/styles.ts';
 import { femaleVoiceReady, sameMessageNumber } from '../agent/voices.ts';
 import type { ScriptLines } from '../script.ts';
 import { readBookingSlot, type Invalid, type Signup } from './form.ts';
 import { describeAppointment, nextSlotAfter } from '../schedule/time.ts';
-import { BUSY, MOTION, busyLabel, mascot } from './mascot.ts';
+import { BUSY, MOTION, brandLockup, busyLabel, mascot } from './mascot.ts';
 import { timePicker, TIME_PICKER_SCRIPT } from './time-picker.ts';
 import { feedbackWidget } from '../product-feedback/widget.ts';
 import { googleCalendarConfig, googleCalendarReady } from '../calendar/google-config.ts';
@@ -174,15 +175,7 @@ export function signupPage(
     </div>
     <p class="honest intro-summary">${say('signup.summary.detail')}</p>
     <figure class="perspectives">
-      <svg viewBox="0 0 440 170" aria-hidden="true" focusable="false">
-        <path d="M80 100 C140 25 300 25 360 100" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".35"/>
-        <path d="M80 100 C140 156 300 156 360 100" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".35"/>
-        <circle cx="80" cy="92" r="43" fill="var(--gold)"/><circle cx="360" cy="92" r="43" fill="var(--ink)"/>
-        <text x="80" y="108" text-anchor="middle" fill="#1A2920" font-size="48">8</text>
-        <text x="360" y="108" text-anchor="middle" fill="var(--bg)" font-size="43">80</text>
-        <circle cx="220" cy="92" r="5" fill="currentColor"/>
-        <text x="220" y="121" text-anchor="middle" fill="currentColor" font-size="14">${say('signup.visual.today')}</text>
-      </svg>
+      ${perspectiveGraphic(say('signup.visual.today'))}
       <figcaption><span>${say('signup.visual.eight')}</span><span>${say('signup.visual.eighty')}</span></figcaption>
     </figure>
 
@@ -291,6 +284,8 @@ export function signupPage(
         var preview = document.getElementById('first-appointment');
         var check = document.getElementById('appointment-check');
         var version = 0;
+        var confirmedDate = preview.textContent;
+        preview.addEventListener('animationend', function () { preview.classList.remove('motion-highlight'); });
         var updateAppointment = function () {
           var request = ++version;
           var query = new URLSearchParams({
@@ -305,7 +300,10 @@ export function signupPage(
             .then(function (response) { if (!response.ok) throw new Error('date unavailable'); return response.json(); })
             .then(function (answer) {
               if (request !== version) return;
-              preview.textContent = preview.getAttribute('data-format').replace('{{when}}', answer.when);
+              var date = preview.getAttribute('data-format').replace('{{when}}', answer.when);
+              preview.textContent = date;
+              if (date !== confirmedDate && !matchMedia('(prefers-reduced-motion: reduce)').matches) preview.classList.add('motion-highlight');
+              confirmedDate = date;
               check.hidden = true;
             })
             .catch(function () {
@@ -321,7 +319,7 @@ export function signupPage(
         document.addEventListener('visibilitychange', function () { if (!document.hidden) updateAppointment(); });
       } catch (e) { document.getElementById('appointment-check').hidden = false; }
       ${TIME_PICKER_SCRIPT}
-    </script>
+    </script>${PERSPECTIVE_MOTION}
   `,
     language,
     true,
@@ -386,16 +384,7 @@ export function welcomePage(signup: Signup, first: Date, script: ScriptLines, la
   );
 }
 
-/**
- * The mark alone, centred.
- *
- * It carried the name beside it, on the reasoning that this is the page where
- * nobody knows it yet. The owner's call on 2026-09-27 is that the headline
- * directly underneath already says what this is, and the name set twice within
- * an inch reads as a letterhead rather than a product. The mark keeps the
- * accessible name, so a screen reader still announces it.
- */
-const LOCKUP = `<header class="lockup"><span class="visually-hidden">8&amp;80</span>${mascot('idle')}</header>`;
+const LOCKUP = `<header class="lockup">${brandLockup()}</header>`;
 
 export { clock };
 
@@ -421,7 +410,7 @@ ${FOUNDATION_CSS}${CONTROL_CSS}${SIGNUP_CSS}
 
 export function invitationClosedPage(script: ScriptLines): string {
   return shell(`
-    <header class="lockup">${mascot('nudge')}</header>
+    ${LOCKUP}
     <h1>${esc(script.get('signup.invite.closed') ?? '')}</h1>
     <p>${esc(script.get('signup.invite.closed.detail') ?? '')}</p>
     <a href="/access">${esc(script.get('access.title') ?? '')}</a>

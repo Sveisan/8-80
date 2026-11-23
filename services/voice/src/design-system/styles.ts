@@ -56,6 +56,15 @@ export const FOUNDATION_CSS = `
 
 /** Native controls are the shared components; page renderers only arrange them. */
 export const CONTROL_CSS = `
+  .brand-lockup { display: inline-flex; align-items: center; gap: var(--space-2); white-space: nowrap; }
+  .brand-symbol { display: block; width: var(--mark-size); flex: none; }
+  .brand-name { font: 600 var(--text-wordmark)/1 var(--font-display); letter-spacing: -.045em; }
+  .brand-lockup--wordmark .brand-name { font-size: var(--text-heading); }
+  .brand-lockup--wordmark .brand-symbol { width: var(--space-8); }
+  .motion-highlight { animation: feedback-highlight 620ms ease-out; border-radius: var(--radius-control); }
+  @keyframes feedback-highlight {
+    from { background-color: color-mix(in srgb, var(--accent) 22%, transparent); }
+  }
   :where(input:not([type="radio"]):not([type="checkbox"]):not([type="hidden"]), select, textarea) {
     display: block; width: 100%; min-width: 0; min-height: var(--control-height);
     padding: var(--space-3) var(--space-4); font: inherit; color: var(--ink);

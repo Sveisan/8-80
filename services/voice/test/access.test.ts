@@ -301,7 +301,7 @@ test('a legacy move returns the updated authorised controls without SMS instruct
   await serve(async base => {
     const res = await fetch(`${base}/r/${token}`, form({ action: 'move', weekday: '4', time: '09:00' }));
     const html = await res.text();
-    assert.match(html, /class="appointment"/);
+    assert.match(html, /<time class="appointment motion-highlight"/);
     assert.ok(html.includes(script.get('page.move.saved.once')!));
     assert.doesNotMatch(html, /send the day and time with ALWAYS/);
     const originAttack = await fetch(`${base}/r/${token}`, form({ action: 'stop-confirm' }, { origin: 'https://another.example' }));

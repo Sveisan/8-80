@@ -144,6 +144,15 @@ export const SIGNUP_CSS = `
   .perspectives figcaption { display: flex; justify-content: space-between; gap: var(--space-6); font-size: var(--text-caption); color: var(--quiet); }
   .perspectives figcaption span { max-width: 9rem; }
   .perspectives figcaption span:last-child { text-align: right; }
+  .perspective-trace { stroke-dasharray: 1; stroke-dashoffset: 1; opacity: 0; }
+  .perspectives--playing .perspective-trace { animation: trace-perspective 720ms ease-out; }
+  .perspectives--playing .perspective-trace--second { animation-delay: 320ms; }
+  @keyframes trace-perspective {
+    0% { stroke-dashoffset: 1; opacity: 0; }
+    12% { opacity: .85; }
+    60% { stroke-dashoffset: 0; opacity: .85; }
+    100% { stroke-dashoffset: 0; opacity: 0; }
+  }
   .intro-note { font-size: var(--text-small); line-height: 1.7; color: var(--quiet); margin-top: var(--space-6); max-width: var(--measure-form); }
   .booking-panel { width: 100%; max-width: var(--measure-form); padding: var(--space-6) var(--space-4); border: 1px solid var(--line); background: var(--card); border-radius: var(--radius-panel); min-width: 0; }
   .booking-panel { scroll-margin-block-start: var(--space-4); }
@@ -257,7 +266,7 @@ export const ACCOUNT_CSS = `
   .account-header { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); align-items: center; justify-content: space-between; margin-bottom: var(--space-4); }
   .account-header a, .account-link { display: inline-flex; align-items: center; min-height: var(--target-min); font-size: var(--text-small); }
   .account-brand { gap: var(--space-2); color: var(--ink); font-weight: var(--weight-control); text-decoration: none; }
-  .account-brand .mark { width: var(--space-8); }
+  .account-brand .brand-symbol { width: var(--space-8); }
   .account-intro { margin: var(--space-2) 0 var(--space-4); color: var(--quiet); font-size: var(--text-small); }
   .account-notice { margin: var(--space-3) 0; padding: var(--space-3) var(--space-4); background: var(--card);
     border-inline-start: 3px solid var(--accent); font-size: var(--text-small); }
