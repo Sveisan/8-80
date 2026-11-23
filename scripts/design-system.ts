@@ -2,7 +2,7 @@ import { createServer } from 'node:http';
 import { designGuide } from '../services/voice/src/design-system/guide.ts';
 import { serveDesignAsset } from '../services/voice/src/design-system/assets.ts';
 import { loadScript } from '../services/voice/src/script.ts';
-import { signupPage, codePage } from '../services/voice/src/signup/page.ts';
+import { signupPage, codePage, invitationClosedPage } from '../services/voice/src/signup/page.ts';
 import { reschedulePage, confirmStopPage, stoppedPage, gonePage } from '../services/voice/src/link/page.ts';
 import { accessPage, accessCodePage } from '../services/voice/src/access/page.ts';
 import { memoryPage } from '../services/voice/src/memory/page.ts';
@@ -44,12 +44,14 @@ if (process.argv.includes('--build')) {
     '/brand-motion': brandMotionPreview,
     '/beliefs/about': () => aboutPage({ preview: true }),
     '/start': () => signupPage(script, {}, 'en', now),
+    '/start/closed': () => invitationClosedPage(script),
+    '/start/invited': () => signupPage(script, { invite: { token: 'synthetic', offer: 'pilot' } }, 'en', now),
     '/start/error': () => signupPage(script, { errors: [{ field: 'email', why: 'email' }], values: { name: 'Alex', email: 'alex@' } }, 'en', now),
     '/start/code': () => codePage('+47 900 00 000', script),
     '/access': () => accessPage(script),
     '/access/code': () => accessCodePage(script, 'synthetic', '+47 900 00 000'),
     '/me': () => reschedulePage(slot, script, 'en', 'alex@example.com', undefined, { now, next, via: 'browser', contact: true, goals: true, account: { billing: 'active', canCall: true, paused: false } }),
-    '/me/paused': () => reschedulePage(slot, script, 'en', undefined, undefined, { via: 'browser', account: { billing: 'active', canCall: true, paused: true, subscribed: true } }),
+    '/me/paused': () => reschedulePage(slot, script, 'en', undefined, undefined, { via: 'browser', account: { billing: 'active', canCall: true, paused: true, subscribed: true, resumeAt: next } }),
     '/me/rescheduled': () => reschedulePage(slot, script, 'en', undefined, undefined, { now, next: new Date(+next + 30 * 60_000), via: 'browser', scheduleNote: 'page.move.saved.once', account: { billing: 'active', canCall: true, paused: false } }),
     '/me/just-paused': () => reschedulePage(slot, script, 'en', undefined, undefined, { via: 'browser', justPaused: true, account: { billing: 'active', canCall: true, paused: true, subscribed: true } }),
     '/me/stop': () => confirmStopPage(script),

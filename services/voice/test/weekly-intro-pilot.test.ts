@@ -61,21 +61,27 @@ test('pilot link authorizes signup, preserves the draft and spends the seat only
   const fields = { phone, name: 'Fixture', email: 'pilot@example.com', weekday: '4', time: '16:30', timezone: 'Europe/Oslo', pilot_followup: 'yes' };
   const post = (body: Record<string, string>) => ({ method: 'POST', body: new URLSearchParams(body), redirect: 'manual' as const });
   try {
-    assert.match(await (await fetch(base + '/start')).text(), /taking bookings by invitation/);
+    const closed = await (await fetch(base + '/start')).text();
+    assert.match(closed, /<h1>Bookings are by invitation<\/h1>/);
+    assert.match(closed, /Open your original invitation link/);
+    assert.match(closed, /href="\/me">Open your calls/);
     assert.equal((await fetch(base + '/start', post(fields))).status, 409);
     assert.equal(texts.length, 0);
     const landing = await fetch(base + '/start?invite=' + token('pilot'));
     assert.equal(landing.headers.get('referrer-policy'), 'no-referrer');
     const html = await landing.text();
-    assert.match(html, /NOK 189 for the first paid month and NOK 249/);
+    assert.match(html, /NOK 189 for the first paid month, then NOK 249\/month/);
     assert.doesNotMatch(html, /30 days free/);
+    assert.match(html, /<details class="booking-options">\s*<summary>Optional follow-up email[^<]*<\/summary>[\s\S]*?name="pilot_followup" value="yes"\/>/);
     const booking = await fetch(base + '/start', post({ ...fields, invite: token('pilot') }));
     const draft = /name="draft" value="([^"]+)"/.exec(await booking.text())?.[1];
     const code = texts[0]?.match(/\b\d{6}\b/)?.[0];
     assert.ok(draft && code);
     assert.equal((await db!.sql`select * from weekly_invite_redemptions`).length, 0);
     const editing = await fetch(base + '/start/edit', post({ draft }));
-    assert.match(await editing.text(), /name="invite"/);
+    const edited = await editing.text();
+    assert.match(edited, /name="invite"/);
+    assert.match(edited, /<details class="booking-options" open>[\s\S]*?name="pilot_followup" value="yes" checked/);
     const verified = await fetch(base + '/start/verify', post({ phone, draft, code }));
     assert.equal(verified.status, 303);
     const cookie = verified.headers.get('set-cookie')?.split(';')[0];
@@ -89,7 +95,7 @@ test('pilot link authorizes signup, preserves the draft and spends the seat only
     const friendLanding = await (await fetch(base + '/start?invite=' + token('friend-1'))).text();
     assert.match(friendLanding, /30 days, with up to four free calls/);
     assert.doesNotMatch(friendLanding, /NOK 189/);
-    assert.match(await (await fetch(base + '/start?invite=' + token('pilot'))).text(), /taking bookings by invitation/);
+    assert.match(await (await fetch(base + '/start?invite=' + token('pilot'))).text(), /<h1>Bookings are by invitation<\/h1>/);
   } finally {
     process.env['WEEKLY_PILOT_INTAKE'] = '1';
     server.closeAllConnections();

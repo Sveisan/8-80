@@ -35,7 +35,7 @@ export const ACCOUNT_APPEARANCE_CSS = `
   [data-theme="dark"] .review-slot .appointment-date { font-size: 1.0625rem; }
   [data-theme="dark"] .account-notice { border-radius: var(--radius-control); }
   @media (min-width: 55rem) {
-    [data-theme="dark"] .account-dashboard main { max-width: 60rem; }
+    [data-theme="dark"] :is(.account-dashboard, .account-review) main { max-width: 60rem; }
     [data-theme="dark"] .account-dashboard .account-layout { gap: clamp(1rem, 4vw, 3.25rem); }
     [data-theme="dark"] .account-dashboard .account-sidebar { padding-inline-start: 1.875rem; }
   }

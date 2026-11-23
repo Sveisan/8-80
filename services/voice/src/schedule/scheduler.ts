@@ -3,6 +3,7 @@ import postgres from 'postgres';
 import { log } from '../log.ts';
 import { phoneKey } from '../store/postgres.ts';
 import { nextSlotAfter, type Slot } from './time.ts';
+import { resumeAppointment, type ResumeSchedule } from './resume.ts';
 import { transaction, type Database } from '../store/transaction.ts';
 
 /** A call the scheduler has taken responsibility for placing. */
@@ -251,22 +252,14 @@ export class Scheduler {
   /** Keep a saved future appointment, including skips and one-off moves. */
   async resumeIfEligible(phone: string, now = new Date()): Promise<Date | undefined> {
     return await transaction(this.sql, async tx => {
-      const [row] = await tx<{
-        slot_weekday: number | null; slot_minute: number | null; timezone: string | null;
-        next_call_at: Date | null; next_call_cycle: string | null;
-        billing_status: string; trial_ends_at: Date | null; cancel_at_period_end: boolean; paid_until: Date | null; held_for_review: boolean; all_calls_stopped: boolean;
-      }[]>`select slot_weekday, slot_minute, timezone, next_call_at, next_call_cycle,
+      const [row] = await tx<(ResumeSchedule & { next_call_cycle: string | null })[]>`select slot_weekday, slot_minute, timezone, next_call_at, next_call_cycle,
         billing_status, trial_ends_at, cancel_at_period_end, paid_until, held_for_review, all_calls_stopped
         from callers where phone_hash = ${phoneKey(phone)} for update`;
-      if (!row || row.held_for_review || row.all_calls_stopped || row.slot_weekday === null || row.slot_minute === null || !row.timezone) return undefined;
-      const saved = row.next_call_at && row.next_call_at > now ? row.next_call_at : undefined;
-      const next = saved ?? nextSlotAfter(now, { weekday: row.slot_weekday, minute: row.slot_minute, timezone: row.timezone });
-      const eligible = ['comped', 'active', 'past_due'].includes(row.billing_status)
-        || (row.billing_status === 'trialing' && (!row.trial_ends_at || row.trial_ends_at > next));
-      if (!eligible || (row.cancel_at_period_end && (!row.paid_until || row.paid_until <= next))) return undefined;
-      await tx`update callers set paused = false, next_call_at = ${next},
-        next_call_cycle = ${saved ? row.next_call_cycle : null}, updated_at = now() where phone_hash = ${phoneKey(phone)}`;
-      return next;
+      const resume = row && resumeAppointment(row, now);
+      if (!resume) return undefined;
+      await tx`update callers set paused = false, next_call_at = ${resume.at},
+        next_call_cycle = ${resume.keepCycle ? row.next_call_cycle : null}, updated_at = now() where phone_hash = ${phoneKey(phone)}`;
+      return resume.at;
     });
   }
 

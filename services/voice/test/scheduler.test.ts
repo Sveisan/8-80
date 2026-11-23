@@ -5,6 +5,7 @@ import { PostgresStore, phoneKey } from '../src/store/postgres.ts';
 import { openTestDb } from './helpers/db.ts';
 import { beat, heartbeats, Scheduler, UnknownCaller } from '../src/schedule/scheduler.ts';
 import { nextSlotAfter, type Slot } from '../src/schedule/time.ts';
+import { accountState } from '../src/link/account.ts';
 
 
 const KEY = Buffer.alloc(32, 7).toString('base64');
@@ -88,6 +89,7 @@ test('resume retains future skips and one-off continuations, then advances a tim
   const skipped = await sched!.skipCall(phone, now, original);
   assert.ok(skipped.kind === 'skipped' && skipped.undo && skipped.next);
   await sched!.setPaused(phone, true);
+  assert.deepEqual((await accountState(sql!, phoneKey(phone), now))?.resumeAt, skipped.next);
   assert.deepEqual(await sched!.resumeIfEligible(phone, now), skipped.next);
   const oneOff = new Date(+original + 3 * 3600_000);
   assert.equal(await sched!.moveIfActive(phone, oneOff, undefined, 'synthetic-continuation'), true);
@@ -98,6 +100,7 @@ test('resume retains future skips and one-off continuations, then advances a tim
 
   await sched!.setPaused(phone, true);
   const after = new Date(+oneOff + 1000);
+  assert.deepEqual((await accountState(sql!, phoneKey(phone), after))?.resumeAt, nextSlotAfter(after, OSLO));
   assert.deepEqual(await sched!.resumeIfEligible(phone, after), nextSlotAfter(after, OSLO));
   const [advanced] = await sql!`select next_call_cycle from callers where phone_hash = ${phoneKey(phone)}`;
   assert.equal(advanced?.['next_call_cycle'], null);

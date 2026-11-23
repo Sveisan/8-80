@@ -179,7 +179,7 @@ const LOCAL_APPOINTMENT_CLOCKS = `<script>
 export function reviewMovePage(draft: MoveDraft, at: Date, current: Date | undefined, slot: Slot,
   version: string, script: ScriptLines, language = 'en'): string {
   const say = (id: string) => esc(script.get(id) ?? '');
-  return shell(`<header class="review-header">
+  return shell(`<div class="move-review"><header class="review-header">
       <h1>${say('page.move.review')}</h1>
       <a href="?" class="account-link">${say('page.move.cancel')}</a>
     </header>
@@ -203,7 +203,7 @@ export function reviewMovePage(draft: MoveDraft, at: Date, current: Date | undef
       <input type="hidden" name="proposed_at" value="${esc(at.toISOString())}" />
       <button name="action" value="move-save" class="primary">${busyLabel(say('page.move'))}</button>
       <button name="action" value="move-edit">${say('page.move.edit')}</button>
-    </form>${LOCAL_APPOINTMENT_CLOCKS}`, language, 'weekly-account', script);
+    </form></div>${LOCAL_APPOINTMENT_CLOCKS}`, language, 'weekly-account account-review', script);
 }
 
 /**
@@ -308,7 +308,10 @@ export function reschedulePage(
     ${billingControls}
   </section>` : '';
   const planFirst = !arranging || state?.cancelAtPeriodEnd || state?.billing === 'past_due';
-  const pauseControl = active ? `<form method="post" action="?"><button name="action" value="stop">${say('page.account.pause')}</button></form>` : '';
+  const pauseControl = active ? `<form method="post" action="?">
+    <button name="action" value="stop" aria-describedby="pause-scope">${say('page.account.pause')}</button>
+    <p class="hint" id="pause-scope">${say('page.account.pause.scope')}</p>
+  </form>` : '';
   const status = view.scheduleNote ? script.get(view.scheduleNote) : undefined;
   const appointmentChanged = view.scheduleNote === 'page.move.saved.once' || view.scheduleNote === 'page.move.saved.weekly' || view.scheduleNote === 'page.skip.restored';
   const preferenceState = (enabled: boolean | undefined) => say(enabled ? 'page.account.on' : 'page.account.off');
@@ -334,6 +337,10 @@ export function reschedulePage(
       : state && !state.canCall ? `<p class="account-intro">${say('page.ended.detail')}</p>`
       : state?.stoppedByText ? `<p class="account-intro">${say('page.account.stopped_by_text')}</p>`
       : state?.paused ? `<p class="account-intro">${say('page.account.resume.detail')}</p>
+        ${state.resumeAt ? `<section class="resume-preview" aria-labelledby="resume-next">
+          <h2 id="resume-next">${say('page.account.resume.next')}</h2>
+          ${appointmentTime(state.resumeAt, slot.timezone, script, language, 'resume-appointment')}
+        </section>` : ''}
         <form method="post" action="?" class="resume"><button name="action" value="start" class="primary">${say('page.account.resume')}</button></form>` : ''}
     ${!arranging ? pauseControl : ''}
     <div class="account-layout">
@@ -349,7 +356,8 @@ export function reschedulePage(
       <div class="call-controls">
         ${booking || !view.next ? '' : `<form method="post" action="?">
           <input type="hidden" name="skip_at" value="${esc(view.next.toISOString())}" />
-          <button name="action" value="skip">${say('page.skip')}</button>
+          <button name="action" value="skip" aria-describedby="skip-scope">${say('page.skip')}</button>
+          <p class="hint" id="skip-scope">${say('page.skip.scope')}</p>
         </form>`}
         ${pauseControl}
       </div>
@@ -567,7 +575,7 @@ export function gonePage(script: ScriptLines, language = 'en'): string {
   );
 }
 
-export function shell(body: string, language = 'en', bodyClass?: 'weekly-account' | 'weekly-account account-dashboard', accountScript?: ScriptLines): string {
+export function shell(body: string, language = 'en', bodyClass?: 'weekly-account' | 'weekly-account account-dashboard' | 'weekly-account account-review', accountScript?: ScriptLines): string {
   return `<!doctype html>
 <html lang="${esc(language)}" data-theme="dark">
 <head>${BRAND_HEAD}

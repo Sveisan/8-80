@@ -3,6 +3,25 @@ import { test, expect, activate, fixture, signIn } from './fixtures.ts';
 
 test.beforeEach(async ({ request }) => { await fixture(request, 'reset'); });
 
+test('the invitation and account paths are distinct and the pilot booking action fits', async ({ page }, info) => {
+  const preview = 'http://127.0.0.1:8790';
+  const mobile = info.project.name === 'mobile-safari';
+  if (mobile) await page.setViewportSize({ width: 320, height: 667 });
+  await page.goto(preview + '/start/closed');
+  await expect(page.getByRole('heading', { name: 'Bookings are by invitation' })).toBeVisible();
+  await expect(page.locator('.brand-lockup--wordmark')).toHaveCount(1);
+  await expect(page.getByRole('region', { name: 'Have an invitation?' })).toContainText('Open your original invitation link');
+  const account = page.getByRole('region', { name: 'Already booked?' }).getByRole('link', { name: 'Open your calls' });
+  await expect(account).toHaveAttribute('href', '/me');
+  expect((await account.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  await expect(account).toBeInViewport({ ratio: 1 });
+  await page.goto(preview + '/start/invited');
+  await expect(page.locator('#first-appointment')).toContainText('First call:');
+  const price = page.getByText('First call free. No card needed. If you continue, NOK 189 for the first paid month, then NOK 249/month.', { exact: true });
+  await expect(mobile ? price.first() : price.last()).toBeInViewport({ ratio: 1 });
+  await expect(mobile ? page.getByRole('link', { name: 'Book my first call', exact: true }) : page.getByRole('button', { name: 'Book my first call', exact: true })).toBeInViewport({ ratio: 1 });
+});
+
 test('booking exposes the offer and keeps the submit button steady while checking the date', async ({ page }, info) => {
   const mobile = info.project.name === 'mobile-safari';
   if (mobile) await page.setViewportSize({ width: 320, height: 667 });
@@ -158,11 +177,14 @@ test('weekly account moves, skips, private corrections and pause survive reload'
   const calls = page.getByRole('region', { name: 'Your next call' });
   const notes = page.getByRole('region', { name: 'Your commitment and goals' });
   await expect(calls.getByRole('button', { name: 'Pause calls', exact: true })).toBeInViewport();
+  await expect(calls.getByRole('button', { name: 'Pause calls', exact: true })).toHaveAccessibleDescription('Pause all calls until you resume.');
+  await expect(calls.getByRole('button', { name: 'Skip this call', exact: true })).toHaveAccessibleDescription('Skip one call and keep your weekly time.');
   await expect(page.getByRole('region', { name: 'Plan and billing' }).getByRole('button', { name: 'Pause calls' })).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'Get help', exact: true })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Contact us about your account', exact: true })).toHaveCount(0);
   await expect(notes.getByRole('link', { name: 'View my notes', exact: true })).toBeHidden();
   const callBounds = (await calls.boundingBox())!;
+  const accountBounds = (await page.locator('main').boundingBox())!;
   const notesBounds = (await notes.boundingBox())!;
   if (testInfo.project.name === 'chromium') expect(callBounds.x + callBounds.width).toBeLessThan(notesBounds.x);
   else expect(callBounds.y + callBounds.height).toBeLessThan(notesBounds.y);
@@ -177,12 +199,14 @@ test('weekly account moves, skips, private corrections and pause survive reload'
     await expect(page.getByText('Billing continues while calls are paused.')).toBeVisible();
     await activate(page.locator('button[value="stop-confirm"]'));
     await expect(page.getByRole('heading', { name: 'Calls paused' })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Next call if you resume now' }).locator('time')).toHaveAttribute('datetime', expectedAt);
     await activate(page.getByRole('button', { name: 'Resume calls' }));
     await expect(page.locator('.appointment')).toHaveAttribute('datetime', expectedAt);
   };
   await page.locator('#once-time').fill('18:00');
   await activate(page.getByRole('button', { name: 'Review new time' }));
   await expect(page.getByRole('heading', { name: 'Review new time' })).toBeVisible();
+  expect((await page.locator('main').boundingBox())!.x).toBe(accountBounds.x);
   await expect(page.getByText(/This changes one call. Your usual weekly time stays the same/)).toBeVisible();
   await activate(page.getByRole('button', { name: 'Edit my choice' }));
   await expect(page.locator('#once-time')).toHaveValue('18:00');

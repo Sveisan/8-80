@@ -138,6 +138,7 @@ export function signupPage(
   const appointment = selection.ok ? describeAppointment(nextSlotAfter(now, selection.slot), selection.slot.timezone, language) : '';
   const appointmentLine = (script.get('signup.appointment') ?? '').replace('{{when}}', appointment);
   const inviteOffer = state.invite?.offer;
+  const followupOffered = inviteOffer === 'pilot' && pilotFollowupApproved();
   const faq = FAQ.filter(([q, a]) => script.get(q) && script.get(a) && (!inviteOffer || a !== 'signup.free'));
   const inFaq = (answer: string): boolean => faq.some(([, a]) => a === answer);
   const headline = script.get('signup.headline') ? 'signup.headline' : 'signup.title';
@@ -155,7 +156,7 @@ export function signupPage(
       ${note(name)}`;
   };
   const offer = inviteOffer
-    ? `<p class="booking-offer"><strong>${say('signup.invite.' + inviteOffer)}</strong></p>`
+    ? `<p class="booking-offer${inviteOffer === 'pilot' ? ' booking-offer--pilot' : ''}"><strong>${say('signup.invite.' + inviteOffer)}</strong></p>`
     : `<p class="booking-offer"><strong>${say('signup.offer.trial')}</strong> <span>${say('signup.offer.paid')}</span></p>`;
   const manualDateCheck = `<button type="submit" class="date-check" formaction="/start/preview" formnovalidate>${say('signup.appointment.check')}</button>`;
 
@@ -222,8 +223,9 @@ export function signupPage(
         ${manualDateCheck}
       </noscript>
       <div id="appointment-check" hidden>${manualDateCheck}</div>
-      <details class="booking-options"${wrong.has('voice') || wrong.has('nudges') ? ' open' : ''}>
-        <summary>${say('signup.options')}</summary>
+      <details class="booking-options"${wrong.has('voice') || wrong.has('nudges') || (followupOffered && v.pilot_followup === 'yes') ? ' open' : ''}>
+        <summary>${say(followupOffered ? 'signup.invite.options' : 'signup.options')}</summary>
+      ${followupOffered ? `<label class="nudge-choice pilot-followup-choice"><input type="checkbox" name="pilot_followup" value="yes"${v.pilot_followup === 'yes' ? ' checked' : ''}/><span><strong>${esc(pilotFollowupConsentTitle)}</strong><small>${esc(pilotFollowupConsent)}</small></span></label>` : ''}
       ${femaleVoiceReady() ? `<fieldset class="voice-choice"><legend>${say('signup.voice')}</legend><div class="voice-options">
         ${(['male', 'female'] as const).map(voice => `<label class="pick"><input type="radio" name="voice" value="${voice}"${(v.voice || 'male') === voice ? ' checked' : ''}/><span>${say(`signup.voice.${voice}`)}</span></label>`).join('')}
       </div><p class="quiet small">${say('signup.voice.detail')}</p></fieldset>` : ''}
@@ -232,7 +234,6 @@ export function signupPage(
       ${note('nudges')}
       <label class="nudge-choice"><input type="checkbox" name="calendar" value="yes"${v.calendar === 'yes' ? ' checked' : ''}/><span><strong>${say('calendar.signup')}</strong><small>${say(googleCalendarConfig().enabled && googleCalendarReady() ? 'calendar.google.invite' : 'calendar.preference.detail')}</small></span></label>
       </details>
-      ${state.invite?.offer === 'pilot' && pilotFollowupApproved() ? `<label class="nudge-choice pilot-followup-choice"><input type="checkbox" name="pilot_followup" value="yes"${v.pilot_followup === 'yes' ? ' checked' : ''}/><span><strong>${esc(pilotFollowupConsentTitle)}</strong><small>${esc(pilotFollowupConsent)}</small></span></label>` : ''}
       <p class="quiet small" id="signup-verify">${say('signup.verify.detail')}</p>
       <button class="primary" aria-describedby="signup-verify">${busyLabel(say('signup.submit'))}</button>
     </form>
@@ -411,10 +412,18 @@ ${FOUNDATION_CSS}${CONTROL_CSS}${SIGNUP_CSS}
 }
 
 export function invitationClosedPage(script: ScriptLines): string {
+  const say = (key: string) => esc(script.get(key) ?? '');
   return shell(`
     ${LOCKUP}
-    <h1>${esc(script.get('signup.invite.closed') ?? '')}</h1>
-    <p>${esc(script.get('signup.invite.closed.detail') ?? '')}</p>
-    <a href="/access">${esc(script.get('access.title') ?? '')}</a>
+    <h1>${say('signup.invite.closed')}</h1>
+    <p class="invitation-intro">${say('signup.invite.intro')}</p>
+    <section class="invitation-path" aria-labelledby="invitation-heading">
+      <h2 id="invitation-heading">${say('signup.invite.have')}</h2>
+      <p>${say('signup.invite.use')}</p>
+    </section>
+    <section class="invitation-path" aria-labelledby="booked-heading">
+      <h2 id="booked-heading">${say('signup.invite.booked')}</h2>
+      <a class="button primary" href="/me">${say('access.title')}</a>
+    </section>
   `);
 }
