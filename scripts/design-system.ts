@@ -16,6 +16,7 @@ import { pageHeaders as unblockHeaders } from '../services/voice/src/unblock/htt
 import { pageHeaders } from '../services/voice/src/beliefs/http.ts';
 import { describeAppointment, nextSlotAfter } from '../services/voice/src/schedule/time.ts';
 import { readBookingSlot } from '../services/voice/src/signup/form.ts';
+import { brandMotionPreview } from './design/brand-motion.ts';
 
 if (process.argv.includes('--build')) {
   const { build } = await import('./design/build.ts');
@@ -40,6 +41,7 @@ if (process.argv.includes('--build')) {
   };
   const pages: Record<string, () => string> = {
     '/': () => designGuide(true), '/design-system': () => designGuide(true),
+    '/brand-motion': brandMotionPreview,
     '/beliefs/about': () => aboutPage({ preview: true }),
     '/start': () => signupPage(script, {}, 'en', now),
     '/start/error': () => signupPage(script, { errors: [{ field: 'email', why: 'email' }], values: { name: 'Alex', email: 'alex@' } }, 'en', now),
@@ -48,6 +50,8 @@ if (process.argv.includes('--build')) {
     '/access/code': () => accessCodePage(script, 'synthetic', '+47 900 00 000'),
     '/me': () => reschedulePage(slot, script, 'en', 'alex@example.com', undefined, { now, next, via: 'browser', contact: true, goals: true, account: { billing: 'active', canCall: true, paused: false } }),
     '/me/paused': () => reschedulePage(slot, script, 'en', undefined, undefined, { via: 'browser', account: { billing: 'active', canCall: true, paused: true, subscribed: true } }),
+    '/me/rescheduled': () => reschedulePage(slot, script, 'en', undefined, undefined, { now, next: new Date(+next + 30 * 60_000), via: 'browser', scheduleNote: 'page.move.saved.once', account: { billing: 'active', canCall: true, paused: false } }),
+    '/me/just-paused': () => reschedulePage(slot, script, 'en', undefined, undefined, { via: 'browser', justPaused: true, account: { billing: 'active', canCall: true, paused: true, subscribed: true } }),
     '/me/stop': () => confirmStopPage(script),
     '/me/stopped': () => stoppedPage(script),
     '/me/expired': () => gonePage(script),

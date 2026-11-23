@@ -85,6 +85,10 @@ It works alone. The lockup — the mark with **8&80** set beside it in the displ
 is for places where people do not yet know the name, which is the sign-up page and the
 recap letter.
 
+The site uses the wordmark-led lockup on weekly booking and account headers. The name comes
+first, followed by the same mark at a smaller size. The account header uses the compact type
+size. The standalone icon remains available for favicons and app icons.
+
 ---
 
 ## 5. Colourways
@@ -209,7 +213,7 @@ One component, five moods — `services/voice/src/signup/mascot.ts`:
 | Mood | What it does | Where |
 | --- | --- | --- |
 | `rest` | Still | Anywhere the mark is just the mark |
-| `idle` | Every twelve seconds the gold rises, the loops trade and back, the gold drains | Page headers — alive, never busy |
+| `idle` | Every twelve seconds the gold rises, the loops trade and back, the gold drains | Brand demonstrations |
 | `wait` | Trades steadily, 2.8s a round trip | Loading, sending — a pressed button shows it in place of its label |
 | `talk` | Trades faster, 1.4s, the dot swelling more at each crossing | The mentor speaking or typing |
 | `nudge` | The gold rises, one trade and back, the gold drains, four seconds of rest | Beside the one thing a person needs to do next, like "check your texts" |
@@ -236,6 +240,12 @@ Rules:
   in the palette; the gold hands over through the dot instead. A test holds this.
 - **Never in email or the favicon.** Email cannot animate, and at favicon size the trade is
   a flicker.
+
+The booking illustration traces the path from 8 through “You, today” toward 80 once when
+it comes into view. Pricing and booking controls are visible from the start. The date preview
+briefly highlights a changed date within its existing space. The account highlights a saved
+appointment or a confirmed pause or resume. Reduced motion preserves the resting illustration
+and the same date and status text.
 
 Why a warp works where the first attempt, a morph against the mirror image, collapsed into a
 vertical bar: the traded drawing is traced in the same order as the original, left loop then

@@ -25,8 +25,8 @@
 
 /** The mark as drawn in brand/assets/mark.svg: small loop left, big loop right. */
 const EIGHT_FIRST =
-  'M51 60C46 50 37 46 31 46C23 46 17 52 17 60C17 68 23 74 31 74C37 74 46 70 51 60' +
-  'C57 46 69 36 81 36C95 36 103 47 103 60C103 73 95 84 81 84C69 84 57 74 51 60Z';
+  'M53 60C46 50 38 46 31 46C23 46 17 52 17 60C17 68 23 74 31 74C38 74 46 70 53 60' +
+  'C60 50 69 36 81 36C94 36 103 46 103 60C103 74 94 84 81 84C69 84 60 70 53 60Z';
 
 const numbers = (d: string): number[] => (d.match(/-?[\d.]+/g) ?? []).map(Number);
 
@@ -183,7 +183,7 @@ const INLINE: Paint = {
   ink: 'var(--mark-ink, currentColor)',
 };
 
-function drawing(mood: Mood, paint: Paint, inline: boolean, width = 7): string {
+function drawing(mood: Mood, paint: Paint, inline: boolean, width = 6.5): string {
   const m = mood === 'rest' ? undefined : MOODS[mood];
   const a = (attr: string, track: keyof Omit<Choreography, 'dur'>, value: (v: number) => string | number): string =>
     m ? animate(attr, m.dur, m[track], value, inline) : '';
@@ -224,6 +224,12 @@ export function mascot(mood: Mood = 'rest', className = 'mark'): string {
     drawing(mood, INLINE, true) +
     `</svg>`
   );
+}
+
+export function brandLockup(order: 'mark' | 'wordmark' = 'wordmark'): string {
+  const mark = mascot('rest', 'brand-symbol');
+  const name = '<span class="brand-name">8&amp;80</span>';
+  return `<span class="brand-lockup brand-lockup--${order}">${order === 'wordmark' ? name + mark : mark + name}</span>`;
 }
 
 /**

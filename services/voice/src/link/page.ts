@@ -10,7 +10,7 @@ import { maskEmail, type AccountState } from './account.ts';
 import { encouragementSection, type EncouragementView } from '../encouragement/page.ts';
 import type { ScriptLines } from '../script.ts';
 import { describeAppointment, nextSlotAfter, type Slot } from '../schedule/time.ts';
-import { BUSY, MOTION, busyLabel } from '../signup/mascot.ts';
+import { BUSY, MOTION, brandLockup, busyLabel, mascot } from '../signup/mascot.ts';
 import { bookingDay, bookingDays, dayValue, moveVersion, type MoveDraft } from './move.ts';
 import { feedbackWidget } from '../product-feedback/widget.ts';
 import { googleCalendarConfig, googleCalendarReady } from '../calendar/google-config.ts';
@@ -66,6 +66,7 @@ export interface PageView {
   /** A `page.goals.*` key, when the last attempt to add said something. */
   goalsNote?: string;
   scheduleNote?: string;
+  justPaused?: boolean;
   skipUndo?: { receipt: string; skippedAt: Date };
   preferenceNote?: string;
   moveDraft?: MoveDraft;
@@ -309,13 +310,14 @@ export function reschedulePage(
   const planFirst = !arranging || state?.cancelAtPeriodEnd || state?.billing === 'past_due';
   const pauseControl = active ? `<form method="post" action="?"><button name="action" value="stop">${say('page.account.pause')}</button></form>` : '';
   const status = view.scheduleNote ? script.get(view.scheduleNote) : undefined;
+  const appointmentChanged = view.scheduleNote === 'page.move.saved.once' || view.scheduleNote === 'page.move.saved.weekly' || view.scheduleNote === 'page.skip.restored';
   const preferenceState = (enabled: boolean | undefined) => say(enabled ? 'page.account.on' : 'page.account.off');
   const preferencesOpen = note || view.preferenceNote || view.encouragement?.note;
 
   return shell(
     `
-    <h1>${say(title)}</h1>
-    ${status && (!view.skipUndo || view.scheduleNote !== 'page.skip.saved') ? `<div class="account-notice">
+    <h1${state?.paused && view.justPaused ? ' class="motion-highlight"' : ''}>${say(title)}</h1>
+    ${status && (!view.skipUndo || view.scheduleNote !== 'page.skip.saved') ? `<div class="account-notice${view.scheduleNote === 'page.account.resume.saved' ? ' motion-highlight' : ''}">
       <p role="status">${esc(status)}</p>
     </div>` : ''}
     ${view.skipUndo ? `<div class="account-notice skip-notice">
@@ -337,7 +339,7 @@ export function reschedulePage(
     <div class="account-layout">
     ${arranging ? `<section class="account-section call-overview" aria-labelledby="call-heading">
       <h2 id="call-heading">${say(booking ? 'page.first' : 'page.section.call')}</h2>
-      ${appointment ? appointmentTime(appointment, slot.timezone, script, language)
+      ${appointment ? appointmentTime(appointment, slot.timezone, script, language, appointmentChanged ? 'appointment motion-highlight' : 'appointment')
         : `<p class="account-intro">${say(noAppointment)}</p>`}
       ${booking && appointment ? `<div class="first-call">
         <p class="hint" id="contact-help">${say('page.account.incoming')}${contact ? ` ${say('page.contact.first')}` : ''}</p>
@@ -448,14 +450,13 @@ export const GOALS_MAX = 400;
  * the dot stays Gold. It does not turn here: this page is for doing something
  * and leaving, and a moving logo is one more thing competing for the thumb.
  */
-const MARK_ICON = `<svg class="mark" viewBox="12 31 96 58" aria-hidden="true" focusable="false"><path d="M51 60C46 50 37 46 31 46C23 46 17 52 17 60C17 68 23 74 31 74C37 74 46 70 51 60C57 46 69 36 81 36C95 36 103 47 103 60C103 73 95 84 81 84C69 84 57 74 51 60Z" fill="none" stroke="currentColor" stroke-width="7" stroke-linejoin="round"/><circle cx="31" cy="60" r="5" fill="#E2B653"/></svg>`;
-export const MARK = `<header class="lockup"><span class="sr">8&amp;80</span>${MARK_ICON}</header>`;
+export const MARK = `<header class="lockup"><span class="sr">8&amp;80</span>${mascot()}</header>`;
 
 function accountHeader(script: ScriptLines): string {
   const say = (id: string) => esc(script.get(id) ?? '');
   const help = `<a href="mailto:${esc(config.company.supportEmail() || 'hei@8and80.me')}">${say('page.account.help')}</a>`;
   return `<header class="account-header">
-    <a class="account-brand" href="/start">${MARK_ICON}<span>8&amp;80</span></a>
+    <a class="account-brand" href="/start">${brandLockup()}</a>
     <div class="account-header-tools">${themeSwitch}${help}</div>
   </header>`;
 }

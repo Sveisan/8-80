@@ -824,7 +824,7 @@ async function yourPage(
   await measured(['moved', 'moved_always', 'skipped', 'stopped', 'started'].includes(out.action));
   // Re-render persisted state after pause/resume, so a revisit shows the same
   // result. Recovery remains available if the credential later expires.
-  if (out.action === 'stopped') return await page();
+  if (out.action === 'stopped') return await page(undefined, undefined, { justPaused: true });
   if (out.action === 'moved' || out.action === 'moved_always') {
     return await page(undefined, undefined, { scheduleNote: out.action === 'moved_always' ? 'page.move.saved.weekly' : 'page.move.saved.once' });
   }
