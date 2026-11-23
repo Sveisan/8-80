@@ -267,6 +267,7 @@ export const ACCOUNT_CSS = `
   .account-header a, .account-link { display: inline-flex; align-items: center; min-height: var(--target-min); font-size: var(--text-small); }
   .account-brand { gap: var(--space-2); color: var(--ink); font-weight: var(--weight-control); text-decoration: none; }
   .account-brand .brand-symbol { width: var(--space-8); }
+  .account-brand .brand-name { font-size: var(--text-wordmark); }
   .account-intro { margin: var(--space-2) 0 var(--space-4); color: var(--quiet); font-size: var(--text-small); }
   .account-notice { margin: var(--space-3) 0; padding: var(--space-3) var(--space-4); background: var(--card);
     border-inline-start: 3px solid var(--accent); font-size: var(--text-small); }

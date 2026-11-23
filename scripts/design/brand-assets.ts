@@ -24,9 +24,10 @@ export function brandAssets(root: string): Output {
   const colour = (drawing: string, ink: string, dot: string = palette.gold): string => drawing.replaceAll(palette.pine, ink).replaceAll(palette.gold, dot);
   const lockup = (ink: string, dot?: string): string => {
     const size = 40, scale = size / outline.unitsPerEm;
-    const width = Math.ceil(24 + 72 + 24 + outline.advance * scale + 24);
+    const markX = 24 + outline.advance * scale + 16;
+    const width = Math.ceil(markX + 48 + 24);
     const baseline = 48 + ((outline.bounds[1]! + outline.bounds[3]!) * scale) / 2;
-    return svg(width, 96, `<g transform="translate(24 26.25) scale(.75) translate(-12 -31)">${colour(regular, ink, dot)}</g><path transform="translate(120 ${baseline}) scale(${scale} -${scale})" fill="${ink}" d="${outline.path}"/>`);
+    return svg(width, 96, `<path transform="translate(24 ${baseline}) scale(${scale} -${scale})" fill="${ink}" d="${outline.path}"/><g transform="translate(${markX} 33.5) scale(.5) translate(-12 -31)">${colour(regular, ink, dot)}</g>`);
   };
   add('lockup-light.svg', lockup(palette.pine));
   add('lockup-dark.svg', lockup(palette.chalk));

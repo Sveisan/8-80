@@ -16,15 +16,22 @@ export function perspectiveGraphic(today: string): string {
 }
 
 export const PERSPECTIVE_MOTION = `<script>
-  if ('IntersectionObserver' in window) {
+  (function () {
     var figure = document.querySelector('.perspectives');
-    if (figure) {
-      var observer = new IntersectionObserver(function (entries) {
-        if (entries[0].intersectionRatio < .45) return;
-        observer.disconnect();
-        if (!matchMedia('(prefers-reduced-motion: reduce)').matches) figure.classList.add('perspectives--playing');
-      }, { threshold: .45 });
-      observer.observe(figure);
-    }
-  }
+    if (!figure || !('IntersectionObserver' in window)) return;
+    var motion = matchMedia('(prefers-reduced-motion: reduce)');
+    var stop = function () { figure.classList.remove('perspectives--playing'); };
+    var observer = new IntersectionObserver(function (entries) {
+      if (entries[0].intersectionRatio < .45) return;
+      observer.disconnect();
+      if (!motion.matches) figure.classList.add('perspectives--playing');
+    }, { threshold: .45 });
+    figure.addEventListener('animationend', function (event) {
+      if (event.target.matches('.perspective-trace--second')) stop();
+    });
+    var onPreference = function () { if (motion.matches) stop(); };
+    if (motion.addEventListener) motion.addEventListener('change', onPreference);
+    else motion.addListener(onPreference);
+    observer.observe(figure);
+  })();
 </script>`;

@@ -85,9 +85,9 @@ It works alone. The lockup — the mark with **8&80** set beside it in the displ
 is for places where people do not yet know the name, which is the sign-up page and the
 recap letter.
 
-The site uses the mark-led lockup on weekly booking and account headers. The brand motion
-preview also shows a wordmark-led option, with the same mark at a smaller size. The compact
-icon remains available for favicons and app icons.
+The site uses the wordmark-led lockup on weekly booking and account headers. The name comes
+first, followed by the same mark at a smaller size. The account header uses the compact type
+size. The standalone icon remains available for favicons and app icons.
 
 ---
 
