@@ -11,6 +11,7 @@ import type { LoopDeps } from '../src/loop/deps.ts';
 import { phoneKey } from '../src/store/postgres.ts';
 import { accountState } from '../src/link/account.ts';
 import { invitationLinks, redeemOffer } from '../src/weekly/intro-pilot.ts';
+import { pilotFollowupFrom, pilotFollowupVersion } from '../src/weekly/pilot-followup-copy.ts';
 import { stripePilotCheckout } from '../src/billing/pilot-checkout.ts';
 import { syncBilling } from '../src/billing/service.ts';
 import type { Change } from '../src/billing/types.ts';
@@ -31,6 +32,7 @@ Object.assign(process.env, {
   TWILIO_ACCOUNT_SID: 'fixture', TWILIO_AUTH_TOKEN: 'fixture', SMS_FROM_NUMBER: '+4794700999',
   BILLING_PROVIDER: 'stripe', STRIPE_SECRET_KEY: 'fixture', STRIPE_WEBHOOK_SECRET: 'fixture',
   STRIPE_WEEKLY_PILOT_PRICE_ID: 'price_fixture', STRIPE_WEEKLY_PILOT_COUPON_ID: 'intro_fixture',
+  WEEKLY_PILOT_FOLLOWUP_APPROVED: pilotFollowupVersion, RECAP_FROM_ADDRESS: pilotFollowupFrom,
 });
 const links = invitationLinks('https://8and80.example');
 const token = (key: keyof typeof links) => new URL(links[key]).searchParams.get('invite')!;
@@ -56,7 +58,7 @@ test('pilot link authorizes signup, preserves the draft and spends the seat only
   const server = controlPlane(deps(), 'test');
   await new Promise<void>(r => server.listen(0, '127.0.0.1', r));
   const base = 'http://127.0.0.1:' + (server.address() as AddressInfo).port;
-  const fields = { phone, name: 'Fixture', email: 'pilot@example.com', weekday: '4', time: '16:30', timezone: 'Europe/Oslo' };
+  const fields = { phone, name: 'Fixture', email: 'pilot@example.com', weekday: '4', time: '16:30', timezone: 'Europe/Oslo', pilot_followup: 'yes' };
   const post = (body: Record<string, string>) => ({ method: 'POST', body: new URLSearchParams(body), redirect: 'manual' as const });
   try {
     assert.match(await (await fetch(base + '/start')).text(), /taking bookings by invitation/);
@@ -128,11 +130,15 @@ test('a short interrupted call can be rebooked, and completion uses the free cal
   let s = await accountState(db!.sql, hash);
   assert.equal(s?.weeklyFreeCallsUsed, 0);
   assert.equal(s.canCall, true);
+  const [before] = await db!.sql`select next_slot_at from weekly_pilot_followups where phone_hash=${hash}`;
+  assert.equal(before?.['next_slot_at'], null);
   assert.equal((await runCall(hash, true)).status, 'completed');
   s = await accountState(db!.sql, hash);
   assert.equal(s?.weeklyFreeCallsUsed, 1);
   assert.equal(s.canCall, false);
   assert.equal(s.next, undefined);
+  const [after] = await db!.sql`select next_slot_at from weekly_pilot_followups where phone_hash=${hash}`;
+  assert.ok(after?.['next_slot_at'] instanceof Date);
   const now = new Date();
   await db!.sql`update callers set next_call_at=${now} where phone_hash=${hash}`;
   assert.equal((await tick(deps(), now)).placed, 0);

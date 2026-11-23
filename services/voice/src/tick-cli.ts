@@ -1,6 +1,7 @@
 import {maintainUnblockConsumer} from './unblock/consumer.ts';
 import { pruneQualityReviews } from './quality/worker.ts';
 import { queueDueNudges } from './sms/nudges.ts';
+import { queuePilotFollowups } from './weekly/pilot-followup.ts';
 import { queueEncouragement, pruneEncouragement } from './encouragement/runtime.ts';
 import { pruneWeekly, queueDueReminders } from './weekly/reminders.ts';
 import { optimizeTips } from './weekly/tips.ts';
@@ -66,6 +67,8 @@ try {
   const remindersQueued = await queueDueReminders(deps);
   await queueCalendarInvitations(deps.store.raw, deps.script);
   const encouragementQueued = await queueEncouragement(deps);
+  try { await queuePilotFollowups(deps.store.raw); }
+  catch { log('weekly_pilot.followup_queue_pending', {}); }
   await dispatchMessages(deps);
   await pruneEncouragement(deps.store.raw);
   await optimizeTips(deps.store.raw);

@@ -312,6 +312,7 @@ export class PostgresStore implements Store {
       await tx`delete from journey_events where phone_hash = ${hash}`;
       await tx`delete from encouragement_deliveries where phone_hash = ${hash}`;
       await tx`delete from encouragement_preferences where phone_hash = ${hash}`;
+      await tx`delete from weekly_pilot_followups where phone_hash = ${hash}`;
       await tx`delete from weekly_reminders where phone_hash = ${hash}`;
       await tx`delete from weekly_reminder_drafts where phone_hash = ${hash}`;
       await tx`delete from weekly_tool_requests where phone_hash = ${hash}`;

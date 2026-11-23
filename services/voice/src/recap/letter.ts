@@ -153,11 +153,19 @@ export function letterHtml(recap: Recap, options: LetterOptions = {}): string {
     : '';
 
   const act = options.action ?? recap.action;
+  const actionNote = recap.actionNote
+    ? `\n            <tr><td class="quiet" style="padding:0 0 20px;font-size:13px;line-height:1.6;color:${C.quiet};">${esc(recap.actionNote)}</td></tr>`
+    : '';
   const action = act
-    ? `\n            <tr><td style="padding:0 0 26px;font-size:16px;line-height:1.65;"><a href="${esc(act.url)}" style="color:${C.accent};text-decoration:underline;" class="wordmark">${esc(act.label)}</a></td></tr>`
+    ? `\n            <tr><td style="padding:0 0 ${actionNote ? 8 : 26}px;font-size:16px;line-height:1.65;"><a href="${esc(act.url)}" style="color:${C.accent};text-decoration:underline;${recap.postscript ? 'font-weight:600;' : ''}" class="wordmark">${esc(act.label)}</a></td></tr>${actionNote}`
     : '';
   const contact = recap.contact
     ? `\n            <tr><td style="font-size:16px;line-height:1.65;"><a href="${esc(recap.contact.url)}" style="display:inline-block;padding:12px 0;color:${C.accent};text-decoration:underline;" class="wordmark">${esc(recap.contact.label)}</a></td></tr>`
+    : '';
+  const footer = recap.footerLinks?.map(link =>
+    `\n            <tr><td style="padding-top:12px;font-size:14px;line-height:1.6;"><a href="${esc(link.url)}" style="color:${C.accent};text-decoration:underline;" class="wordmark">${esc(link.label)}</a></td></tr>`).join('') ?? '';
+  const postscript = recap.postscript
+    ? `\n            <tr><td class="quiet" style="padding-top:28px;font-size:14px;line-height:1.6;color:${C.quiet};">${esc(recap.postscript)}</td></tr>`
     : '';
 
   const letter = recap.parts
@@ -210,7 +218,7 @@ export function letterHtml(recap: Recap, options: LetterOptions = {}): string {
           <tr><td style="height:38px;font-size:0;line-height:0;">&nbsp;</td></tr>
           <tr><td style="font-family:${FONT};">
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-            ${quoted}${letter}
+            ${quoted}${letter}${postscript}${footer}
             </table>
           </td></tr>
         </table>

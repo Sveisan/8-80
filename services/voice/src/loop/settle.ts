@@ -1,4 +1,6 @@
 import { consumeFreeCall } from '../weekly/intro-pilot.ts';
+import { armPilotFollowup } from '../weekly/pilot-followup.ts';
+import { pilotFollowupApproved } from '../weekly/pilot-followup-copy.ts';
 import { queueQualityReview } from '../quality/queue.ts';
 import { milestone } from '../journey/measure.ts';
 import { syncCalendarInvitations } from '../calendar/invitations.ts';
@@ -165,6 +167,9 @@ async function settleInside(
     }
     await deps.store.record(phone, remembered);
     const finishedFreeOffer = outcome.callAgain ? undefined : await consumeFreeCall(deps.store.raw, attempt.phoneHash, attempt.id);
+    if (finishedFreeOffer === 'pilot' && slot && !finding && pilotFollowupApproved()) {
+      await armPilotFollowup(deps.store.raw, attempt.phoneHash, slot, now);
+    }
     if (remembered.onboardingComplete) await milestone(deps.store.raw, attempt.phoneHash, 'onboarding_complete', attempt.phoneHash, now);
     if (remembered.commitment) await milestone(deps.store.raw, attempt.phoneHash, 'action_read_back', attempt.id, now);
     const caller = await deps.store.load(phone);

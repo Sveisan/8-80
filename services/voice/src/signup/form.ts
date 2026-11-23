@@ -12,6 +12,7 @@ export interface Signup {
   nudges?: boolean;
   calendarInvites?: boolean;
   weeklyInvite?: string;
+  weeklyPilotFollowup?: boolean;
 }
 
 export type Invalid = { field: keyof Signup; why: string };

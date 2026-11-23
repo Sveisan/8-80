@@ -13,8 +13,9 @@ import { SendFailure } from './types.ts';
 import { canRemind } from '../weekly/reminders.ts';
 import { bookedAppointments, callInProgress } from '../calendar/appointments.ts';
 import { suppression as encouragementSuppression } from '../encouragement/runtime.ts';
+import { pilotFollowupApproved, pilotFollowupVersion } from '../weekly/pilot-followup-copy.ts';
 
-export type MessageKind = 'call' | 'welcome' | 'recap' | 'billing' | 'trial' | 'feedback' | 'access' | 'signup' | 'reply' | 'export' | 'beliefs' | 'unblock' | 'unblock-legal' | 'safety' | 'operator' | 'nudge' | 'reminder' | 'calendar' | 'calendar-notice' | 'encouragement';
+export type MessageKind = 'call' | 'welcome' | 'recap' | 'billing' | 'trial' | 'feedback' | 'access' | 'signup' | 'reply' | 'export' | 'beliefs' | 'unblock' | 'unblock-legal' | 'safety' | 'operator' | 'nudge' | 'reminder' | 'calendar' | 'calendar-notice' | 'encouragement' | 'pilot-followup';
 export interface Message {
   eventKey: string; phoneHash: string; channel: 'sms' | 'email'; kind: MessageKind;
   to: string; body: string | Recap; reference?: string; expiresAt?: Date;
@@ -94,6 +95,17 @@ async function suppression(sql: Database, row: Row, now: Date): Promise<string |
     if(!e?.['contract_email_enc']||!row.recipient_enc||decrypt(e['contract_email_enc'])!==decrypt(row.recipient_enc))return 'contract_address_changed';
   }
   if (row.kind === 'encouragement') return await encouragementSuppression(sql,row.phone_hash,row.reference,caller!,now,row.id);
+  if (row.kind === 'pilot-followup') {
+    if (!pilotFollowupApproved()) return 'followup_not_approved';
+    const [eligible] = await sql`select 1 from weekly_pilot_followups f join callers c using (phone_hash)
+      where f.phone_hash = ${row.phone_hash} and f.id = ${row.reference} and f.consent_version = ${pilotFollowupVersion}
+        and f.revoked_at is null and f.feedback is null and f.email_enc = c.email_enc
+        and c.weekly_offer = 'pilot' and c.weekly_free_calls_used = 1 and c.billing_status = 'ended'
+        and c.ls_subscription_id is null and not c.held_for_review and not c.all_calls_stopped and not c.paused
+        and not exists (select 1 from message_outbox prior where prior.event_key = 'weekly-pilot-followup:' || f.id || ':before'
+          and prior.status = 'failed' and prior.reason in ('permanent', 'provider_delivery_failed'))`;
+    if (!eligible) return 'followup_ineligible';
+  }
   if (['call', 'welcome', 'feedback'].includes(row.kind) && caller?.['paused']) return 'calls_paused';
   if ((row.kind === 'beliefs' || row.kind === 'unblock') && caller?.['held_for_review']) return 'human_review';
   if (row.kind === 'reminder') {

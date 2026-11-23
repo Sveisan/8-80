@@ -1,4 +1,5 @@
 import { stripePilotCheckout } from './billing/pilot-checkout.ts';
+import { pilotFollowupRoute } from './weekly/pilot-followup.ts';
 import { dispatchUnblockIncidentAlerts } from './unblock/incidents.ts';
 import { qualityRoutes } from './quality/routes.ts';
 import { serveDesignAsset } from './design-system/assets.ts';
@@ -277,6 +278,11 @@ export function controlPlane(deps: LoopDeps, secret: string | readonly string[] 
       }
       if (url.pathname === '/unblock' || url.pathname.startsWith('/unblock/')) {
         const answer = await unblockRoutes(req, url, deps, clientOf(req));
+        if (answer) return html(res, answer.status, answer.body, answer.headers);
+      }
+
+      if (url.pathname.startsWith('/pilot-followup/')) {
+        const answer = await pilotFollowupRoute(req, url, deps.store.raw);
         if (answer) return html(res, answer.status, answer.body, answer.headers);
       }
 

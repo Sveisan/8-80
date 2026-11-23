@@ -225,12 +225,24 @@ export const weeklyInviteRedemptions = pgTable('weekly_invite_redemptions', {
   used: integer('used').notNull(),
 });
 
+export const weeklyPilotFollowups = pgTable('weekly_pilot_followups', {
+  phoneHash: text('phone_hash').primaryKey(),
+  id: text('id').notNull().unique(),
+  consentedAt: timestamp('consented_at', { withTimezone: true }).notNull(),
+  consentVersion: text('consent_version').notNull(),
+  emailEnc: text('email_enc'),
+  nextSlotAt: timestamp('next_slot_at', { withTimezone: true }),
+  revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  feedback: text('feedback'),
+});
+
 export const signups = pgTable(
   'signups',
   {
     id: text('id').primaryKey(),
     product: text('product').notNull().default('weekly'),
     weeklyInviteEnc: text('weekly_invite_enc'),
+    weeklyPilotFollowup: boolean('weekly_pilot_followup').notNull().default(false),
     voice: text('voice'),
     nudges: boolean('nudges').notNull().default(false),
     calendarInvites: boolean('calendar_invites').notNull().default(false),

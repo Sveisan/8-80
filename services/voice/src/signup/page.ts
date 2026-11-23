@@ -1,4 +1,5 @@
 import type { WeeklyOffer } from '../weekly/intro-pilot.ts';
+import { pilotFollowupApproved, pilotFollowupConsent, pilotFollowupConsentTitle } from '../weekly/pilot-followup-copy.ts';
 import { themeInit, themeControl, themeSwitch, themeToolbar } from '../design-system/theme.ts';
 import { BRAND_HEAD } from '../design-system/head.ts';
 import { SIGNUP_CSS } from '../design-system/pages.ts';
@@ -97,7 +98,7 @@ export interface SignupFormState {
   note?: string;
   appointmentChecked?: boolean;
   invite?: { token: string; offer: WeeklyOffer };
-  values?: Partial<Record<'name' | 'phone' | 'email' | 'weekday' | 'time' | 'timezone' | 'voice' | 'nudges' | 'calendar', string>>;
+  values?: Partial<Record<'name' | 'phone' | 'email' | 'weekday' | 'time' | 'timezone' | 'voice' | 'nudges' | 'calendar' | 'pilot_followup', string>>;
 }
 
 /**
@@ -231,6 +232,7 @@ export function signupPage(
       ${note('nudges')}
       <label class="nudge-choice"><input type="checkbox" name="calendar" value="yes"${v.calendar === 'yes' ? ' checked' : ''}/><span><strong>${say('calendar.signup')}</strong><small>${say(googleCalendarConfig().enabled && googleCalendarReady() ? 'calendar.google.invite' : 'calendar.preference.detail')}</small></span></label>
       </details>
+      ${state.invite?.offer === 'pilot' && pilotFollowupApproved() ? `<label class="nudge-choice pilot-followup-choice"><input type="checkbox" name="pilot_followup" value="yes"${v.pilot_followup === 'yes' ? ' checked' : ''}/><span><strong>${esc(pilotFollowupConsentTitle)}</strong><small>${esc(pilotFollowupConsent)}</small></span></label>` : ''}
       <p class="quiet small" id="signup-verify">${say('signup.verify.detail')}</p>
       <button class="primary" aria-describedby="signup-verify">${busyLabel(say('signup.submit'))}</button>
     </form>
