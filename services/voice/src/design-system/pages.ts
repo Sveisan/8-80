@@ -174,6 +174,9 @@ export const SIGNUP_CSS = `
   .nudge-choice input { flex: 0 0 var(--checkbox-size); width: var(--checkbox-size); min-height: var(--checkbox-size); margin: var(--space-1) 0; accent-color: var(--accent); }
   .nudge-choice strong { display: block; color: var(--ink); font-weight: var(--weight-display); }
   .nudge-choice small { display: block; margin-top: var(--space-2); line-height: 1.6; }
+  .pilot-followup-choice { margin: var(--space-4) 0; padding: var(--space-3); background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius-control); }
+  .pilot-followup-choice:hover, .pilot-followup-choice:focus-within { border-color: var(--accent); }
+  .pilot-followup-choice small { color: var(--quiet); margin-top: var(--space-1); }
   [data-theme="dark"] .signup-intro h1 span { color: var(--link); }
   [data-theme="dark"] .booking-panel {
     background: linear-gradient(145deg, #27392e, #1c2a22 68%);

@@ -17,6 +17,8 @@ import { Pending } from './pending.ts';
 import { codePage, invitationClosedPage, signupPage, type SignupFormState } from './page.ts';
 import { availableOffer, InvitationUnavailable, pilotDays, pilotIntake, redeemOffer } from '../weekly/intro-pilot.ts';
 import { pilotCheckoutReady } from '../billing/pilot-checkout.ts';
+import { pilotFollowupApproved } from '../weekly/pilot-followup-copy.ts';
+import { rememberPilotOptIn } from '../weekly/pilot-followup.ts';
 import { browserCookie, crossSite } from '../link/cookie.ts';
 
 export interface Answer { status: number; body: string; headers?: Record<string, string | string[]>; }
@@ -26,6 +28,7 @@ const perClient = new Limiter(10, HOUR);
 const resendDelay = new Limiter(1, 60_000);
 const verifyClient = new Limiter(30, 10 * 60_000);
 const TRIAL_DAYS = 30;
+const draftFields = ['name', 'phone', 'email', 'weekday', 'time', 'timezone', 'voice', 'nudges', 'calendar', 'pilot_followup'];
 
 async function body(req: IncomingMessage): Promise<URLSearchParams | undefined> {
   const chunks: Buffer[] = [];
@@ -42,6 +45,7 @@ const valuesOf = (signup: Signup): SignupFormState['values'] => ({
   name: signup.name, phone: signup.phone, email: signup.email, weekday: String(signup.weekday),
   time: `${String(Math.floor(signup.minute / 60)).padStart(2, '0')}:${String(signup.minute % 60).padStart(2, '0')}`,
   timezone: signup.timezone, voice: signup.voice ?? '', nudges: signup.nudges ? 'yes' : '', calendar: signup.calendarInvites ? 'yes' : '',
+  pilot_followup: signup.weeklyPilotFollowup ? 'yes' : '',
 });
 
 /** Draft capabilities preserve booking choices without revealing them by phone-number lookup. */
@@ -79,7 +83,7 @@ export async function signupRoutes(req: IncomingMessage, url: URL, deps: LoopDep
   if ((pilotIntake() || token) && !invite && ['/start', '/start/preview'].includes(url.pathname)) return closed();
   if (url.pathname === '/start/preview') {
     const read = readBookingSlot(form, now);
-    const values = Object.fromEntries(['name', 'phone', 'email', 'weekday', 'time', 'timezone', 'voice', 'nudges', 'calendar'].map(k => [k, form.get(k) ?? '']));
+    const values = Object.fromEntries(draftFields.map(k => [k, form.get(k) ?? '']));
     return page(read.ok ? 200 : 400, { values, ...(invite ? { invite } : {}), ...(read.ok ? { appointmentChecked: true } : { errors: read.errors }) });
   }
   const id = (form.get('draft') ?? '').slice(0, 36);
@@ -104,6 +108,7 @@ export async function signupRoutes(req: IncomingMessage, url: URL, deps: LoopDep
         if (signup.nudges) await setNudges(tx, hash, true, signup.timezone, now);
         await scopedStore.startTrial(signup.phone, new Date(+now + (offer ? pilotDays : TRIAL_DAYS) * 24 * HOUR));
         if (offer) await tx`update callers set weekly_offer = ${offer} where phone_hash = ${hash}`;
+        if (offer === 'pilot' && signup.weeklyPilotFollowup && pilotFollowupApproved()) await rememberPilotOptIn(tx, hash, now);
         const first = await new Scheduler(tx).setSlot(signup.phone, slot, now);
         if (signup.calendarInvites) messageIds.push(...await setCalendarInvitations(tx, hash, true, script, now));
         const messages = queued(tx, hash, `welcome:${hash}:${now.toISOString()}`, now, 'welcome');
@@ -141,10 +146,11 @@ export async function signupRoutes(req: IncomingMessage, url: URL, deps: LoopDep
   } else {
     const read = readSignup(form, now);
     if (!read.ok) {
-      const values = Object.fromEntries(['name', 'phone', 'email', 'weekday', 'time', 'timezone', 'voice', 'nudges', 'calendar'].map(k => [k, form.get(k) ?? '']));
+      const values = Object.fromEntries(draftFields.map(k => [k, form.get(k) ?? '']));
       return page(400, { errors: read.errors, values, ...(invite ? { invite } : {}) });
     }
-    signup = { ...read.signup, ...(invite ? { weeklyInvite: invite.token } : {}) };
+    signup = { ...read.signup, ...(invite ? { weeklyInvite: invite.token } : {}),
+      ...(invite?.offer === 'pilot' && pilotFollowupApproved() && form.get('pilot_followup') === 'yes' ? { weeklyPilotFollowup: true } : {}) };
     await countRequest(store.raw, 'booking_submitted', now);
   }
 

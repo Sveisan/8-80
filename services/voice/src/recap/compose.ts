@@ -32,6 +32,10 @@ export interface Recap {
   date?: string;
   /** The durable controls destination, or a billing action for a billing letter. */
   action?: { label: string; url: string };
+  actionNote?: string;
+  postscript?: string;
+  footerLinks?: { label: string; url: string }[];
+  unsubscribeUrl?: string;
   /** Optional contact-card reminder in the first call's recap only. */
   contact?: { label: string; url: string };
   /**

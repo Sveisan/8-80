@@ -309,6 +309,13 @@
       "when": 1795264561304,
       "tag": "0043_weekly_intro_pilot",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1795432881255,
+      "tag": "0044_weekly_pilot_followups",
+      "breakpoints": true
     }
   ]
 }

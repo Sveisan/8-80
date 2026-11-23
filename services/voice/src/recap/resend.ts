@@ -38,6 +38,7 @@ export class ResendMailer implements Mailer {
         from: this.from,
         to: [to],
         subject: recap.subject,
+        ...(recap.unsubscribeUrl ? { headers: { 'List-Unsubscribe': `<${recap.unsubscribeUrl}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' } } : {}),
         ...(recap.replyTo ? {reply_to:recap.replyTo} : {}),
         html: letterHtml(recap, { ...(this.markUrl ? { markUrl: this.markUrl } : {}), ...(recap.date ? { date: recap.date } : {}), ...(recap.action ? { action: recap.action } : {}) }),
         text: recap.body,
