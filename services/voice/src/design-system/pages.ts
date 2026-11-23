@@ -160,6 +160,11 @@ export const SIGNUP_CSS = `
   .booking-offer { font-size: var(--text-small); color: var(--quiet); margin: 0 0 var(--space-4); }
   .booking-offer strong { color: var(--ink); }
   .booking-offer span { display: block; }
+  .invitation-intro { color: var(--quiet); margin: var(--space-3) 0 var(--space-5); }
+  .invitation-path { padding-top: var(--space-4); margin-top: var(--space-4); border-top: 1px solid var(--line); }
+  .invitation-path h2 { font-size: var(--text-small); margin: 0 0 var(--space-2); }
+  .invitation-path p { font-size: var(--text-small); color: var(--quiet); margin: 0; }
+  .invitation-path .button { width: 100%; }
   .booking-panel .fields { background: var(--bg); }
   .booking-panel .fields label { padding-top: var(--space-2); }
   .booking-panel .fields input { padding-block: 0 var(--space-1); }
@@ -202,6 +207,7 @@ export const SIGNUP_CSS = `
     .signup-intro { padding-top: var(--space-6); }
     .intro-booking { display: none; }
     .booking-panel { padding: var(--space-5) var(--space-6); }
+    .booking-offer--pilot { font-size: var(--text-caption); line-height: 1.45; margin-bottom: var(--space-2); }
   }
   @media (min-width: ${breakpoints.medium}) {
     body { padding-top: var(--space-16); }
@@ -290,6 +296,10 @@ export const ACCOUNT_CSS = `
   .weekly-account .change-time:not(.reschedule) > summary { border-color: var(--control-border); }
   .call-controls { display: flex; flex-wrap: wrap; gap: var(--space-2); }
   .call-controls form { flex: 1 1 7.5em; margin: 0; }
+  .call-controls .hint { margin: var(--space-1) 0; }
+  .resume-preview { margin-bottom: var(--space-3); padding: var(--space-4); background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-panel); }
+  .resume-preview h2 { font-size: var(--text-small); }
+  .resume-preview .appointment-time { font-size: var(--text-heading); }
   .weekly-time { border-top: 1px solid var(--line); margin-top: var(--space-4); padding-top: var(--space-3); }
   .weekly-time .usual-time { margin: var(--space-1) 0 var(--space-2); }
   .weekly-time .weekly-editor { margin-bottom: 0; }
@@ -325,7 +335,8 @@ export const ACCOUNT_CSS = `
     .review-schedule { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
   }
   @media (min-width: ${breakpoints.split}) {
-    .account-dashboard main { max-width: 56rem; }
+    :is(.account-dashboard, .account-review) main { max-width: 56rem; }
+    .account-review .move-review { max-width: var(--measure-reading); }
     .account-dashboard .account-layout { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr); gap: var(--space-8); align-items: start; }
     .account-dashboard .account-sidebar { padding-inline-start: var(--space-6); border-inline-start: 1px solid var(--line); margin-top: var(--space-3); }
     .account-dashboard .account-sidebar > .account-section:first-child { border-top: 0; margin-top: 0; padding-top: var(--space-2); }

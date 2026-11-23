@@ -1621,6 +1621,9 @@ and no way to send START, so the way back cannot live only in a message._
 `page.skip`
 > "Skip this call"
 
+`page.skip.scope`
+> "Skip one call and keep your weekly time."
+
 `page.skip.saved`
 > "Skipped one call."
 
@@ -2995,13 +2998,19 @@ _Explicit opt-in. Generic messages only: no private call details on a lock scree
 > "Calls could not be resumed. Check your account below."
 
 `page.account.resume.detail`
-> "Resume when you’re ready. We’ll keep your next call if it’s still available."
+> "Your calls stay paused until you resume."
+
+`page.account.resume.next`
+> "Next call if you resume now"
 
 `page.account.paused.billing`
 > "Billing continues while calls are paused."
 
 `page.account.pause`
 > "Pause calls"
+
+`page.account.pause.scope`
+> "Pause all calls until you resume."
 
 `page.account.pause.confirm`
 > "Pause your calls?"
@@ -3054,16 +3063,28 @@ _Explicit opt-in. Generic messages only: no private call details on a lock scree
 ## Weekly invitations
 
 `signup.invite.pilot`
-> Your first call is free. If you choose to continue, it’s NOK 189 for the first paid month and NOK 249 per month after that. No card needed to book.
+> First call free. No card needed. If you continue, NOK 189 for the first paid month, then NOK 249/month.
+
+`signup.invite.options`
+> "Optional follow-up email, voice, texts and calendar"
 
 `signup.invite.friend`
 > You’re invited to try 8&80 for 30 days, with up to four free calls. No card needed. Calls stop when the pass ends.
 
 `signup.invite.closed`
-> 8&80 is taking bookings by invitation
+> Bookings are by invitation
 
-`signup.invite.closed.detail`
-> If your invitation is no longer available, contact the person who shared it. Already booked? Open your call settings below.
+`signup.invite.intro`
+> A weekly AI phone call to reflect on what matters and choose one thing to do next.
+
+`signup.invite.have`
+> Have an invitation?
+
+`signup.invite.use`
+> Open your original invitation link to book. If the link has expired, contact the person who shared it.
+
+`signup.invite.booked`
+> Already booked?
 
 `page.invite.friend`
 > Your friend pass includes up to four calls and ends on {{when}}.
