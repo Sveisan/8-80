@@ -209,7 +209,17 @@ export const SIGNUP_CSS = `
     .signup-intro { padding-top: var(--space-6); }
     .intro-booking { display: none; }
     .booking-panel { padding: var(--space-5) var(--space-6); }
-    .signup-page:has(.booking-panel--invited) { padding-top: max(var(--space-6), env(safe-area-inset-top)); }
+    .signup-page:has(.booking-panel--invited) {
+      position: relative;
+      padding-top: max(var(--space-6), env(safe-area-inset-top));
+      padding-bottom: max(var(--space-16), env(safe-area-inset-bottom));
+    }
+    .signup-page:has(.booking-panel--invited) > .pf {
+      position: absolute;
+      bottom: var(--space-4);
+      right: max(var(--space-4), env(safe-area-inset-right));
+    }
+    .signup-page:has(.booking-panel--invited) .pf-trigger { position: static; }
     .booking-panel--invited .booking-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .booking-panel--invited .booking-name { grid-column: 1 / -1; }
     .booking-panel--invited .booking-field:last-child { border-inline-start: 1px solid var(--line); }
