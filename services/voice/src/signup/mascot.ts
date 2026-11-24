@@ -226,9 +226,10 @@ export function mascot(mood: Mood = 'rest', className = 'mark'): string {
   );
 }
 
-export function brandLockup(order: 'mark' | 'wordmark' = 'wordmark'): string {
-  const mark = mascot('rest', 'brand-symbol');
+export function brandLockup(order: 'mark' | 'wordmark' | 'wordmark-only' = 'wordmark-only'): string {
   const name = '<span class="brand-name">8&amp;80</span>';
+  if (order === 'wordmark-only') return `<span class="brand-lockup brand-lockup--wordmark-only">${name}</span>`;
+  const mark = mascot('rest', 'brand-symbol');
   return `<span class="brand-lockup brand-lockup--${order}">${order === 'wordmark' ? name + mark : mark + name}</span>`;
 }
 

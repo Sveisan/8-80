@@ -167,7 +167,7 @@
   .brand-lockup { display: inline-flex; align-items: center; gap: var(--space-2); white-space: nowrap; }
   .brand-symbol { display: block; width: var(--mark-size); flex: none; }
   .brand-name { font: 600 var(--text-wordmark)/1 var(--font-display); letter-spacing: -.045em; }
-  .brand-lockup--wordmark .brand-name { font-size: var(--text-heading); }
+  :is(.brand-lockup--wordmark, .brand-lockup--wordmark-only) .brand-name { font-size: var(--text-heading); }
   .brand-lockup--wordmark .brand-symbol { width: var(--space-8); }
   .motion-highlight { animation: feedback-highlight 620ms ease-out; border-radius: var(--radius-control); }
   @keyframes feedback-highlight {

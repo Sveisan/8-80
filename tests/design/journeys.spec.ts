@@ -9,7 +9,8 @@ test('the invitation and account paths are distinct and the pilot booking action
   await page.setViewportSize(mobile ? { width: 320, height: 667 } : { width: 1280, height: 768 });
   await page.goto(preview + '/start/closed');
   await expect(page.getByRole('heading', { name: 'Bookings are by invitation' })).toBeVisible();
-  await expect(page.locator('.brand-lockup--wordmark')).toHaveCount(1);
+  await expect(page.locator('.brand-lockup--wordmark-only')).toHaveText('8&80');
+  await expect(page.locator('.brand-lockup .brand-symbol')).toHaveCount(0);
   await expect(page.getByRole('region', { name: 'Have an invitation?' })).toContainText('Open your original invitation link');
   const account = page.getByRole('region', { name: 'Already booked?' }).getByRole('link', { name: 'Open your calls' });
   await expect(account).toHaveAttribute('href', '/me');
@@ -22,6 +23,8 @@ test('the invitation and account paths are distinct and the pilot booking action
   await activate(page.getByRole('link', { name: 'Open your calls', exact: true }));
   await expect(page).toHaveURL(/\/me$/);
   await expect(page.getByRole('button', { name: 'Text me a code' })).toBeInViewport({ ratio: 1 });
+  await expect(page.locator('.account-brand .brand-lockup--wordmark-only')).toHaveText('8&80');
+  await expect(page.locator('.account-brand .brand-symbol')).toHaveCount(0);
   await page.goto(preview + '/start/invited');
   await expect(page.locator('#first-appointment')).toContainText('First call:');
   const price = page.getByText('First call free. No card needed. If you continue, NOK 189 for the first paid month, then NOK 249/month.', { exact: true });

@@ -81,13 +81,9 @@ Gold dot in the small loop.
 - **Below 32px wide, use `mark-small.svg`** — the same line, heavier, with a larger dot, so
   the small loop does not close up.
 
-It works alone. The lockup — the mark with **8&80** set beside it in the display serif —
-is for places where people do not yet know the name, which is the sign-up page and the
-recap letter.
-
-The site uses the wordmark-led lockup on weekly booking and account headers. The name comes
-first, followed by the same mark at a smaller size. The account header uses the compact type
-size. The standalone icon remains available for favicons and app icons.
+The homepage, weekly booking and weekly account headers use the **8&80** wordmark in the
+display serif. The account header uses the compact type size. Use the loop for favicons and
+app icons. In the recap letter, the loop can sit beside the name.
 
 ---
 
