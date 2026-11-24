@@ -32,10 +32,10 @@ main { max-width: 62rem; margin: 0 auto; }
 </style></head>
 <body><main>
   <header class="masthead">${brandLockup()}${themeSwitch}</header>
-  <section class="intro"><h1>Logo and motion</h1><p>One refined infinity mark. Two ways to present it.</p></section>
+  <section class="intro"><h1>Logo and motion</h1><p>The masthead uses the 8&amp;80 wordmark. Earlier logo treatments are shown below.</p></section>
   <div class="compare">
     <section class="panel"><h2>Mark-led</h2><div class="example">${brandLockup('mark')}<small>Your calls</small></div><p>The infinity mark leads the lockup.</p></section>
-    <section class="panel"><h2>Wordmark-led</h2><div class="example">${brandLockup()}<small>Your calls</small></div><p>The chosen lockup for booking and account headers.</p></section>
+    <section class="panel"><h2>Wordmark-led</h2><div class="example">${brandLockup('wordmark')}<small>Your calls</small></div><p>The infinity mark follows the wordmark.</p></section>
   </div>
   <h2 class="motion-title">Motion in use</h2>
   <div class="demos">

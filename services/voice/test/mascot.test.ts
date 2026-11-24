@@ -2,8 +2,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { PATHS, brandLockup, mascot } from '../src/signup/mascot.ts';
 
-test('the selected lockup places the visible name before the symbol', () => {
-  assert.match(brandLockup(), /brand-lockup--wordmark"><span class="brand-name">8&amp;80<\/span><svg/);
+test('the default header uses the wordmark alone', () => {
+  assert.equal(brandLockup(), '<span class="brand-lockup brand-lockup--wordmark-only"><span class="brand-name">8&amp;80</span></span>');
+  assert.match(brandLockup('wordmark'), /brand-lockup--wordmark"><span class="brand-name">8&amp;80<\/span><svg/);
   assert.match(brandLockup('mark'), /brand-lockup--mark"><svg/);
 });
 
