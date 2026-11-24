@@ -137,7 +137,7 @@ test('a skip form targets the displayed appointment and cannot skip twice', { sk
 
     const form = { action: 'skip', skip_at: skipAt as string };
     const first = await post(base, token, form);
-    assert.match(await first.text(), /You skipped this call\. Undo is available until its original time\./);
+    assert.match(await first.text(), /Call skipped\. You can undo before its original time\./);
     const second = await post(base, token, form);
     assert.match(await second.text(), /No call changed/);
 
@@ -343,4 +343,34 @@ test('a review hold is visible without promising or resuming a blocked appointme
   assert.equal(await sched!.resumeIfEligible(phone), undefined);
   const [state] = await sql!`select paused from callers where phone_hash = ${phoneKey(phone)}`;
   assert.equal(state?.['paused'], true);
+});
+
+test('resume explains access ending before the next call and leaves a stale submission paused', { skip: skip() }, async () => {
+  const phone = '+4790000090';
+  const token = await enrolled(phone);
+  const at = new Date(Date.now() + 3 * 86400_000);
+  const cutoff = new Date(+at - 86400_000);
+  const hash = phoneKey(phone);
+  await sql!`update callers set paused = true, billing_status = 'trialing',
+    trial_ends_at = ${new Date(+at + 86400_000)}, next_call_at = ${at} where phone_hash = ${hash}`;
+  await serving(async base => {
+    const eligible = await (await fetch(`${base}/r/${token}`)).text();
+    assert.match(eligible, /value="start"/);
+    assert.ok(eligible.includes(at.toISOString()));
+
+    await sql!`update callers set trial_ends_at = ${cutoff} where phone_hash = ${hash}`;
+    const stale = await (await post(base, token, { action: 'start' })).text();
+    assert.match(stale, /Resume didn’t change your schedule/);
+    assert.match(stale, /Your free access ends before the next available call/);
+    assert.match(stale, /href="#plan">View plan and billing/);
+    assert.doesNotMatch(stale, /value="start"/);
+
+    await sql!`update callers set billing_status = 'active', cancel_at_period_end = true, paid_until = ${at} where phone_hash = ${hash}`;
+    const nonrenewing = await (await fetch(`${base}/r/${token}`)).text();
+    assert.match(nonrenewing, /Your paid access ends before the next available call/);
+    assert.doesNotMatch(nonrenewing, /value="start"/);
+    const [state] = await sql!`select paused, next_call_at from callers where phone_hash = ${hash}`;
+    assert.equal(state?.['paused'], true);
+    assert.deepEqual(state?.['next_call_at'], at);
+  });
 });

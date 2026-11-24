@@ -182,7 +182,7 @@ export function signupPage(
     </figure>
 
     </section>
-    <section class="booking-panel" id="book" tabindex="-1" aria-labelledby="booking-heading">
+    <section class="booking-panel${inviteOffer ? ' booking-panel--invited' : ''}" id="book" tabindex="-1" aria-labelledby="booking-heading">
     <h2 id="booking-heading">${say('signup.booking.title')}</h2>
     ${offer}
     ${state.note ? `<p class="wrong" role="alert">${say(state.note)}</p>` : ''}
@@ -190,10 +190,10 @@ export function signupPage(
 
     <form method="post" action="/start" novalidate>
       ${state.invite ? `<input type="hidden" name="invite" value="${esc(state.invite.token)}" />` : ''}
-      <div class="fields">
-        ${field('name', say('signup.name.optional'), 'text', 'autocomplete="given-name" autocapitalize="words" maxlength="80" enterkeyhint="next"')}
-        ${field('phone', say('signup.phone'), 'tel', 'autocomplete="tel" inputmode="tel" enterkeyhint="next" required')}
-        ${field('email', say(script.get('signup.email.short') ? 'signup.email.short' : 'signup.email'), 'email', 'autocomplete="email" autocapitalize="off" spellcheck="false" enterkeyhint="done" required')}
+      <div class="fields booking-fields">
+        <div class="booking-field booking-name">${field('name', say('signup.name.optional'), 'text', 'autocomplete="given-name" autocapitalize="words" maxlength="80" enterkeyhint="next"')}</div>
+        <div class="booking-field">${field('phone', say('signup.phone'), 'tel', 'autocomplete="tel" inputmode="tel" enterkeyhint="next" required')}</div>
+        <div class="booking-field">${field('email', say(script.get('signup.email.short') ? 'signup.email.short' : 'signup.email'), 'email', 'autocomplete="email" autocapitalize="off" spellcheck="false" enterkeyhint="done" required')}</div>
       </div>
 
       <fieldset${v.weekday || v.time ? '' : ' data-auto'} id="when">
@@ -411,16 +411,16 @@ ${FOUNDATION_CSS}${CONTROL_CSS}${SIGNUP_CSS}
 </html>`;
 }
 
-export function invitationClosedPage(script: ScriptLines): string {
+export function invitationClosedPage(script: ScriptLines, unusable = false): string {
   const say = (key: string) => esc(script.get(key) ?? '');
   return shell(`
     ${LOCKUP}
-    <h1>${say('signup.invite.closed')}</h1>
-    <p class="invitation-intro">${say('signup.invite.intro')}</p>
-    <section class="invitation-path" aria-labelledby="invitation-heading">
+    <h1>${say(unusable ? 'signup.invite.unusable' : 'signup.invite.closed')}</h1>
+    <p class="invitation-intro">${say(unusable ? 'signup.invite.replace' : 'signup.invite.intro')}</p>
+    ${unusable ? '' : `<section class="invitation-path" aria-labelledby="invitation-heading">
       <h2 id="invitation-heading">${say('signup.invite.have')}</h2>
       <p>${say('signup.invite.use')}</p>
-    </section>
+    </section>`}
     <section class="invitation-path" aria-labelledby="booked-heading">
       <h2 id="booked-heading">${say('signup.invite.booked')}</h2>
       <a class="button primary" href="/me">${say('access.title')}</a>

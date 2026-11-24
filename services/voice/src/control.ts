@@ -658,9 +658,12 @@ async function yourPage(
     await measured(changed); return await page();
   }
   // A stale page must not resume paused calls by changing their weekly slot.
-  if (['start', 'move', 'skip', 'later'].includes(action ?? '') &&
-      (!state.canCall || (state.paused && action !== 'start'))) return await page();
-  if (action === 'start' && state.stoppedByText) return await page();
+  if (['move', 'skip', 'later'].includes(action ?? '') && (!state.canCall || state.paused)) return await page();
+  if (action === 'start' && !state.resumeAt) {
+    if (!state.paused && state.canCall && !state.onHold) return await page();
+    await measured(false);
+    return await page(undefined, undefined, { scheduleNote: 'page.account.resume.unavailable' });
+  }
   if (action === 'undo-skip') {
     const undo = readSkipReceipt(form.get('receipt'), phoneHash);
     const invitations = undo && await deps.store.raw.begin(async tx => {

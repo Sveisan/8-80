@@ -299,7 +299,7 @@ export function reschedulePage(
       : `<p class="hint">${say('page.billing.unavailable')}</p>`
     : ['trialing', 'trial_ended', 'ended'].includes(state.billing) ? checkoutLink('availability-check') ? `<form method="post"><button name="action" value="checkout"${!state.canCall ? ' class="primary"' : ''}>${say('page.billing.continue')}</button></form><p class="hint">${say('page.billing.price')}</p>` : `<p class="hint">${say('page.billing.unavailable')}</p>` : '' : '';
   const billing = state ? `<p class="hint">${esc((script.get(billingKey) ?? '').replace('{{when}}', trialDate ?? ''))}</p>` : '';
-  const plan = state || active ? `<section class="account-section plan-section" aria-labelledby="plan-heading">
+  const plan = state || active ? `<section class="account-section plan-section" id="plan" aria-labelledby="plan-heading">
     <h2 id="plan-heading">${say('page.account.plan')}</h2>
     ${billing}
     ${renewal}
@@ -323,25 +323,19 @@ export function reschedulePage(
     ${status && (!view.skipUndo || view.scheduleNote !== 'page.skip.saved') ? `<div class="account-notice${view.scheduleNote === 'page.account.resume.saved' ? ' motion-highlight' : ''}">
       <p role="status">${esc(status)}</p>
     </div>` : ''}
-    ${view.skipUndo ? `<div class="account-notice skip-notice">
-      <div class="skip-deadline" role="status">
-        <p>${say('page.skip.deadline')}</p>
-        ${appointmentTime(view.skipUndo.skippedAt, slot.timezone, script, language, 'skip-appointment')}
-      </div>
-      <form method="post" action="?" class="undo-skip">
-        <input type="hidden" name="receipt" value="${esc(view.skipUndo.receipt)}" />
-        <button name="action" value="undo-skip">${say('page.skip.undo')}</button>
-      </form>
-    </div>` : ''}
     ${state?.onHold ? `<p class="account-intro">${say('page.held.detail')}</p>`
       : state && !state.canCall ? `<p class="account-intro">${say('page.ended.detail')}</p>`
       : state?.stoppedByText ? `<p class="account-intro">${say('page.account.stopped_by_text')}</p>`
-      : state?.paused ? `<p class="account-intro">${say('page.account.resume.detail')}</p>
-        ${state.resumeAt ? `<section class="resume-preview" aria-labelledby="resume-next">
+      : state?.paused ? (state.resumeAt ? `
+        <section class="resume-preview" id="resume-preview" aria-labelledby="resume-next">
           <h2 id="resume-next">${say('page.account.resume.next')}</h2>
           ${appointmentTime(state.resumeAt, slot.timezone, script, language, 'resume-appointment')}
-        </section>` : ''}
-        <form method="post" action="?" class="resume"><button name="action" value="start" class="primary">${say('page.account.resume')}</button></form>` : ''}
+        </section>
+        <form method="post" action="?" class="resume"><button name="action" value="start" class="primary" aria-describedby="resume-preview">${say('page.account.resume')}</button></form>`
+        : `<p class="account-intro">${say('page.account.resume.' + (state.resumeReason ?? 'unavailable') + '.detail')}</p>
+          ${state.resumeReason === 'trial_ends' || state.resumeReason === 'paid_period_ends'
+            ? `<a class="account-link" href="#plan">${say('page.account.resume.view_plan')}</a>`
+            : `<a class="account-link" href="mailto:${esc(config.company.supportEmail() || 'hei@8and80.me')}">${say('page.account.resume.get_help')}</a>`}`) : ''}
     ${!arranging ? pauseControl : ''}
     <div class="account-layout">
     ${arranging ? `<section class="account-section call-overview" aria-labelledby="call-heading">
@@ -361,6 +355,16 @@ export function reschedulePage(
         </form>`}
         ${pauseControl}
       </div>
+      ${view.skipUndo ? `<div class="account-notice skip-notice">
+        <div id="skip-deadline" class="skip-deadline" role="status">
+          <p>${say('page.skip.deadline')}</p>
+          ${appointmentTime(view.skipUndo.skippedAt, slot.timezone, script, language, 'skip-appointment')}
+        </div>
+        <form method="post" action="?" class="undo-skip">
+          <input type="hidden" name="receipt" value="${esc(view.skipUndo.receipt)}" />
+          <button name="action" value="undo-skip" aria-describedby="skip-deadline">${say('page.skip.undo')}</button>
+        </form>
+      </div>` : ''}
       <div class="weekly-time">
         <h3>${say('page.account.weekly')}</h3>
         <p class="hint usual-time">${esc(when)} · ${esc(appointmentZone)}</p>

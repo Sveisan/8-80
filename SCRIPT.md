@@ -1628,7 +1628,7 @@ and no way to send START, so the way back cannot live only in a message._
 > "Skipped one call."
 
 `page.skip.deadline`
-> "You skipped this call. Undo is available until its original time."
+> "Call skipped. You can undo before its original time."
 
 `page.skip.unchanged`
 > "No call changed. Check the schedule below."
@@ -2995,10 +2995,22 @@ _Explicit opt-in. Generic messages only: no private call details on a lock scree
 > "Calls resumed."
 
 `page.account.resume.unavailable`
-> "Calls could not be resumed. Check your account below."
+> "Resume didn’t change your schedule. Check your call status below."
 
-`page.account.resume.detail`
-> "Your calls stay paused until you resume."
+`page.account.resume.trial_ends.detail`
+> Your free access ends before the next available call.
+
+`page.account.resume.paid_period_ends.detail`
+> Your paid access ends before the next available call.
+
+`page.account.resume.unavailable.detail`
+> There’s no available call to resume. Get help with your schedule.
+
+`page.account.resume.view_plan`
+> View plan and billing
+
+`page.account.resume.get_help`
+> Get scheduling help
 
 `page.account.resume.next`
 > "Next call if you resume now"
@@ -3082,6 +3094,12 @@ _Explicit opt-in. Generic messages only: no private call details on a lock scree
 
 `signup.invite.use`
 > Open your original invitation link to book. If the link has expired, contact the person who shared it.
+
+`signup.invite.unusable`
+> This invitation link can’t be used.
+
+`signup.invite.replace`
+> Ask the person who invited you for a new link.
 
 `signup.invite.booked`
 > Already booked?

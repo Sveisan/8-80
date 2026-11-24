@@ -166,6 +166,8 @@ export const SIGNUP_CSS = `
   .invitation-path p { font-size: var(--text-small); color: var(--quiet); margin: 0; }
   .invitation-path .button { width: 100%; }
   .booking-panel .fields { background: var(--bg); }
+  .booking-field { min-width: 0; }
+  .booking-field + .booking-field { border-top: 1px solid var(--line); }
   .booking-panel .fields label { padding-top: var(--space-2); }
   .booking-panel .fields input { padding-block: 0 var(--space-1); }
   .booking-panel fieldset { margin-top: var(--space-4); }
@@ -207,6 +209,22 @@ export const SIGNUP_CSS = `
     .signup-intro { padding-top: var(--space-6); }
     .intro-booking { display: none; }
     .booking-panel { padding: var(--space-5) var(--space-6); }
+    .signup-page:has(.booking-panel--invited) {
+      position: relative;
+      padding-top: max(var(--space-6), env(safe-area-inset-top));
+      padding-bottom: max(var(--space-16), env(safe-area-inset-bottom));
+    }
+    .signup-page:has(.booking-panel--invited) > .pf {
+      position: absolute;
+      bottom: var(--space-4);
+      right: max(var(--space-4), env(safe-area-inset-right));
+    }
+    .signup-page:has(.booking-panel--invited) .pf-trigger { position: static; }
+    .booking-panel--invited .booking-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .booking-panel--invited .booking-name { grid-column: 1 / -1; }
+    .booking-panel--invited .booking-field:last-child { border-inline-start: 1px solid var(--line); }
+    .booking-panel--invited fieldset#when { margin-top: var(--space-3); }
+    .booking-panel--invited #when legend { margin-bottom: var(--space-1); }
     .booking-offer--pilot { font-size: var(--text-caption); line-height: 1.45; margin-bottom: var(--space-2); }
   }
   @media (min-width: ${breakpoints.medium}) {
@@ -281,11 +299,18 @@ export const ACCOUNT_CSS = `
   .account-notice { margin: var(--space-3) 0; padding: var(--space-3) var(--space-4); background: var(--card);
     border-inline-start: 3px solid var(--accent); font-size: var(--text-small); }
   .account-notice p { margin: 0; }
-  .skip-notice { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2) var(--space-4); }
+  .skip-notice {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center;
+    gap: var(--space-2); margin: var(--space-2) 0 0; padding: var(--space-2);
+    background: transparent; font-size: var(--text-caption);
+  }
   .skip-appointment { display: block; margin-top: var(--space-1); }
   .skip-deadline :is(.appointment-date, .appointment-time, .appointment-time small) { display: inline; font: inherit; letter-spacing: normal; }
-  .account-notice .undo-skip { margin: 0; }
-  .undo-skip button { width: auto; }
+  .weekly-account .call-overview .undo-skip { margin: 0; }
+  .undo-skip button { width: auto; padding-inline: var(--space-3); }
+  @media (max-width: 19rem) {
+    .skip-notice { grid-template-columns: 1fr; }
+  }
   .weekly-account .call-overview { padding: var(--space-4); margin: var(--space-3) 0 0; background: var(--card); }
   .call-overview .appointment { margin-bottom: var(--space-3); }
   .first-call { margin-bottom: var(--space-2); }

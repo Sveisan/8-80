@@ -6,7 +6,7 @@ test.beforeEach(async ({ request }) => { await fixture(request, 'reset'); });
 test('the invitation and account paths are distinct and the pilot booking action fits', async ({ page }, info) => {
   const preview = 'http://127.0.0.1:8790';
   const mobile = info.project.name === 'mobile-safari';
-  if (mobile) await page.setViewportSize({ width: 320, height: 667 });
+  await page.setViewportSize(mobile ? { width: 320, height: 667 } : { width: 1280, height: 768 });
   await page.goto(preview + '/start/closed');
   await expect(page.getByRole('heading', { name: 'Bookings are by invitation' })).toBeVisible();
   await expect(page.locator('.brand-lockup--wordmark')).toHaveCount(1);
@@ -15,11 +15,45 @@ test('the invitation and account paths are distinct and the pilot booking action
   await expect(account).toHaveAttribute('href', '/me');
   expect((await account.boundingBox())!.height).toBeGreaterThanOrEqual(44);
   await expect(account).toBeInViewport({ ratio: 1 });
+  await page.goto('/start?invite=unknown');
+  await expect(page.getByRole('heading', { name: 'This invitation link can’t be used.' })).toBeVisible();
+  await expect(page.getByText('Ask the person who invited you for a new link.')).toBeVisible();
+  await page.screenshot({ path: info.outputPath('invitation-recovery.png') });
+  await activate(page.getByRole('link', { name: 'Open your calls', exact: true }));
+  await expect(page).toHaveURL(/\/me$/);
+  await expect(page.getByRole('button', { name: 'Text me a code' })).toBeInViewport({ ratio: 1 });
   await page.goto(preview + '/start/invited');
   await expect(page.locator('#first-appointment')).toContainText('First call:');
   const price = page.getByText('First call free. No card needed. If you continue, NOK 189 for the first paid month, then NOK 249/month.', { exact: true });
   await expect(mobile ? price.first() : price.last()).toBeInViewport({ ratio: 1 });
-  await expect(mobile ? page.getByRole('link', { name: 'Book my first call', exact: true }) : page.getByRole('button', { name: 'Book my first call', exact: true })).toBeInViewport({ ratio: 1 });
+  const book = page.getByRole(mobile ? 'link' : 'button', { name: 'Book my first call', exact: true });
+  await expect(book).toBeInViewport({ ratio: 1 });
+  await expect(page.locator('.booking-options')).not.toHaveAttribute('open');
+  await page.screenshot({ path: info.outputPath('invited-booking.png') });
+  if (mobile) {
+    await activate(book);
+    await expect(page).toHaveURL(/#book$/);
+    await expect(page.getByLabel('Your number', { exact: true })).toBeInViewport({ ratio: 1 });
+  }
+  const options = page.getByText('Optional follow-up email, voice, texts and calendar', { exact: true });
+  await activate(options);
+  const followup = page.getByRole('checkbox', { name: /Keep what matters in view/ });
+  await expect(followup).toBeVisible();
+  await expect(followup).not.toBeChecked();
+});
+
+test('a paused account explains when free access ends before the next call', async ({ page, request }, info) => {
+  if (info.project.name === 'mobile-safari') await page.setViewportSize({ width: 320, height: 667 });
+  const { link } = await fixture(request, 'seed', { paused: true, shortTrial: true });
+  await page.goto(String(link));
+  await expect(page.getByRole('heading', { name: 'Calls paused' })).toBeVisible();
+  await expect(page.getByText('Your free access ends before the next available call.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Resume calls' })).toHaveCount(0);
+  const plan = page.getByRole('link', { name: 'View plan and billing' });
+  await expect(plan).toBeInViewport({ ratio: 1 });
+  await activate(plan);
+  await expect(page).toHaveURL(/#plan$/);
+  await expect(page.getByRole('heading', { name: 'Plan and billing' })).toBeInViewport();
 });
 
 test('booking exposes the offer and keeps the submit button steady while checking the date', async ({ page }, info) => {
@@ -227,14 +261,16 @@ test('weekly account moves, skips, private corrections and pause survive reload'
   await expect(page.locator('#weekly-time')).toHaveValue('17:30');
   await pauseAndResume(onceAt!);
   await activate(page.getByRole('button', { name: 'Skip this call' }));
-  await expect(page.getByRole('status')).toContainText('You skipped this call.');
+  await expect(page.getByRole('status')).toContainText('Call skipped.');
   await expect(page.locator('.appointment')).not.toHaveAttribute('datetime', onceAt!);
   await expect(page.locator('.usual-time')).toContainText('17:30');
   const skippedTo = await page.locator('.appointment').getAttribute('datetime');
   await page.goto(String(link));
   await expect(page.locator('.appointment')).toHaveAttribute('datetime', skippedTo!);
   await expect(page.locator('.skip-appointment')).toHaveAttribute('datetime', onceAt!);
-  await expect(page.getByRole('button', { name: 'Undo skip' })).toBeInViewport();
+  if (testInfo.project.name === 'mobile-safari') await page.setViewportSize({ width: 320, height: 667 });
+  await expect(calls.getByRole('button', { name: 'Pause calls', exact: true })).toBeInViewport({ ratio: 1 });
+  await expect(page.getByRole('button', { name: 'Undo skip' })).toBeInViewport({ ratio: 1 });
   await page.screenshot({ path: testInfo.outputPath('weekly-undo-skip.png'), fullPage: true });
   await activate(page.getByRole('button', { name: 'Undo skip' }));
   await expect(page.getByRole('status')).toContainText('Your skipped call is back on the schedule.');
@@ -366,7 +402,7 @@ test.describe('while travelling', () => {
     await activate(cancel);
     await activate(page.getByRole('button', { name: 'Skip this call' }));
     const skip = page.getByRole('status');
-    await expect(skip).toContainText('Undo is available until its original time');
+    await expect(skip).toContainText('You can undo before its original time');
     await expect(skip.locator('time')).toHaveAttribute('datetime', booked!);
     await expect(skip.locator('.appointment-zone')).toHaveText('Los Angeles time');
     await expect(skip.locator('.booking-clock')).toContainText('17:30 · Norwegian time');

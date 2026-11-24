@@ -256,7 +256,7 @@ export class Scheduler {
         billing_status, trial_ends_at, cancel_at_period_end, paid_until, held_for_review, all_calls_stopped
         from callers where phone_hash = ${phoneKey(phone)} for update`;
       const resume = row && resumeAppointment(row, now);
-      if (!resume) return undefined;
+      if (!resume || 'reason' in resume) return undefined;
       await tx`update callers set paused = false, next_call_at = ${resume.at},
         next_call_cycle = ${resume.keepCycle ? row.next_call_cycle : null}, updated_at = now() where phone_hash = ${phoneKey(phone)}`;
       return resume.at;

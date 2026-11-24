@@ -108,7 +108,7 @@ server.on('request', (req, res) => { void (async () => {
     await deps.scheduler.setSlot(phone, { weekday, minute: 17 * 60 + 30, timezone: 'Europe/Oslo' });
     await db.sql`update callers set onboarding = 'complete', call_number = 2,
       last_commitment_enc = ${encrypt('Make room for an evening without plans.')}, goals_enc = ${encrypt('Spend more time outside.')},
-      billing_status = ${form.paid ? 'active' : 'trialing'}, trial_ends_at = now() + interval '20 days', paused = ${form.paused === true},
+      billing_status = ${form.paid ? 'active' : 'trialing'}, trial_ends_at = now() + (${form.shortTrial ? '1 hour' : '20 days'})::interval, paused = ${form.paused === true},
       billing_provider = ${form.paid ? 'stripe' : null}, ls_subscription_id = ${form.paid ? 'sub_design' : null},
       ls_customer_id = ${form.paid ? 'cus_design' : null}, paid_until = ${form.paid ? new Date(subscription.endsAt!) : null}
       where phone_hash = ${hash}`;
