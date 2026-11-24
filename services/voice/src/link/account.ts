@@ -18,6 +18,7 @@ export interface AccountState {
   trialEnds?: Date;
   next?: Date;
   resumeAt?: Date;
+  resumeReason?: 'unavailable' | 'trial_ends' | 'paid_period_ends';
   /** Stored occurrence, including an expired or ineligible one, for stale-form checks. */
   scheduledAt?: Date;
   skipUndo?: StoredSkipUndo;
@@ -57,7 +58,7 @@ export async function accountState(sql: postgres.Sql, hash: string, now = new Da
     ...(next ? { scheduledAt: next } : {}),
     ...((trial || endedTrial) && row.trial_ends_at ? { trialEnds: row.trial_ends_at } : {}),
     ...(next && available(next) ? { next } : {}),
-    ...(resume ? { resumeAt: resume.at } : {}),
+    ...(resume ? ('at' in resume ? { resumeAt: resume.at } : { resumeReason: resume.reason }) : {}),
     ...(undo && next?.toISOString() === undo.replacementAt && available(new Date(undo.skippedAt)) ? { skipUndo: undo } : {}),
   };
 }

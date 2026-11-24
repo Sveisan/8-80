@@ -66,6 +66,18 @@ test('pilot link authorizes signup, preserves the draft and spends the seat only
     assert.match(closed, /Open your original invitation link/);
     assert.match(closed, /href="\/me">Open your calls/);
     assert.equal((await fetch(base + '/start', post(fields))).status, 409);
+    const invalid = await fetch(base + '/?invite=unknown');
+    assert.equal(invalid.status, 200);
+    assert.equal(invalid.headers.get('referrer-policy'), 'no-referrer');
+    const recovery = await invalid.text();
+    assert.match(recovery, /<h1>This invitation link can’t be used\.<\/h1>/);
+    assert.match(recovery, /Ask the person who invited you for a new link/);
+    assert.match(recovery, /href="\/me">Open your calls/);
+    assert.doesNotMatch(recovery, /Open your original invitation link/);
+    assert.match(await (await fetch(base + '/start?invite=')).text(), /This invitation link can’t be used/);
+    const invalidSubmit = await fetch(base + '/start', post({ ...fields, invite: 'unknown' }));
+    assert.equal(invalidSubmit.status, 409);
+    assert.match(await invalidSubmit.text(), /This invitation link can’t be used/);
     assert.equal(texts.length, 0);
     const landing = await fetch(base + '/start?invite=' + token('pilot'));
     assert.equal(landing.headers.get('referrer-policy'), 'no-referrer');
@@ -95,7 +107,7 @@ test('pilot link authorizes signup, preserves the draft and spends the seat only
     const friendLanding = await (await fetch(base + '/start?invite=' + token('friend-1'))).text();
     assert.match(friendLanding, /30 days, with up to four free calls/);
     assert.doesNotMatch(friendLanding, /NOK 189/);
-    assert.match(await (await fetch(base + '/start?invite=' + token('pilot'))).text(), /<h1>Bookings are by invitation<\/h1>/);
+    assert.match(await (await fetch(base + '/start?invite=' + token('pilot'))).text(), /<h1>This invitation link can’t be used\.<\/h1>/);
   } finally {
     process.env['WEEKLY_PILOT_INTAKE'] = '1';
     server.closeAllConnections();

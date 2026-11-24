@@ -53,7 +53,7 @@ if (process.argv.includes('--build')) {
     '/me': () => reschedulePage(slot, script, 'en', 'alex@example.com', undefined, { now, next, via: 'browser', contact: true, goals: true, account: { billing: 'active', canCall: true, paused: false } }),
     '/me/paused': () => reschedulePage(slot, script, 'en', undefined, undefined, { via: 'browser', account: { billing: 'active', canCall: true, paused: true, subscribed: true, resumeAt: next } }),
     '/me/rescheduled': () => reschedulePage(slot, script, 'en', undefined, undefined, { now, next: new Date(+next + 30 * 60_000), via: 'browser', scheduleNote: 'page.move.saved.once', account: { billing: 'active', canCall: true, paused: false } }),
-    '/me/just-paused': () => reschedulePage(slot, script, 'en', undefined, undefined, { via: 'browser', justPaused: true, account: { billing: 'active', canCall: true, paused: true, subscribed: true } }),
+    '/me/just-paused': () => reschedulePage(slot, script, 'en', undefined, undefined, { via: 'browser', justPaused: true, account: { billing: 'active', canCall: true, paused: true, subscribed: true, resumeAt: next } }),
     '/me/stop': () => confirmStopPage(script),
     '/me/stopped': () => stoppedPage(script),
     '/me/expired': () => gonePage(script),

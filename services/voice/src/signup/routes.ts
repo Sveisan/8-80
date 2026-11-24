@@ -54,7 +54,9 @@ export async function signupRoutes(req: IncomingMessage, url: URL, deps: LoopDep
   const pending = new Pending(store.raw);
   const page = (status: number, state: SignupFormState = {}): Answer => ({ status, body: signupPage(script, state, 'en', now),
     ...(state.invite ? { headers: { 'referrer-policy': 'no-referrer' } } : {}) });
-  const closed = (): Answer => ({ status: 409, body: invitationClosedPage(script), headers: { 'referrer-policy': 'no-referrer' } });
+  const closed = (unusable: boolean, status = 409): Answer => ({
+    status, body: invitationClosedPage(script, unusable), headers: { 'referrer-policy': 'no-referrer' },
+  });
   const invitation = async (token: string | null | undefined) => {
     const offer = await availableOffer(store.raw, token);
     return offer && (offer === 'friend' || pilotCheckoutReady()) && token ? { token, offer } : undefined;
@@ -69,7 +71,7 @@ export async function signupRoutes(req: IncomingMessage, url: URL, deps: LoopDep
     if (!config.signup.open()) return undefined;
     const token = url.searchParams.get('invite');
     const invite = await invitation(token);
-    if ((pilotIntake() || token) && !invite) return { ...closed(), status: 200 };
+    if ((pilotIntake() || token !== null) && !invite) return closed(token !== null, 200);
     await countRequest(store.raw, 'booking_view', now);
     return page(200, invite ? { invite } : {});
   }
@@ -80,7 +82,7 @@ export async function signupRoutes(req: IncomingMessage, url: URL, deps: LoopDep
   if (!form) return page(413, { note: 'signup.code.tryagain' });
   const token = form.get('invite');
   const invite = await invitation(token);
-  if ((pilotIntake() || token) && !invite && ['/start', '/start/preview'].includes(url.pathname)) return closed();
+  if ((pilotIntake() || token !== null) && !invite && ['/start', '/start/preview'].includes(url.pathname)) return closed(token !== null);
   if (url.pathname === '/start/preview') {
     const read = readBookingSlot(form, now);
     const values = Object.fromEntries(draftFields.map(k => [k, form.get(k) ?? '']));
@@ -123,7 +125,7 @@ export async function signupRoutes(req: IncomingMessage, url: URL, deps: LoopDep
       if (error instanceof InvitationUnavailable) return undefined;
       throw error;
     });
-    if (!verdict) return closed();
+    if (!verdict) return closed(true);
     if (!verdict.ok) {
       const key = { unknown: 'signup.code.unknown', expired: 'signup.code.expired', wrong: 'signup.code.wrong', 'too many': 'signup.code.toomany' }[verdict.why];
       return { status: 400, body: codePage(phone, script, key, 'en', draft, now) };
@@ -135,13 +137,13 @@ export async function signupRoutes(req: IncomingMessage, url: URL, deps: LoopDep
 
   if (url.pathname === '/start/edit') {
     const savedInvite = saved?.weeklyInvite ? await invitation(saved.weeklyInvite) : undefined;
-    if (saved?.weeklyInvite && !savedInvite) return closed();
+    if (saved?.weeklyInvite && !savedInvite) return closed(true);
     return saved ? page(200, { values: valuesOf(saved), ...(savedInvite ? { invite: savedInvite } : {}) }) : page(400, { note: 'signup.code.unknown' });
   }
   let signup: Signup;
   if (url.pathname === '/start/resend') {
     if (!saved) return page(400, { note: 'signup.code.unknown' });
-    if ((pilotIntake() || saved.weeklyInvite) && !await invitation(saved.weeklyInvite)) return closed();
+    if ((pilotIntake() || saved.weeklyInvite) && !await invitation(saved.weeklyInvite)) return closed(true);
     signup = saved;
   } else {
     const read = readSignup(form, now);

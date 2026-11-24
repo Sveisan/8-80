@@ -10,14 +10,14 @@ export const ACCOUNT_APPEARANCE_CSS = `
   }
   [data-theme="dark"] .call-overview h2 { color: var(--quiet); font-weight: 600; font-size: 1rem; }
   [data-theme="dark"] .call-overview .appointment { margin-block: .6rem .875rem; }
-  [data-theme="dark"] .call-overview .appointment-date { font-size: 1.125rem; font-weight: 500; }
-  [data-theme="dark"] .call-overview .appointment-time { line-height: 1.04; margin-top: .3rem; }
-  [data-theme="dark"] .call-overview .appointment-clock {
+  [data-theme="dark"] .call-overview > .appointment .appointment-date { font-size: 1.125rem; font-weight: 500; }
+  [data-theme="dark"] .call-overview > .appointment .appointment-time { line-height: 1.04; margin-top: .3rem; }
+  [data-theme="dark"] .call-overview > .appointment .appointment-clock {
     font: 500 clamp(3.45rem, 12vw, 5.35rem)/1.02 var(--font-display);
     font-variant-numeric: lining-nums tabular-nums; letter-spacing: -.032em;
   }
   [data-theme="dark"] .appointment-time small { color: var(--quiet); font-size: .9375rem; }
-  [data-theme="dark"] .call-overview .booking-clock { margin-top: -.35rem; }
+  [data-theme="dark"] .call-overview > .booking-clock { margin-top: -.35rem; }
   [data-theme="dark"] .call-controls button, [data-theme="dark"] .weekly-editor > summary { background: #223128; }
   [data-theme="dark"] .account-sidebar h2, [data-theme="dark"] .account-disclosure > summary { font-size: 1.125rem; }
   [data-theme="dark"] .account-sidebar > section:not(.call-overview) { margin-top: 1.2rem; }
