@@ -148,6 +148,28 @@ test('a skip form targets the displayed appointment and cannot skip twice', { sk
   });
 });
 
+test('a skip confirmation cannot replace a different Undo for the same appointment', { skip: skip() }, async () => {
+  const phone = '+4790000065';
+  const token = await enrolled(phone);
+  await store!.record(phone, { at: new Date().toISOString(), durationMs: 300_000, onboardingComplete: true });
+  const original = await sched!.setSlot(phone, OSLO);
+  const next = nextSlotAfter(original, OSLO);
+  await serving(async base => {
+    const first = { action: 'skip', skip_at: original.toISOString() };
+    const second = { action: 'skip', skip_at: next.toISOString() };
+    await post(base, token, first);
+    const review = await (await post(base, token, second)).text();
+    const receipt = /name="receipt" value="([^"]+)"/.exec(review)?.[1];
+    assert.ok(receipt);
+    assert.deepEqual(await sched!.nextCallFor(phone), next);
+
+    await post(base, token, { action: 'undo-skip', receipt });
+    await post(base, token, first);
+    assert.match(await (await post(base, token, { ...second, action: 'skip-confirm', receipt })).text(), /No call changed/);
+    assert.deepEqual(await sched!.nextCallFor(phone), next);
+  });
+});
+
 test('a reviewed move cannot overwrite a newer booking or silently change its proposed date', { skip: skip() }, async () => {
   const phone = '+4790000071';
   const token = await enrolled(phone);

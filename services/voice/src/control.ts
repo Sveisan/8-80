@@ -38,6 +38,7 @@ import {
   confirmForgetPage,
   confirmBillingPage,
   confirmStopPage,
+  confirmSkipPage,
   donePage,
   exportFailedPage,
   forgottenPage,
@@ -162,7 +163,6 @@ const html = (res: ServerResponse, status: number, body: string, headers: Record
 function phraseFor(form: URLSearchParams): string | undefined {
   const action = form.get('action');
   if (action === 'later') return 'later';
-  if (action === 'skip') return 'skip';
   // Through the parser like everything else, so the button and the text word
   // cannot come to mean different things. 'stop' alone only asks the question
   // — see the handler.
@@ -809,26 +809,42 @@ async function yourPage(
   }
   // Old pages may still submit “later”. Show the time picker rather than
   // treating that vague request as permission to pick an hour for them.
-  if (action === 'later' || (action === 'skip' && before)) return await page();
+  if (action === 'later') return await page();
 
-  let skipAt: Date | undefined;
-  if (action === 'skip') {
-    const value = form.get('skip_at') ?? '';
-    skipAt = new Date(value);
-    // A legacy or malformed form has no named occurrence to cancel.
-    if (!Number.isFinite(skipAt.getTime()) || skipAt.toISOString() !== value) return await page();
+  if (action === 'skip' || action === 'skip-confirm') {
+    if (before) return await page();
+    const value = form.get('skip_at');
+    const skipAt = new Date(value ?? '');
+    if (!Number.isFinite(+skipAt) || skipAt.toISOString() !== value) return await page();
+    const confirmed = action === 'skip-confirm';
+    const receipt = confirmed ? readSkipReceipt(form.get('receipt'), phoneHash) : undefined;
+    const result = await deps.store.raw.begin(async tx => {
+      const now = new Date();
+      // The same lock protects the check and the skip that replaces the receipt.
+      const current = await accountState(tx, phoneHash, now, 'for-update');
+      if (current?.scheduledAt?.getTime() !== +skipAt) return {};
+      const undo = current.skipUndo;
+      if (confirmed) {
+        if (!undo || receipt?.revision !== undo.revision || +receipt.replacementAt !== +skipAt) return {};
+      } else if (undo) {
+        return { review: undo };
+      }
+      const skipped = await new Scheduler(tx).skipCall(phone, now, skipAt);
+      return skipped.kind === 'skipped' ? { invitations: await syncCalendarInvitations(tx, phoneHash, deps.script) } : {};
+    });
+    if (result.review) {
+      return html(res, 200, confirmSkipPage(skipAt, new Date(result.review.skippedAt), slot,
+        skipReceipt(phoneHash, result.review), deps.script, language));
+    }
+    await measured(!!result.invitations);
+    for (const id of result.invitations ?? []) await dispatchMessage(deps, id);
+    return await page(undefined, undefined, { scheduleNote: result.invitations ? 'page.skip.saved' : 'page.skip.unchanged' });
   }
 
   const said = phraseFor(form);
   if (!said) return await page();
-  // Straight through the same path a text would take, so the two ways of
-  // moving a call cannot drift apart.
-  const reply = (scheduler: Scheduler) => handleReply(phone, said, slot, { script: deps.script, scheduler, sms: silent },
-    new Date(), { skipAt, language });
-  const [out, invitations] = action === 'skip'
-    ? await deps.store.raw.begin(async tx =>
-      [await reply(new Scheduler(tx)), await syncCalendarInvitations(tx, phoneHash, deps.script)] as const)
-    : [await reply(deps.scheduler), await syncCalendarInvitations(deps.store.raw, phoneHash, deps.script)] as const;
+  const out = await handleReply(phone, said, slot, { script: deps.script, scheduler: deps.scheduler, sms: silent }, new Date(), { language });
+  const invitations = await syncCalendarInvitations(deps.store.raw, phoneHash, deps.script);
   for (const id of invitations) await dispatchMessage(deps, id);
   await measured(['moved', 'moved_always', 'skipped', 'stopped', 'started'].includes(out.action));
   // Re-render persisted state after pause/resume, so a revisit shows the same
@@ -838,9 +854,6 @@ async function yourPage(
     return await page(undefined, undefined, { scheduleNote: out.action === 'moved_always' ? 'page.move.saved.weekly' : 'page.move.saved.once' });
   }
   if (out.action === 'unchanged' && action === 'move') return await page(undefined, undefined, { scheduleNote: 'page.move.unavailable' });
-  if (action === 'skip') return await page(undefined, undefined, {
-    scheduleNote: out.action === 'skipped' ? 'page.skip.saved' : 'page.skip.unchanged',
-  });
   if (action === 'start') return await page(undefined, undefined, {
     scheduleNote: out.action === 'started' ? 'page.account.resume.saved' : 'page.account.resume.unavailable',
   });

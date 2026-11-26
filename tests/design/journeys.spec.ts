@@ -6,7 +6,7 @@ test.beforeEach(async ({ request }) => { await fixture(request, 'reset'); });
 test('the invitation and account paths are distinct and the pilot booking action fits', async ({ page }, info) => {
   const preview = 'http://127.0.0.1:8790';
   const mobile = info.project.name === 'mobile-safari';
-  await page.setViewportSize(mobile ? { width: 320, height: 667 } : { width: 1280, height: 768 });
+  await page.setViewportSize(mobile ? { width: 320, height: 568 } : { width: 1280, height: 720 });
   await page.goto(preview + '/start/closed');
   await expect(page.getByRole('heading', { name: 'Bookings are by invitation' })).toBeVisible();
   await expect(page.locator('.brand-lockup--wordmark-only')).toHaveText('8&80');
@@ -43,6 +43,40 @@ test('the invitation and account paths are distinct and the pilot booking action
   const followup = page.getByRole('checkbox', { name: /Keep what matters in view/ });
   await expect(followup).toBeVisible();
   await expect(followup).not.toBeChecked();
+});
+
+test('booking sends signed-out visitors to the account entry point', async ({ page }) => {
+  await page.goto('/start');
+  const accountLink = page.getByRole('navigation').getByRole('link', { name: 'Your calls', exact: true });
+  await activate(accountLink);
+  await expect(page).toHaveURL(/\/me$/);
+  await expect(page.getByRole('button', { name: 'Text me a code' })).toBeVisible();
+});
+
+test('a second skip identifies both calls and lets the user keep the previous Undo', async ({ page, request }) => {
+  const { link } = await fixture(request, 'seed', { paid: true });
+  await page.goto(String(link));
+  const original = await page.locator('.appointment').getAttribute('datetime');
+  const skip = page.getByRole('button', { name: 'Skip this call' });
+  await activate(skip);
+  await expect(page.locator('.skip-appointment')).toHaveAttribute('datetime', original!);
+  const next = await page.locator('.appointment').getAttribute('datetime');
+  await activate(skip);
+  await expect(page.getByRole('heading', { name: 'Skip another call?' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Call to skip' }).locator('time')).toHaveAttribute('datetime', next!);
+  await expect(page.getByRole('region', { name: 'Earlier skip whose Undo will be removed' }).locator('time')).toHaveAttribute('datetime', original!);
+  const confirm = page.getByRole('button', { name: 'Confirm skip' });
+  await expect(confirm).toHaveAccessibleDescription('You’ll only be able to undo the latest skip.');
+  await activate(page.getByRole('link', { name: 'Cancel change' }));
+  await expect(page.locator('.skip-appointment')).toHaveAttribute('datetime', original!);
+  await expect(page.locator('.appointment')).toHaveAttribute('datetime', next!);
+
+  await activate(skip);
+  await activate(confirm);
+  await expect(page.locator('.skip-appointment')).toHaveAttribute('datetime', next!);
+  await expect(page.locator('.appointment')).not.toHaveAttribute('datetime', next!);
+  await activate(page.getByRole('button', { name: 'Undo skip' }));
+  await expect(page.locator('.appointment')).toHaveAttribute('datetime', next!);
 });
 
 test('a paused account explains when free access ends before the next call', async ({ page, request }, info) => {
@@ -429,6 +463,10 @@ test('site appearance follows the browser preference through scheduling and navi
   await page.goto('/me');
   await appearance('dark');
   await signIn(page, request, phone);
+  await page.goto('/start');
+  await activate(page.getByRole('navigation').getByRole('link', { name: 'Your calls', exact: true }));
+  await expect(page).toHaveURL(/\/me$/);
+  await expect(page.getByRole('heading', { name: 'Your next call' })).toBeVisible();
   if (testInfo.project.name === 'mobile-safari') await page.setViewportSize({ width: 320, height: 667 });
   await page.goto('/me');
   const original = await page.locator('.appointment').getAttribute('datetime');
