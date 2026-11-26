@@ -162,7 +162,7 @@ export function signupPage(
 
   return shell(
     `
-    <nav class="product-nav" aria-label="Products"><span aria-current="page">${say('signup.nav.weekly')}</span><a href="/unblock">Unblock</a><a href="/access">${say('page.title')}</a>${themeSwitch}</nav>
+    <nav class="product-nav" aria-label="Products"><span aria-current="page">${say('signup.nav.weekly')}</span><a href="/unblock">Unblock</a><a href="/me">${say('page.title')}</a>${themeSwitch}</nav>
     <div class="signup-layout">
     <section class="signup-intro" aria-labelledby="intro-heading">
     ${LOCKUP}
@@ -241,7 +241,7 @@ export function signupPage(
     </div>
     <div class="returning">
       <p>${say('access.returning')}</p>
-      <a href="/access">${say('access.title')} <span aria-hidden="true">&rarr;</span></a>
+      <a href="/me">${say('access.title')} <span aria-hidden="true">&rarr;</span></a>
     </div>
 
     <p class="quiet small centre product-note">${say('signup.unblock')} <a href="/unblock">Explore Unblock</a>.</p>
@@ -396,7 +396,7 @@ export { clock };
  * tokens as the reschedule page. Written for a 360px screen first; a wider one
  * only gets more margin.
  */
-function shell(body: string, language = 'en', wide = false): string {
+function shell(body: string, language = 'en', wide = false, toolbar = wide ? '' : themeToolbar): string {
   return `<!doctype html>
 <html lang="${esc(language)}" data-theme="dark">
 <head>${BRAND_HEAD}${themeInit}
@@ -407,14 +407,14 @@ function shell(body: string, language = 'en', wide = false): string {
 ${FOUNDATION_CSS}${CONTROL_CSS}${SIGNUP_CSS}
 </style>
 </head>
-<body${wide ? ' class="signup-page"' : ''}><!--email_off--><main${wide ? ' class="signup-wide"' : ''}>${wide ? '' : themeToolbar}${body}</main>${themeControl}${BUSY}${MOTION}${feedbackWidget()}<!--/email_off--></body>
+<body${wide ? ' class="signup-page"' : ''}><!--email_off--><main${wide ? ' class="signup-wide"' : ''}>${toolbar}${body}</main>${themeControl}${BUSY}${MOTION}${feedbackWidget()}<!--/email_off--></body>
 </html>`;
 }
 
 export function invitationClosedPage(script: ScriptLines, unusable = false): string {
   const say = (key: string) => esc(script.get(key) ?? '');
   return shell(`
-    ${LOCKUP}
+    <header class="lockup invitation-header">${brandLockup()}${themeSwitch}</header>
     <h1>${say(unusable ? 'signup.invite.unusable' : 'signup.invite.closed')}</h1>
     <p class="invitation-intro">${say(unusable ? 'signup.invite.replace' : 'signup.invite.intro')}</p>
     ${unusable ? '' : `<section class="invitation-path" aria-labelledby="invitation-heading">
@@ -425,5 +425,5 @@ export function invitationClosedPage(script: ScriptLines, unusable = false): str
       <h2 id="booked-heading">${say('signup.invite.booked')}</h2>
       <a class="button primary" href="/me">${say('access.title')}</a>
     </section>
-  `);
+  `, 'en', false, '');
 }

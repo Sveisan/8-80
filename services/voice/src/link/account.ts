@@ -1,5 +1,5 @@
 import type { WeeklyOffer } from '../weekly/intro-pilot.ts';
-import type postgres from 'postgres';
+import type { Database } from '../store/transaction.ts';
 import type { StoredSkipUndo } from '../schedule/scheduler.ts';
 import { resumeAppointment, type ResumeSchedule } from '../schedule/resume.ts';
 
@@ -29,11 +29,12 @@ export interface AccountState {
 }
 
 /** One snapshot of the conditions the scheduler uses, including the trial boundary. */
-export async function accountState(sql: postgres.Sql, hash: string, now = new Date()): Promise<AccountState | undefined> {
+export async function accountState(sql: Database, hash: string, now = new Date(), lock?: 'for-update'): Promise<AccountState | undefined> {
   const [row] = await sql<(ResumeSchedule & { paused: boolean; weekly_offer: WeeklyOffer | null; weekly_free_calls_used: number; web_skip_undo: StoredSkipUndo | null; ls_subscription_id: string | null; feedback_opt_out: boolean; voice: string | null; nudges_enabled: boolean; calendar_invites_enabled: boolean; google_calendar: boolean })[]>`
     select paused, all_calls_stopped, weekly_offer, weekly_free_calls_used, billing_status, trial_ends_at, next_call_at, slot_weekday, slot_minute, timezone, web_skip_undo, ls_subscription_id, cancel_at_period_end, paid_until, feedback_opt_out, held_for_review, voice, nudges_enabled, calendar_invites_enabled,
       exists(select 1 from calendar_invitations i where i.phone_hash=callers.phone_hash and i.provider='google' and i.state='active') as google_calendar
       from callers where phone_hash = ${hash}
+    ${lock ? sql`for update` : sql``}
   `;
   if (!row) return undefined;
   const trial = row.billing_status === 'trialing';

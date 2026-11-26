@@ -160,6 +160,7 @@ export const SIGNUP_CSS = `
   .booking-offer { font-size: var(--text-small); color: var(--quiet); margin: 0 0 var(--space-4); }
   .booking-offer strong { color: var(--ink); }
   .booking-offer span { display: block; }
+  .invitation-header { justify-content: space-between; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-5); }
   .invitation-intro { color: var(--quiet); margin: var(--space-3) 0 var(--space-5); }
   .invitation-path { padding-top: var(--space-4); margin-top: var(--space-4); border-top: 1px solid var(--line); }
   .invitation-path h2 { font-size: var(--text-small); margin: 0 0 var(--space-2); }
@@ -229,6 +230,14 @@ export const SIGNUP_CSS = `
   }
   @media (min-width: ${breakpoints.medium}) {
     body { padding-top: var(--space-16); }
+  }
+  @media (min-width: ${breakpoints.split}) and (max-height: 760px) {
+    .signup-page:has(.booking-panel--invited) { padding-top: max(var(--space-2), env(safe-area-inset-top)); }
+    .signup-page:has(.booking-panel--invited) .product-nav { margin-bottom: var(--space-2); }
+    .booking-panel--invited { padding-block: var(--space-3); }
+    .booking-panel--invited .fields label { padding-top: var(--space-1); }
+    .booking-panel--invited fieldset#when { margin-top: var(--space-2); }
+    .booking-panel--invited #signup-verify { margin-bottom: var(--space-1); }
   }
 `;
 

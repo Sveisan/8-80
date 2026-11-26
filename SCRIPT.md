@@ -1630,6 +1630,21 @@ and no way to send START, so the way back cannot live only in a message._
 `page.skip.deadline`
 > "Call skipped. You can undo before its original time."
 
+`page.skip.confirm.title`
+> Skip another call?
+
+`page.skip.confirm.next`
+> Call to skip
+
+`page.skip.confirm.previous`
+> Earlier skip whose Undo will be removed
+
+`page.skip.confirm.warning`
+> You’ll only be able to undo the latest skip.
+
+`page.skip.confirm.button`
+> Confirm skip
+
 `page.skip.unchanged`
 > "No call changed. Check the schedule below."
 

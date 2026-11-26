@@ -488,6 +488,32 @@ function billingContinues(state?: AccountState): boolean {
   return !!state?.subscribed && !state.cancelAtPeriodEnd && ['active', 'past_due'].includes(state.billing);
 }
 
+export function confirmSkipPage(next: Date, previous: Date, slot: Slot, receipt: string, script: ScriptLines, language = 'en'): string {
+  const say = (id: string) => esc(script.get(id) ?? '');
+  return shell(`<div class="move-review">
+    <header class="review-header">
+      <h1>${say('page.skip.confirm.title')}</h1>
+      <a href="?" class="account-link">${say('page.move.cancel')}</a>
+    </header>
+    <div class="review-schedule">
+      <section class="review-slot" aria-labelledby="skip-next">
+        <h2 id="skip-next">${say('page.skip.confirm.next')}</h2>
+        ${appointmentTime(next, slot.timezone, script, language)}
+      </section>
+      <section class="review-slot" aria-labelledby="skip-previous">
+        <h2 id="skip-previous">${say('page.skip.confirm.previous')}</h2>
+        ${appointmentTime(previous, slot.timezone, script, language)}
+      </section>
+    </div>
+    <p class="hint" id="skip-warning">${say('page.skip.confirm.warning')}</p>
+    <form method="post" action="?" class="review-actions">
+      <input type="hidden" name="skip_at" value="${esc(next.toISOString())}" />
+      <input type="hidden" name="receipt" value="${esc(receipt)}" />
+      <button name="action" value="skip-confirm" class="primary" aria-describedby="skip-warning">${busyLabel(say('page.skip.confirm.button'))}</button>
+    </form>
+  </div>${LOCAL_APPOINTMENT_CLOCKS}`, language, 'weekly-account account-review', script);
+}
+
 export function confirmStopPage(script: ScriptLines, language = 'en', state?: AccountState): string {
   const say = (id: string): string => esc(script.get(id) ?? '');
   return shell(
