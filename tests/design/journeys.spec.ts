@@ -45,19 +45,12 @@ test('the invitation and account paths are distinct and the pilot booking action
   await expect(followup).not.toBeChecked();
 });
 
-test('booking takes returning visitors through the account entry point', async ({ page, request }) => {
+test('booking sends signed-out visitors to the account entry point', async ({ page }) => {
   await page.goto('/start');
   const accountLink = page.getByRole('navigation').getByRole('link', { name: 'Your calls', exact: true });
   await activate(accountLink);
   await expect(page).toHaveURL(/\/me$/);
   await expect(page.getByRole('button', { name: 'Text me a code' })).toBeVisible();
-
-  const { phone } = await fixture(request, 'seed', { paid: true });
-  await signIn(page, request, String(phone));
-  await page.goto('/start');
-  await activate(accountLink);
-  await expect(page).toHaveURL(/\/me$/);
-  await expect(page.getByRole('heading', { name: 'Your next call' })).toBeVisible();
 });
 
 test('a second skip identifies both calls and lets the user keep the previous Undo', async ({ page, request }) => {
@@ -470,6 +463,10 @@ test('site appearance follows the browser preference through scheduling and navi
   await page.goto('/me');
   await appearance('dark');
   await signIn(page, request, phone);
+  await page.goto('/start');
+  await activate(page.getByRole('navigation').getByRole('link', { name: 'Your calls', exact: true }));
+  await expect(page).toHaveURL(/\/me$/);
+  await expect(page.getByRole('heading', { name: 'Your next call' })).toBeVisible();
   if (testInfo.project.name === 'mobile-safari') await page.setViewportSize({ width: 320, height: 667 });
   await page.goto('/me');
   const original = await page.locator('.appointment').getAttribute('datetime');
